@@ -179,7 +179,9 @@ main,footer{position:relative;z-index:1}
 .host.a{transform:rotateY(5deg) translateX(1.5%);transform-origin:right center;box-shadow:inset 120px 0 160px -120px rgba(242,166,80,.45)}
 .host.g{transform:rotateY(-5deg) translateX(-1.5%);transform-origin:left center;box-shadow:inset -120px 0 160px -120px rgba(169,200,238,.45)}
 .room:hover .host,.room:focus-within .host{transform:none}
-.host img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9}
+.host img{position:absolute;left:0;right:0;bottom:0;top:13%;width:100%;height:87%;object-fit:contain;filter:saturate(.92) contrast(1.04)}
+.host.a img{object-position:left bottom}
+.host.g img{object-position:right bottom}
 .host::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(7,8,10,.92));pointer-events:none}
 .host::before{content:"";position:absolute;top:-20%;bottom:-20%;width:34%;left:-50%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.07),transparent);transform:skewX(-18deg);animation:glass 11s ease-in-out infinite;z-index:1;pointer-events:none}
 .host.g::before{animation-delay:-5.5s}
@@ -245,7 +247,7 @@ main,footer{position:relative;z-index:1}
 /* launch */
 .launch{min-height:120svh;display:grid;place-items:center;text-align:center;padding:20svh var(--pad)}
 .launch p:first-child{font-size:clamp(1.5rem,5vw,4.6rem);color:var(--chrome-hi)}
-.launch h2{font-size:clamp(3rem,15vw,15rem);max-width:none;line-height:.86;margin-top:.2em}
+.launch h2{font-size:clamp(2.6rem,12.5vw,13rem);max-width:none;line-height:.86;margin-top:.2em}
 .launch h2 span{display:block}
 .launch h2 .yr{-webkit-text-stroke:1px rgba(201,206,214,.7);color:transparent;background:none;font-weight:900}
 
@@ -334,12 +336,12 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   <h2 class="disp">Two hosts. One room.</h2>
   <div class="room">
     <article class="host a">
-      <!-- ASSET: <img src="assets/andrej.jpg" alt="Andrej Kneisl" loading="lazy"> -->
+      <img src="assets/andrej.webp" alt="Andrej Kneisl" width="678" height="1200" loading="lazy" decoding="async">
       <div class="clock"><span class="meta">Vienna local</span><time id="tV">--:--</time></div>
       <div><h3 class="disp">Andrej<br>Kneisl</h3><p class="where">Vienna</p></div>
     </article>
     <article class="host g">
-      <!-- ASSET: <img src="assets/georgie.jpg" alt="Georgie Walker" loading="lazy"> -->
+      <img src="assets/georgie.webp" alt="Georgie Walker" width="760" height="1128" loading="lazy" decoding="async">
       <div class="clock"><span class="meta">Melbourne local</span><time id="tM">--:--</time></div>
       <div><h3 class="disp">Georgie<br>Walker</h3><p class="where">Melbourne</p></div>
     </article>
@@ -459,8 +461,10 @@ const TRACKS = [
   {title:'DISTANCE // ZERO', len:'1:34', src:'assets/music-distance-zero.mp3'},
   {title:'January', len:'1:54', src:'assets/music-january.mp3'}
 ];
-/* soundtrack: off until the visitor starts it */
-const music = new Audio(); music.preload = 'none'; let tIdx = 0;
+/* soundtrack: starts on open where the browser allows it, otherwise on the first tap, click or key.
+   Turning it off is remembered for the next visit. */
+const music = new Audio(); music.preload = 'auto'; let tIdx = 0, wantSound = true;
+try { if (localStorage.getItem('dz-sound') === 'off') wantSound = false; } catch(e){}
 const snd = $('#snd'), sndLabel = $('#sndLabel'), heroPlay = $('#heroPlay');
 function sndUI(){ const on = !music.paused; snd.classList.toggle('on', on); snd.setAttribute('aria-pressed', on); sndLabel.textContent = on ? 'SOUND ON' : 'SOUND OFF';
   heroPlay.innerHTML = on ? '&#10074;&#10074;&ensp;PAUSE THE SOUNDTRACK' : '&#9654;&ensp;PLAY THE SOUNDTRACK';
@@ -470,11 +474,19 @@ function playTrack(i){ tIdx = (i + TRACKS.length) % TRACKS.length; music.src = T
 music.addEventListener('ended', () => playTrack(tIdx + 1).catch(()=>{}));
 music.addEventListener('play', sndUI); music.addEventListener('pause', sndUI);
 function startMusic(){ return (music.src ? music.play() : playTrack(0)); }
-snd.onclick = heroPlay.onclick = () => { if (music.paused) startMusic().catch(()=>{}); else music.pause(); };
+snd.onclick = heroPlay.onclick = () => { wantSound = music.paused; if (wantSound) startMusic().catch(()=>{}); else music.pause();
+  try { localStorage.setItem('dz-sound', wantSound ? 'on' : 'off'); } catch(e){} };
 TRACKS.forEach((t,i) => { const li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('b'), d = document.createElement('span');
   n.style.fontWeight = 500; n.textContent = t.title; d.textContent = t.len; b.append(n, d); b.setAttribute('aria-label', 'Play ' + t.title);
-  b.onclick = () => playTrack(i).catch(()=>{}); li.append(b); $('#trackList').append(li); });
+  b.onclick = () => { wantSound = true; playTrack(i).catch(()=>{}); }; li.append(b); $('#trackList').append(li); });
 sndUI();
+if (wantSound){
+  const evs = ['pointerup','keydown','touchend','click'];
+  const go = e => { evs.forEach(ev => removeEventListener(ev, go, true));
+    if (e.target.closest && e.target.closest('#snd,#heroPlay,#trackList')) return; /* those buttons handle sound themselves */
+    if (wantSound && music.paused) startMusic().catch(()=>{}); };
+  startMusic().catch(() => evs.forEach(ev => addEventListener(ev, go, true)));
+}
 
 /* nav */
 const nav = $('#nav'), burger = $('#burger');
