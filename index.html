@@ -165,30 +165,91 @@ main,footer{position:relative;z-index:1}
 @keyframes rv{to{opacity:1;transform:none;filter:none}}
 
 /* concept — scroll collapses the distance */
-.concept{height:340vh;position:relative}
+.concept{position:relative}
+.concept-track{height:340vh;position:relative}
 .stick{position:sticky;top:0;height:100svh;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 var(--pad);overflow:hidden}
-.city{font-size:clamp(1.4rem,4.4vw,4.6rem);will-change:transform}
+.city{font-size:clamp(1.3rem,2.9vw,3.4rem);will-change:transform}
 .city small{display:block;font-stretch:100%;font-weight:400;letter-spacing:.2em;font-size:.72rem;margin-top:.9em;color:var(--dim);text-transform:uppercase}
-.city.v{color:var(--amber);transform:translateX(calc(var(--p,0)*14vw))}
-.city.m{color:var(--ice);text-align:right;transform:translateX(calc(var(--p,0)*-14vw))}
+.city.v{color:var(--amber);justify-self:start}
+.city.m{color:var(--ice);text-align:right;justify-self:end}
 .gap{text-align:center;padding:0 2vw}
-.count{font-stretch:125%;font-weight:200;font-size:clamp(2.4rem,9vw,9.5rem);line-height:1;color:var(--chrome-hi);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.count{display:inline-block;font-stretch:125%;font-weight:200;font-size:clamp(2.4rem,7vw,8rem);line-height:1;color:var(--chrome-hi);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .count b{font-weight:200;font-size:.28em;letter-spacing:.3em;margin-left:.4em;color:var(--dim)}
 .seq{position:absolute;left:var(--pad);right:var(--pad);bottom:11svh;display:flex;justify-content:space-between;list-style:none;padding:0;font-stretch:112%;font-size:clamp(.58rem,.9vw,.78rem);letter-spacing:.24em}
 .seq li{color:#444a53;transition:color .6s;position:relative;padding-top:14px}
 .seq li::before{content:"";position:absolute;top:0;left:0;width:100%;height:1px;background:currentColor;opacity:.5}
 .seq li.on{color:var(--chrome-hi)}
 .lines{position:absolute;top:13svh;left:var(--pad);right:var(--pad);display:flex;justify-content:space-between;font-size:clamp(.85rem,1.3vw,1.1rem);color:var(--dim)}
+/* globe behind the DISTANCE -> ZERO moment: same text, same scroll story */
+.globe{position:absolute;left:50%;top:50%;width:min(86svh,58vw);height:min(86svh,58vw);transform:translate(-50%,-50%);z-index:0;pointer-events:none}
+.stick>*:not(.globe){position:relative;z-index:1}
+.stick>.lines,.stick>.seq,.stick>.zero-line{position:absolute}
+.count{text-shadow:0 0 30px rgba(7,8,10,.9),0 0 8px rgba(7,8,10,.9)}
+.city{text-shadow:0 0 24px rgba(7,8,10,.95)}
+@media (max-width:700px){.globe{width:min(118vw,64svh);height:min(118vw,64svh)}}
 .zero-line{position:absolute;left:0;right:0;top:calc(50% + clamp(60px,9vw,130px));text-align:center;font-size:clamp(1rem,2vw,1.6rem);font-weight:300;color:var(--chrome-hi);opacity:var(--z,0);transition:opacity .6s;padding:0 var(--pad)}
 @media (max-width:700px){
   .stick{grid-template-columns:1fr;grid-template-rows:1fr auto 1fr;text-align:center;padding-top:16svh;padding-bottom:20svh}
-  .city.v{transform:translateY(calc(var(--p,0)*2.2svh));align-self:end}
-  .city.m{text-align:center;transform:translateY(calc(var(--p,0)*-2.2svh));align-self:start}
+  .city.v{transform:translateY(calc(var(--p,0)*2.2svh))!important;align-self:end;justify-self:center}
+  .city.m{text-align:center;transform:translateY(calc(var(--p,0)*-2.2svh))!important;align-self:start;justify-self:center}
   .gap{padding:3svh 0}
   .lines{top:10svh;font-size:.8rem}.lines span:nth-child(2){display:none}
   .zero-line{top:auto;bottom:17svh}
   .seq{bottom:7svh;gap:6px}.seq li{letter-spacing:.02em;font-size:.6rem;flex:1;text-align:center}
 }
+
+/* mirrored airport system: each city has departures AND arrivals of the same journey */
+.flight{position:relative;z-index:1;padding:clamp(40px,6vw,90px) var(--pad) clamp(70px,9vw,120px)}
+.route{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:clamp(10px,2vw,24px);max-width:1100px;margin:0 auto clamp(34px,5vw,60px);
+  font-stretch:112%;font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--dim)}
+.route b{font-stretch:125%;font-weight:700;letter-spacing:.12em;font-size:clamp(1rem,1.8vw,1.4rem);color:var(--chrome-hi)}
+.route b.v{color:var(--amber)} .route b.m{color:var(--ice)}
+.route i{height:1px;background:linear-gradient(90deg,var(--amber),var(--chrome-hi));position:relative}
+.route i+span+i{background:linear-gradient(90deg,var(--chrome-hi),var(--ice))}
+.route span{text-align:center;line-height:1.7}
+.route span em{display:block;font-style:normal;color:var(--chrome-hi);letter-spacing:.2em}
+.cities{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2vw,28px)}
+.board{--acc:var(--amber);--acc-rgb:242,166,80;position:relative;background:linear-gradient(180deg,#121419,#0b0c0f);border:1px solid rgba(201,206,214,.16);padding:clamp(16px,2vw,26px);
+  box-shadow:0 30px 80px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.05)}
+.board.m{--acc:var(--ice);--acc-rgb:169,200,238}
+.board::before{content:"";position:absolute;left:-1px;right:-1px;top:-1px;height:2px;background:linear-gradient(90deg,var(--acc),transparent 75%)}
+.board.m::before{background:linear-gradient(270deg,var(--acc),transparent 75%)}
+.b-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;padding-bottom:14px;border-bottom:1px solid rgba(201,206,214,.12)}
+.b-city{font-stretch:125%;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--chrome-hi);font-size:clamp(1.05rem,1.8vw,1.5rem);line-height:1}
+.b-city span{color:var(--acc);font-weight:400;margin-left:.35em}
+.b-clock{text-align:right;white-space:nowrap}
+.b-clock small{display:block;font-stretch:112%;font-size:.58rem;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+.leg{margin-top:clamp(14px,1.6vw,20px)}
+.leg h4{display:flex;align-items:center;gap:10px;font-stretch:112%;font-weight:700;font-size:.66rem;letter-spacing:.26em;color:var(--chrome-hi);text-transform:uppercase;margin-bottom:8px}
+.leg h4 i{font-style:normal;color:var(--acc)}
+.leg h4 small{font-weight:400;color:var(--dim);letter-spacing:.2em}
+.cols,.frow{display:grid;grid-template-columns:10fr 5fr 8fr 9fr 10fr;gap:0 clamp(6px,.9vw,12px);align-items:center}
+.cols{font-stretch:112%;font-size:.54rem;letter-spacing:.2em;color:#5d636c;text-transform:uppercase;padding:0 0 6px}
+.frow{padding:5px 0;border-top:1px solid rgba(201,206,214,.06)}
+.frow.next{background:linear-gradient(90deg,rgba(var(--acc-rgb),.07),transparent 70%)}
+.flaps{display:inline-flex;gap:1.5px;flex-wrap:nowrap}
+.flap{position:relative;display:inline-grid;place-items:center;width:.86em;height:1.36em;font-stretch:100%;font-weight:600;font-size:clamp(.66rem,.82vw,.86rem);color:var(--chrome-hi);
+  background:linear-gradient(180deg,#1d2026 0 49%,#16181d 51% 100%);border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);overflow:hidden}
+.flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.65)}
+.flap.sp{background:linear-gradient(180deg,#15171b 0 49%,#111316 51% 100%)}
+.flap.go{animation:flip .09s linear}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(-80deg);filter:brightness(.6)}100%{transform:rotateX(0)}}
+.f-time .flap{color:var(--acc)}
+.frow:not(.next) .flap{color:#aeb4bd}
+.frow:not(.next) .f-time .flap{color:rgba(var(--acc-rgb),.7)}
+.f-stat.live .flap{color:#ff6b6b}
+.flaps.big .flap{font-size:clamp(1.1rem,1.9vw,1.6rem);width:.86em}
+.b-colon{display:inline-block;width:.36em;text-align:center;color:var(--acc);font-weight:600;font-size:clamp(1.1rem,1.9vw,1.6rem);animation:colon 1s steps(1) infinite}
+@keyframes colon{50%{opacity:.25}}
+@media (max-width:1279px){.cities{grid-template-columns:1fr;max-width:860px;margin:0 auto}.flap{font-size:clamp(.72rem,1.6vw,.95rem)}}
+@media (max-width:600px){
+  .route{grid-template-columns:auto 1fr auto;font-size:.6rem}.route i+span+i,.route span{display:none}.route .km{display:block;grid-column:2}
+  .cols{display:none}
+  .frow{grid-template-columns:auto 1fr;grid-template-areas:"t c" "d s" "f f";gap:5px 10px;padding:9px 0}
+  .f-time{grid-area:t}.f-city{grid-area:c}.f-date{grid-area:d}.f-stat{grid-area:s;justify-self:end}.f-fl{grid-area:f}.f-fl .flap{font-size:.68rem;color:#8a9099}
+  .flap{font-size:.8rem}.f-time .flap,.f-city .flap{font-size:.95rem}
+}
+.route .km{display:none}
 
 /* generic section */
 .sec{padding:clamp(90px,14vw,200px) var(--pad);position:relative}
@@ -471,6 +532,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 .room.tilt .host{transition:transform .25s ease-out}
 
 @media (prefers-reduced-motion:reduce){
+  .flap.go,.b-colon{animation:none}
   .ticker div{animation:none}
   .glow{display:none}
   html{scroll-behavior:auto}
@@ -511,7 +573,9 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 </section>
 
 <section class="concept" id="concept" aria-label="The concept">
+  <div class="concept-track" id="conceptTrack">
   <div class="stick">
+    <canvas class="globe" id="globe" aria-hidden="true"></canvas>
     <div class="lines" aria-hidden="true"><span>Two people.</span><span>Two cities.</span><span>Two sides of the world.</span></div>
     <div class="city v disp">Vienna<small>48.21° N // 16.37° E</small></div>
     <div class="gap"><div class="count" id="count" aria-live="off">15,731<b>KM</b></div></div>
@@ -521,7 +585,51 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
       <li>TWO WORLDS</li><li>DISTANCE</li><li>SOUND</li><li>CONNECTION</li><li>ZERO</li>
     </ol>
   </div>
+  </div>
+
+  <div class="flight" id="flight" aria-label="One show, two continents, two local times">
+    <div class="route"><b class="v">VIE</b><i></i><span class="mid">15,731 km <em>Flight time 0h 00m</em></span><i></i><b class="m">MEL</b><span class="km">15,731 km // 0h 00m</span></div>
+    <div class="cities">
+      <article class="board v" aria-labelledby="bV">
+        <header class="b-head"><h3 class="b-city" id="bV">Vienna<span>/ VIE</span></h3>
+          <div class="b-clock"><small>Local time</small><span class="flaps big" data-f="vH"></span><span class="b-colon">:</span><span class="flaps big" data-f="vM"></span></div></header>
+        <div class="leg">
+          <h4>Departures <i>&rarr;</i> <small>MEL</small></h4>
+          <div class="cols" aria-hidden="true"><span>Date</span><span>Time</span><span>Flight</span><span>To</span><span>Status</span></div>
+          <div class="frow next"><span class="flaps f-date" data-f="vdep0d"></span><span class="flaps f-time" data-f="vdep0t"></span><span class="flaps f-fl" data-f="vdep0f"></span><span class="flaps f-city" data-f="vdep0c"></span><span class="flaps f-stat" data-f="vdep0s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="vdep1d"></span><span class="flaps f-time" data-f="vdep1t"></span><span class="flaps f-fl" data-f="vdep1f"></span><span class="flaps f-city" data-f="vdep1c"></span><span class="flaps f-stat" data-f="vdep1s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="vdep2d"></span><span class="flaps f-time" data-f="vdep2t"></span><span class="flaps f-fl" data-f="vdep2f"></span><span class="flaps f-city" data-f="vdep2c"></span><span class="flaps f-stat" data-f="vdep2s"></span></div>
+        </div>
+        <div class="leg">
+          <h4>Arrivals <i>&larr;</i> <small>MEL</small></h4>
+          <div class="cols" aria-hidden="true"><span>Date</span><span>Time</span><span>Flight</span><span>From</span><span>Status</span></div>
+          <div class="frow next"><span class="flaps f-date" data-f="varr0d"></span><span class="flaps f-time" data-f="varr0t"></span><span class="flaps f-fl" data-f="varr0f"></span><span class="flaps f-city" data-f="varr0c"></span><span class="flaps f-stat" data-f="varr0s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="varr1d"></span><span class="flaps f-time" data-f="varr1t"></span><span class="flaps f-fl" data-f="varr1f"></span><span class="flaps f-city" data-f="varr1c"></span><span class="flaps f-stat" data-f="varr1s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="varr2d"></span><span class="flaps f-time" data-f="varr2t"></span><span class="flaps f-fl" data-f="varr2f"></span><span class="flaps f-city" data-f="varr2c"></span><span class="flaps f-stat" data-f="varr2s"></span></div>
+        </div>
+      </article>
+      <article class="board m" aria-labelledby="bM">
+        <header class="b-head"><h3 class="b-city" id="bM">Melbourne<span>/ MEL</span></h3>
+          <div class="b-clock"><small>Local time</small><span class="flaps big" data-f="mH"></span><span class="b-colon">:</span><span class="flaps big" data-f="mM"></span></div></header>
+        <div class="leg">
+          <h4>Departures <i>&rarr;</i> <small>VIE</small></h4>
+          <div class="cols" aria-hidden="true"><span>Date</span><span>Time</span><span>Flight</span><span>To</span><span>Status</span></div>
+          <div class="frow next"><span class="flaps f-date" data-f="mdep0d"></span><span class="flaps f-time" data-f="mdep0t"></span><span class="flaps f-fl" data-f="mdep0f"></span><span class="flaps f-city" data-f="mdep0c"></span><span class="flaps f-stat" data-f="mdep0s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="mdep1d"></span><span class="flaps f-time" data-f="mdep1t"></span><span class="flaps f-fl" data-f="mdep1f"></span><span class="flaps f-city" data-f="mdep1c"></span><span class="flaps f-stat" data-f="mdep1s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="mdep2d"></span><span class="flaps f-time" data-f="mdep2t"></span><span class="flaps f-fl" data-f="mdep2f"></span><span class="flaps f-city" data-f="mdep2c"></span><span class="flaps f-stat" data-f="mdep2s"></span></div>
+        </div>
+        <div class="leg">
+          <h4>Arrivals <i>&larr;</i> <small>VIE</small></h4>
+          <div class="cols" aria-hidden="true"><span>Date</span><span>Time</span><span>Flight</span><span>From</span><span>Status</span></div>
+          <div class="frow next"><span class="flaps f-date" data-f="marr0d"></span><span class="flaps f-time" data-f="marr0t"></span><span class="flaps f-fl" data-f="marr0f"></span><span class="flaps f-city" data-f="marr0c"></span><span class="flaps f-stat" data-f="marr0s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="marr1d"></span><span class="flaps f-time" data-f="marr1t"></span><span class="flaps f-fl" data-f="marr1f"></span><span class="flaps f-city" data-f="marr1c"></span><span class="flaps f-stat" data-f="marr1s"></span></div>
+          <div class="frow"><span class="flaps f-date" data-f="marr2d"></span><span class="flaps f-time" data-f="marr2t"></span><span class="flaps f-fl" data-f="marr2f"></span><span class="flaps f-city" data-f="marr2c"></span><span class="flaps f-stat" data-f="marr2s"></span></div>
+        </div>
+      </article>
+    </div>
+  </div>
 </section>
+
 
 <div class="ticker" aria-hidden="true"><div>
   <span>Vienna</span><i>//</i><span>Melbourne</span><i>//</i><span>15,731 km</span><i>//</i><span>First show 27.01.2027</span><i>//</i><span>Every third Sunday</span><i>//</i><span>Music connects us</span><i>//</i>
@@ -738,7 +846,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 
 <script>
 /* ============ LANGUAGE: English at /, Austrian German at /de. Names (people, show, segments, tracks) are never translated. ============ */
-const DE = {"Skip to content": "Zum Inhalt springen", "MENU": "MENÜ", "CLOSE": "ZU", "HOME": "START", "HOSTS": "HOSTS", "THE SHOW": "DIE SHOW", "LIVE": "LIVE", "EPISODES": "FOLGEN", "MUSIC": "MUSIK", "ADVERTISE": "WERBUNG", "SOUND ON": "TON AN", "SOUND OFF": "TON AUS", "SOUND": "KLANG", "PLAY THE SOUNDTRACK": "SOUNDTRACK ABSPIELEN", "PAUSE THE SOUNDTRACK": "SOUNDTRACK PAUSIEREN", "DISTANCE // ZERO — 15,731 km. Between two worlds. One room.": "DISTANCE // ZERO — 15.731 km. Zwischen zwei Welten. Ein Raum.", "Music connects us.": "Musik verbindet uns.", "Music connects us": "Musik verbindet uns", "FIRST SHOW // 27 JANUARY 2027": "ERSTE SHOW // 27. JÄNNER 2027", "Two people.": "Zwei Menschen.", "Two cities.": "Zwei Städte.", "Two sides of the world.": "Zwei Seiten der Welt.", "Vienna": "Wien", "When the music begins, distance becomes zero.": "Wenn die Musik losgeht, is die Distanz gleich null.", "TWO WORLDS": "ZWEI WELTEN", "DISTANCE": "DISTANZ", "CONNECTION": "VERBINDUNG", "ZERO": "NULL", "15,731 km": "15.731 km", "First show 27.01.2027": "Erste Show 27.01.2027", "Every third Sunday": "Jeden dritten Sonntag", "Two hosts. One room.": "Zwei Hosts. Ein Raum.", "Vienna local": "Ortszeit Wien", "Melbourne local": "Ortszeit Melbourne", "Andrej and Georgie host every show together, as equals, from opposite ends of the day. One of them is always up too late. The other is always up too early.": "Andrej und Georgie moderieren jede Show gemeinsam, auf Augenhöhe, von zwei Enden vom Tag. Einer is immer z'lang munter. Die andere immer z'früh.", "Producer and DJ, known as DJ Andy'K. Andrej makes trance, progressive house and cinematic electronic music, from deeply personal albums to concept records like": "Produzent und DJ, bekannt als DJ Andy'K. Andrej macht Trance, Progressive House und cineastische elektronische Musik, von sehr persönlichen Alben bis zu Konzeptwerken wie", ". On the show he brings the new releases, the studio stories and the questions nobody planned to ask.": ". In der Show bringt er die neuen Releases, die Gschichtln aus dem Studio und die Fragen, die eigentlich kana stellen wollt'.", "“For me, music is more than passion. It's a friend.”": "„Für mich ist Musik mehr als Leidenschaft. Sie ist ein Freund.“", "Independent music promoter. Georgie connects emerging and established artists with listeners who genuinely care, through playlist curation, artist advocacy and communities across TikTok, Instagram, Threads and Facebook. Her world is Afro, organic, melodic, progressive, deep and tech house. On the show she brings the artists you haven't heard yet, and keeps the hosts on time. Mostly.": "Unabhängige Musikpromoterin. Georgie bringt aufstrebende und etablierte Artists mit Leuten z'samm, denen Musik wirklich was bedeutet: mit Playlist-Kuration, Artist-Support und Communities auf TikTok, Instagram, Threads und Facebook. Ihre Welt san Afro, Organic, Melodic, Progressive, Deep und Tech House. In der Show bringt's die Artists, die'st no ned kennst, und schaut, dass die Hosts in der Zeit bleiben. Meistens.", "Real promotion. Real connections. Global exposure for independent artists.": "Echte Promotion. Echte Verbindungen. Globale Reichweite für unabhängige Artists.", "A live music show, built like television.": "Eine Live-Musikshow, gebaut wie Fernsehen.", "DISTANCE // ZERO puts Vienna and Melbourne in the same virtual studio for new electronic music, live guests and the kind of conversation you don't get in a press junket.": "DISTANCE // ZERO holt Wien und Melbourne ins gleiche virtuelle Studio: neue elektronische Musik, Live-Gäste und Gespräche, wie's bei kana Pressekonferenz gibt.", "Serious music.": "Seriöse Musik.", "Serious production.": "Seriöse Produktion.", "Completely unserious hosts.": "Völlig unseriöse Hosts.", "Electronic music": "Elektronische Musik", "trance": "Trance", "progressive and melodic": "Progressive und Melodic", "new releases": "neue Releases", "artist discovery": "Artist Discovery", "DJs, producers, singers, songwriters and musicians": "DJs, Producer, Sänger, Songwriter und Musiker", "international guests": "internationale Gäste", "live performances and DJ sets": "Live-Performances und DJ-Sets", "conversation": "Gespräche", "your questions, live.": "deine Fragen, live.", "The interviews are not standard PR. Before every show, Andrej and Georgie go through a guest's public stories, old interviews and social posts, then build the conversation around what they find.": "Die Interviews san ka Standard-PR. Vor jeder Show graben sich Andrej und Georgie durch die Gschichtln, alten Interviews und Posts von an Gast und bauen des Gespräch um des, was's finden.", "Expect the question nobody has asked yet, and probably the photo the guest hoped everyone had forgotten.": "Rechne mit der Frag', die no kaner g'stellt hat, und wahrscheinlich mit dem Foto, von dem der Gast g'hofft hat, dass's alle vergessen ham.", "One release, taken apart by the person who made it.": "Ein Release, zerlegt von der Person, die es gemacht hat.", "Asked in the live chat, answered on air.": "Gefragt im Live-Chat, beantwortet on air.", "Researched properly. Interviewed improperly.": "Ordentlich recherchiert. Unordentlich interviewt.", "NOT ON AIR YET": "NOCH NICHT ON AIR", "LIVE NOW": "JETZT LIVE", "27 January 2027": "27. Jänner 2027", "FIRST BROADCAST // 10:00 VIENNA // 20:00 MELBOURNE": "ERSTE SENDUNG // 10:00 WIEN // 20:00 MELBOURNE", "DAYS": "TAGE", "HOURS": "STUNDEN", "MIN": "MIN", "SEC": "SEK", "WATCH LIVE 27 JANUARY 2027": "LIVE SCHAUEN AM 27. JÄNNER 2027", "Next show": "Nächste Show", "Schedule": "Sendeplan", "Upcoming guest": "Nächster Gast", "Now playing": "Läuft grad", "First show Wednesday 27 January 2027. Then every third Sunday of the month, 10:00 Vienna.": "Erste Show am Mittwoch, 27. Jänner 2027. Danach jeden dritten Sonntag im Monat, 10:00 Wien.", "+ ADD TO CALENDAR": "+ IN DEN KALENDER", "Track info appears here during the broadcast": "Während der Sendung steht da, was grad läuft", " Vienna": " Wien", " your time": " deine Zeit", "Retro chat": "Retro-Chat", "by D": "von D", "// offline": "// offline", "❯ nickname:": "❯ Spitzname:", "join ↵": "eini ↵", "send ↵": "senden ↵", "▸▸ chat offline": "▸▸ Chat offline", "▸▸ live chat on": "▸▸ Live-Chat an", "opens at showtime": "geht auf zur Showtime", "pick one and press enter": "such da an aus", "pick one": "such da an aus", "say something": "sag was", "{n} person online": "{n} online", "{n} people online": "{n} online", "offline": "offline", " Connecting…": " Verbinde…", "Chat could not load. Refresh to try again.": "Der Chat mag grad ned. Lad die Seite neu.", "Connection lost. Retrying…": "Verbindung weg. Gleich no amal…", "You joined as {n}": "Du bist drin als {n}", "{n} joined": "{n} is da", "{n} left": "{n} is weg", "Someone just took {n}. Try another.": "Wer anderer war mit {n} schneller. Probier an anderen.", "Use 2 to 20 letters, numbers, spaces, dots, dashes or underscores.": "2 bis 20 Zeichen: Buchstaben, Zahlen, Leerzeichen, Punkt, Bindestrich oder Unterstrich.", "That nickname is reserved for the show.": "Der Name ist für die Show reserviert.", "Next show: {n}": "Nächste Show: {n}", "Insert {n}": "{n} einfügen", "The distance becomes zero": "Die Distanz wird null", "January": "Jänner", "Wednesday 27 January": "Mittwoch, 27. Jänner", "10:00 Vienna": "10:00 Wien", "Trailers and clips": "Trailer und Clips", "DISTANCE // ZERO opening": "DISTANCE // ZERO Opening", "Opening titles": "Vorspann", "The virtual studio": "Das virtuelle Studio", "Official trailer": "Offizieller Trailer", "Coming soon": "Demnächst", "Guest moments": "Gäste-Momente", "From January 2027": "Ab Jänner 2027", "Video file not connected yet": "Video noch nicht verbunden", "Play {n}": "{n} abspielen", "Download {n} as {k}": "{n} als {k} herunterladen", "Episodes": "Folgen", "The archive opens with episode one on 27 January 2027. Every show will be here in full, with guests and chapters.": "Des Archiv startet mit Folge eins am 27. Jänner 2027. Jede Show gibt's dann da in voller Länge, mit Gästen und Kapiteln.", "Music": "Musik", "The sound of the show. From 27 January 2027, every track played on air is listed here per episode. Signature tracks are free to download.": "Der Sound von der Show. Ab 27. Jänner 2027 steht da jeder Track, der on air g'laufen is, pro Folge. Die Signature-Tracks gibt's gratis zum Runterladen.", "Advertise on the show": "Werben in der Show", "One live show, two continents. DISTANCE // ZERO reaches electronic music fans in Europe and Australia every month, live and on demand. Put your brand in the room.": "Eine Live-Show, zwei Kontinente. DISTANCE // ZERO erreicht jeden Monat Fans elektronischer Musik in Europa und Australien, live und on demand. Bring deine Marke in den Raum.", "Presenting partner": "Presenting-Partner", "Your name on the show, in the opening and on this site.": "Dein Name auf der Show, im Opening und auf dieser Website.", "Segment partner": "Segment-Partner", "“Behind the Track, presented by you.” One segment, every episode.": "„Behind the Track, präsentiert von dir.“ Ein Segment, jede Folge.", "On-air spot": "On-Air-Spot", "A short ad or a live read by the hosts.": "Ein kurzer Spot oder ein Live-Read der Hosts.", "In the studio": "Im Studio", "Product placement in the virtual studio.": "Product Placement im virtuellen Studio.", "Something else": "Etwas anderes", "Company": "Firma", "Your name": "Dein Name", "Email": "E-Mail", "Interested in": "Interesse an", "Budget per episode": "Budget pro Folge", "Message": "Nachricht", "Under EUR 250": "Unter EUR 250", "EUR 250 to 1,000": "EUR 250 bis 1.000", "EUR 1,000 to 5,000": "EUR 1.000 bis 5.000", "Over EUR 5,000": "Über EUR 5.000", "What would you like to do on the show?": "Was möchtest du in der Show machen?", "Leave empty": "Leer lassen", "SEND REQUEST": "ANFRAGE SENDEN", "Please fill in company, name and email.": "Bitte Firma, Name und E-Mail ausfüllen.", "That email address does not look right.": "Die E-Mail-Adresse schaut ned richtig aus.", "Main sponsor": "Hauptsponsor", "VIENNA // MELBOURNE": "WIEN // MELBOURNE", "15,731 KM": "15.731 KM", "DISTANCE // ZERO home": "DISTANCE // ZERO Start", "Sound on or off": "Ton an oder aus", "Main": "Hauptmenü", "The concept": "Das Konzept", "Two worlds, distance, sound, connection, zero": "Zwei Welten, Distanz, Klang, Verbindung, null", "Show segments": "Show-Segmente", "Countdown to the next broadcast": "Countdown zur nächsten Sendung", "Live chat": "Live-Chat", "Launch": "Start", "Nickname": "Spitzname", "Message input": "Nachricht", "__title": "DISTANCE // ZERO — Wien // Melbourne — Live ab 27. Jänner 2027", "__desc": "Live-Show für elektronische Musik zwischen Wien und Melbourne. Trance, Progressive, neue Releases und Gäste mit Andrej Kneisl und Georgie Walker. Erste Show am 27. Jänner 2027.", "Watch this space": "No a Gheimnis", "Easy, mate. Slow down a little.": "Nur ned hudeln.", "G'day and welcome to the retro chat. It opens when the show is on air.": "Servus im Retro-Chat. Der geht auf, sobald die Show läuft.", "No account, no sign-up, no worries. Pick a nickname and you're in. Leave, and your nickname goes with you.": "Ka Account, ka Anmeldung, ka Stress. Spitzname aussuchen und du bist drin. Gehst, is der Name wieder frei.", "That's a wrap. See you next time, legends.": "Die Show is aus. Bis zum nächsten Mal. Baba!", "There's already a {n} in here, mate. Try another.": "Hier heißt scho wer {n}. Probier an anderen.", "Connected. Pick a nickname and jump in.": "Verbunden. Such da an Spitznamen aus.", "Let's have a yarn": "Red ma drüber", "Labels, festivals, gear, drinks. Chuck us your idea.": "Labels, Festivals, Equipment, Getränke. Erzähl uns dei Idee.", "Two countries with nearly the same name sort it out, once and for all.": "Zwei Länder mit fast dem gleichen Namen machen si's aus. Ein für alle Mal.", "The records both hosts reckon you need to hear this week.": "Die Platten, die beide Hosts de Woch'n nimmer abdrehen können.", "Someone you haven't heard yet. Yet.": "Wer, den'st no ned kennst. No ned.", "Next show, next guest, next banger.": "Nächste Show, nächster Gast, nächster Kracher.", "Your mail app should open with the request ready to go. If nothing happens, flick us a line at {n}.": "Dein Mailprogramm sollt' jetzt mit der fertigen Anfrage aufgehen. Wenn ned, schreib uns an {n}.", "ABOUT": "VEREIN", "The association": "Der Verein", "DISTANCE ZERO is being established as an international music and cultural association based in Vienna, Austria.": "DISTANCE ZERO wird als internationaler Musik- und Kulturverein mit Sitz in Wien, Österreich, gegründet.", "Its purpose is to support international music and cultural exchange, connect artists and audiences across borders, promote emerging and established artists, and develop international music, broadcast, live-performance and cultural projects.": "Zweck des Vereins ist es, den internationalen Musik- und Kulturaustausch zu fördern, Künstlerinnen und Künstler über Grenzen hinweg mit ihrem Publikum zu verbinden, aufstrebende und etablierte Artists zu unterstützen sowie internationale Musik-, Broadcast-, Live- und Kulturprojekte zu entwickeln.", "is its flagship international music format, connecting Vienna and Melbourne through music, artists, interviews, performances and live broadcasting.": "ist das internationale Flaggschiff-Format des Vereins und verbindet Wien und Melbourne durch Musik, Artists, Interviews, Performances und Live-Übertragungen.", "The association is also intended to develop a professional music and media production infrastructure and operational HQ in Vienna for international broadcasting, artist development, cultural projects and music production.": "Darüber hinaus soll der Verein eine professionelle Musik- und Medienproduktions-Infrastruktur sowie ein operatives Headquarter in Wien aufbauen: für internationale Übertragungen, Artist Development, Kulturprojekte und Musikproduktion.", "Organisation": "Organisation", "Seat": "Sitz", "Status": "Status", "Founders": "Gründungsmitglieder", "Chairman": "Obmann", "Vice Chairwoman": "Obmann-Stellvertreterin", "Website": "Website", "Vienna, Austria": "Wien, Österreich", "Association in formation": "Verein in Gründung", "Registration details will be published here once the association is officially registered in Austria.": "Die Registrierungsdaten werden hier veröffentlicht, sobald der Verein in Österreich offiziell eingetragen ist.", "Privacy": "Datenschutz", "live only": "erst live", "Follow the show": "Folg der Show", "SOON": "BALD"};
+const DE = {"Skip to content": "Zum Inhalt springen", "MENU": "MENÜ", "CLOSE": "ZU", "HOME": "START", "HOSTS": "HOSTS", "THE SHOW": "DIE SHOW", "LIVE": "LIVE", "EPISODES": "FOLGEN", "MUSIC": "MUSIK", "ADVERTISE": "WERBUNG", "SOUND ON": "TON AN", "SOUND OFF": "TON AUS", "SOUND": "KLANG", "PLAY THE SOUNDTRACK": "SOUNDTRACK ABSPIELEN", "PAUSE THE SOUNDTRACK": "SOUNDTRACK PAUSIEREN", "DISTANCE // ZERO — 15,731 km. Between two worlds. One room.": "DISTANCE // ZERO — 15.731 km. Zwischen zwei Welten. Ein Raum.", "Music connects us.": "Musik verbindet uns.", "Music connects us": "Musik verbindet uns", "FIRST SHOW // 27 JANUARY 2027": "ERSTE SHOW // 27. JÄNNER 2027", "Two people.": "Zwei Menschen.", "Two cities.": "Zwei Städte.", "Two sides of the world.": "Zwei Seiten der Welt.", "Vienna": "Wien", "When the music begins, distance becomes zero.": "Wenn die Musik losgeht, is die Distanz gleich null.", "TWO WORLDS": "ZWEI WELTEN", "DISTANCE": "DISTANZ", "CONNECTION": "VERBINDUNG", "ZERO": "NULL", "15,731 km": "15.731 km", "First show 27.01.2027": "Erste Show 27.01.2027", "Every third Sunday": "Jeden dritten Sonntag", "Two hosts. One room.": "Zwei Hosts. Ein Raum.", "Vienna local": "Ortszeit Wien", "Melbourne local": "Ortszeit Melbourne", "Andrej and Georgie host every show together, as equals, from opposite ends of the day. One of them is always up too late. The other is always up too early.": "Andrej und Georgie moderieren jede Show gemeinsam, auf Augenhöhe, von zwei Enden vom Tag. Einer is immer z'lang munter. Die andere immer z'früh.", "Producer and DJ, known as DJ Andy'K. Andrej makes trance, progressive house and cinematic electronic music, from deeply personal albums to concept records like": "Produzent und DJ, bekannt als DJ Andy'K. Andrej macht Trance, Progressive House und cineastische elektronische Musik, von sehr persönlichen Alben bis zu Konzeptwerken wie", ". On the show he brings the new releases, the studio stories and the questions nobody planned to ask.": ". In der Show bringt er die neuen Releases, die Gschichtln aus dem Studio und die Fragen, die eigentlich kana stellen wollt'.", "“For me, music is more than passion. It's a friend.”": "„Für mich ist Musik mehr als Leidenschaft. Sie ist ein Freund.“", "Independent music promoter. Georgie connects emerging and established artists with listeners who genuinely care, through playlist curation, artist advocacy and communities across TikTok, Instagram, Threads and Facebook. Her world is Afro, organic, melodic, progressive, deep and tech house. On the show she brings the artists you haven't heard yet, and keeps the hosts on time. Mostly.": "Unabhängige Musikpromoterin. Georgie bringt aufstrebende und etablierte Artists mit Leuten z'samm, denen Musik wirklich was bedeutet: mit Playlist-Kuration, Artist-Support und Communities auf TikTok, Instagram, Threads und Facebook. Ihre Welt san Afro, Organic, Melodic, Progressive, Deep und Tech House. In der Show bringt's die Artists, die'st no ned kennst, und schaut, dass die Hosts in der Zeit bleiben. Meistens.", "Real promotion. Real connections. Global exposure for independent artists.": "Echte Promotion. Echte Verbindungen. Globale Reichweite für unabhängige Artists.", "A live music show, built like television.": "Eine Live-Musikshow, gebaut wie Fernsehen.", "DISTANCE // ZERO puts Vienna and Melbourne in the same virtual studio for new electronic music, live guests and the kind of conversation you don't get in a press junket.": "DISTANCE // ZERO holt Wien und Melbourne ins gleiche virtuelle Studio: neue elektronische Musik, Live-Gäste und Gespräche, wie's bei kana Pressekonferenz gibt.", "Serious music.": "Seriöse Musik.", "Serious production.": "Seriöse Produktion.", "Completely unserious hosts.": "Völlig unseriöse Hosts.", "Electronic music": "Elektronische Musik", "trance": "Trance", "progressive and melodic": "Progressive und Melodic", "new releases": "neue Releases", "artist discovery": "Artist Discovery", "DJs, producers, singers, songwriters and musicians": "DJs, Producer, Sänger, Songwriter und Musiker", "international guests": "internationale Gäste", "live performances and DJ sets": "Live-Performances und DJ-Sets", "conversation": "Gespräche", "your questions, live.": "deine Fragen, live.", "The interviews are not standard PR. Before every show, Andrej and Georgie go through a guest's public stories, old interviews and social posts, then build the conversation around what they find.": "Die Interviews san ka Standard-PR. Vor jeder Show graben sich Andrej und Georgie durch die Gschichtln, alten Interviews und Posts von an Gast und bauen des Gespräch um des, was's finden.", "Expect the question nobody has asked yet, and probably the photo the guest hoped everyone had forgotten.": "Rechne mit der Frag', die no kaner g'stellt hat, und wahrscheinlich mit dem Foto, von dem der Gast g'hofft hat, dass's alle vergessen ham.", "One release, taken apart by the person who made it.": "Ein Release, zerlegt von der Person, die es gemacht hat.", "Asked in the live chat, answered on air.": "Gefragt im Live-Chat, beantwortet on air.", "Researched properly. Interviewed improperly.": "Ordentlich recherchiert. Unordentlich interviewt.", "NOT ON AIR YET": "NOCH NICHT ON AIR", "LIVE NOW": "JETZT LIVE", "27 January 2027": "27. Jänner 2027", "FIRST BROADCAST // 10:00 VIENNA // 20:00 MELBOURNE": "ERSTE SENDUNG // 10:00 WIEN // 20:00 MELBOURNE", "DAYS": "TAGE", "HOURS": "STUNDEN", "MIN": "MIN", "SEC": "SEK", "WATCH LIVE 27 JANUARY 2027": "LIVE SCHAUEN AM 27. JÄNNER 2027", "Next show": "Nächste Show", "Schedule": "Sendeplan", "Upcoming guest": "Nächster Gast", "Now playing": "Läuft grad", "First show Wednesday 27 January 2027. Then every third Sunday of the month, 10:00 Vienna.": "Erste Show am Mittwoch, 27. Jänner 2027. Danach jeden dritten Sonntag im Monat, 10:00 Wien.", "+ ADD TO CALENDAR": "+ IN DEN KALENDER", "Track info appears here during the broadcast": "Während der Sendung steht da, was grad läuft", " Vienna": " Wien", " your time": " deine Zeit", "Retro chat": "Retro-Chat", "by D": "von D", "// offline": "// offline", "❯ nickname:": "❯ Spitzname:", "join ↵": "eini ↵", "send ↵": "senden ↵", "▸▸ chat offline": "▸▸ Chat offline", "▸▸ live chat on": "▸▸ Live-Chat an", "opens at showtime": "geht auf zur Showtime", "pick one and press enter": "such da an aus", "pick one": "such da an aus", "say something": "sag was", "{n} person online": "{n} online", "{n} people online": "{n} online", "offline": "offline", " Connecting…": " Verbinde…", "Chat could not load. Refresh to try again.": "Der Chat mag grad ned. Lad die Seite neu.", "Connection lost. Retrying…": "Verbindung weg. Gleich no amal…", "You joined as {n}": "Du bist drin als {n}", "{n} joined": "{n} is da", "{n} left": "{n} is weg", "Someone just took {n}. Try another.": "Wer anderer war mit {n} schneller. Probier an anderen.", "Use 2 to 20 letters, numbers, spaces, dots, dashes or underscores.": "2 bis 20 Zeichen: Buchstaben, Zahlen, Leerzeichen, Punkt, Bindestrich oder Unterstrich.", "That nickname is reserved for the show.": "Der Name ist für die Show reserviert.", "Next show: {n}": "Nächste Show: {n}", "Insert {n}": "{n} einfügen", "The distance becomes zero": "Die Distanz wird null", "January": "Jänner", "Wednesday 27 January": "Mittwoch, 27. Jänner", "10:00 Vienna": "10:00 Wien", "Trailers and clips": "Trailer und Clips", "DISTANCE // ZERO opening": "DISTANCE // ZERO Opening", "Opening titles": "Vorspann", "The virtual studio": "Das virtuelle Studio", "Official trailer": "Offizieller Trailer", "Coming soon": "Demnächst", "Guest moments": "Gäste-Momente", "From January 2027": "Ab Jänner 2027", "Video file not connected yet": "Video noch nicht verbunden", "Play {n}": "{n} abspielen", "Download {n} as {k}": "{n} als {k} herunterladen", "Episodes": "Folgen", "The archive opens with episode one on 27 January 2027. Every show will be here in full, with guests and chapters.": "Des Archiv startet mit Folge eins am 27. Jänner 2027. Jede Show gibt's dann da in voller Länge, mit Gästen und Kapiteln.", "Music": "Musik", "The sound of the show. From 27 January 2027, every track played on air is listed here per episode. Signature tracks are free to download.": "Der Sound von der Show. Ab 27. Jänner 2027 steht da jeder Track, der on air g'laufen is, pro Folge. Die Signature-Tracks gibt's gratis zum Runterladen.", "Advertise on the show": "Werben in der Show", "One live show, two continents. DISTANCE // ZERO reaches electronic music fans in Europe and Australia every month, live and on demand. Put your brand in the room.": "Eine Live-Show, zwei Kontinente. DISTANCE // ZERO erreicht jeden Monat Fans elektronischer Musik in Europa und Australien, live und on demand. Bring deine Marke in den Raum.", "Presenting partner": "Presenting-Partner", "Your name on the show, in the opening and on this site.": "Dein Name auf der Show, im Opening und auf dieser Website.", "Segment partner": "Segment-Partner", "“Behind the Track, presented by you.” One segment, every episode.": "„Behind the Track, präsentiert von dir.“ Ein Segment, jede Folge.", "On-air spot": "On-Air-Spot", "A short ad or a live read by the hosts.": "Ein kurzer Spot oder ein Live-Read der Hosts.", "In the studio": "Im Studio", "Product placement in the virtual studio.": "Product Placement im virtuellen Studio.", "Something else": "Etwas anderes", "Company": "Firma", "Your name": "Dein Name", "Email": "E-Mail", "Interested in": "Interesse an", "Budget per episode": "Budget pro Folge", "Message": "Nachricht", "Under EUR 250": "Unter EUR 250", "EUR 250 to 1,000": "EUR 250 bis 1.000", "EUR 1,000 to 5,000": "EUR 1.000 bis 5.000", "Over EUR 5,000": "Über EUR 5.000", "What would you like to do on the show?": "Was möchtest du in der Show machen?", "Leave empty": "Leer lassen", "SEND REQUEST": "ANFRAGE SENDEN", "Please fill in company, name and email.": "Bitte Firma, Name und E-Mail ausfüllen.", "That email address does not look right.": "Die E-Mail-Adresse schaut ned richtig aus.", "Main sponsor": "Hauptsponsor", "VIENNA // MELBOURNE": "WIEN // MELBOURNE", "15,731 KM": "15.731 KM", "DISTANCE // ZERO home": "DISTANCE // ZERO Start", "Sound on or off": "Ton an oder aus", "Main": "Hauptmenü", "The concept": "Das Konzept", "Two worlds, distance, sound, connection, zero": "Zwei Welten, Distanz, Klang, Verbindung, null", "Show segments": "Show-Segmente", "Countdown to the next broadcast": "Countdown zur nächsten Sendung", "Live chat": "Live-Chat", "Launch": "Start", "Nickname": "Spitzname", "Message input": "Nachricht", "__title": "DISTANCE // ZERO — Wien // Melbourne — Live ab 27. Jänner 2027", "__desc": "Live-Show für elektronische Musik zwischen Wien und Melbourne. Trance, Progressive, neue Releases und Gäste mit Andrej Kneisl und Georgie Walker. Erste Show am 27. Jänner 2027.", "Watch this space": "No a Gheimnis", "Easy, mate. Slow down a little.": "Nur ned hudeln.", "G'day and welcome to the retro chat. It opens when the show is on air.": "Servus im Retro-Chat. Der geht auf, sobald die Show läuft.", "No account, no sign-up, no worries. Pick a nickname and you're in. Leave, and your nickname goes with you.": "Ka Account, ka Anmeldung, ka Stress. Spitzname aussuchen und du bist drin. Gehst, is der Name wieder frei.", "That's a wrap. See you next time, legends.": "Die Show is aus. Bis zum nächsten Mal. Baba!", "There's already a {n} in here, mate. Try another.": "Hier heißt scho wer {n}. Probier an anderen.", "Connected. Pick a nickname and jump in.": "Verbunden. Such da an Spitznamen aus.", "Let's have a yarn": "Red ma drüber", "Labels, festivals, gear, drinks. Chuck us your idea.": "Labels, Festivals, Equipment, Getränke. Erzähl uns dei Idee.", "Two countries with nearly the same name sort it out, once and for all.": "Zwei Länder mit fast dem gleichen Namen machen si's aus. Ein für alle Mal.", "The records both hosts reckon you need to hear this week.": "Die Platten, die beide Hosts de Woch'n nimmer abdrehen können.", "Someone you haven't heard yet. Yet.": "Wer, den'st no ned kennst. No ned.", "Next show, next guest, next banger.": "Nächste Show, nächster Gast, nächster Kracher.", "Your mail app should open with the request ready to go. If nothing happens, flick us a line at {n}.": "Dein Mailprogramm sollt' jetzt mit der fertigen Anfrage aufgehen. Wenn ned, schreib uns an {n}.", "ABOUT": "VEREIN", "The association": "Der Verein", "DISTANCE ZERO is being established as an international music and cultural association based in Vienna, Austria.": "DISTANCE ZERO wird als internationaler Musik- und Kulturverein mit Sitz in Wien, Österreich, gegründet.", "Its purpose is to support international music and cultural exchange, connect artists and audiences across borders, promote emerging and established artists, and develop international music, broadcast, live-performance and cultural projects.": "Zweck des Vereins ist es, den internationalen Musik- und Kulturaustausch zu fördern, Künstlerinnen und Künstler über Grenzen hinweg mit ihrem Publikum zu verbinden, aufstrebende und etablierte Artists zu unterstützen sowie internationale Musik-, Broadcast-, Live- und Kulturprojekte zu entwickeln.", "is its flagship international music format, connecting Vienna and Melbourne through music, artists, interviews, performances and live broadcasting.": "ist das internationale Flaggschiff-Format des Vereins und verbindet Wien und Melbourne durch Musik, Artists, Interviews, Performances und Live-Übertragungen.", "The association is also intended to develop a professional music and media production infrastructure and operational HQ in Vienna for international broadcasting, artist development, cultural projects and music production.": "Darüber hinaus soll der Verein eine professionelle Musik- und Medienproduktions-Infrastruktur sowie ein operatives Headquarter in Wien aufbauen: für internationale Übertragungen, Artist Development, Kulturprojekte und Musikproduktion.", "Organisation": "Organisation", "Seat": "Sitz", "Status": "Status", "Founders": "Gründungsmitglieder", "Chairman": "Obmann", "Vice Chairwoman": "Obmann-Stellvertreterin", "Website": "Website", "Vienna, Austria": "Wien, Österreich", "Association in formation": "Verein in Gründung", "Registration details will be published here once the association is officially registered in Austria.": "Die Registrierungsdaten werden hier veröffentlicht, sobald der Verein in Österreich offiziell eingetragen ist.", "Privacy": "Datenschutz", "live only": "erst live", "Follow the show": "Folg der Show", "SOON": "BALD", "One show.": "Eine Show.", "Two continents. Two local times.": "Zwei Kontinente. Zwei Ortszeiten.", "Local time": "Ortszeit", "Showtime": "Showtime", "Flight": "Flug", "ON AIR": "ON AIR", "FINAL CALL": "AUFRUF", "BOARDING": "BOARDING", "ON TIME": "PÜNKTLICH", "One show, two continents, two local times": "Eine Show, zwei Kontinente, zwei Ortszeiten", "/ VIE": "/ VIE", "Departures": "Abflug", "Arrivals": "Ankunft", "Date": "Datum", "Time": "Zeit", "To": "Nach", "From": "Von", "Flight time 0h 00m": "Flugzeit 0 h 00 min", "15,731 km // 0h 00m": "15.731 km // 0 h 00 min", "VIENNA": "WIEN", "SCHEDULED": "GEPLANT", "EXPECTED": "ERWARTET"};
 const LANG = location.pathname.replace(/\/+$/, '') === '/de' ? 'de' : 'en';
 (() => { let pref = null; try { pref = localStorage.getItem('dz-lang'); } catch(e){}
   if (LANG === 'en' && (pref === 'de' || (!pref && /^de\b/i.test(navigator.language || '')))) location.replace('/de' + location.search + location.hash); })();
@@ -877,23 +985,31 @@ const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersectin
 })();
 
 /* concept: scroll collapses 15,731 km to zero */
-const concept = $('#concept'), count = $('#count'), seq = [...document.querySelectorAll('#seq li')];
+const cityV = document.querySelector('.city.v'), cityM = document.querySelector('.city.m');
+const concept = $('#conceptTrack'), count = $('#count'), seq = [...document.querySelectorAll('#seq li')];
 let energy = .25, P = 0;
+const GL = { e: 0, inView: false }; /* DISTANCE -> ZERO progress for the globe */
 function onScroll(){
   nav.classList.toggle('solid', scrollY > innerHeight * .6);
   const r = concept.getBoundingClientRect(), p = Math.min(1, Math.max(0, -r.top / (r.height - innerHeight)));
   P = p;
   const e = p < .15 ? 0 : Math.min(1, (p - .15) / .7), eased = 1 - Math.pow(1 - e, 3);
+  GL.e = eased; GL.inView = r.top < innerHeight && r.bottom > 0;
   const km = Math.round(15731 * (1 - eased));
   count.firstChild.nodeValue = km.toLocaleString(LANG === 'de' ? 'de-DE' : 'en-AU');
   concept.style.setProperty('--p', eased);
+  if (innerWidth > 700){ /* the two cities travel towards the counter and stop just short of it */
+    const gap = count.parentElement, cl = gap.offsetLeft + count.offsetLeft, cr = cl + count.offsetWidth, pad = Math.max(18, innerWidth * .018);
+    cityV.style.transform = 'translateX(' + eased * Math.max(0, cl - pad - (cityV.offsetLeft + cityV.offsetWidth)) + 'px)';
+    cityM.style.transform = 'translateX(' + -eased * Math.max(0, cityM.offsetLeft - (cr + pad)) + 'px)';
+  }
   concept.style.setProperty('--z', p > .9 ? 1 : 0);
   const idx = Math.min(4, Math.floor(p * 5.2));
   seq.forEach((li, i) => li.classList.toggle('on', i <= idx));
   const inView = r.top < innerHeight && r.bottom > 0;
   energy = inView ? .25 + eased * .75 : .3;
 }
-addEventListener('scroll', onScroll, {passive:true}); onScroll();
+addEventListener('scroll', onScroll, {passive:true}); addEventListener('resize', onScroll); onScroll();
 
 /* clocks */
 const fmt = tz => new Intl.DateTimeFormat('en-GB', {timeZone:tz, hour:'2-digit', minute:'2-digit'});
@@ -1172,6 +1288,147 @@ translatePage();
       card.addEventListener('pointerleave', () => { card.style.transform = ''; });
     });
   }
+})();
+
+/* globe: dotted Earth behind DISTANCE -> ZERO. Vienna and Melbourne are two equal points; the route between them
+   shortens from both ends as the kilometres fall, and the two lights meet in the middle at zero. */
+(() => {
+  const c = document.getElementById('globe'); if (!c) return;
+  const x = c.getContext('2d'); let dots = null, W = 0, R = 0, dpr = 1, raf = 0, t0 = performance.now();
+  const rad = d => d * Math.PI / 180;
+  const vec = (lat, lon) => [Math.cos(rad(lat)) * Math.cos(rad(lon)), Math.cos(rad(lat)) * Math.sin(rad(lon)), Math.sin(rad(lat))];
+  const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2], norm = a => { const l = Math.hypot(...a); return a.map(v => v / l); };
+  const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const V = vec(48.21, 16.37), M = vec(-37.81, 144.96), OM = Math.acos(dot(V, M));
+  const slerp = (s) => { const a = Math.sin((1 - s) * OM) / Math.sin(OM), b = Math.sin(s * OM) / Math.sin(OM); return [V[0]*a+M[0]*b, V[1]*a+M[1]*b, V[2]*a+M[2]*b]; };
+  const MID = norm(slerp(.5));
+  fetch('assets/land-dots.bin').then(r => r.arrayBuffer()).then(b => { const a = new Int16Array(b); dots = [];
+    for (let i = 0; i < a.length; i += 2){ const lat = a[i] / 10, lon = a[i+1] / 10, v = vec(lat, lon);
+      const k = Math.min(1, Math.max(0, (lon - 16) / 129)); dots.push([v, k]); } draw(); }).catch(() => {});
+  function size(){ dpr = Math.min(devicePixelRatio || 1, 2); W = c.clientWidth; c.width = c.height = W * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0); R = W * .42; }
+  /* camera: looks at the midpoint of the route, drifting a little so the Earth feels alive */
+  function basis(time){
+    const drift = reduce ? 0 : Math.sin(time / 9000) * .16, tilt = reduce ? 0 : Math.cos(time / 13000) * .06;
+    const lat = Math.asin(MID[2]) + tilt, lon = Math.atan2(MID[1], MID[0]) + drift;
+    const f = [Math.cos(lat)*Math.cos(lon), Math.cos(lat)*Math.sin(lon), Math.sin(lat)];
+    const up0 = [0, 0, 1], u = norm(up0.map((v, i) => v - dot(up0, f) * f[i])), rr = cross(u, f);
+    return { f, u, r: rr };
+  }
+  const proj = (p, B, lift = 1) => [W/2 + dot(p, B.r) * R * lift, W/2 - dot(p, B.u) * R * lift, dot(p, B.f)];
+  const lerpC = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  const AMB = [242, 166, 80], ICE = [169, 200, 238];
+  function draw(now = performance.now()){
+    if (!W) size(); x.clearRect(0, 0, W, W);
+    const B = basis(now - t0), e = GL.e, cx = W/2;
+    /* sphere body + rim */
+    const g = x.createRadialGradient(cx - R*.3, cx - R*.35, R*.1, cx, cx, R);
+    g.addColorStop(0, '#191c22'); g.addColorStop(.75, '#0d0f13'); g.addColorStop(1, '#08090b');
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cx, R, 0, 7); x.fill();
+    const rim = x.createLinearGradient(cx - R, 0, cx + R, 0); rim.addColorStop(0, 'rgba(242,166,80,.35)'); rim.addColorStop(.5, 'rgba(201,206,214,.12)'); rim.addColorStop(1, 'rgba(169,200,238,.35)');
+    x.strokeStyle = rim; x.lineWidth = 1; x.beginPath(); x.arc(cx, cx, R, 0, 7); x.stroke();
+    const halo = x.createRadialGradient(cx, cx, R*.96, cx, cx, R*1.18); halo.addColorStop(0, 'rgba(201,206,214,.08)'); halo.addColorStop(1, 'rgba(201,206,214,0)');
+    x.fillStyle = halo; x.beginPath(); x.arc(cx, cx, R*1.18, 0, 7); x.fill();
+    /* land as dots, warm towards Vienna, cool towards Melbourne */
+    if (dots){ const sz = Math.max(1, R / 240);
+      for (const [v, k] of dots){ const d = dot(v, B.f); if (d <= .02) continue;
+        const [px, py] = proj(v, B), col = lerpC(AMB, ICE, k), a = .12 + d * .42;
+        x.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a * .55})`; x.fillRect(px - sz/2, py - sz/2, sz, sz); } }
+    /* the route: full path faint, the remaining distance bright between the two travelling lights */
+    const N = 140, pts = [];
+    for (let i = 0; i <= N; i++){ const s = i / N; pts.push(proj(slerp(s), B, 1 + .2 * Math.sin(Math.PI * s))); }
+    x.lineWidth = 1; x.strokeStyle = 'rgba(201,206,214,.14)'; x.setLineDash([2, 5]); x.beginPath();
+    pts.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.stroke(); x.setLineDash([]);
+    const a0 = e / 2, a1 = 1 - e / 2, i0 = Math.round(a0 * N), i1 = Math.round(a1 * N);
+    if (i1 > i0){
+      const lg = x.createLinearGradient(pts[0][0], pts[0][1], pts[N][0], pts[N][1]); lg.addColorStop(0, '#f2a650'); lg.addColorStop(.5, '#f3f5f8'); lg.addColorStop(1, '#a9c8ee');
+      for (const [w, al] of [[6, .12], [2.2, .9]]){ x.lineWidth = w; x.globalAlpha = al; x.strokeStyle = lg; x.beginPath();
+        for (let i = i0; i <= i1; i++) i === i0 ? x.moveTo(pts[i][0], pts[i][1]) : x.lineTo(pts[i][0], pts[i][1]); x.stroke(); }
+      x.globalAlpha = 1;
+    }
+    /* the two cities: equal, active, pulsing */
+    const pulse = reduce ? .5 : (Math.sin((now - t0) / 520) + 1) / 2;
+    for (const [v, col, lab, left] of [[V, AMB, 'VIE', true], [M, ICE, 'MEL', false]]){
+      const [px, py, d] = proj(v, B); if (d < -.05) continue;
+      x.fillStyle = `rgba(${col},.18)`; x.beginPath(); x.arc(px, py, 7 + pulse * 9, 0, 7); x.fill();
+      x.strokeStyle = `rgba(${col},${.7 - pulse * .5})`; x.lineWidth = 1; x.beginPath(); x.arc(px, py, 5 + pulse * 13, 0, 7); x.stroke();
+      x.fillStyle = `rgb(${col})`; x.beginPath(); x.arc(px, py, 3.2, 0, 7); x.fill();
+      x.font = `600 ${Math.max(10, R / 22)}px Archivo, sans-serif`; x.fillStyle = `rgba(${col},.95)`; x.textAlign = left ? 'right' : 'left';
+      x.fillText(lab, px + (left ? -14 : 14), py + 4);
+    }
+    /* the travelling lights, one from each city */
+    const heads = [[pts[i0], AMB], [pts[i1], ICE]];
+    for (const [[px, py], col] of heads){ const gl = x.createRadialGradient(px, py, 0, px, py, 16);
+      gl.addColorStop(0, `rgba(${col},1)`); gl.addColorStop(.25, `rgba(${col},.55)`); gl.addColorStop(1, `rgba(${col},0)`);
+      x.fillStyle = gl; x.beginPath(); x.arc(px, py, 16, 0, 7); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(px, py, 2, 0, 7); x.fill(); }
+    /* zero: the two lights become one */
+    if (e > .985){ const [px, py] = pts[N/2], k = (e - .985) / .015, rr = 26 + (reduce ? 10 : pulse * 18);
+      const fl = x.createRadialGradient(px, py, 0, px, py, rr * 2.2); fl.addColorStop(0, `rgba(255,255,255,${.95 * k})`); fl.addColorStop(.3, `rgba(243,245,248,${.35 * k})`); fl.addColorStop(1, 'rgba(243,245,248,0)');
+      x.fillStyle = fl; x.beginPath(); x.arc(px, py, rr * 2.2, 0, 7); x.fill(); }
+  }
+  function loop(now){ draw(now); raf = GL.inView ? requestAnimationFrame(loop) : 0; }
+  const wake = () => { if (!raf && GL.inView) raf = requestAnimationFrame(loop); };
+  addEventListener('resize', () => { size(); draw(); });
+  if (reduce) addEventListener('scroll', () => draw(), { passive: true });
+  else { addEventListener('scroll', wake, { passive: true }); document.addEventListener('visibilitychange', () => { if (document.hidden){ cancelAnimationFrame(raf); raf = 0; } else wake(); }); }
+  size(); draw(); wake();
+})();
+
+/* mirrored airport boards. Every show is two flights with zero flight time ("distance becomes zero"):
+   D//0 odd  = VIE -> MEL, D//0 even = MEL -> VIE. Departure and arrival are the same instant, shown in each city's local time,
+   so the calendar day can differ between the two boards. */
+(() => {
+  const box = document.getElementById('flight'); if (!box) return;
+  const F = {}; box.querySelectorAll('[data-f]').forEach(e => F[e.dataset.f] = e);
+  const CH = ' ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789:./-'; let ctx = null, lastClick = 0, seen = false;
+  const TZ = { v: 'Europe/Vienna', m: 'Australia/Melbourne' }, NAME = { v: t('VIENNA'), m: 'MELBOURNE' };
+  function click(){
+    if (music.paused || reduce) return; const now = performance.now(); if (now - lastClick < 28) return; lastClick = now;
+    try { ctx = ctx || new AudioContext(); if (ctx.state !== 'running') ctx.resume();
+      const n = ctx.sampleRate * .022, buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 6);
+      const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), gn = ctx.createGain();
+      bp.type = 'bandpass'; bp.frequency.value = 1800 + Math.random() * 900; bp.Q.value = 1.2; gn.gain.value = .06;
+      src.buffer = buf; src.connect(bp).connect(gn).connect(ctx.destination); src.start(); } catch(e){}
+  }
+  function set(key, text, len){
+    const el = F[key]; if (!el) return; text = String(text).toUpperCase(); if (len) text = text.padEnd(len).slice(0, len);
+    if (el.children.length !== text.length){ el.textContent = ''; for (let i = 0; i < text.length; i++){ const s = document.createElement('span'); s.className = 'flap'; s.textContent = ' '; el.append(s); } }
+    el.setAttribute('aria-label', text.trim());
+    [...el.children].forEach((s, i) => { const to = text[i]; s.classList.toggle('sp', to === ' '); if (s.textContent === to) return;
+      if (!seen || reduce){ s.textContent = to; return; }
+      let n = 3 + ((Math.random() * 5) | 0); const step = () => { s.classList.remove('go'); void s.offsetWidth; s.classList.add('go'); click();
+        s.textContent = --n > 0 ? CH[(Math.random() * CH.length) | 0] : to; if (n > 0) setTimeout(step, 70); };
+      setTimeout(step, i * 30); });
+  }
+  const P = (ts, tz, o) => Object.fromEntries(new Intl.DateTimeFormat(LOC, Object.assign({ timeZone: tz }, o)).formatToParts(new Date(ts)).map(p => [p.type, p.value]));
+  const date = (ts, tz) => { const p = P(ts, tz, { weekday: 'short', day: '2-digit', month: 'short' }); return [p.weekday, p.day, p.month].map(v => v.replace(/[.,]/g, '')).join(' '); };
+  const time = (ts, tz) => { const p = P(ts, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); return p.hour + ':' + p.minute; };
+  const showNo = ts => { const d = new Date(ts); return (d.getUTCFullYear() - 2027) * 12 + d.getUTCMonth() + 1; };
+  const fl = (ts, back) => 'D//0 ' + String(showNo(ts) * 2 - (back ? 0 : 1)).padStart(3, '0');
+  const len = () => DZ.schedule.minutes * 6e4;
+  function shows(){ const out = [target]; while (out.length < 3) out.push(nextShow(out[out.length - 1] + len())); return out; }
+  function stat(ts, i, dep){ if (i) return t('SCHEDULED'); const now = Date.now();
+    if (now >= ts && now < ts + len()) return t('ON AIR');
+    if (dep){ if (ts - now < 36e5) return t('FINAL CALL'); if (ts - now < 864e5) return t('BOARDING'); return t('ON TIME'); }
+    return ts - now < 864e5 ? t('EXPECTED') : t('ON TIME'); }
+  function update(){
+    const now = new Date(), clk = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+    for (const c of ['v', 'm']){ const k = clk(TZ[c]); set(c + 'H', k.find(p => p.type === 'hour').value); set(c + 'M', k.find(p => p.type === 'minute').value); }
+    shows().forEach((ts, i) => {
+      for (const c of ['v', 'm']){ const o = c === 'v' ? 'm' : 'v';
+        for (const kind of ['dep', 'arr']){
+          /* VIE dep = D//0 odd to MEL; VIE arr = D//0 even from MEL; MEL dep = even to VIE; MEL arr = odd from VIE */
+          const back = (c === 'v') === (kind === 'arr'), key = c + kind + i;
+          set(key + 'd', date(ts, TZ[c]), 10); set(key + 't', time(ts, TZ[c]), 5); set(key + 'f', fl(ts, back), 8);
+          set(key + 'c', NAME[o], 9); const st = stat(ts, i, kind === 'dep'); set(key + 's', st, 10);
+          F[key + 's'].classList.toggle('live', st === t('ON AIR'));
+        } }
+    });
+  }
+  update(); setInterval(update, 5000);
+  new IntersectionObserver(([en], o) => { if (!en.isIntersecting) return; o.disconnect(); seen = true;
+    Object.values(F).forEach(el => { const txt = [...el.children].map(s => s.textContent).join(''); [...el.children].forEach(s => s.textContent = ' '); set(el.dataset.f, txt); });
+  }, { threshold: .2 }).observe(box);
 })();
 
 /* signal canvas: particles + the frequency line that runs through the whole site */
