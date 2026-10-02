@@ -765,9 +765,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* tracks 1-3 have Austrian versions, played on /de; the signature tracks are the same in both */
 const TRACKS = [
   ...(LANG === 'de' ? [
-  {title:'Eine Frequenz', len:'0:34', src:'assets/music-at-eine-frequenz.mp3'},
-  {title:'DISTANCE // ZERO (AT)', len:'1:56', src:'assets/music-at-distance-zero.mp3'},
-  {title:'Jänner', len:'1:52', src:'assets/music-at-jaenner.mp3'}
+  {title:'Eine Frequenz', len:'0:34', src:'assets/music-at-eine-frequenz.mp3', dl:{mp3:'assets/music-at-eine-frequenz.mp3', wav:'assets/at-eine-frequenz.wav'}},
+  {title:'DISTANCE // ZERO (AT)', len:'1:56', src:'assets/music-at-distance-zero.mp3', dl:{mp3:'assets/music-at-distance-zero.mp3', wav:'assets/at-distance-zero.wav'}},
+  {title:'Jänner', len:'1:52', src:'assets/music-at-jaenner.mp3', dl:{mp3:'assets/music-at-jaenner.mp3', wav:'assets/at-jaenner.wav'}}
   ] : [
   {title:'DISTANCE // ZERO — Opening', len:'0:35', src:'assets/music-opening.mp3'},
   {title:'DISTANCE // ZERO', len:'1:34', src:'assets/music-distance-zero.mp3'},
