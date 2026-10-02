@@ -106,10 +106,14 @@ main,footer{position:relative;z-index:1}
 .nav nav{order:3}.burger{order:4}
 @media (max-width:820px){.snd{margin-right:10px}}
 .tracks{list-style:none;padding:0;margin-top:2em;border-top:1px solid var(--line)}
-.tracks button{display:flex;justify-content:space-between;gap:16px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);color:var(--chrome);font:inherit;font-stretch:112%;text-align:left;padding:16px 2px;cursor:pointer;transition:color .3s,padding .4s}
+.tracks li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.tracks button{flex:1;min-width:0;display:flex;justify-content:space-between;gap:16px;background:none;border:0;color:var(--chrome);font:inherit;font-stretch:112%;text-align:left;padding:16px 2px;cursor:pointer;transition:color .3s,padding .4s}
 .tracks button:hover{color:var(--chrome-hi);padding-left:10px}
 .tracks button.cur{color:var(--amber)}
 .tracks span{color:var(--dim);font-variant-numeric:tabular-nums}
+.tracks .dl{display:flex;gap:6px;margin-left:14px}
+.tracks .dl a{font-stretch:112%;font-size:.6rem;letter-spacing:.18em;color:var(--dim);border:1px solid var(--line);padding:7px 9px;text-decoration:none;white-space:nowrap;transition:color .3s,border-color .3s}
+.tracks .dl a:hover{color:var(--amber);border-color:var(--amber)}
 
 /* hero */
 .hero{position:relative;min-height:100svh;display:grid;place-items:center;text-align:center;padding:120px var(--pad) 90px;overflow:hidden;isolation:isolate}
@@ -524,7 +528,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   </article>
   <article id="music">
     <h2 class="disp">Music</h2>
-    <p class="lede">The sound of the show. From 27 January 2027, every track played on air is listed here per episode.</p>
+    <p class="lede">The sound of the show. From 27 January 2027, every track played on air is listed here per episode. Signature tracks are free to download.</p>
     <ul class="tracks" id="trackList"></ul>
   </article>
 </section>
@@ -611,7 +615,11 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TRACKS = [
   {title:'DISTANCE // ZERO — Opening', len:'0:35', src:'assets/music-opening.mp3'},
   {title:'DISTANCE // ZERO', len:'1:34', src:'assets/music-distance-zero.mp3'},
-  {title:'January', len:'1:54', src:'assets/music-january.mp3'}
+  {title:'January', len:'1:54', src:'assets/music-january.mp3'},
+  {title:'Three-Note Signature', len:'3:32', src:'assets/music-three-note-signature.mp3',
+    dl:{mp3:'assets/music-three-note-signature.mp3', wav:'assets/three-note-signature.wav'}},
+  {title:'Three-Note Signature (B)', len:'3:25', src:'assets/music-three-note-signature-b.mp3',
+    dl:{mp3:'assets/music-three-note-signature-b.mp3', wav:'assets/three-note-signature-b.wav'}}
 ];
 /* soundtrack: starts on open where the browser allows it, otherwise on the first tap, click or key.
    Turning it off is remembered for the next visit. */
@@ -630,7 +638,12 @@ snd.onclick = heroPlay.onclick = () => { wantSound = music.paused; if (wantSound
   try { localStorage.setItem('dz-sound', wantSound ? 'on' : 'off'); } catch(e){} };
 TRACKS.forEach((t,i) => { const li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('b'), d = document.createElement('span');
   n.style.fontWeight = 500; n.textContent = t.title; d.textContent = t.len; b.append(n, d); b.setAttribute('aria-label', 'Play ' + t.title);
-  b.onclick = () => { wantSound = true; playTrack(i).catch(()=>{}); }; li.append(b); $('#trackList').append(li); });
+  b.onclick = () => { wantSound = true; playTrack(i).catch(()=>{}); }; li.append(b);
+  if (t.dl){ const w = document.createElement('div'); w.className = 'dl';
+    Object.entries(t.dl).forEach(([kind, href]) => { const a = document.createElement('a'); a.href = href; a.textContent = '\u2193 ' + kind.toUpperCase();
+      a.download = 'DISTANCE ZERO - ' + t.title + '.' + kind; a.setAttribute('aria-label', 'Download ' + t.title + ' as ' + kind.toUpperCase()); w.append(a); });
+    li.append(w); }
+  $('#trackList').append(li); });
 sndUI();
 if (wantSound){
   const evs = ['pointerup','keydown','touchend','click'];
