@@ -327,6 +327,35 @@ main,footer{position:relative;z-index:1}
 .arch article{border-top:1px solid var(--line);padding-top:clamp(24px,3vw,44px)}
 @media (max-width:820px){.arch{grid-template-columns:1fr}}
 
+/* advertise */
+.adv{display:grid;grid-template-columns:1fr 1.1fr;gap:clamp(30px,6vw,110px);align-items:start;margin-top:clamp(40px,6vw,80px)}
+.offers{list-style:none;padding:0;border-top:1px solid var(--line)}
+.offers li{padding:16px 0;border-bottom:1px solid var(--line)}
+.offers strong{display:block;font-stretch:125%;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--chrome-hi);font-size:clamp(.95rem,1.4vw,1.15rem)}
+.offers span{color:var(--dim);font-size:.9rem}
+.mailto{display:inline-block;margin-top:1.6em;font-stretch:112%;letter-spacing:.08em;color:var(--chrome-hi);text-decoration:none;border-bottom:1px solid var(--amber);padding-bottom:3px}
+.mailto:hover{color:var(--amber)}
+.form{border:1px solid var(--line);background:rgba(7,8,10,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:clamp(20px,3vw,40px);position:relative}
+.form::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:linear-gradient(90deg,var(--amber),var(--ice),transparent)}
+.form .row{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+.form label{display:block;margin-top:18px}
+.form label:first-child{margin-top:0}
+.form .row label:first-child{margin-top:18px}
+.form .row:first-child label{margin-top:0}
+.form label>span{display:block;font-stretch:112%;font-size:.62rem;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+.form input,.form select,.form textarea{width:100%;background:transparent;border:0;border-bottom:1px solid rgba(201,206,214,.28);color:var(--chrome-hi);font:inherit;font-size:16px;padding:8px 0;border-radius:0;transition:border-color .3s}
+.form select{appearance:none;-webkit-appearance:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a9099'/%3E%3C/svg%3E") right 4px center no-repeat;padding-right:20px;cursor:pointer}
+.form select option{background:#111317;color:var(--chrome-hi)}
+.form textarea{resize:vertical;min-height:110px;line-height:1.5}
+.form input:focus,.form select:focus,.form textarea:focus{outline:none;border-color:var(--amber)}
+.form ::placeholder{color:#4f555e}
+.form .btn{margin-top:26px;background:none;cursor:pointer;font:inherit;font-stretch:112%;font-size:.74rem;letter-spacing:.24em}
+.form .note{margin-top:14px;font-size:.82rem;color:var(--dim)}
+.form .note:empty{display:none}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+@media (max-width:820px){.adv{grid-template-columns:1fr}}
+@media (max-width:520px){.form .row{grid-template-columns:1fr}.form .row label{margin-top:18px!important}.form .row:first-child label:first-child{margin-top:0!important}}
+
 /* main sponsor */
 .sponsor{padding:clamp(60px,9vw,120px) var(--pad);text-align:center;border-top:1px solid var(--line);position:relative;z-index:1;
   background:radial-gradient(50% 120% at 50% 100%,rgba(201,206,214,.06),transparent 70%)}
@@ -364,6 +393,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
     <li><a href="#live">LIVE</a></li>
     <li><a href="#episodes">EPISODES</a></li>
     <li><a href="#music">MUSIC</a></li>
+    <li><a href="#advertise">ADVERTISE</a></li>
   </ul></nav>
 </header>
 
@@ -498,6 +528,45 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
     <ul class="tracks" id="trackList"></ul>
   </article>
 </section>
+
+<section class="sec" id="advertise">
+  <h2 class="disp">Advertise on the show</h2>
+  <p class="lede">One live show, two continents. DISTANCE // ZERO reaches electronic music fans in Europe and Australia every month, live and on demand. Put your brand in the room.</p>
+  <div class="adv">
+    <div>
+      <ul class="offers">
+        <li><strong>Presenting partner</strong><span>Your name on the show, in the opening and on this site.</span></li>
+        <li><strong>Segment partner</strong><span>&ldquo;Behind the Track, presented by you.&rdquo; One segment, every episode.</span></li>
+        <li><strong>On-air spot</strong><span>A short ad or a live read by the hosts.</span></li>
+        <li><strong>In the studio</strong><span>Product placement in the virtual studio.</span></li>
+        <li><strong>Something else</strong><span>Labels, festivals, gear, drinks. Tell us your idea.</span></li>
+      </ul>
+      <a class="mailto" href="mailto:info@distancezeroshow.com?subject=Advertising%20on%20DISTANCE%20%2F%2F%20ZERO">info@distancezeroshow.com</a>
+    </div>
+    <form class="form" id="advForm" novalidate>
+      <div class="row">
+        <label><span>Company</span><input name="company" required autocomplete="organization"></label>
+        <label><span>Your name</span><input name="name" required autocomplete="name"></label>
+      </div>
+      <div class="row">
+        <label><span>Email</span><input name="email" type="email" required autocomplete="email"></label>
+        <label><span>Website</span><input name="website" type="url" placeholder="https://" autocomplete="url"></label>
+      </div>
+      <div class="row">
+        <label><span>Interested in</span><select name="type">
+          <option>Presenting partner</option><option>Segment partner</option><option>On-air spot</option><option>In the studio</option><option>Something else</option>
+        </select></label>
+        <label><span>Budget per episode</span><select name="budget">
+          <option>Let's talk</option><option>Under EUR 250</option><option>EUR 250 to 1,000</option><option>EUR 1,000 to 5,000</option><option>Over EUR 5,000</option>
+        </select></label>
+      </div>
+      <label><span>Message</span><textarea name="message" rows="4" placeholder="What would you like to do on the show?"></textarea></label>
+      <label class="hp" aria-hidden="true"><span>Leave empty</span><input name="fax" tabindex="-1" autocomplete="off"></label>
+      <button class="btn" type="submit">SEND REQUEST</button>
+      <p class="note" id="advNote" role="status"></p>
+    </form>
+  </div>
+</section>
 </main>
 
 <section class="sponsor" aria-labelledby="sponsorTitle">
@@ -512,6 +581,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   <div class="mark disp">DISTANCE <span class="sl">/</span><span class="sl">/</span> ZERO</div>
   <p>VIENNA // MELBOURNE</p>
   <p>15,731 KM</p>
+  <p><a href="mailto:info@distancezeroshow.com" style="text-decoration:none">INFO@DISTANCEZEROSHOW.COM</a></p>
   <p class="c">Music connects us.</p>
 </footer>
 
@@ -576,7 +646,7 @@ burger.onclick = () => { const o = nav.classList.toggle('open'); burger.setAttri
 document.querySelectorAll('#menu a').forEach(a => a.addEventListener('click', () => { nav.classList.remove('open'); burger.textContent='MENU'; burger.setAttribute('aria-expanded', false); }));
 const links = [...document.querySelectorAll('#menu a')];
 const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.toggleAttribute('aria-current', l.hash === '#' + e.target.id)); }), {rootMargin:'-45% 0px -50% 0px'});
-['home','hosts','show','live','episodes','music'].forEach(id => spy.observe(document.getElementById(id)));
+['home','hosts','show','live','episodes','music','advertise'].forEach(id => spy.observe(document.getElementById(id)));
 
 /* hero: the opening plays, resolves into the sharp key visual, holds, then plays again.
    Paused while the hero is off screen. Where autoplay is blocked (iOS low power) it starts on the first touch. */
@@ -778,6 +848,23 @@ if (DZ.live.on && DZ.live.youtubeId){
     else offline();
   }
   check(); setInterval(check, 30000); addEventListener('scroll', () => { if (!ch && isOpen()) check(); }, { passive: true });
+})();
+
+/* advertise form: no server, it opens the visitor's mail app with the request filled in */
+(() => {
+  const f = $('#advForm'), note = $('#advNote'), to = 'info@distancezeroshow.com';
+  f.onsubmit = e => {
+    e.preventDefault(); note.textContent = '';
+    const d = Object.fromEntries(new FormData(f));
+    if (d.fax) return;
+    const missing = ['company', 'name', 'email'].find(k => !String(d[k] || '').trim());
+    if (missing){ f.elements[missing].focus(); note.textContent = 'Please fill in company, name and email.'; return; }
+    if (!f.elements.email.checkValidity()){ f.elements.email.focus(); note.textContent = 'That email address does not look right.'; return; }
+    const body = ['Company: ' + d.company, 'Name: ' + d.name, 'Email: ' + d.email, 'Website: ' + (d.website || '-'),
+      'Interested in: ' + d.type, 'Budget per episode: ' + d.budget, '', d.message || ''].join('\n');
+    location.href = 'mailto:' + to + '?subject=' + encodeURIComponent('Advertising: ' + d.company + ' / ' + d.type) + '&body=' + encodeURIComponent(body);
+    note.textContent = 'Your mail app should open with the request ready to send. If nothing happens, write to ' + to + '.';
+  };
 })();
 
 /* media reel: click to load, one player at a time */
