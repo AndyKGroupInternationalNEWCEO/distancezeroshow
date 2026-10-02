@@ -374,7 +374,49 @@ footer .mark{font-size:clamp(1.1rem,2.4vw,1.8rem)}
 footer p{margin-top:.9em;font-stretch:112%;font-size:.74rem;letter-spacing:.26em;color:var(--dim)}
 footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;margin-top:2em}
 
+/* host bios */
+.bios{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,70px);margin-top:clamp(30px,4vw,56px)}
+.bio{border-top:1px solid var(--line);padding-top:clamp(18px,2vw,28px);position:relative}
+.bio::before{content:"";position:absolute;top:-1px;left:0;width:64px;height:1px;background:var(--amber)}
+.bio.g::before{background:var(--ice)}
+.bio h3{font-size:clamp(.72rem,1vw,.8rem);font-stretch:112%;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;font-weight:400}
+.bio h3 b{color:var(--chrome-hi);font-weight:700;font-stretch:125%;margin-right:.5em}
+.bio p{margin-top:.9em;color:#b4bac3}
+.bio blockquote{margin:1.1em 0 0;padding-left:1em;border-left:1px solid var(--amber);font-style:italic;font-weight:300;color:var(--chrome-hi)}
+.bio .more{display:inline-block;margin-top:1.1em;font-stretch:112%;font-size:.66rem;letter-spacing:.22em;color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(242,166,80,.4);padding-bottom:3px}
+.bio .more:hover{color:var(--chrome-hi);border-color:var(--chrome-hi)}
+@media (max-width:700px){.bios{grid-template-columns:1fr}}
+
+/* effects: ticker band */
+.ticker{position:relative;z-index:1;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(7,8,10,.55);padding:18px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.ticker div{display:flex;width:max-content;animation:tick 48s linear infinite}
+.ticker span{font-stretch:125%;font-weight:800;font-size:clamp(1.1rem,2.4vw,2rem);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;padding-right:.9em;
+  color:transparent;-webkit-text-stroke:1px rgba(201,206,214,.45)}
+.ticker span:nth-child(4n+1){color:var(--chrome-hi);-webkit-text-stroke:0}
+.ticker i{font-style:normal;color:var(--amber);-webkit-text-stroke:0;padding-right:.9em;font-stretch:125%;font-weight:800;font-size:clamp(1.1rem,2.4vw,2rem)}
+.ticker i:nth-of-type(even){color:var(--ice)}
+.ticker:hover div{animation-play-state:paused}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* effects: scroll reveal */
+.fx [data-rv]{opacity:0;transform:translateY(28px);filter:blur(6px);transition:opacity 1.1s cubic-bezier(.2,.7,.1,1),transform 1.1s cubic-bezier(.2,.7,.1,1),filter 1.1s;transition-delay:var(--d,0s)}
+.fx [data-rv].in{opacity:1;transform:none;filter:none}
+
+/* effects: pointer glow (warm on the Vienna side, cool on the Melbourne side) */
+.glow{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;pointer-events:none;z-index:0;opacity:0;transition:opacity .6s,background .8s;
+  background:radial-gradient(closest-side,rgba(242,166,80,.10),transparent);will-change:transform}
+.glow.on{opacity:1}
+.glow.cool{background:radial-gradient(closest-side,rgba(169,200,238,.10),transparent)}
+
+/* effects: host card tilt + glare */
+.host .glare{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .5s;background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.14),transparent 45%)}
+.host:hover .glare{opacity:1}
+.room.tilt .host{transition:transform .25s ease-out}
+
 @media (prefers-reduced-motion:reduce){
+  .ticker div{animation:none}
+  .glow{display:none}
   html{scroll-behavior:auto}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .rv{opacity:1;transform:none;filter:none}
@@ -423,6 +465,11 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   </div>
 </section>
 
+<div class="ticker" aria-hidden="true"><div>
+  <span>Vienna</span><i>//</i><span>Melbourne</span><i>//</i><span>15,731 km</span><i>//</i><span>First show 27.01.2027</span><i>//</i><span>Every third Sunday</span><i>//</i><span>Music connects us</span><i>//</i>
+  <span>Vienna</span><i>//</i><span>Melbourne</span><i>//</i><span>15,731 km</span><i>//</i><span>First show 27.01.2027</span><i>//</i><span>Every third Sunday</span><i>//</i><span>Music connects us</span><i>//</i>
+</div></div>
+
 <section class="sec" id="hosts">
   <video class="studio" id="studio" muted loop playsinline preload="none" aria-hidden="true" poster="assets/studio-still.jpg"></video>
   <h2 class="disp">Two hosts. One room.</h2>
@@ -439,6 +486,18 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
     </article>
   </div>
   <p class="equal">Andrej and Georgie host every show together, as equals, from opposite ends of the day. One of them is always up too late. The other is always up too early.</p>
+  <div class="bios">
+    <article class="bio a">
+      <h3><b>Andrej Kneisl</b>Vienna</h3>
+      <p>Producer and DJ, known as DJ Andy'K. Andrej makes trance, progressive house and cinematic electronic music, from deeply personal albums to concept records like <i>Opus No. 1: Vienna</i>. On the show he brings the new releases, the studio stories and the questions nobody planned to ask.</p>
+      <blockquote>&ldquo;For me, music is more than passion. It's a friend.&rdquo;</blockquote>
+      <a class="more" href="https://www.djandykofficial.com/" target="_blank" rel="noopener">DJANDYKOFFICIAL.COM &#8599;</a>
+    </article>
+    <article class="bio g">
+      <h3><b>Georgie Walker</b>Melbourne</h3>
+      <p>Georgie brings Melbourne into the room: the Australian side of the scene, the artists on her radar and the energy of the other side of the world. She keeps the conversation honest, the guests on their toes and the hosts on time. Mostly.</p>
+    </article>
+  </div>
 </section>
 
 <section class="sec" id="show">
@@ -633,6 +692,17 @@ function playTrack(i){ tIdx = (i + TRACKS.length) % TRACKS.length; music.src = T
   return music.play().then(() => { const f = setInterval(() => { music.volume = Math.min(.8, music.volume + .04); if (music.volume >= .8) clearInterval(f); }, 60); }); }
 music.addEventListener('ended', () => playTrack(tIdx + 1).catch(()=>{}));
 music.addEventListener('play', sndUI); music.addEventListener('pause', sndUI);
+/* the signal line listens to the soundtrack. Only wired once the context is running, so a suspended context can never mute the music. */
+const AUD = { an: null, bins: null, level: 0 };
+music.addEventListener('playing', async () => {
+  if (AUD.an || reduce || !window.AudioContext) return;
+  try { const ctx = new AudioContext(); if (ctx.state !== 'running') await ctx.resume().catch(()=>{});
+    if (ctx.state !== 'running'){ ctx.close(); return; }
+    const src = ctx.createMediaElementSource(music), an = ctx.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = .82;
+    src.connect(an); an.connect(ctx.destination); AUD.an = an; AUD.bins = new Uint8Array(an.frequencyBinCount);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx.state !== 'running') ctx.resume().catch(()=>{}); });
+  } catch(e){}
+});
 function startMusic(){ return (music.src ? music.play() : playTrack(0)); }
 snd.onclick = heroPlay.onclick = () => { wantSound = music.paused; if (wantSound) startMusic().catch(()=>{}); else music.pause();
   try { localStorage.setItem('dz-sound', wantSound ? 'on' : 'off'); } catch(e){} };
@@ -907,6 +977,52 @@ DZ.media.forEach(m => {
   reel.append(el);
 });
 
+/* effects: reveal on scroll, decoding headings, pointer glow, host card tilt. All off with reduced motion. */
+(() => {
+  if (reduce) return;
+  document.documentElement.classList.add('fx');
+  const els = [];
+  const mark = (sel, step = 0) => document.querySelectorAll(sel).forEach((e, i) => { e.dataset.rv = ''; if (step) e.style.setProperty('--d', (i % 6) * step + 's'); els.push(e); });
+  mark('.sec h2.disp'); mark('.lede'); mark('.equal'); mark('.bio', .15); mark('.ident', .06); mark('.mix'); mark('.two>div');
+  mark('.console'); mark('.chat'); mark('.clip', .08); mark('.tracks li', .05); mark('.offers li', .06); mark('.form'); mark('.logos a', .12); mark('.tone span', .15);
+  /* headings decode like a terminal the first time they appear */
+  const glyphs = 'D/0#%&*+<>=?ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  function decode(h){
+    if (h.children.length || h.dataset.done) return; h.dataset.done = 1;
+    const final = h.textContent, n = final.length; let f = 0;
+    h.style.minHeight = h.offsetHeight + 'px';
+    const step = () => { f++; const shown = Math.floor(f * n / 26);
+      h.textContent = [...final].map((c, k) => k < shown || c === ' ' ? c : glyphs[(Math.random() * glyphs.length) | 0]).join('');
+      if (shown < n) requestAnimationFrame(step); else { h.textContent = final; h.style.minHeight = ''; } };
+    step();
+  }
+  const io = new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; e.target.classList.add('in'); io.unobserve(e.target);
+    if (e.target.matches('.sec h2.disp')) decode(e.target); }), { rootMargin: '0px 0px -8% 0px' });
+  els.forEach(e => io.observe(e));
+
+  if (!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  /* pointer glow */
+  const g = document.createElement('div'); g.className = 'glow'; g.setAttribute('aria-hidden', 'true'); document.body.prepend(g);
+  let gx = innerWidth / 2, gy = innerHeight / 2, tx = gx, ty = gy, gr = 0;
+  addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; g.classList.add('on'); g.classList.toggle('cool', e.clientX > innerWidth / 2);
+    if (!gr) gr = requestAnimationFrame(follow); }, { passive: true });
+  document.addEventListener('pointerleave', () => g.classList.remove('on'));
+  function follow(){ gx += (tx - gx) * .14; gy += (ty - gy) * .14; g.style.transform = `translate(${gx}px,${gy}px)`;
+    gr = Math.abs(tx - gx) + Math.abs(ty - gy) > .5 ? requestAnimationFrame(follow) : 0; }
+  /* host cards lean toward the pointer, with a glare */
+  const room = document.querySelector('.room');
+  if (room && innerWidth > 700){
+    room.classList.add('tilt');
+    room.querySelectorAll('.host').forEach(card => {
+      const gl = document.createElement('div'); gl.className = 'glare'; card.append(gl);
+      card.addEventListener('pointermove', e => { const b = card.getBoundingClientRect(), px = (e.clientX - b.left) / b.width, py = (e.clientY - b.top) / b.height;
+        card.style.transform = `perspective(1400px) rotateY(${(px - .5) * 7}deg) rotateX(${(.5 - py) * 6}deg)`;
+        card.style.setProperty('--gx', px * 100 + '%'); card.style.setProperty('--gy', py * 100 + '%'); });
+      card.addEventListener('pointerleave', () => { card.style.transform = ''; });
+    });
+  }
+})();
+
 /* signal canvas: particles + the frequency line that runs through the whole site */
 (() => {
   const c = $('#signal'), x = c.getContext('2d'); let w, h, dpr, pts = [], t = 0, cur = .25, raf, visible = true;
@@ -914,6 +1030,9 @@ DZ.media.forEach(m => {
     const n = Math.round(Math.min(90, w*h/16000)); pts = Array.from({length:n}, () => ({x:Math.random()*w, y:Math.random()*h, z:.2+Math.random()*.8, s:Math.random()*6.28})); }
   function draw(){
     x.clearRect(0,0,w,h); cur += (energy - cur) * .04;
+    let lvl = 0, B = null;
+    if (AUD.an && !music.paused){ AUD.an.getByteFrequencyData(AUD.bins); B = AUD.bins; let sum = 0; for (let k = 2; k < 24; k++) sum += B[k]; lvl = sum / (22 * 255); }
+    AUD.level += (lvl - AUD.level) * .25;
     const sy = scrollY;
     for (const p of pts){
       const px = p.x + Math.sin(t*.15 + p.s)*18*p.z, py = (((p.y - sy*.12*p.z) % h) + h) % h;
@@ -921,12 +1040,13 @@ DZ.media.forEach(m => {
       x.beginPath(); x.arc(px, py, .5 + p.z*1.1, 0, 6.28); x.fill();
     }
     const g = x.createLinearGradient(0,0,w,0); g.addColorStop(0,'#f2a650'); g.addColorStop(.5,'#f3f5f8'); g.addColorStop(1,'#a9c8ee');
-    const base = h*.5, amp = h*(.015 + cur*.085);
+    const base = h*.5, amp = h*(.015 + cur*.085 + AUD.level*.07);
     for (let l = 0; l < 3; l++){
       x.beginPath(); x.strokeStyle = g; x.globalAlpha = (l ? .12 : .5) * (.35 + cur*.65); x.lineWidth = l ? 1 : 1.4;
       for (let i = 0; i <= w; i += 6){
         const u = i / w, env = Math.sin(u*Math.PI); /* pinned at both cities, loudest where they meet */
-        const y = base + env*amp*( Math.sin(u*14 + t*1.1 + l*.9)*.55 + Math.sin(u*37 - t*1.7 + l)*.3*cur + Math.sin(u*5 - t*.4)*.5 );
+        const sp = B ? (B[2 + Math.floor((1 - Math.abs(u - .5) * 2) * 40)] / 255) * Math.sin(u*46 - t*4.2 + l*1.3) * (l ? .6 : 1) : 0; /* spectrum folded around the middle, bass where the cities meet */
+        const y = base + env*amp*( Math.sin(u*14 + t*1.1 + l*.9)*.55 + Math.sin(u*37 - t*1.7 + l)*.3*cur + Math.sin(u*5 - t*.4)*.5 ) + env*sp*h*.045;
         i ? x.lineTo(i,y) : x.moveTo(i,y);
       }
       x.stroke();
