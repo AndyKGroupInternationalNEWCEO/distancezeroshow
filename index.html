@@ -259,6 +259,47 @@ main,footer{position:relative;z-index:1}
 @media (min-width:821px){.screen{aspect-ratio:auto;min-height:clamp(380px,36vw,560px)}}
 @media (max-width:820px){.console{grid-template-columns:1fr}.rail{border-left:0;border-top:1px solid var(--line)}}
 
+/* live chat: terminal-style type in the site's own look, "retro chat by D//0". Nickname only, nothing stored, open only while on air */
+.chat{--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;--tfg:var(--chrome-hi);--tdim:var(--dim);--tor:var(--amber);
+  margin-top:14px;border:1px solid var(--line);background:rgba(7,8,10,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--tfg);font-family:var(--mono);font-size:clamp(13px,.55vw + 10px,15.5px);line-height:1.6;position:relative}
+.chat::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:linear-gradient(90deg,var(--amber),var(--ice),transparent)}
+.term-bar{padding:14px clamp(12px,1.6vw,20px);border-bottom:1px solid var(--line);font-family:var(--wide);font-stretch:112%;font-size:.64rem;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.term-bar b{font-stretch:125%;font-weight:800;color:var(--chrome-hi);letter-spacing:.2em;margin-right:.6em}
+.term-body{padding:14px clamp(12px,1.6vw,20px) 10px}
+.chat .dim{color:var(--tdim)}
+.chat-closed{padding:6px 0 4px}
+.chat-closed p+p{margin-top:.2em}
+.chat-closed .cur::after,.chat-cursor::after{content:"";display:inline-block;width:.6em;height:1.15em;vertical-align:-.2em;background:var(--tdim);margin-left:.1em;animation:blink 1.05s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.chat-log{height:clamp(240px,34vh,380px);overflow-y:auto;list-style:none;margin:0;padding:0 0 6px;overscroll-behavior:contain;scrollbar-color:rgba(201,206,214,.25) transparent}
+.chat-log li{padding:2px 0 2px 1.4em;text-indent:-1.4em;word-wrap:break-word;white-space:pre-wrap}
+.chat-log .bul{display:inline-block;width:1.4em;text-indent:0}
+.chat-log b{font-weight:600}
+.chat-log b::after{content:":";color:var(--tdim);margin-right:.5em;font-weight:400}
+.chat-log time{color:var(--tdim);font-size:.85em;margin-left:.7em}
+.chat-log .me{background:rgba(255,255,255,.05);margin:4px calc(-1 * clamp(12px,1.6vw,20px));padding-left:calc(clamp(12px,1.6vw,20px) + 1.4em);padding-right:clamp(12px,1.6vw,20px)}
+.chat-log .me .bul{color:var(--tdim)}
+.chat-log .sys{color:var(--tdim);padding-left:2.8em;text-indent:-1.4em}
+.chat-log .sys::before{content:"\23BF";display:inline-block;width:1.4em;text-indent:0}
+.chat-log .busy{color:var(--tor)}
+.chat-log .busy::before{content:"\2736";color:var(--tor)}
+.emo{display:flex;flex-wrap:wrap;gap:2px 4px;padding:4px 0 6px}
+.emo button{background:none;border:0;font:inherit;color:var(--tdim);padding:3px 6px;cursor:pointer;border-radius:4px;line-height:1.3}
+.emo button:hover,.emo button:focus-visible{color:var(--tfg);background:rgba(255,255,255,.07)}
+@media (max-width:700px){.emo{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}.emo::-webkit-scrollbar{display:none}.emo button{flex:none}}
+.chat-form{display:flex;align-items:center;gap:.6em;border-top:1px solid rgba(201,206,214,.28);border-bottom:1px solid rgba(201,206,214,.28);padding:9px 0;margin-top:4px}
+.chat-form label{color:var(--tdim);white-space:nowrap}
+.chat-form input{flex:1;min-width:0;background:transparent;border:0;color:var(--tfg);font:inherit;font-size:max(16px,1em);padding:0;caret-color:var(--tdim)}
+.chat-form input::placeholder{color:#5c626b}
+.chat-form input:focus{outline:none}
+.chat-form button{background:none;border:0;color:var(--tdim);font:inherit;cursor:pointer;padding:0 2px}
+.chat-form button:hover{color:var(--tfg)}
+.chat-form button:disabled,.chat-form input:disabled{opacity:.45;cursor:not-allowed}
+.chat-status{display:flex;justify-content:space-between;gap:12px;padding:8px 0 2px;color:var(--tor);font-size:.92em}
+.chat-status span:last-child{color:var(--tdim)}
+.chat-err{color:#ff7b72;padding:6px 0 0}
+.chat-err:empty{display:none}
+
 /* launch */
 .launch{min-height:120svh;display:grid;place-items:center;text-align:center;padding:20svh var(--pad)}
 .launch p:first-child{font-size:clamp(1.5rem,5vw,4.6rem);color:var(--chrome-hi)}
@@ -410,6 +451,26 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
       <div><dt>Now playing</dt><dd id="fTrack">Track info appears here during the broadcast</dd></div>
     </dl></div>
   </div>
+
+  <div class="chat" id="chat" aria-label="Live chat">
+    <div class="term-bar"><b>Retro chat</b>by D<span class="sl">/</span><span class="sl">/</span>0 <span id="chatTitle" aria-live="off">// offline</span></div>
+    <div class="term-body">
+      <div id="chatRoom">
+        <ul class="chat-log" id="chatLog" aria-live="polite"></ul>
+        <div id="chatTools" hidden><div class="emo" id="emo" aria-label="Smileys"></div></div>
+        <form class="chat-form" id="chatJoin" autocomplete="off">
+          <label for="chatNick">&#10095; nickname:</label><input id="chatNick" maxlength="20" placeholder="pick one and press enter" required>
+          <button type="submit">join &#8629;</button>
+        </form>
+        <form class="chat-form" id="chatSend" autocomplete="off" hidden>
+          <label for="chatMsg">&#10095;</label><input id="chatMsg" maxlength="280" placeholder="say something" required>
+          <button type="submit">send &#8629;</button>
+        </form>
+        <p class="chat-err" id="chatErr" role="alert"></p>
+        <p class="chat-status"><span id="chatInfo">&#9656;&#9656; chat offline</span><span id="chatWho">opens at showtime</span></p>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="launch" id="launch" aria-label="Launch">
@@ -462,6 +523,7 @@ const DZ = {
   schedule: { nth:3, weekday:0, hour:10, minute:0, tz:'Europe/Vienna', minutes:120 }, // after the launch: every 3rd Sunday, 10:00 Vienna
   live: { on:false, youtubeId:'', channelUrl:'' }, // set on:true + youtubeId to switch the Live section on air
   nextShow:'', guest:'', nowPlaying:'',
+  chat: { url:'https://lltxttphmtxtmatlsyto.supabase.co', key:'sb_publishable_R5qZvEuZspipSUGLRaSBVw_1RS1lp2B', room:'dz-live-chat' }, // opens while live.on or during a scheduled show
   media: [ // {title, kind, src (mp4) or youtubeId, poster}
         {title:'DISTANCE // ZERO opening', kind:'Opening titles', src:'OPENING', poster:'KV'},
     {title:'The virtual studio', kind:'Studio', src:'STUDIO', poster:'STUDIO_STILL'}, {title:'Official trailer', kind:'Coming soon'}, {title:'Guest moments', kind:'From January 2027'}
@@ -611,6 +673,112 @@ if (DZ.live.on && DZ.live.youtubeId){
   const s = document.createElement('p'); s.className = 'status on'; s.innerHTML = '<i></i><span>LIVE NOW</span>';
   s.style.cssText = 'position:absolute;top:16px;left:16px;z-index:2'; $('#screen').append(s);
 }
+
+/* live chat: Supabase Realtime broadcast + presence. Nothing is stored; a nickname lives only while its owner is connected.
+   ?chat=test opens a separate test room at any time. */
+(() => {
+  const test = new URLSearchParams(location.search).get('chat') === 'test';
+  const room = DZ.chat.room + (test ? '-test' : ''), len = DZ.schedule.minutes * 6e4;
+  const el = id => document.getElementById(id), log = el('chatLog'), err = el('chatErr');
+  const colors = ['#f2a650', '#a9c8ee', '#7cc47f', '#e0915e', '#c6a0f6', '#f3f5f8', '#8fd0d8'];
+  const color = n => colors[[...n.toLowerCase()].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % colors.length];
+  const reserved = /^(andrej|georgie|andrejkneisl|georgiewalker|host|admin|mod|moderator|dz|distancezero)$/i;
+  let ch = null, nick = null, me = null, joinedAt = 0, lastSent = 0, loading = null, people = new Map();
+
+  const isOpen = () => test || DZ.live.on || (Date.now() >= target && Date.now() < target + len);
+  function line(cls, who, text){
+    const li = document.createElement('li'); if (cls) li.className = cls;
+    if (cls !== 'sys' && cls !== 'busy'){ const u = document.createElement('span'); u.className = 'bul'; u.textContent = cls === 'me' ? '\u276F' : '\u25CF'; if (who) u.style.color = color(who); li.append(u); }
+    if (who && cls !== 'me'){ const b = document.createElement('b'); b.textContent = who; b.style.color = color(who); li.append(b); }
+    li.append(document.createTextNode(text));
+    if (cls !== 'sys' && cls !== 'busy'){ const t = document.createElement('time'); t.textContent = hhmm(); li.append(t); }
+    const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+    log.append(li); while (log.children.length > 200) log.firstChild.remove();
+    if (stick) log.scrollTop = log.scrollHeight;
+  }
+  const info = () => { const n = people.size + (people.size === 1 ? ' person' : ' people') + ' online';
+    el('chatWho').textContent = ch ? n : ''; el('chatTitle').textContent = '// ' + (ch ? n : 'offline'); };
+  const hhmm = () => new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+  function sdk(){ return loading || (loading = new Promise((ok, no) => { const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; s.onload = ok; s.onerror = no; document.head.append(s); })); }
+
+  async function connect(){
+    if (ch) return;
+    log.textContent = ''; el('chatNick').disabled = false; el('chatNick').placeholder = 'pick one'; el('chatJoin').querySelector('button').disabled = false;
+    el('chatInfo').textContent = '▸▸ live chat on'; line('busy', '', ' Connecting…');
+    try { await sdk(); } catch(e){ line('sys', '', 'Chat could not load. Refresh to try again.'); return; }
+    const sb = supabase.createClient(DZ.chat.url, DZ.chat.key);
+    me = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
+    ch = sb.channel(room, { config: { broadcast: { self: true }, presence: { key: me } } });
+    ch.on('broadcast', { event: 'msg' }, ({ payload: m }) => {
+      if (!m || typeof m.nick !== 'string' || typeof m.text !== 'string') return;
+      line(m.nick === nick ? 'me' : '', m.nick.slice(0, 20), m.text.slice(0, 280));
+    });
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState();
+      /* two people took the same nickname within the same second: the first one keeps it */
+      if (nick && Object.entries(state).some(([k, ps]) => k !== me && ps.some(p => p.nick && p.nick.toLowerCase() === nick.toLowerCase() && (p.at < joinedAt || (p.at === joinedAt && k < me))))){
+        const lost = nick; nick = null; ch.untrack(); el('chatTools').hidden = true; el('chatSend').hidden = true; el('chatJoin').hidden = false;
+        err.textContent = 'Someone just took ' + lost + '. Try another.'; return;
+      }
+      const now = new Map(); Object.values(state).flat().forEach(p => p.nick && now.set(p.nick.toLowerCase(), p.nick));
+      if (nick) { now.forEach((n, k) => !people.has(k) && n !== nick && line('sys', '', n + ' joined'));
+                  people.forEach((n, k) => !now.has(k) && line('sys', '', n + ' left')); }
+      people = now; info();
+    });
+    ch.subscribe(st => { if (st === 'SUBSCRIBED'){ log.lastChild && log.lastChild.className === 'busy' && log.lastChild.remove(); line('sys', '', 'Connected. Pick a nickname to join.'); el('chatNick').focus({preventScroll:true}); }
+      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') line('sys', '', 'Connection lost. Retrying…'); });
+  }
+  async function disconnect(msg){
+    if (!ch) return; const c = ch; ch = null; nick = null; people.clear();
+    try { await c.untrack(); await c.unsubscribe(); } catch(e){}
+    line('sys', '', msg); el('chatTools').hidden = true; el('chatSend').hidden = true; el('chatJoin').hidden = false; info();
+  }
+
+  el('chatJoin').onsubmit = async e => {
+    e.preventDefault(); err.textContent = '';
+    const n = el('chatNick').value.trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L}\p{N} ._-]{2,20}$/u.test(n)) return err.textContent = 'Use 2 to 20 letters, numbers, spaces, dots, dashes or underscores.';
+    if (reserved.test(n.replace(/[\s._-]/g, ''))) return err.textContent = 'That nickname is reserved for the show.';
+    if (people.has(n.toLowerCase())) return err.textContent = 'Someone in the room is already called ' + n + '. Try another.';
+    if (!ch) return;
+    nick = n; joinedAt = Date.now(); await ch.track({ nick: n, at: joinedAt });
+    el('chatJoin').hidden = true; el('chatTools').hidden = false; el('chatSend').hidden = false; line('sys', '', 'You joined as ' + n); el('chatMsg').focus();
+  };
+  el('chatSend').onsubmit = e => {
+    e.preventDefault(); err.textContent = '';
+    const t = el('chatMsg').value.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+    if (!t || !ch || !nick) return;
+    if (Date.now() - lastSent < 1500) return err.textContent = 'Slow down a little.';
+    lastSent = Date.now(); el('chatMsg').value = '';
+    ch.send({ type: 'broadcast', event: 'msg', payload: { nick, text: t.slice(0, 280) } });
+  };
+  addEventListener('pagehide', () => { if (ch) ch.untrack(); });
+  /* smileys: the old-school text ones only */
+  [":)", ":(", ";)", ":D", ":P", ":O", ":/", ":*", "XD", "B)", "8)", ":-)", ";-)", "<3", "</3", "^_^", "^^", "-_-", "o_O", ">_<", "T_T", "=)", "(y)", "\\o/", "\\m/", "d(^_^)b", "¯\\_(ツ)_/¯", "(^_^)/", "(>_<)", "<(^_^)>", "♪", "♫"].forEach(e => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'txt'; b.textContent = e; b.setAttribute('aria-label', 'Insert ' + e);
+    b.onclick = () => { const i = el('chatMsg'), at = i.selectionStart ?? i.value.length, add = (at && i.value[at - 1] !== ' ' ? ' ' : '') + e + ' ';
+      if (i.value.length + add.length > 280) return; i.value = i.value.slice(0, at) + add + i.value.slice(at); i.focus(); i.selectionStart = i.selectionEnd = at + add.length; };
+    el('emo').append(b);
+  });
+
+  /* off air: the window stays, the input is locked */
+  let shownOffline = false;
+  function offline(){
+    el('chatNick').disabled = true; el('chatNick').placeholder = 'opens when live'; el('chatJoin').querySelector('button').disabled = true; el('chatSend').hidden = true; el('chatTools').hidden = true; el('chatJoin').hidden = false;
+    el('chatInfo').textContent = '▸▸ chat offline'; el('chatWho').textContent = 'opens at showtime'; el('chatTitle').textContent = '// offline';
+    if (shownOffline) return; shownOffline = true; log.textContent = '';
+    line('', 'D//0', 'Welcome to the retro chat. It opens when the show is on air.');
+    line('sys', '', 'No account, no sign-up. Pick a nickname and you are in. Leave, and your nickname is gone.');
+    line('sys', '', 'Next show: ' + document.getElementById('fNext').textContent);
+  }
+  function check(){
+    if (isOpen()) { const near = el('live').getBoundingClientRect().top < innerHeight * 2; if (near) connect(); }
+    else if (ch) disconnect('The show is over. See you next time.').then(offline);
+    else offline();
+  }
+  check(); setInterval(check, 30000); addEventListener('scroll', () => { if (!ch && isOpen()) check(); }, { passive: true });
+})();
 
 /* media reel: click to load, one player at a time */
 const reel = $('#reel'); let playing = null;
