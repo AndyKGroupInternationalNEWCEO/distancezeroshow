@@ -49,7 +49,7 @@
   "rewrites": [
     {
       "source": "/de",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
