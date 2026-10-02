@@ -44,5 +44,12 @@
         }
       ]
     }
+  ],
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/de",
+      "destination": "/index.html"
+    }
   ]
 }
