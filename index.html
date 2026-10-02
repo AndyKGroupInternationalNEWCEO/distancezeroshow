@@ -313,7 +313,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 <section class="hero" id="home">
   <div class="hero-media" aria-hidden="true"><img class="kv" id="kv" alt="" fetchpriority="high" src="assets/keyvisual.jpg"></div>
   <!-- ASSET: opening video. Source is attached by JS only if the file exists. -->
-  <video id="heroVideo" muted playsinline preload="none" aria-hidden="true"></video>
+  <video id="heroVideo" muted autoplay playsinline preload="auto" aria-hidden="true"></video>
   <h1 class="vh">DISTANCE // ZERO — 15,731 km. Between two worlds. One room.</h1>
   <div class="hero-foot"><p class="connect rv">Music connects us.</p><button class="play rv" id="heroPlay" type="button">&#9654;&ensp;PLAY THE SOUNDTRACK</button><p class="start rv">STARTING JANUARY 2027</p></div>
 </section>
@@ -496,14 +496,23 @@ const links = [...document.querySelectorAll('#menu a')];
 const spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.toggleAttribute('aria-current', l.hash === '#' + e.target.id)); }), {rootMargin:'-45% 0px -50% 0px'});
 ['home','hosts','show','live','episodes','music'].forEach(id => spy.observe(document.getElementById(id)));
 
-/* hero: the opening animation plays once, then resolves into the sharp key visual */
+/* hero: the opening plays, resolves into the sharp key visual, holds, then plays again.
+   Paused while the hero is off screen. Where autoplay is blocked (iOS low power) it starts on the first touch. */
 (() => {
-  const v = $('#heroVideo'), kv = $('#kv'); if (reduce || (navigator.connection && navigator.connection.saveData)) return;
-  kv.style.animationPlayState = 'paused';
-  const done = () => { v.classList.remove('on'); kv.style.animationPlayState = ''; };
-  v.addEventListener('canplay', () => { v.classList.add('on'); v.play().catch(done); }, {once:true});
-  v.addEventListener('ended', done); v.addEventListener('error', done);
-  v.src = OPENING_MP4; v.load();
+  const v = $('#heroVideo'), kv = $('#kv'), hero = $('#home'); if (reduce || (navigator.connection && navigator.connection.saveData)) return;
+  const HOLD = 7000; let inView = true, wait = 0;
+  v.muted = v.defaultMuted = true;
+  const play = () => v.play().catch(() => { const go = () => { removeEventListener('touchend', go, true); removeEventListener('pointerup', go, true); if (inView) v.play().catch(()=>{}); };
+    addEventListener('touchend', go, true); addEventListener('pointerup', go, true); });
+  v.addEventListener('playing', () => { v.classList.add('on'); kv.style.animationPlayState = 'paused'; });
+  v.addEventListener('ended', () => { v.classList.remove('on'); kv.style.animationPlayState = '';
+    wait = setTimeout(() => { if (inView){ v.currentTime = 0; play(); } }, HOLD); });
+  v.addEventListener('error', () => { v.classList.remove('on'); kv.style.animationPlayState = ''; });
+  new IntersectionObserver(([e]) => { inView = e.isIntersecting;
+    if (!inView){ clearTimeout(wait); if (!v.paused) v.pause(); }
+    else if (v.paused && v.classList.contains('on')) play();
+    else if (v.ended || (v.paused && v.currentTime === 0)) { v.currentTime = 0; play(); } }).observe(hero);
+  v.src = OPENING_MP4; play();
 })();
 
 /* studio loop behind the hosts: loads when near, plays only while visible */
