@@ -12,4 +12,12 @@
     <xhtml:link rel="alternate" hreflang="de-AT" href="https://distancezeroshow.com/de"/>
     <lastmod>2026-10-02</lastmod><changefreq>weekly</changefreq>
   </url>
+  <url>
+    <loc>https://distancezeroshow.com/impressum</loc>
+    <lastmod>2026-10-02</lastmod><changefreq>yearly</changefreq>
+  </url>
+  <url>
+    <loc>https://distancezeroshow.com/privacy</loc>
+    <lastmod>2026-10-02</lastmod><changefreq>yearly</changefreq>
+  </url>
 </urlset>

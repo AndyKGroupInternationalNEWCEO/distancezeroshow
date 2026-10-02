@@ -50,6 +50,10 @@
     {
       "source": "/de",
       "destination": "/"
+    },
+    {
+      "source": "/datenschutz",
+      "destination": "/privacy"
     }
   ]
 }
