@@ -19,6 +19,8 @@
     <button class="tab" role="tab" id="tab-check" data-view="check" aria-controls="view-check" aria-selected="false">Pre-show check <span class="dot" id="dotCheck" hidden></span></button>
   </nav>
   <div class="bar-right">
+    <button class="b helpbtn" type="button" id="helpOpen" aria-haspopup="dialog">HELP</button>
+    <button class="b callbtn" type="button" id="callBtn" disabled>Call Vienna</button>
     <div class="clock mel"><span class="label"><i></i>Melbourne</span><strong id="cMel">--:--:--</strong></div>
     <div class="clock vie"><span class="label"><i></i>Vienna</span><strong id="cVie">--:--:--</strong></div>
     <div class="clock show" id="showclock" hidden><span class="label" id="showLabel"></span><strong id="showTime"></strong></div>
@@ -52,6 +54,8 @@
         </div>
         <div class="next"><span class="label">Next</span><strong id="nextTitle">—</strong><span class="hint" id="nextMeta"></span></div>
       </section>
+
+      <section class="card helpstate" id="helpState" aria-live="assertive" hidden></section>
 
       <section class="card" id="cuePanel" aria-labelledby="hCue" hidden>
         <div class="card-h"><h2 id="hCue">Instruction from Andrej</h2></div>
@@ -148,5 +152,24 @@
     </div>
   </div>
 </main>
+
+<!-- ======================= HELP ======================= -->
+<div class="help-dlg" id="helpDlg" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <form id="helpForm" autocomplete="off">
+    <div class="row"><h2 class="display grow" id="helpTitle">Ask Vienna for help</h2><button class="b sm quiet" type="button" id="helpClose">Close</button></div>
+    <p class="hint">Andrej sees this at once, with your connection details attached. You can keep talking on air.</p>
+    <div class="levels" role="radiogroup" aria-label="How urgent">
+      <label class="lvl-n"><input type="radio" name="level" value="normal" checked><b>Normal</b><span>A question, or something small</span></label>
+      <label class="lvl-u"><input type="radio" name="level" value="urgent"><b>Urgent</b><span>A problem, I need Andrej soon</span></label>
+      <label class="lvl-c"><input type="radio" name="level" value="critical"><b>Critical</b><span>On-air problem, right now</span></label>
+    </div>
+    <div class="quickhelp" id="quickHelp">
+      <button type="button">No sound from Vienna</button><button type="button">Vienna can't hear me</button><button type="button">Camera frozen or black</button>
+      <button type="button">Internet is slow</button><button type="button">Lost VDO.Ninja</button><button type="button">Not sure what's next</button>
+    </div>
+    <input class="in" id="helpText" maxlength="300" placeholder="What's wrong? (optional)" aria-label="Describe the problem">
+    <div class="row end"><label class="checks grow"><input type="checkbox" id="helpCall"> Also start a call</label><button class="b primary" type="submit">Send help request</button></div>
+  </form>
+</div>
 </body>
 </html>

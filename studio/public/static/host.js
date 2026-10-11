@@ -1,17 +1,34 @@
 // Host Dashboard (Georgie, Melbourne). Read-only show information, private talkback, and a local
 // camera/mic check. This page has no OBS or broadcast controls, and the server refuses them for this role anyway.
 import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segmentTimer, clock, day, nextShow, countdown, toast, chatPanel, titleBadge } from './common.js';
+import { createCall } from './call.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
+let downSince = 0, reconnects = 0, slowPings = 0;
 
 const conn = connect({ onStatus: st => {
+  const was = link.state;
   link = st;
-  if (st.state === 'open') { everOpen = true; report(); }
-  else if (!everOpen && st.state === 'closed') checkSignedIn();
+  if (st.state === 'open') {
+    if (was !== 'open' && everOpen) {
+      reconnects++;
+      const down = downSince ? Date.now() - downSince : 0;
+      // tell Vienna after the fact: while the link was down nothing could be sent
+      if (down > 5000) autoHelp('normal', 'reconnected', `Georgie's dashboard was disconnected for ${Math.round(down / 1000)} s and is back`, { downSeconds: Math.round(down / 1000) });
+    }
+    downSince = 0; everOpen = true; report();
+    slowPings = st.rtt > 1500 ? slowPings + 1 : 0;
+    if (slowPings === 3) autoHelp('urgent', 'slow-link', `Georgie's link to Vienna is very slow (${st.rtt} ms)`, { rtt: st.rtt });
+  } else {
+    if (!downSince) downSince = Date.now();
+    if (!everOpen && st.state === 'closed') checkSignedIn();
+  }
   renderStatus();
 } });
 conn.on('state', ({ s }) => { S = s; render(); });
 conn.on('alert', ({ text }) => alertBox(text));
+conn.on('help.update', () => {}); // the state update that follows repaints the help card
+conn.on('assist', a => assistCard(a));
 chatPanel(conn, 'host', { onUnread: n => { titleBadge('Host Dashboard — DISTANCE // ZERO')(n); const u = $('#unread'); u.hidden = !n; u.textContent = n + ' new'; } });
 runClocks(() => S);
 setInterval(() => S && tick(), 250);
@@ -49,6 +66,8 @@ function renderStatus() {
 
 const LEAD = { andrej: 'Andrej leads', georgie: 'You lead', both: 'Both of you' };
 function render() {
+  renderHelp();
+  $('#callBtn').disabled = !S.presence.director && call.phase === 'idle';
   const b = $('#andrejBadge'); b.className = 'badge ' + (S.presence.director ? 'live' : 'off'); b.textContent = S.presence.director ? 'Andrej online' : 'Offline';
   $('#vdoOpen').disabled = !S.vdo?.push;
   if (S.note !== lastNote) {
@@ -169,6 +188,7 @@ async function startCheck() {
       : e.name === 'NotFoundError' ? 'No camera or microphone found.' : e.message;
     $('#previewMsg').textContent = why;
     setBadge('bad', 'Problem');
+    autoHelp('normal', 'camera-check', 'Georgie\'s camera/mic check failed: ' + e.name, { error: e.name });
     return;
   }
   const v = $('#video');
@@ -249,3 +269,111 @@ $('#vdoOpen').addEventListener('click', () => {
 let startView = 'show';
 try { startView = sessionStorage.getItem('dz-host-view') || 'show'; } catch {}
 setView(startView);
+
+
+/* ---------- private call with Vienna ---------- */
+
+const call = createCall(conn, 'host', {
+  getState: () => S,
+  onProblem: (kind, text, diag) => autoHelp('urgent', kind, text, diag),
+});
+call.onPhase(p => {
+  const b = $('#callBtn');
+  b.textContent = p === 'idle' ? 'Call Vienna' : p === 'active' ? 'In call' : 'Calling…';
+  b.classList.toggle('on', p !== 'idle');
+  if (p !== 'idle') stopCheck(); // one camera user at a time
+});
+$('#callBtn').addEventListener('click', async () => {
+  try { await call.start(); } catch (e) { toast(e.message, 'bad'); }
+});
+
+/* ---------- HELP: three levels, sent with the facts Vienna needs ---------- */
+
+function diagnostics() {
+  const nc = navigator.connection || {};
+  const ua = navigator.userAgent;
+  return {
+    browser: /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /Firefox\//.test(ua) ? 'Firefox' : 'other',
+    online: navigator.onLine, linkMs: link.rtt || 0, reconnects, network: nc.effectiveType || '', downlinkMbps: nc.downlink || 0,
+    camera: device.camera, mic: device.mic, vdo: !!checks.vdo, headphones: !!checks.headphones,
+    inCall: call.phase, screen: `${screen.width}×${screen.height}`, view: $('#view-check').hidden ? 'show' : 'check',
+  };
+}
+const lastAuto = {};
+function autoHelp(level, kind, text, extra = {}) {
+  const now = Date.now();
+  if (lastAuto[kind] && now - lastAuto[kind] < 60000) return; // at most one per minute per kind from here
+  lastAuto[kind] = now;
+  const send = () => conn.send({ t: 'help.raise', level, kind, text, auto: true, diag: { ...diagnostics(), ...extra } }).catch(() => {});
+  if (conn.open) send(); else setTimeout(send, 3000);
+}
+window.addEventListener('error', e => autoHelp('normal', 'page-error', 'Georgie\'s dashboard hit a script error', { error: String(e.message).slice(0, 120) }));
+
+const dlg = $('#helpDlg');
+function openHelp() { dlg.hidden = false; $('#helpText').focus(); }
+function closeHelp() { dlg.hidden = true; $('#helpForm').reset(); }
+$('#helpOpen').addEventListener('click', openHelp);
+$('#helpClose').addEventListener('click', closeHelp);
+dlg.addEventListener('click', e => { if (e.target === dlg) closeHelp(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !dlg.hidden) closeHelp(); });
+$$('#quickHelp button').forEach(b => b.addEventListener('click', () => { $('#helpText').value = b.textContent; }));
+$('#helpForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const level = new FormData(e.target).get('level') || 'normal';
+  const alsoCall = $('#helpCall').checked;
+  try {
+    await conn.send({ t: 'help.raise', level, text: $('#helpText').value, diag: diagnostics() });
+    closeHelp();
+    toast(level === 'critical' ? 'Critical help sent. Vienna is alerted.' : 'Help request sent to Vienna.', 'ok');
+    if (alsoCall) call.start().catch(err => toast(err.message, 'bad'));
+  } catch (err) { toast(err.message === 'Not connected to the studio' ? 'No link to Vienna right now. Use your phone: message Andrej directly.' : err.message, 'bad'); }
+});
+
+const LEVEL = { normal: 'Normal', urgent: 'Urgent', critical: 'Critical' };
+function renderHelp() {
+  const open = (S.help || []).filter(x => x.status !== 'resolved' && !x.auto);
+  const box = $('#helpState');
+  box.hidden = !open.length;
+  if (!open.length) return;
+  const x = open[0];
+  box.className = 'card helpstate ' + x.level;
+  box.replaceChildren(
+    h('div', { class: 'card-h' }, h('h2', { text: `Help requested // ${LEVEL[x.level]}` }),
+      h('div', { class: 'aside' }, h('span', { class: 'badge ' + (x.status === 'ack' ? 'live' : 'manual'), text: x.status === 'ack' ? 'Andrej has seen it' : 'Waiting for Andrej' }))),
+    h('div', { class: 'card-b row' }, h('span', { class: 'grow', text: x.text || 'No details given' }),
+      h('button', { type: 'button', class: 'b sm quiet', text: 'Withdraw', onclick: () => conn.send({ t: 'help.cancel', hid: x.hid }).catch(err => toast(err.message, 'bad')) })));
+}
+
+/* ---------- guided assistance pushed by Andrej ---------- */
+
+const GUIDES = {
+  camera: ['Camera', ['Close other apps that use the camera (Zoom, Teams, FaceTime, Photo Booth).', 'Open Pre-show check and press Start check. Pick your camera in the list.', 'If the browser asks, allow the camera. If it was blocked: click the camera icon in the address bar and choose Allow.', 'Still black? Reload this page.'], 'check'],
+  audio: ['Sound', ['Put your headphones on and check they are the selected output on your computer.', 'Open Pre-show check: when you speak, the microphone level should move.', 'Pick the right microphone in the list. Make sure the mic is not muted on the headset itself.', 'In VDO.Ninja, check the same microphone is chosen.'], 'check'],
+  vdo: ['VDO.Ninja', ['Go back to your VDO.Ninja tab. If it is gone: Pre-show check → Open studio link.', 'Allow camera and microphone and press Start.', 'Keep that tab open and in front for a few seconds while it connects.'], 'check'],
+  network: ['Internet', ['Pause anything that uploads or streams (cloud backup, Netflix, other calls).', 'Move closer to the Wi-Fi, or plug in the Ethernet cable.', 'Turn off any VPN.'], null],
+  reload: ['Reload', ['Andrej asks you to reload this page. Your login stays, nothing is lost.'], 'reload'],
+  hold: ['Hold', ['Stay where you are and keep smiling: you may be on air.', 'Andrej is fixing something in Vienna. Wait for his cue in the chat or on the call.'], null],
+};
+function assistCard({ guide, text }) {
+  $('.assist')?.remove();
+  const [title, steps, action] = GUIDES[guide] || ['From Andrej', [], null];
+  const box = h('div', { class: 'assist', role: 'alertdialog', 'aria-modal': 'false', 'aria-label': 'Guidance from Andrej' },
+    h('div', {},
+      h('span', { class: 'label', text: 'Guidance from Andrej' }),
+      h('h2', { class: 'display', text: title }),
+      text ? h('p', { class: 'cue', text }) : null,
+      steps.length ? h('ol', { class: 'steps' }, ...steps.map(t => h('li', { text: t }))) : null,
+      h('div', { class: 'row end mt' },
+        action === 'check' ? h('button', { type: 'button', class: 'b', text: 'Open pre-show check', onclick: () => { setView('check'); } }) : null,
+        action === 'reload' ? h('button', { type: 'button', class: 'b primary', text: 'Reload now', onclick: () => location.reload() }) : null,
+        h('button', { type: 'button', class: 'b quiet', text: 'Still broken', onclick: () => {
+          conn.send({ t: 'help.raise', level: 'urgent', text: `Still broken after the ${title} guide`, diag: diagnostics() }).catch(() => {});
+          box.remove(); toast('Vienna knows it is still broken.', 'ok');
+        } }),
+        h('button', { type: 'button', class: 'b primary', text: 'Done, it works', onclick: () => {
+          conn.send({ t: 'chat.send', text: `✓ ${title}: fixed` }).catch(() => {});
+          box.remove();
+        } }))));
+  document.body.append(box);
+  box.querySelector('.b.primary')?.focus();
+}

@@ -13,7 +13,8 @@
     "mock-obs": "node test/mock-obs.js",
     "codes": "node server.js --show-codes",
     "rotate-codes": "node server.js --rotate-codes",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "tunnel": "node tunnel.js"
   },
   "dependencies": {
     "ws": "^8.22.0"

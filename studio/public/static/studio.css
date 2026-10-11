@@ -511,3 +511,92 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
 .deck .link{padding:8px 12px}
 .deck .outputs{gap:8px}
 .mic .nm,.mic .meter{grid-column:1}
+
+/* ================= CALL, HELP, GUIDANCE ================= */
+.callbtn{border-color:rgba(56,211,159,.55);color:var(--green)}
+.callbtn:hover{background:rgba(56,211,159,.12);border-color:var(--green);color:#fff}
+.callbtn.on{background:var(--green);color:#050607;border-color:var(--green)}
+.helpbtn{border-color:var(--amber);color:#050607;background:var(--amber);font-stretch:125%;font-weight:800;letter-spacing:.18em;min-width:96px}
+.helpbtn:hover{background:#ffbf73;border-color:#ffbf73}
+
+.callpanel{position:fixed;right:18px;bottom:18px;z-index:58;width:min(440px,calc(100vw - 36px));background:rgba(15,17,21,.98);border:1px solid var(--line-3);box-shadow:0 22px 70px rgba(0,0,0,.65);animation:wsin .3s var(--ease)}
+.callpanel.large{width:min(960px,calc(100vw - 36px))}
+.callpanel header{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.callpanel header>div{flex:1;min-width:0;display:grid}
+.callpanel header strong{font-stretch:125%;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--chrome-hi)}
+.callpanel .meta{font-size:.74rem;color:var(--dim)}
+.callpanel .big{background:none;border:1px solid var(--line-2);color:var(--dim);width:34px;height:34px}
+.callpanel .stage{position:relative;aspect-ratio:16/9;background:#000}
+.callpanel .rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.callpanel.peer-screen .rv{object-fit:contain}
+.callpanel .lv{position:absolute;right:10px;top:10px;width:28%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--line-3);background:#111;transform:scaleX(-1)}
+.callpanel .waiting{position:absolute;inset:0;display:none;place-items:center;align-content:center;gap:14px;color:var(--chrome);font-stretch:112%;letter-spacing:.14em;text-transform:uppercase;font-size:.8rem;background:radial-gradient(60% 60% at 50% 50%,#161a20,#050607)}
+.callpanel:not([data-phase="active"]) .waiting{display:grid}
+.ring-dot{width:56px;height:56px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(56,211,159,.6);animation:ringpulse 1.4s infinite}
+@keyframes ringpulse{70%{box-shadow:0 0 0 22px rgba(56,211,159,0)}100%{box-shadow:0 0 0 0 rgba(56,211,159,0)}}
+.callpanel .cinfo{display:flex;justify-content:space-between;gap:10px;padding:8px 14px 0;font-size:.74rem;min-height:1.4em}
+.callpanel .pf{color:var(--amber)}
+.callpanel .cq{font-family:var(--mono);color:var(--dim)}
+.callpanel .cq.ok{color:var(--green)} .callpanel .cq.warn{color:var(--warn)} .callpanel .cq.bad{color:var(--red)}
+.callpanel .ctrls{display:none;gap:8px;padding:12px 14px 14px}
+.callpanel:not([data-phase="ringing-in"]) .ctrls.inc{display:flex}
+.callpanel[data-phase="ringing-in"] .ctrls.ringing{display:flex}
+.cb{flex:1;min-height:44px;border:1px solid var(--line-3);background:rgba(6,7,9,.4);color:var(--chrome-hi);font-stretch:112%;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+.cb:hover{border-color:var(--chrome)}
+.cb.off{background:var(--red-deep);border-color:var(--red);color:#fff}
+.cb.on{background:rgba(242,166,80,.16);border-color:var(--amber);color:var(--amber)}
+.cb.end,.cb.decline{background:var(--red-deep);border-color:var(--red);color:#fff}
+.cb.accept{background:var(--green);border-color:var(--green);color:#050607;font-weight:800}
+.cb:disabled{opacity:.4;cursor:not-allowed}
+
+/* help banner (director, every workspace) */
+.helpbar{display:grid}
+.hb{display:flex;align-items:center;gap:12px;padding:10px var(--pad);border-bottom:1px solid var(--line);animation:drop .35s var(--ease)}
+.hb .lv{font-stretch:125%;font-weight:800;font-size:.7rem;letter-spacing:.14em;padding:6px 10px;white-space:nowrap}
+.hb .tx{flex:1;min-width:0;display:grid}
+.hb .tx strong{color:#fff;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .tx span{font-family:var(--mono);font-size:.72rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb.normal{background:linear-gradient(90deg,rgba(169,200,238,.14),transparent 70%)} .hb.normal .lv{background:var(--ice);color:#050607}
+.hb.urgent{background:linear-gradient(90deg,rgba(242,166,80,.22),transparent 70%)} .hb.urgent .lv{background:var(--amber);color:#050607}
+.hb.critical{background:linear-gradient(90deg,rgba(255,77,85,.4),rgba(255,77,85,.08) 80%)} .hb.critical .lv{background:var(--red);color:#fff}
+.hb.critical.open .lv{animation:pulse 1s infinite}
+.hb.ack{opacity:.85}
+.hb.more{color:var(--dim);font-size:.8rem}
+.helplist{list-style:none;padding:0;margin-bottom:16px;display:grid;gap:2px}
+.helplist li{display:grid;grid-template-columns:5.6em 1fr auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.helplist li:first-child{border-top:0}
+.helplist .lv{font-stretch:112%;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase}
+.helplist .critical .lv{color:var(--red)} .helplist .urgent .lv{color:var(--amber)} .helplist .normal .lv{color:var(--ice)}
+.helplist .tx{font-size:.9rem;color:var(--chrome-hi);display:grid}
+.helplist small{font-family:var(--mono);font-size:.7rem;color:var(--faint)}
+.helplist .resolved{opacity:.5}
+
+/* help dialog + status (host) */
+.help-dlg{position:fixed;inset:0;z-index:66;display:grid;place-items:center;background:rgba(6,7,9,.8);backdrop-filter:blur(6px);padding:18px}
+.help-dlg form{width:min(620px,100%);background:var(--panel);border:1px solid var(--line-3);padding:26px;display:grid;gap:16px;animation:wsin .25s var(--ease)}
+.help-dlg h2{font-size:1.5rem}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.levels label{position:relative;display:grid;gap:4px;padding:16px 14px;border:1px solid var(--line-2);cursor:pointer;transition:all .2s}
+.levels input{position:absolute;opacity:0}
+.levels b{font-stretch:125%;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:1rem}
+.levels span{font-size:.8rem;color:var(--dim)}
+.levels .lvl-n b{color:var(--ice)} .levels .lvl-u b{color:var(--amber)} .levels .lvl-c b{color:var(--red)}
+.levels label:has(input:checked){background:rgba(201,206,214,.07)}
+.levels .lvl-n:has(input:checked){border-color:var(--ice)} .levels .lvl-u:has(input:checked){border-color:var(--amber)} .levels .lvl-c:has(input:checked){border-color:var(--red);background:rgba(255,77,85,.12)}
+.levels label:has(input:focus-visible){outline:2px solid var(--amber);outline-offset:2px}
+.quickhelp{display:flex;flex-wrap:wrap;gap:6px}
+.quickhelp button{background:none;border:1px solid var(--line-2);color:var(--chrome);font-size:.82rem;padding:7px 11px}
+.quickhelp button:hover{border-color:var(--line-3);color:#fff}
+.helpstate{border-left:3px solid var(--ice)}
+.helpstate.urgent{border-left-color:var(--amber)} .helpstate.critical{border-left-color:var(--red);background:linear-gradient(90deg,rgba(255,77,85,.12),transparent 60%)}
+.assist{position:fixed;inset:0;z-index:64;display:grid;place-items:center;background:rgba(6,7,9,.72);backdrop-filter:blur(5px);padding:18px}
+.assist>div{width:min(620px,100%);background:var(--panel);border:1px solid var(--amber);padding:26px;display:grid;gap:14px;animation:wsin .25s var(--ease)}
+.assist h2{font-size:1.8rem}
+.assist .steps{font-size:1.05rem;gap:10px}
+@media (max-width:860px){.levels{grid-template-columns:1fr}.callpanel{right:8px;bottom:8px;width:calc(100vw - 16px)}}
+.callpanel header .big{flex:none;width:34px;min-height:34px;padding:0}
+.callpanel header strong{font-size:.92rem}
+.callpanel.me-screen .lv{transform:none}
+.toasts{left:18px;right:auto}
+.callpanel.left{right:auto;left:18px}
+.callpanel.left~.toasts,.toasts:has(~.callpanel.left){left:auto;right:18px}

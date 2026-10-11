@@ -20,6 +20,7 @@
     <button class="tab" role="tab" id="tab-tech" data-ws="tech" aria-controls="ws-tech" aria-selected="false">Technical <span class="dot bad" id="dotTech" hidden></span><kbd>⌥3</kbd></button>
   </nav>
   <div class="bar-right">
+    <button class="b callbtn" type="button" id="callBtn" disabled>Call Georgie</button>
     <div class="clock vie"><span class="label"><i></i>Vienna</span><strong id="cVie">--:--:--</strong></div>
     <div class="clock mel"><span class="label"><i></i>Melbourne</span><strong id="cMel">--:--:--</strong></div>
     <div class="clock show" id="showclock"><span class="label" id="showLabel">Next show</span><strong id="showTime">--:--:--</strong></div>
@@ -31,6 +32,7 @@
   </div>
 </header>
 <div class="strip" id="strip" hidden></div>
+<div class="helpbar" id="helpBar" aria-live="assertive"></div>
 
 <main>
   <!-- ======================= LIVE CONTROL ======================= -->
@@ -179,6 +181,23 @@
       </div>
 
       <div class="stack">
+        <section class="card" aria-labelledby="hAssist">
+          <div class="card-h"><h2 id="hAssist">Help & guidance</h2><div class="aside"><button class="b sm" type="button" id="callBtn2">Call Georgie</button></div></div>
+          <div class="card-b">
+            <ul class="helplist" id="helpList"></ul>
+            <span class="label">Guide Georgie through a fix</span>
+            <div class="row mt">
+              <select class="in grow" id="guideSel" aria-label="Guide">
+                <option value="camera">Camera not working</option><option value="audio">Sound problem</option>
+                <option value="vdo">Rejoin VDO.Ninja</option><option value="network">Slow internet</option>
+                <option value="reload">Reload her dashboard</option><option value="hold">Hold, we're fixing it</option>
+                <option value="custom">Own instructions…</option>
+              </select>
+              <button class="b primary" type="button" id="guideSend">Send guide</button>
+            </div>
+            <input class="in mt" id="guideText" maxlength="600" placeholder="Extra words for Georgie (optional; required for own instructions)" aria-label="Guidance text">
+          </div>
+        </section>
         <section class="card key chat" aria-labelledby="hChat">
           <div class="card-h"><h2 id="hChat">Talkback // Georgie</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="hostBadge">Offline</span></div></div>
           <ol class="chat-log" id="chatLog" aria-live="polite"></ol>

@@ -5,6 +5,7 @@ import { $, $$, connect, checkSignedIn, runClocks, chatPanel, titleBadge } from 
 import * as live from './live.js';
 import * as show from './show.js';
 import * as tech from './tech.js';
+import * as talk from './talk.js';
 
 const WS = ['live', 'show', 'tech'];
 const memo = {};
@@ -36,7 +37,7 @@ chatPanel(ctx.conn, 'director', { onUnread: n => {
 } });
 runClocks(() => ctx.S);
 
-live.init(ctx); show.init(ctx); tech.init(ctx);
+live.init(ctx); show.init(ctx); tech.init(ctx); talk.init(ctx);
 setInterval(() => { if (ctx.S) { live.tick(ctx); show.tick(ctx); } }, 250);
 
 /* ---------- workspaces ---------- */
@@ -105,6 +106,7 @@ function render() {
   live.render(ctx);
   show.render(ctx);
   tech.render(ctx);
+  talk.render(ctx);
 }
 
 /* ---------- keyboard ---------- */

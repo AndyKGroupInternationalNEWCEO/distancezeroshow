@@ -42,6 +42,34 @@ The Director Studio (Andrej, Vienna) and the Host Dashboard (Georgie, Melbourne)
 | Headers | Strict CSP (no inline script, no framing), `no-referrer`, camera/mic only allowed on the host page. |
 | OBS password | `studio/.env.local` → `OBS_WEBSOCKET_PASSWORD=…` (gitignored). Never sent to any browser. |
 
+## Demo with Georgie: runbook
+
+**Night before (Vienna):** run `npm test` (should say 29 pass). Keep OBS closed or untouched; the demo doesn't need it.
+
+**Morning, Vienna Mac** (three Terminal windows):
+1. `cd ~/distancezeroshow/studio && npm start`. Open the Director link it prints, in Chrome.
+2. `npm run tunnel`. It prints **Georgie's private link** (`https://….trycloudflare.com/login#code=…`). Send it to her by Signal or iMessage only. Leave this window open.
+3. Put on **headphones**. Call audio plays on this Mac, and speakers would leak into the mic.
+
+**Georgie (Melbourne):** open the link in **Chrome** (Safari also works) on a laptop.
+1. **Pre-show check** → *Start check*, then allow camera and microphone.
+2. **Show** → *Call Vienna*, or wait for Andrej's call. Accept the browser's camera/mic prompt.
+3. If anything is wrong: **HELP**, pick a level, send.
+
+**What to try together:** a call both ways; mute; camera off; *Share screen* both ways; *Move* (⇆) and *Larger* (⤢); a HELP request at each level (Vienna hears a chime, and Critical repeats until *Seen*); *Guide* → "Sound problem"; hang up from each side; closing her tab during a call (the call ends cleanly).
+
+**If the call does not connect** (it stays on "Connecting…" or says "Connection failed"): the two networks block a direct connection. Her dashboard reports this to Vienna automatically. Carry on with talkback and use VDO.Ninja for video (it has its own relay). For a permanent fix, add a TURN relay to `config.json → call.iceServers` (see Costs).
+
+## Talking to Georgie
+
+| | |
+|---|---|
+| **Remote access** | `npm run tunnel` opens a free Cloudflare quick tunnel to the **host port only** and prints her private link. HTTPS, a sign-in code (100-bit), rate-limited logins, Secure/HttpOnly/SameSite=Strict cookie. The director port refuses tunnelled requests; OBS stays local. Ctrl+C closes it. Every start gives a new address. |
+| **Private call** | Video and audio in WebRTC, browser to browser, encrypted (DTLS-SRTP). The studio only relays the set-up between the two signed-in people. Nobody else, not even a second director window, can join or listen. Mic, camera, screen sharing (both ways), larger view, side switch, live quality (route, delay, fps). If the camera is busy it falls back to audio only. Nothing goes into OBS. |
+| **HELP** | Georgie's HELP button: **Normal** / **Urgent** / **Critical**, quick picks, optional text, and her diagnostics attached (browser, link delay, network, reconnects, camera/mic check, VDO, call state). Vienna gets a colour-coded banner in every workspace and a chime. Critical repeats until *Seen*. *Seen* and *Resolved* show on her screen, and she can withdraw a request. |
+| **Automatic requests** | Raised by her dashboard: very slow link, reconnect after an outage, failed camera check, call that cannot connect, script error. Raised by the studio: her dashboard drops while the stream is live (**Critical**), which closes itself when she's back. Repeats are merged, never a flood. |
+| **Guided assistance** | Show Control → *Help & guidance*: push a step-by-step card to her screen (camera, sound, VDO.Ninja, internet, reload, hold, or your own words). She answers *Done, it works* (lands in the chat) or *Still broken* (raises an Urgent request). |
+
 ## The interface
 
 **Director Studio** has three workspaces. Switch with the tabs or **⌥1 / ⌥2 / ⌥3**. Each one has its own address (`/#live`, `/#show`, `/#tech`), and the **⧉** button opens the current workspace in a new window, so on show day each can sit on its own screen. One screen is enough for normal operation.
@@ -100,7 +128,7 @@ The guest port only listens on `127.0.0.1`. To reach it from Melbourne, use one 
 
 ```bash
 cd studio
-npm test           # 24 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
+npm test           # 29 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
 ```
 
 **Rehearse without OBS:** in one terminal run `npm run mock-obs`, in another `OBS_WEBSOCKET_PASSWORD=mock-password npm start`. You get 8 scenes with moving monitor pictures, German transition names, sources, audio meters, faders, three jingles, stream and record. Don't do this while real OBS is using port 4455.
@@ -131,6 +159,9 @@ npm test           # 24 end-to-end tests: real server + real WebSockets + mock O
 
 ## Not finished (next phases)
 
+- **The Vienna ↔ Melbourne call over two real home networks has not been tried yet.** It's tested between two separate browsers, including Georgie's side over the public tunnel. STUN works from the Vienna network. There's no TURN relay yet, so strict networks (some mobile hotspots, corporate Wi-Fi) may block the call.
+- Quick-tunnel addresses change on every start and Cloudflare gives no uptime guarantee for them. For regular shows, use Tailscale or a named tunnel.
+
 - **VDO.Ninja is not end-to-end tested.** The links are generated (stable private stream ID and password) but have not been tried with real cameras. Not yet done: return feed / programme monitor for Georgie, and a view of her feed in the Director Studio.
 - **Music information is manual.** There is no link to DJ software (Rekordbox/Serato/Traktor) yet.
 - The rundown is still the **sample** until you edit it; it's labelled as such. There are no saved rundown templates per episode yet; each show reuses `studio/data/rundown.json`.
@@ -149,4 +180,6 @@ Costs that could come up later, all optional:
 - **Cloudflare named tunnel** with a stable address: free, but it needs the domain's DNS on Cloudflare (currently Vercel). Tailscale's free plan avoids this.
 - **YouTube Data API** (viewer count, chat): free within daily quota.
 - **VDO.Ninja**: free. A self-hosted TURN relay (a small VPS, about €5/month) only if the peer-to-peer connection fails behind strict networks. Their public relay usually covers this.
+- **TURN relay for the private call**: only if a direct call fails between the two homes. Options: Cloudflare Realtime TURN (free tier with an account), Metered's free tier, or the same €5/month VPS running coturn. Add it to `config.json → call.iceServers`; no code change.
+- **Cloudflare quick tunnel**: free, no account.
 - Hosting the studio in the cloud instead of on the Mac would add cost and isn't needed.

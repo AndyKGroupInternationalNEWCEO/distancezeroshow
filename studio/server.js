@@ -52,7 +52,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
     const cookie = role === 'director' ? 'dz_director' : 'dz_host';
     const roleCode = role === 'director' ? secrets.directorCode : secrets.hostCode;
     const page = role === 'director' ? 'director.html' : 'host.html';
-    const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
+    const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 }); // call set-up messages can exceed 16 KB
 
     const clientIp = req => String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim();
     const viaHttps = req => req.headers['x-forwarded-proto'] === 'https';
@@ -68,7 +68,8 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
         'Referrer-Policy': 'no-referrer',
         'X-Frame-Options': 'DENY',
         'Cross-Origin-Opener-Policy': 'same-origin',
-        'Permissions-Policy': role === 'host' ? 'camera=(self), microphone=(self), geolocation=()' : 'camera=(), microphone=(), geolocation=()',
+        // both sides may use camera, microphone and screen sharing for the private call
+        'Permissions-Policy': 'camera=(self), microphone=(self), display-capture=(self), geolocation=()',
         'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' blob: mediastream:; connect-src 'self' ws://${h} wss://${h}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`,
       };
     }

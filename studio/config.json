@@ -2,10 +2,23 @@
   "show": {
     "title": "DISTANCE // ZERO",
     "launch": "2027-01-27T10:00:00+01:00",
-    "schedule": { "nth": 3, "weekday": 0, "hour": 10, "minute": 0, "tz": "Europe/Vienna", "minutes": 120 }
+    "schedule": {
+      "nth": 3,
+      "weekday": 0,
+      "hour": 10,
+      "minute": 0,
+      "tz": "Europe/Vienna",
+      "minutes": 120
+    }
   },
-  "director": { "host": "127.0.0.1", "port": 4747 },
-  "guest": { "host": "127.0.0.1", "port": 4748 },
+  "director": {
+    "host": "127.0.0.1",
+    "port": 4747
+  },
+  "guest": {
+    "host": "127.0.0.1",
+    "port": 4748
+  },
   "obs": {
     "url": "ws://127.0.0.1:4455",
     "allowRemote": false
@@ -17,5 +30,8 @@
   },
   "vdoNinja": {
     "base": "https://vdo.ninja/"
+  },
+  "call": {
+    "iceServers": []
   }
 }

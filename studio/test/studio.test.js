@@ -461,3 +461,114 @@ test('event log records switching and emergencies for Technical Control', async 
   await d.next(m => m.t === 'log' && /CUT → GUEST/.test(m.entry.text));
   d.close();
 });
+
+/* ---------- Georgie link: calls, HELP, guidance ---------- */
+
+test('private call: ring, accept, relay set-up only between the two people, hang up', async () => {
+  const d = client(D, { cookie: directorCookie }), d2 = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, d2.opened, hst.opened]);
+  const start = await hst.send({ t: 'call.start', video: true });
+  assert.equal(start.ok, true, start.error);
+  const cid = start.result.cid;
+  await d.next(m => m.t === 'call.ring' && m.cid === cid && m.from === 'host');
+  await d2.next(m => m.t === 'call.ring' && m.cid === cid);
+  assert.equal((await hst.send({ t: 'call.start' })).ok, false, 'one call at a time');
+  assert.equal((await hst.send({ t: 'call.accept', cid })).ok, false, 'cannot answer your own call');
+
+  assert.equal((await d.send({ t: 'call.accept', cid })).ok, true);
+  await hst.next(m => m.t === 'call.accepted' && m.cid === cid);
+  await d2.next(m => m.t === 'call.end' && m.reason === 'answered in another window');
+
+  const sdp = { type: 'offer', sdp: 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\n' };
+  assert.equal((await hst.send({ t: 'call.signal', cid, sdp })).ok, true);
+  assert.deepEqual((await d.next(m => m.t === 'call.signal' && m.sdp)).sdp, sdp);
+  await d.send({ t: 'call.signal', cid, candidate: { candidate: 'candidate:1 1 udp 2122260223 192.0.2.1 54400 typ host', sdpMid: '0', sdpMLineIndex: 0 } });
+  await hst.next(m => m.t === 'call.signal' && m.candidate?.sdpMid === '0');
+  assert.equal((await d2.send({ t: 'call.signal', cid, sdp })).ok, false, 'a third window cannot inject into the call');
+  assert.ok(!d2.msgs.some(m => m.t === 'call.signal'), 'nor listen to it');
+  assert.equal((await hst.send({ t: 'call.signal', cid, sdp: { type: 'offer', sdp: 'x'.repeat(61000) } })).ok, false, 'oversized set-up message refused');
+
+  await d.send({ t: 'call.media', cid, mic: false, cam: true, screen: true });
+  const media = await hst.next(m => m.t === 'call.media');
+  assert.deepEqual([media.mic, media.screen], [false, true]);
+  const { s } = await d.next(m => m.t === 'state' && m.s.call?.phase === 'active');
+  assert.equal(s.call.from, 'host');
+  await d.send({ t: 'call.end', cid });
+  await hst.next(m => m.t === 'call.end' && m.reason === 'hung up');
+  await d.next(m => m.t === 'state' && m.s.call === null);
+  d.close(); d2.close(); hst.close();
+});
+
+test('call ends when a side drops, and cannot start without the other person', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  await new Promise(r => setTimeout(r, 50));
+  assert.match((await d.send({ t: 'call.start' })).error, /Georgie is not online/);
+  const hst = client(G, { cookie: hostCookie });
+  await hst.opened;
+  const { result: { cid } } = await d.send({ t: 'call.start' });
+  await hst.next(m => m.t === 'call.ring');
+  await hst.send({ t: 'call.accept', cid });
+  hst.close();
+  await d.next(m => m.t === 'call.end' && m.reason === 'connection lost');
+  d.close();
+});
+
+test('HELP: three levels reach the director with diagnostics; Georgie sees the answer', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const r = await hst.send({ t: 'help.raise', level: 'critical', text: 'No sound from Vienna', diag: { browser: 'Chrome', linkMs: 320, camera: true, junk: { deep: 1 } } });
+  assert.equal(r.ok, true, r.error);
+  const n = await d.next(m => m.t === 'help.new' && m.item.hid === r.result.hid);
+  assert.equal(n.item.level, 'critical');
+  assert.equal(n.item.diag.browser, 'Chrome');
+  assert.equal(typeof n.item.diag.junk, 'string', 'nested objects are flattened to text');
+  assert.equal((await d.send({ t: 'help.raise', level: 'normal', text: 'x' })).ok, false, 'the director does not raise help');
+  assert.equal((await hst.send({ t: 'help.ack', hid: r.result.hid })).ok, false, 'Georgie cannot answer her own request');
+  assert.equal((await hst.send({ t: 'help.raise', level: 'apocalyptic', text: 'y' })).ok, true);
+  assert.equal((await d.next(m => m.t === 'help.new' && m.item.text === 'y')).item.level, 'normal', 'unknown levels become normal');
+
+  await d.send({ t: 'help.ack', hid: r.result.hid });
+  await hst.next(m => m.t === 'help.update' && m.item.status === 'ack');
+  await hst.next(m => m.t === 'state' && m.s.help.find(x => x.hid === r.result.hid)?.status === 'ack');
+  await d.send({ t: 'help.resolve', hid: r.result.hid });
+  await hst.next(m => m.t === 'help.update' && m.item.status === 'resolved');
+  const hs = (await hst.next(m => m.t === 'state')).s;
+  assert.equal(hs.obs, undefined, 'still no OBS data for Georgie');
+  for (const x of hs.help.filter(x => x.status !== 'resolved')) await hst.send({ t: 'help.cancel', hid: x.hid });
+  d.close(); hst.close();
+});
+
+test('automatic requests: repeats fold together; dropping out while live raises a critical alert', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const a = await hst.send({ t: 'help.raise', level: 'normal', kind: 'slow-link', auto: true, text: 'slow' });
+  const b = await hst.send({ t: 'help.raise', level: 'urgent', kind: 'slow-link', auto: true, text: 'slower' });
+  assert.equal(a.result.hid, b.result.hid);
+  const rep = await d.next(m => m.t === 'help.new' && m.repeat);
+  assert.equal(rep.item.count, 2); assert.equal(rep.item.level, 'urgent', 'escalates, never downgrades');
+  await d.send({ t: 'help.resolve', hid: a.result.hid });
+
+  if (!mock.state.stream) await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  await d.next(m => m.t === 'state' && m.s.obs.stream.active);
+  hst.close();
+  const crit = await d.next(m => m.t === 'help.new' && m.item.kind === 'host-offline');
+  assert.equal(crit.item.level, 'critical'); assert.equal(crit.item.by, 'studio');
+  const back = client(G, { cookie: hostCookie });
+  await back.opened;
+  await d.next(m => m.t === 'state' && m.s.help.find(x => x.hid === crit.item.hid)?.status === 'resolved', 3000);
+  await d.send({ t: 'obs', action: 'stream', on: false, confirm: true });
+  d.close(); back.close();
+});
+
+test('guided assistance goes to Georgie only, from the director only', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  assert.equal((await d.send({ t: 'assist', guide: 'camera', text: 'Close FaceTime first' })).ok, true);
+  const g = await hst.next(m => m.t === 'assist');
+  assert.deepEqual([g.guide, g.text], ['camera', 'Close FaceTime first']);
+  assert.equal((await d.send({ t: 'assist', guide: 'custom' })).ok, false, 'own instructions need text');
+  assert.equal((await hst.send({ t: 'assist', guide: 'hold' })).ok, false);
+  assert.ok(!d.msgs.some(m => m.t === 'assist'));
+  d.close(); hst.close();
+});

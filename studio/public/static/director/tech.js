@@ -67,6 +67,8 @@ export function render(ctx) {
     dd('Georgie dashboard', S.presence.host ? 'online' : 'offline', S.presence.host ? 'ok' : ''),
     dd('Georgie link', S.presence.host && hs?.rtt ? hs.rtt + ' ms' : '—', hs?.rtt > 600 ? 'warn' : ''),
     dd('Graphics overlay', S.presence.overlay ? `${S.presence.overlay} in OBS` : 'not loaded', S.presence.overlay ? 'ok' : 'warn'),
+    dd('Private call', S.call ? (S.call.phase === 'active' ? (S.call.route || 'connected') : 'ringing') : 'none', S.call?.phase === 'active' ? 'ok' : ''),
+    dd('Call quality', S.call?.directorStats ? `${S.call.directorStats.rtt} ms · ${S.call.directorStats.fps} fps in · Georgie ${S.call.hostStats?.rtt ?? '–'} ms` : '—', (S.call?.directorStats?.rtt || 0) > 400 ? 'warn' : ''),
     dd('OBS address', S.settings.obsUrl));
   const item = (label, ok) => h('span', { class: 'light ' + (!fresh ? '' : ok ? 'ok' : 'warn'), text: label });
   $('#hostStat').replaceChildren(item('Camera', hs?.camera), item('Mic', hs?.mic), item('Headphones', hs?.headphones),

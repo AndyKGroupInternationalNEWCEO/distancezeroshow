@@ -7,9 +7,12 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { debounced } from './store.js';
+import { createTalk } from './talk.js';
 
 const ROLES = ['director', 'host', 'overlay'];
-const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status']);
+// Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
+const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
+  'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'help.raise', 'help.cancel']);
 const OVERLAY_ACTIONS = new Set(['ping']);
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
@@ -30,6 +33,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     preset: saved.preset || '',          // the preview bus when OBS Studio Mode is off
     reminders: saved.reminders || [],    // the director's own production reminders, never shown to the host
     settings: { standbyScene: '', micInputs: null, ...saved.settings },
+    help: saved.help || [],             // HELP requests from Georgie (and automatic ones)
   };
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
@@ -83,6 +87,8 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     lastObsStatus = s.status;
   });
 
+  const talk = createTalk({ state, clients, obs, changed: () => changed(), logEvent });
+
   /* ---------- switcher: the preview bus ---------- */
 
   const standbyScene = () => state.settings.standbyScene || config.emergency.standbyScene;
@@ -119,6 +125,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
           obsUrl: config.obs.url, directorPort: config.director.port, guestPort: config.guest.port, dataDir: store.dir,
         },
         vdo: { view: vdo.view, push: vdo.push }, overlayKey: secrets.overlayKey,
+        ...talk.view('director'), ice: config.call?.iceServers || [],
       };
     }
     if (role === 'host') {
@@ -128,6 +135,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
         vdo: { push: vdo.push },
+        ...talk.view('host'), ice: config.call?.iceServers || [],
       };
     }
     const seg = rundown.segments[state.pos.index];
@@ -183,7 +191,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     client.send({ t: 'state', s: view(role) });
     if (role !== 'overlay') client.send({ t: 'chat.history', msgs: chat.slice(-200) });
     if (role === 'director') client.send({ t: 'log.history', entries: events });
-    if (role === 'host') logEvent('ok', 'Georgie connected');
+    if (role === 'host') { logEvent('ok', 'Georgie connected'); talk.onConnect(client); }
     if (role === 'overlay') logEvent('ok', 'Graphics overlay connected');
     broadcastState();
     ws.on('message', raw => {
@@ -202,6 +210,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     ws.on('close', () => {
       clients.delete(client);
       if (role === 'host') logEvent('warn', 'Georgie disconnected');
+      talk.onClose(client);
       if (role === 'overlay') logEvent('warn', 'Graphics overlay disconnected');
       broadcastState();
     });
@@ -230,6 +239,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         changed(); return;
       }
       case 'monitors': client.monitors = !!msg.on; return;
+      case 'assist': return talk.handle(client, msg);
       case 'obs': return obsAction(msg);
       case 'rundown': return rundownAction(msg);
       case 'note': state.note = str(msg.text, 2000); changed(); return;
@@ -238,7 +248,9 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       case 'settings': return settingsAction(msg);
       case 'gfx': return gfxAction(msg);
       case 'emergency': return emergency(msg);
-      default: throw new Error(`Unknown message ${msg.t}`);
+      default:
+        if (/^(call|help)\./.test(msg.t)) return talk.handle(client, msg);
+        throw new Error(`Unknown message ${msg.t}`);
     }
   }
 
