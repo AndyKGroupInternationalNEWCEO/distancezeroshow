@@ -42,6 +42,31 @@ The Director Studio (Andrej, Vienna) and the Host Dashboard (Georgie, Melbourne)
 | Headers | Strict CSP (no inline script, no framing), `no-referrer`, camera/mic only allowed on the host page. |
 | OBS password | `studio/.env.local` → `OBS_WEBSOCKET_PASSWORD=…` (gitignored). Never sent to any browser. |
 
+## The interface
+
+**Director Studio** has three workspaces. Switch with the tabs or **⌥1 / ⌥2 / ⌥3**. Each one has its own address (`/#live`, `/#show`, `/#tech`), and the **⧉** button opens the current workspace in a new window, so on show day each can sit on its own screen. One screen is enough for normal operation.
+
+| Workspace | What's on it |
+|---|---|
+| **Live Control** (main) | PREVIEW and PROGRAM monitors, big **CUT** and **TAKE**, transition choice and duration, the scene bus (your camera shots), the on-air segment with its countdown, microphone mutes with meters, Vienna and Melbourne link lights, and the YouTube stream and recording. Fits one 1440 × 900 screen; best in full-screen browser (⌃⌘F). |
+| **Show Control** | On air now with timers, the **editable rundown** (title, kind, minutes, lead, notes, reorder, add, delete), graphics and lower thirds, the jingle/media cart, music now playing plus the played-tonight log, talkback with Georgie, instructions to Georgie, and your private production reminders. |
+| **Technical** | OBS diagnostics (latency, CPU, frame rate, render time, dropped frames, bitrate, disk), connections, event log, the full audio mixer with faders, mute and **MIC tagging**, sources in program, emergency controls, and settings (standby scene, overlay URL, VDO.Ninja link). |
+
+**How the switcher works.** Clicking a scene puts it on **preview**, and nothing goes on air until you press CUT or TAKE.
+- **TAKE** puts preview on air with the transition you selected.
+- **CUT** is always a hard cut. It briefly selects OBS's own Cut transition, switches, then puts your transition back. It finds Cut by its type, so it works with German OBS ("Schnitt").
+- **Studio Mode:** if it's off in OBS (your setup today), the studio keeps the preview itself and OBS shows only the program. If you turn Studio Mode on in OBS, the preview becomes OBS's own.
+
+**Monitors** are OBS screenshots of each scene, about 3 a second, only while Live Control is visible. They are for orientation, not full-motion video.
+
+**Keyboard** (press **?** in the studio): 1–9 preview a scene, **C** cut, **T** take, **]** / **[** next / previous segment. Scene and switching keys only work in Live Control and never while you're typing. Go live and End stream always need a hold.
+
+**Georgie's dashboard** has two views:
+- **Show:** the big countdown, or the current segment with time remaining; next segment; Andrej's instruction; talkback; now playing; the full running order on request.
+- **Pre-show check:** camera preview, mic meter, device choice, checklist, and the VDO.Ninja join link.
+
+She has no broadcast controls, and the server refuses them for her role.
+
 ## Local startup
 
 Needs Node 22+ (this Mac has Node 26).
@@ -75,14 +100,14 @@ The guest port only listens on `127.0.0.1`. To reach it from Melbourne, use one 
 
 ```bash
 cd studio
-npm test           # 16 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
+npm test           # 24 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
 ```
 
-**Rehearse without OBS:** in one terminal run `npm run mock-obs`, in another `OBS_WEBSOCKET_PASSWORD=mock-password npm start`. You get 8 scenes, sources, moving audio meters, stream and record. Don't do this while real OBS is using port 4455.
+**Rehearse without OBS:** in one terminal run `npm run mock-obs`, in another `OBS_WEBSOCKET_PASSWORD=mock-password npm start`. You get 8 scenes with moving monitor pictures, German transition names, sources, audio meters, faders, three jingles, stream and record. Don't do this while real OBS is using port 4455.
 
 **With real OBS (manual checklist):**
 1. The OBS pill is green and the scenes match the OBS Scenes dock.
-2. Click a scene, or press keys 1–9: OBS cuts. Enable Studio Mode in OBS: clicks go to preview, and **T** / *Take* transitions.
+2. Click a scene, or press 1–9: it goes to **preview** only, and OBS doesn't change. Press **CUT** (hard cut) or **TAKE** (your transition): OBS follows. After a CUT, the transition in OBS is the same one as before.
 3. Toggle a source's visibility; mute and unmute an audio source. The OBS mixer follows, and the meters move.
 4. Use **Record**, then stop it. Test **Go live** (hold 1.5 s) only with a YouTube *unlisted* test stream.
 5. Emergency: *Cut to standby* goes to `STANDBY`. *Mics off* mutes the sources tagged `MIC`, by default names containing mic, mikro (German OBS), georgie or vdo, set in `emergency.micPattern`. Check that the music source is **not** tagged.
@@ -101,15 +126,18 @@ npm test           # 16 end-to-end tests: real server + real WebSockets + mock O
 - Emergency: cut to standby (also clears graphics and alerts Georgie), mics off (music untouched), end stream (hold 2 s).
 - Graphics: D//0 bug, city clocks, segment ident, lower thirds (Vienna amber / Melbourne ice, presets), rendered by the OBS overlay in the website's ident style.
 - Host Dashboard: Melbourne-first clocks, tally (on air / recording), link status with round-trip time, current/next segment and timers, running order (Melbourne times first), Andrej's note, now playing, private chat with read receipts and unread badge, local camera/mic check (preview with rule-of-thirds, mic meter, device choice, resolution warning), pre-show checklist, VDO.Ninja join link. The director sees her checklist status live.
-- Security model above, 16 automated tests.
+- **Redesign:** three workspaces (Live / Show / Technical), program and preview monitors, a preview bus with CUT and TAKE, transition choice and duration, an editable rundown, jingle cart, played-tracks log, private reminders, volume faders, MIC tagging from the screen, standby scene choice, event log, OBS diagnostics, pop-out windows for more screens, keyboard help, and a simplified two-view host dashboard.
+- Security model above, 24 automated tests.
 
 ## Not finished (next phases)
 
 - **VDO.Ninja is not end-to-end tested.** The links are generated (stable private stream ID and password) but have not been tried with real cameras. Not yet done: return feed / programme monitor for Georgie, and a view of her feed in the Director Studio.
 - **Music information is manual.** There is no link to DJ software (Rekordbox/Serato/Traktor) yet.
-- Rundown editing (add, remove, reorder, durations) is done in `studio/data/rundown.json` + *Reload*. Only notes are editable in the UI. The current rundown is a **sample** and is labelled as such.
+- The rundown is still the **sample** until you edit it; it's labelled as such. There are no saved rundown templates per episode yet; each show reuses `studio/data/rundown.json`.
+- Monitors are snapshots (about 3 fps), not live video. Full-motion return would need OBS's virtual camera or NDI.
+- Multi-screen is "one workspace per window". There's no saved window layout yet.
 - No YouTube API integration: no viewer count, no live chat questions feed, no stream health from YouTube's side. OBS stats only.
-- No multiple director accounts and no audit log beyond the server console.
+- No multiple director accounts. The event log lives in memory and resets when the server restarts.
 - No audible chat alert. Unread shows as a badge and in the tab title only.
 - Phone layout works but is not optimised. Desktop and tablet are the targets.
 

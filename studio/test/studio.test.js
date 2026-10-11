@@ -43,7 +43,7 @@ function client(base, { cookie, origin = base, query = '' } = {}) {
       return new Promise((resolve, reject) => {
         const w = { pred, resolve };
         waiters.push(w);
-        setTimeout(() => { waiters.splice(waiters.indexOf(w), 1); reject(new Error('timed out waiting for message')); }, ms);
+        setTimeout(() => { waiters.splice(waiters.indexOf(w), 1); reject(new Error('timed out waiting for message: ' + pred.toString().slice(0, 140))); }, ms);
       });
     },
     fresh(pred, ms) { msgs.length = 0; return this.next(pred, ms); },
@@ -307,4 +307,157 @@ test('OBS outside this machine is refused', async () => {
   const c = config(4455);
   c.obs.url = 'ws://192.168.1.20:4455';
   await assert.rejects(startStudio({ config: c, dataDir: os.tmpdir(), log: quiet }), /not on this machine/);
+});
+
+/* ---------- Phase 1 redesign: gallery switcher, monitors, show tools ---------- */
+
+test('preview bus without Studio Mode: CUT is a hard cut and puts the transition back, TAKE uses it', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  await d.send({ t: 'obs', action: 'program', scene: 'VIENNA' });
+  assert.equal((await d.send({ t: 'obs', action: 'preview', scene: 'MELBOURNE' })).ok, true);
+  assert.equal(mock.state.program, 'VIENNA', 'choosing a preview never touches the air');
+  await d.next(m => m.t === 'state' && m.s.obs.previewScene === 'MELBOURNE');
+
+  const from = mock.log.length;
+  assert.equal(mock.state.transition, 'Überblende');
+  assert.equal((await d.send({ t: 'obs', action: 'cut' })).ok, true);
+  assert.equal(mock.state.program, 'MELBOURNE');
+  const seq = mock.log.slice(from).filter(r => /^Set(CurrentSceneTransition|CurrentProgramScene)$/.test(r.requestType))
+    .map(r => r.requestData.transitionName || r.requestData.sceneName);
+  assert.deepEqual(seq, ['Schnitt', 'MELBOURNE', 'Überblende'], 'cut found by kind (German OBS), then the fade restored');
+  assert.equal(mock.state.transition, 'Überblende');
+  await d.next(m => m.t === 'state' && m.s.obs.previewScene === 'VIENNA' && m.s.obs.program === 'MELBOURNE');
+
+  const from2 = mock.log.length;
+  assert.equal((await d.send({ t: 'obs', action: 'auto' })).ok, true);
+  assert.equal(mock.state.program, 'VIENNA');
+  assert.ok(!mock.log.slice(from2).some(r => r.requestType === 'SetCurrentSceneTransition'), 'TAKE keeps the chosen transition');
+  d.close();
+});
+
+test('transition choice and duration', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  await d.send({ t: 'obs', action: 'transition', name: 'Stinger // D//0' });
+  assert.equal(mock.state.transition, 'Stinger // D//0');
+  await d.next(m => m.t === 'state' && m.s.obs.transition === 'Stinger // D//0');
+  assert.equal((await d.send({ t: 'obs', action: 'duration', ms: 800 })).ok, false, 'fixed-length transition');
+  await d.send({ t: 'obs', action: 'transition', name: 'Überblende' });
+  await d.next(m => m.t === 'state' && m.s.obs.transition === 'Überblende');
+  assert.equal((await d.send({ t: 'obs', action: 'duration', ms: 500 })).ok, true);
+  assert.equal(mock.state.duration, 500);
+  assert.equal((await d.send({ t: 'obs', action: 'transition', name: 'Nope' })).ok, false);
+  d.close();
+});
+
+test('program and preview monitors go to the director only, and only on request', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  await new Promise(r => setTimeout(r, 400));
+  assert.ok(!d.msgs.some(m => m.t === 'frame'), 'no screenshots unless a monitor is open');
+  await d.send({ t: 'monitors', on: true });
+  const f = await d.next(m => m.t === 'frame' && m.which === 'program');
+  assert.match(f.img, /^data:image\//);
+  assert.equal(f.scene, mock.state.program);
+  await d.next(m => m.t === 'frame' && m.which === 'preview');
+  assert.equal((await hst.send({ t: 'monitors', on: true })).ok, false);
+  await new Promise(r => setTimeout(r, 400));
+  assert.ok(!hst.msgs.some(m => m.t === 'frame'));
+  await d.send({ t: 'monitors', on: false });
+  d.close(); hst.close();
+});
+
+test('faders and the jingle cart', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  const { s } = await d.next(m => m.t === 'state' && m.s.obs.media.length);
+  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore']);
+  assert.equal((await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: -6 })).ok, true);
+  assert.equal(mock.inputs.find(i => i.inputName === 'DJ Mixer').volumeDb, -6);
+  await d.next(m => m.t === 'state' && m.s.obs.audio.find(a => a.name === 'DJ Mixer').volumeDb === -6);
+  await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: 0 });
+  assert.equal((await d.send({ t: 'obs', action: 'media', input: 'Jingle // D//0 Sting', media: 'play' })).ok, true);
+  assert.ok(mock.state.media['Jingle // D//0 Sting']);
+  await d.next(m => m.t === 'state' && m.s.obs.media.find(x => x.name === 'Jingle // D//0 Sting').state === 'playing');
+  await d.send({ t: 'obs', action: 'media', input: 'Jingle // D//0 Sting', media: 'stop' });
+  assert.equal(mock.state.media['Jingle // D//0 Sting'], undefined);
+  assert.equal((await d.send({ t: 'obs', action: 'media', input: 'Mic // Andrej', media: 'play' })).ok, false);
+  d.close();
+});
+
+test('rundown editing keeps the on-air segment and reaches Georgie', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  await d.send({ t: 'rundown', action: 'go', index: 2 });
+  const onAir = (await d.next(m => m.t === 'state' && m.s.rundown.index === 2)).s.rundown.segments[2].id;
+  const add = await d.send({ t: 'rundown', action: 'add', index: 0 });
+  assert.equal(add.ok, true); assert.equal(add.result.index, 1);
+  let st = (await d.next(m => m.t === 'state' && m.s.rundown.segments[1]?.title === 'New segment')).s.rundown;
+  assert.equal(st.segments[st.index].id, onAir, 'inserting above does not change what is on air');
+  assert.equal(st.sample, false, 'an edited rundown is no longer the sample');
+  await d.send({ t: 'rundown', action: 'update', index: 1, fields: { title: 'Weather // Two Hemispheres', minutes: 3.5, lead: 'georgie', kind: 'talk', notes: 'Georgie: 30°C. Andrej: snow.' } });
+  st = (await hst.next(m => m.t === 'state' && m.s.rundown.segments[1]?.title === 'Weather // Two Hemispheres')).s.rundown;
+  assert.deepEqual([st.segments[1].minutes, st.segments[1].lead, st.segments[1].kind], [3.5, 'georgie', 'TALK']);
+  await d.send({ t: 'rundown', action: 'move', index: 1, to: 5 });
+  st = (await d.next(m => m.t === 'state' && m.s.rundown.segments[5]?.title === 'Weather // Two Hemispheres')).s.rundown;
+  assert.equal(st.segments[st.index].id, onAir);
+  await d.send({ t: 'rundown', action: 'remove', index: 5 });
+  await d.send({ t: 'rundown', action: 'title', title: 'Episode 1 // 27 January 2027' });
+  st = (await hst.next(m => m.t === 'state' && m.s.rundown.title === 'Episode 1 // 27 January 2027')).s.rundown;
+  assert.ok(!st.segments.some(s => s.title === 'Weather // Two Hemispheres'));
+  assert.equal((await hst.send({ t: 'rundown', action: 'add' })).ok, false);
+  assert.equal((await d.send({ t: 'rundown', action: 'update', index: 99, fields: {} })).ok, false);
+  d.close(); hst.close();
+});
+
+test('reminders and the played-tracks log stay with the director', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  assert.equal((await d.send({ t: 'reminder', action: 'add', text: 'Check the YouTube title', at: Date.now() + 60000 })).ok, true);
+  const { s } = await d.next(m => m.t === 'state' && m.s.reminders.some(r => r.text === 'Check the YouTube title'));
+  const r = s.reminders.find(x => x.text === 'Check the YouTube title');
+  await d.send({ t: 'reminder', action: 'toggle', rid: r.id });
+  await d.next(m => m.t === 'state' && m.s.reminders.find(x => x.id === r.id)?.done);
+  await d.send({ t: 'reminder', action: 'remove', rid: r.id });
+  await d.send({ t: 'music', artist: 'Georgie\'s pick', title: 'Track A' });
+  await d.next(m => m.t === 'state' && m.s.musicLog[0]?.title === 'Track A');
+  const hs = (await hst.next(m => m.t === 'state')).s;
+  assert.equal(hs.reminders, undefined); assert.equal(hs.musicLog, undefined);
+  assert.equal((await hst.send({ t: 'reminder', action: 'add', text: 'x' })).ok, false);
+  assert.equal((await hst.send({ t: 'settings', micInputs: [] })).ok, false);
+  d.close(); hst.close();
+});
+
+test('microphones tagged by hand drive Mics off; standby scene is a setting', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  await d.send({ t: 'settings', micInputs: ['Mic // Andrej'] });
+  const { s } = await d.next(m => m.t === 'state' && m.s.settings.micMode === 'list');
+  assert.deepEqual(s.obs.audio.filter(a => a.mic).map(a => a.name), ['Mic // Andrej']);
+  await d.send({ t: 'emergency', action: 'mics' });
+  assert.equal(mock.inputs.find(i => i.inputName === 'Mic // Andrej').muted, true);
+  assert.equal(mock.inputs.find(i => i.inputName === 'VDO // Georgie').muted, false, 'untagged now');
+  await d.send({ t: 'obs', action: 'mute', input: 'Mic // Andrej', muted: false });
+  await d.send({ t: 'settings', micInputs: null });
+  await d.next(m => m.t === 'state' && m.s.settings.micMode === 'pattern' && m.s.obs.audio.find(a => a.name === 'VDO // Georgie').mic);
+
+  await d.send({ t: 'settings', standbyScene: 'CREDITS' });
+  await d.next(m => m.t === 'state' && m.s.standby.scene === 'CREDITS' && m.s.standby.exists);
+  await d.send({ t: 'emergency', action: 'standby' });
+  assert.equal(mock.state.program, 'CREDITS');
+  await d.send({ t: 'settings', standbyScene: '' });
+  await d.next(m => m.t === 'state' && m.s.standby.scene === 'STANDBY');
+  d.close();
+});
+
+test('event log records switching and emergencies for Technical Control', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  const hist = await d.next(m => m.t === 'log.history');
+  assert.ok(hist.entries.some(e => /OBS connected/.test(e.text)));
+  await d.send({ t: 'obs', action: 'preview', scene: 'GUEST' });
+  await d.send({ t: 'obs', action: 'cut' });
+  await d.next(m => m.t === 'log' && /CUT → GUEST/.test(m.entry.text));
+  d.close();
 });

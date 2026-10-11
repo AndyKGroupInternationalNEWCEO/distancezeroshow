@@ -8,6 +8,8 @@ import WebSocket from 'ws';
 const OP = { Hello: 0, Identify: 1, Identified: 2, Event: 5, Request: 6, RequestResponse: 7 };
 // General|Config|Scenes|Inputs|Transitions|Filters|Outputs|SceneItems|MediaInputs|Vendors|Ui + InputVolumeMeters
 const EVENTS = 0x7ff | (1 << 16);
+const MEDIA_KINDS = new Set(['ffmpeg_source', 'vlc_source']);
+const MEDIA = { play: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART', stop: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP', pause: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE', resume: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY' };
 
 const sha = s => crypto.createHash('sha256').update(s).digest('base64');
 const db = mul => (mul > 0 ? Math.max(-60, 20 * Math.log10(mul)) : -60);
@@ -24,27 +26,30 @@ export class Obs extends EventEmitter {
     super();
     this.url = url;
     this.password = password;
-    // which audio sources "Mics off" mutes: the exact names in emergency.micInputs, or else names matching
-    // emergency.micPattern. Never guessed from the device type: a DJ mixer is an input device too.
-    this.micInputs = new Set(micInputs);
+    // which audio sources count as microphones ("Mics off", the mic strip in Live Control): an explicit list
+    // set in Technical Control or emergency.micInputs, or else names matching emergency.micPattern.
+    // Never guessed from the device type: a DJ mixer is an input device too.
     this.micPattern = new RegExp(micPattern || 'mic', 'i');
+    this.setMicList(micInputs);
     this.log = log;
     this.ws = null;
     this.pending = new Map();
     this.seq = 0;
     this.retryMs = 1000;
     this.stopped = false;
+    this.connectedAt = 0;
     this.state = this.blank('connecting');
   }
 
   blank(status, error = '') {
     return {
-      connected: false, status, error, version: '',
+      connected: false, status, error, version: '', obsVersion: '', since: 0,
       scenes: [], program: '', preview: '', studioMode: false,
-      items: [], audio: [],
-      stream: { active: false, reconnecting: false, timecode: '', congestion: 0, skipped: 0, total: 0 },
-      record: { active: false, paused: false, timecode: '' },
-      stats: { cpu: 0, fps: 0, renderSkipped: 0 },
+      items: [], audio: [], media: [],
+      transitions: [], transition: '', transitionKind: '', transitionDuration: 0, transitioning: false,
+      stream: { active: false, reconnecting: false, timecode: '', congestion: 0, skipped: 0, total: 0, bytes: 0 },
+      record: { active: false, paused: false, timecode: '', bytes: 0 },
+      stats: { cpu: 0, fps: 0, renderSkipped: 0, renderTotal: 0, outputSkipped: 0, outputTotal: 0, memory: 0, disk: 0, frameMs: 0, latency: 0 },
     };
   }
 
@@ -56,6 +61,17 @@ export class Obs extends EventEmitter {
     clearTimeout(this.retryTimer); clearInterval(this.pollTimer);
     if (this.ws) this.ws.terminate();
   }
+  reconnect() {
+    clearTimeout(this.retryTimer);
+    this.retryMs = 1000;
+    if (this.ws) this.ws.terminate(); else this.connect();
+  }
+
+  setMicList(list) {
+    this.micInputs = new Set((list || []).filter(Boolean));
+    if (this.state) { for (const a of this.state.audio) a.mic = this.isMic(a.name); this.changed(); }
+  }
+  isMic(name) { return this.micInputs.size ? this.micInputs.has(name) : this.micPattern.test(name); }
 
   connect() {
     if (this.stopped) return;
@@ -84,7 +100,7 @@ export class Obs extends EventEmitter {
     const was = this.state.connected;
     this.state = this.blank(status, error);
     this.changed();
-    if (was) this.log.warn(`[obs] disconnected: ${error}`);
+    if (was) { this.log.warn(`[obs] disconnected: ${error}`); this.emit('link', false, error); }
     if (this.stopped) return;
     const ms = wait || this.retryMs;
     this.retryMs = Math.min(this.retryMs * 1.6, 5000);
@@ -113,9 +129,10 @@ export class Obs extends EventEmitter {
     } else if (op === OP.Identified) {
       this.retryMs = 1000;
       const version = this.state.version;
-      this.state = { ...this.blank('connected'), connected: true, version };
+      this.state = { ...this.blank('connected'), connected: true, version, since: Date.now() };
       this.log.log(`[obs] connected (obs-websocket ${version})`);
       await this.refresh();
+      this.emit('link', true);
       this.pollTimer = setInterval(() => this.poll().catch(() => {}), 1000);
     } else if (op === OP.RequestResponse) {
       const p = this.pending.get(d.requestId);
@@ -142,7 +159,11 @@ export class Obs extends EventEmitter {
   /* ---------- reading state ---------- */
 
   async refresh() {
-    await Promise.all([this.refreshScenes(), this.refreshAudio(), this.poll(), this.request('GetStudioModeEnabled').then(r => { this.state.studioMode = !!r.studioModeEnabled; })]);
+    await Promise.all([
+      this.refreshScenes(), this.refreshInputs(), this.refreshTransitions(), this.poll(),
+      this.request('GetStudioModeEnabled').then(r => { this.state.studioMode = !!r.studioModeEnabled; }),
+      this.request('GetVersion').then(r => { this.state.obsVersion = r.obsVersion || ''; }).catch(() => {}),
+    ]);
     await this.refreshItems();
     this.changed();
   }
@@ -159,6 +180,17 @@ export class Obs extends EventEmitter {
     this.state.scenes = [...scenes].sort((a, b) => b.sceneIndex - a.sceneIndex).map(s => s.sceneName);
   }
 
+  async refreshTransitions() {
+    try {
+      const r = await this.request('GetSceneTransitionList');
+      this.state.transitions = (r.transitions || []).map(t => ({ name: t.transitionName, kind: t.transitionKind, fixed: !!t.transitionFixed }));
+      this.state.transition = r.currentSceneTransitionName || '';
+      this.state.transitionKind = r.currentSceneTransitionKind || '';
+      const c = await this.request('GetCurrentSceneTransition').catch(() => ({}));
+      this.state.transitionDuration = c.transitionDuration ?? 0;
+    } catch (e) { this.log.warn('[obs] transitions:', e.message); }
+  }
+
   async refreshItems() {
     const scene = this.state.program;
     if (!scene) { this.state.items = []; return; }
@@ -171,30 +203,47 @@ export class Obs extends EventEmitter {
     } catch (e) { this.state.items = []; this.log.warn('[obs] scene items:', e.message); }
   }
 
-  async refreshAudio() {
+  /* audio sources (anything OBS reports a mute state for) and media sources (jingles, beds, videos) */
+  async refreshInputs() {
     const { inputs = [] } = await this.request('GetInputList');
-    const audio = [];
+    const audio = [], media = [];
     await Promise.all(inputs.map(async (inp, i) => {
+      const kind = inp.unversionedInputKind || inp.inputKind || '';
+      if (MEDIA_KINDS.has(kind)) {
+        const m = await this.request('GetMediaInputStatus', { inputName: inp.inputName }).catch(() => ({}));
+        media.push({ order: i, name: inp.inputName, kind, state: shortMedia(m.mediaState), duration: m.mediaDuration || 0, cursor: m.mediaCursor || 0 });
+      }
       try {
         const r = await this.request('GetInputMute', { inputName: inp.inputName });
-        const kind = inp.unversionedInputKind || inp.inputKind || '';
-        audio.push({ order: i, name: inp.inputName, kind, muted: !!r.inputMuted, mic: this.micInputs.size ? this.micInputs.has(inp.inputName) : this.micPattern.test(inp.inputName) });
+        const v = await this.request('GetInputVolume', { inputName: inp.inputName }).catch(() => ({}));
+        audio.push({ order: i, name: inp.inputName, kind, muted: !!r.inputMuted, volumeDb: round(v.inputVolumeDb ?? 0) });
       } catch { /* video-only input: no audio */ }
     }));
     const prev = new Map(this.state.audio.map(a => [a.name, a]));
-    this.state.audio = audio.sort((a, b) => a.order - b.order).map(({ order, ...a }) => ({ ...a, db: prev.get(a.name)?.db || [-60, -60] }));
+    this.state.audio = audio.sort((a, b) => a.order - b.order).map(({ order, ...a }) => ({ ...a, mic: this.isMic(a.name), db: prev.get(a.name)?.db || [-60, -60] }));
+    this.state.media = media.sort((a, b) => a.order - b.order).map(({ order, ...m }) => m);
   }
 
   async poll() {
+    const t0 = Date.now();
     const [s, r, st] = await Promise.all([
       this.request('GetStreamStatus'), this.request('GetRecordStatus'), this.request('GetStats').catch(() => ({})),
     ]);
     this.state.stream = {
       active: !!s.outputActive, reconnecting: !!s.outputReconnecting, timecode: s.outputTimecode || '',
-      congestion: s.outputCongestion || 0, skipped: s.outputSkippedFrames || 0, total: s.outputTotalFrames || 0,
+      congestion: s.outputCongestion || 0, skipped: s.outputSkippedFrames || 0, total: s.outputTotalFrames || 0, bytes: s.outputBytes || 0,
     };
-    this.state.record = { active: !!r.outputActive, paused: !!r.outputPaused, timecode: r.outputTimecode || '' };
-    this.state.stats = { cpu: st.cpuUsage || 0, fps: st.activeFps || 0, renderSkipped: st.renderSkippedFrames || 0 };
+    this.state.record = { active: !!r.outputActive, paused: !!r.outputPaused, timecode: r.outputTimecode || '', bytes: r.outputBytes || 0 };
+    this.state.stats = {
+      cpu: st.cpuUsage || 0, fps: st.activeFps || 0, renderSkipped: st.renderSkippedFrames || 0, renderTotal: st.renderTotalFrames || 0,
+      outputSkipped: st.outputSkippedFrames || 0, outputTotal: st.outputTotalFrames || 0, memory: st.memoryUsage || 0,
+      disk: st.availableDiskSpace || 0, frameMs: st.averageFrameRenderTime || 0, latency: Date.now() - t0,
+    };
+    // playing media: keep the cart's progress bars moving
+    await Promise.all(this.state.media.filter(m => m.state === 'playing').map(async m => {
+      const x = await this.request('GetMediaInputStatus', { inputName: m.name }).catch(() => null);
+      if (x) Object.assign(m, { state: shortMedia(x.mediaState), duration: x.mediaDuration || 0, cursor: x.mediaCursor || 0 });
+    }));
     this.changed();
   }
 
@@ -219,7 +268,24 @@ export class Obs extends EventEmitter {
         if (a) a.muted = !!d.inputMuted;
         break;
       }
-      case 'InputCreated': case 'InputRemoved': case 'InputNameChanged': await this.refreshAudio(); await this.refreshItems(); break;
+      case 'InputVolumeChanged': {
+        const a = s.audio.find(x => x.name === d.inputName);
+        if (a) a.volumeDb = round(d.inputVolumeDb);
+        break;
+      }
+      case 'InputCreated': case 'InputRemoved': case 'InputNameChanged': await this.refreshInputs(); await this.refreshItems(); break;
+      case 'CurrentSceneTransitionChanged': case 'SceneTransitionCreated': case 'SceneTransitionRemoved': case 'SceneTransitionNameChanged':
+        await this.refreshTransitions(); break;
+      case 'CurrentSceneTransitionDurationChanged': s.transitionDuration = d.transitionDuration ?? s.transitionDuration; break;
+      case 'SceneTransitionStarted': s.transitioning = true; break;
+      case 'SceneTransitionEnded': case 'SceneTransitionVideoEnded': s.transitioning = false; break;
+      case 'MediaInputPlaybackStarted': case 'MediaInputPlaybackEnded': case 'MediaInputActionTriggered': {
+        const m = s.media.find(x => x.name === d.inputName);
+        if (!m) return;
+        const x = await this.request('GetMediaInputStatus', { inputName: m.name }).catch(() => null);
+        if (x) Object.assign(m, { state: shortMedia(x.mediaState), duration: x.mediaDuration || 0, cursor: x.mediaCursor || 0 });
+        break;
+      }
       case 'StreamStateChanged': s.stream.active = !!d.outputActive; s.stream.state = d.outputState; break;
       case 'RecordStateChanged': s.record.active = !!d.outputActive; s.record.paused = d.outputState === 'OBS_WEBSOCKET_OUTPUT_PAUSED'; break;
       case 'ExitStarted': s.error = 'OBS is closing'; break;
@@ -254,21 +320,63 @@ export class Obs extends EventEmitter {
     if (!this.state.studioMode) throw new Error('Studio Mode is off in OBS');
     await this.request('TriggerStudioModeTransition');
   }
+
+  /* A hard cut whatever transition is selected: briefly select OBS's built-in Cut transition, switch, and put the
+     operator's transition back. Found by kind, so it works in every OBS language ("Cut", "Schnitt", …). */
+  async cut(switchFn) {
+    const cut = this.state.transitions.find(t => t.kind === 'cut_transition');
+    const current = this.state.transition;
+    if (!cut || this.state.transitionKind === 'cut_transition') return switchFn();
+    await this.request('SetCurrentSceneTransition', { transitionName: cut.name });
+    try { await switchFn(); }
+    finally { await this.request('SetCurrentSceneTransition', { transitionName: current }).catch(e => this.log.warn('[obs] restore transition:', e.message)); }
+  }
+  async setTransition(name) {
+    if (!this.state.transitions.some(t => t.name === name)) throw new Error(`OBS has no transition called "${name}"`);
+    await this.request('SetCurrentSceneTransition', { transitionName: name });
+  }
+  async setTransitionDuration(ms) {
+    const t = this.state.transitions.find(x => x.name === this.state.transition);
+    if (t?.fixed) throw new Error(`${t.name} has a fixed length`);
+    await this.request('SetCurrentSceneTransitionDuration', { transitionDuration: Math.round(Math.max(50, Math.min(20000, ms))) });
+    this.state.transitionDuration = Math.round(Math.max(50, Math.min(20000, ms)));
+    this.changed();
+  }
+
+  async screenshot(scene, width = 640) {
+    const r = await this.request('GetSourceScreenshot', { sourceName: scene, imageFormat: 'jpg', imageWidth: width, imageCompressionQuality: 62 });
+    return r.imageData;
+  }
+
   async setItem(id, enabled) {
     const it = this.state.items.find(i => i.id === id);
     if (!it) throw new Error('That source is not in the program scene any more');
     await this.request('SetSceneItemEnabled', { sceneName: this.state.program, sceneItemId: id, sceneItemEnabled: !!enabled });
   }
-  async setMute(name, muted) {
-    if (!this.state.audio.some(a => a.name === name)) throw new Error(`No audio source called "${name}"`);
-    await this.request('SetInputMute', { inputName: name, inputMuted: !!muted });
+  requireAudio(name) { if (!this.state.audio.some(a => a.name === name)) throw new Error(`No audio source called "${name}"`); }
+  async setMute(name, muted) { this.requireAudio(name); await this.request('SetInputMute', { inputName: name, inputMuted: !!muted }); }
+  async setVolume(name, volumeDb) {
+    this.requireAudio(name);
+    const v = Math.max(-100, Math.min(26, Number(volumeDb) || 0));
+    await this.request('SetInputVolume', { inputName: name, inputVolumeDb: v });
+  }
+  async media(name, action) {
+    if (!this.state.media.some(m => m.name === name)) throw new Error(`No media source called "${name}"`);
+    if (!MEDIA[action]) throw new Error('Unknown media action');
+    await this.request('TriggerMediaInputAction', { inputName: name, mediaAction: MEDIA[action] });
   }
   async muteMics() {
     const mics = this.state.audio.filter(a => a.mic);
-    if (!mics.length) throw new Error('No microphone sources found in OBS (see emergency.micPattern / micInputs in config.json)');
+    if (!mics.length) throw new Error('No microphone sources tagged. Tag them in Technical Control → Audio sources.');
     await Promise.all(mics.map(a => this.request('SetInputMute', { inputName: a.name, inputMuted: true })));
     return mics.length;
   }
   async stream(on) { await this.request(on ? 'StartStream' : 'StopStream'); }
   async record(on) { await this.request(on ? 'StartRecord' : 'StopRecord'); }
+}
+
+function round(v) { return Math.round((Number(v) || 0) * 10) / 10; }
+function shortMedia(s = '') {
+  return ({ OBS_MEDIA_STATE_PLAYING: 'playing', OBS_MEDIA_STATE_PAUSED: 'paused', OBS_MEDIA_STATE_STOPPED: 'stopped', OBS_MEDIA_STATE_ENDED: 'ended',
+    OBS_MEDIA_STATE_OPENING: 'opening', OBS_MEDIA_STATE_BUFFERING: 'buffering', OBS_MEDIA_STATE_ERROR: 'error' })[s] || 'idle';
 }

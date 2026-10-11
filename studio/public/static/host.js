@@ -1,8 +1,8 @@
 // Host Dashboard (Georgie, Melbourne). Read-only show information, private talkback, and a local
 // camera/mic check. This page has no OBS or broadcast controls, and the server refuses them for this role anyway.
-import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segmentTimer, clock, toast, chatPanel, titleBadge } from './common.js';
+import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segmentTimer, clock, day, nextShow, countdown, toast, chatPanel, titleBadge } from './common.js';
 
-let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, openRow = -1, roKey = '';
+let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 
 const conn = connect({ onStatus: st => {
   link = st;
@@ -14,94 +14,109 @@ conn.on('state', ({ s }) => { S = s; render(); });
 conn.on('alert', ({ text }) => alertBox(text));
 chatPanel(conn, 'host', { onUnread: n => { titleBadge('Host Dashboard — DISTANCE // ZERO')(n); const u = $('#unread'); u.hidden = !n; u.textContent = n + ' new'; } });
 runClocks(() => S);
-setInterval(() => S && renderTimers(), 250);
+setInterval(() => S && tick(), 250);
+setInterval(report, 10000); // keeps Vienna's view of this link (round-trip time) fresh
 
-function pill(el, cls, text) { el.className = 'pill ' + cls; el.lastChild.textContent = text; }
+/* ---------- views ---------- */
+
+function setView(v) {
+  for (const name of ['show', 'check']) {
+    $('#view-' + name).hidden = name !== v;
+    $('#tab-' + name).setAttribute('aria-selected', String(name === v));
+  }
+  if (v !== 'check') stopCheck();
+  try { sessionStorage.setItem('dz-host-view', v); } catch {}
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+$('#goCheck').addEventListener('click', () => setView('check'));
+
+/* ---------- status ---------- */
 
 function renderStatus() {
-  const ok = link.state === 'open';
-  const slow = ok && link.rtt > 600;
-  pill($('#pLink'), ok ? (slow ? 'warn' : 'ok') : 'bad', ok ? `Vienna ${link.rtt ?? '–'} ms` : 'Vienna offline');
+  const ok = link.state === 'open', slow = ok && link.rtt > 600;
+  const l = $('#linkLight');
+  l.className = 'light ' + (ok ? (slow ? 'warn' : 'ok') : 'bad');
+  l.textContent = ok ? `Vienna ${link.rtt ?? '–'} ms` : 'Vienna offline';
   const strip = $('#strip'), t = S?.tally;
   if (!ok) { strip.className = 'strip bad'; strip.textContent = everOpen ? 'Lost the link to Vienna. Reconnecting… Keep your VDO.Ninja tab open; your camera is not affected.' : 'Connecting to the Vienna studio…'; }
-  else if (t?.onAir) { strip.className = 'strip live'; strip.replaceChildren(h('b', { text: '● ON AIR' }), ' // Vienna is streaming to YouTube. Everything you say can be heard.'); }
+  else if (t?.onAir) { strip.className = 'strip live'; strip.textContent = '● On air // Vienna is streaming to YouTube. Everything you say can be heard.'; }
   else if (t && !t.obs) { strip.className = 'strip warn'; strip.textContent = 'Off air // Vienna\'s broadcast software is not connected yet.'; }
   else { strip.className = 'strip off'; strip.textContent = 'Off air // not streaming' + (t?.recording ? ' // Vienna is recording' : ''); }
+  const air = $('#tallyAir');
+  air.className = 'tally' + (t?.onAir ? ' on' : t?.recording ? ' rec on' : '');
+  air.querySelector('span').textContent = t?.onAir ? 'ON AIR' : t?.recording ? 'REC' : 'OFF AIR';
 }
 
+const LEAD = { andrej: 'Andrej leads', georgie: 'You lead', both: 'Both of you' };
 function render() {
-  pill($('#pAndrej'), S.presence.director ? 'ok' : '', S.presence.director ? 'Andrej online' : 'Andrej offline');
-  pill($('#pTally'), S.tally.onAir ? 'live' : S.tally.recording ? 'rec' : '', S.tally.onAir ? 'On air' : S.tally.recording ? 'Recording' : 'Off air');
-  const b = $('#andrejBadge'); b.className = 'badge ' + (S.presence.director ? 'live' : 'off'); b.textContent = S.presence.director ? 'Online' : 'Offline';
+  const b = $('#andrejBadge'); b.className = 'badge ' + (S.presence.director ? 'live' : 'off'); b.textContent = S.presence.director ? 'Andrej online' : 'Offline';
   $('#vdoOpen').disabled = !S.vdo?.push;
-
   if (S.note !== lastNote) {
     const first = lastNote === null;
     lastNote = S.note;
     $('#cuePanel').hidden = !S.note;
     $('#cue').textContent = S.note;
-    if (S.note && !first) { const c = $('#cue'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); toast('New note from Andrej'); }
+    if (S.note && !first) { const c = $('#cue'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); toast('New instruction from Andrej'); }
   }
   const m = S.music;
   $('#music').textContent = m.title || m.artist ? `${m.artist}${m.artist && m.title ? ' — ' : ''}${m.title}${m.label ? ' [' + m.label + ']' : ''}` : 'Nothing set';
+
+  const r = S.rundown, seg = r.segments[r.index], nxt = r.segments[r.index + 1];
+  $('#heroWait').hidden = !!seg; $('#heroLive').hidden = !seg;
+  if (seg) {
+    $('#segTitle').textContent = seg.title;
+    $('#segMeta').replaceChildren(`${String(r.index + 1).padStart(2, '0')} of ${r.segments.length} // ${seg.kind} // `, h('b', { class: seg.lead === 'georgie' ? 'mel' : seg.lead === 'andrej' ? 'vie' : '', text: LEAD[seg.lead] }));
+    $('#segNotes').hidden = !seg.notes; $('#segNotes').textContent = seg.notes;
+  }
+  $('#nextTitle').textContent = nxt ? nxt.title : r.index >= 0 ? 'End of show' : (r.segments[0]?.title || '—');
+  $('#nextMeta').textContent = nxt ? `${nxt.minutes} min // ${LEAD[nxt.lead]}` : r.index < 0 && r.segments[0] ? `${r.segments[0].minutes} min // ${LEAD[r.segments[0].lead]}` : '';
   renderRundown();
   renderStatus();
+  tick();
 }
 
-const LEAD = { andrej: 'Andrej leads', georgie: 'You lead', both: 'Both' };
 function renderRundown() {
   const r = S.rundown;
   const badge = $('#roBadge');
   badge.className = 'badge ' + (r.sample ? 'sample' : 'live');
-  badge.textContent = r.sample ? 'Sample rundown' : 'Rundown';
-  $('#roTitle').textContent = r.title || '';
-  const seg = r.segments[r.index], nxt = r.segments[r.index + 1];
-  $('#ident').classList.toggle('idle', !seg);
-  $('#segTitle').textContent = seg ? seg.title : 'Show not started';
-  $('#segMeta').textContent = seg ? `${String(r.index + 1).padStart(2, '0')} // ${seg.kind} // ${LEAD[seg.lead]}` : 'Andrej starts the running order from Vienna';
-  $('#segNotes').hidden = !seg?.notes;
-  $('#segNotes').textContent = seg?.notes || '';
-  $('#nextTitle').textContent = nxt ? nxt.title : r.index >= 0 ? 'End of show' : (r.segments[0]?.title || '—');
-  $('#nextMeta').textContent = nxt ? `${nxt.minutes} min // ${LEAD[nxt.lead]}` : '';
-  renderTimers();
-
-  const key = JSON.stringify([r, openRow]);
+  badge.textContent = r.sample ? 'Sample' : `${r.segments.length} segments`;
+  const key = JSON.stringify(r);
   if (key === roKey) return;
   roKey = key;
   const times = segmentTimes(S);
-  $('#ro').replaceChildren(...r.segments.map((s, i) => {
-    const li = h('li', { class: i < r.index ? 'done' : i === r.index ? 'cur' : i === r.index + 1 ? 'nxt' : '' },
-      h('button', { type: 'button', class: 'r', 'aria-expanded': String(openRow === i), onclick: () => { openRow = openRow === i ? -1 : i; renderRundown(); } },
-        h('span', { class: 'i', text: String(i + 1).padStart(2, '0') }),
-        h('span', { class: 't mel', text: clock('mel', times[i], false) }),
-        h('span', { class: 't vie', text: clock('vie', times[i], false) }),
-        h('span', { class: 'ti', text: s.title }),
-        h('span', { class: 'k', text: s.kind }),
-        h('span', { class: 'm', text: s.minutes + "'" })));
-    if (openRow === i || (i === r.index + 1 && openRow === -1)) {
-      li.append(h('div', { class: 'more' }, h('p', { class: 'lead' }, h('b', { class: s.lead === 'georgie' ? 'georgie' : s.lead === 'andrej' ? 'andrej' : '', text: LEAD[s.lead] })),
-        s.notes ? h('p', { text: s.notes }) : null));
-    }
-    return li;
-  }));
+  $('#ro').replaceChildren(...r.segments.map((s, i) => h('li', { class: i < r.index ? 'done' : i === r.index ? 'cur' : i === r.index + 1 ? 'nxt' : '' },
+    h('div', { class: 'r' },
+      h('span', { class: 'i', text: String(i + 1).padStart(2, '0') }),
+      h('span', { class: 't mel', text: clock('mel', times[i], false) }),
+      h('span', { class: 't vie alt', text: clock('vie', times[i], false) }),
+      h('span', { class: 'ti', text: s.title }),
+      h('span', { class: 'k', text: s.kind }),
+      h('span', { class: 'm', text: s.minutes + "'" })),
+    s.notes || s.lead !== 'both' ? h('div', { class: 'read' }, h('span', { class: 'lead ' + s.lead, text: LEAD[s.lead] }), s.notes ? h('p', { text: s.notes }) : null) : null)));
   const total = r.segments.reduce((a, s) => a + s.minutes, 0);
-  $('#roTotal').replaceChildren(h('span', { text: `${r.segments.length} segments // times in Melbourne and Vienna` }), h('span', { text: `${total} min` }));
+  $('#roTotal').replaceChildren(h('span', { text: 'Times in Melbourne, then Vienna' }), h('span', { text: `${total} min` }));
 }
 
-function renderTimers() {
-  const t = segmentTimer(S);
+function tick() {
+  const r = S.rundown, t = segmentTimer(S);
+  if (!t) {
+    const at = nextShow(S.show), now = Date.now();
+    $('#waitLabel').textContent = now < at ? 'Next show starts in' : 'Show slot is now // waiting for Andrej';
+    $('#countdown').textContent = now < at ? countdown(at - now) : '00:00:00';
+    $('#when').textContent = `${day('mel', at)} ${clock('mel', at, false)} Melbourne // ${day('vie', at)} ${clock('vie', at, false)} Vienna`;
+    return;
+  }
   const set = (id, text, cls = '') => { const d = $(id); d.className = cls; d.querySelector('strong').textContent = text; };
-  if (!t) { set('#tRemain', '--:--'); set('#tElapsed', '--:--'); set('#tLen', '--:--'); $('#segProgress i').style.width = '0'; return; }
   set('#tRemain', hms(t.remaining), t.remaining < 0 ? 'over' : t.remaining < 60000 ? 'near' : '');
-  set('#tElapsed', hms(t.elapsed));
-  set('#tLen', hms(t.planned));
+  set('#tElapsed', hms(t.elapsed), 'sub');
+  $('#segLabel').textContent = t.remaining < 0 ? 'On air now // over time' : t.remaining < 60000 ? 'On air now // wrap up' : 'On air now';
   $('#segProgress').classList.toggle('over', t.remaining < 0);
   $('#segProgress i').style.width = (t.ratio * 100).toFixed(2) + '%';
 }
 
 function alertBox(text) {
   const box = h('div', { class: 'alert', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': 'Message from Vienna' },
-    h('div', {}, h('span', { class: 'label', text: 'Vienna' }), h('p', { text }), h('button', { class: 'b solid', type: 'button', text: 'Understood', onclick: () => box.remove() })));
+    h('div', {}, h('span', { class: 'label', text: 'Vienna' }), h('p', { text }), h('button', { class: 'b primary', type: 'button', text: 'Understood', onclick: () => box.remove() })));
   document.body.append(box);
   box.querySelector('button').focus();
 }
@@ -122,11 +137,18 @@ function save() { try { localStorage.setItem('dz-host-checks', JSON.stringify(ch
 const device = { camera: false, mic: false, cameraLabel: '', micLabel: '' };
 let reportTimer = null;
 function report() {
+  summary();
   clearTimeout(reportTimer);
   reportTimer = setTimeout(() => {
     if (!conn.open) return;
-    conn.send({ t: 'host.status', status: { ...device, headphones: !!checks.headphones, wired: !!checks.wired, light: !!checks.light, vdo: !!checks.vdo } }).catch(() => {});
+    conn.send({ t: 'host.status', status: { ...device, headphones: !!checks.headphones, wired: !!checks.wired, light: !!checks.light, vdo: !!checks.vdo, rtt: link.rtt || 0 } }).catch(() => {});
   }, 300);
+}
+function summary() {
+  const items = [device.camera, device.mic, checks.headphones, checks.wired, checks.light, checks.power, checks.vdo];
+  const done = items.filter(Boolean).length;
+  $('#checkSummary').textContent = done === items.length ? 'All done. You are ready.' : `${done} of ${items.length} done`;
+  $('#dotCheck').hidden = done === items.length;
 }
 
 async function startCheck() {
@@ -159,7 +181,7 @@ async function startCheck() {
   $('#camInfo').textContent = vt ? `${st.width || '?'} × ${st.height || '?'}${st.frameRate ? ' @ ' + Math.round(st.frameRate) + ' fps' : ''}${st.height && st.height < 720 ? ' // low resolution, try another camera' : ''}` : '';
   micPeak = -60;
   if (at) meter(stream);
-  setBadge('', 'Checking… speak');
+  setBadge('untested', 'Checking… say something');
   report();
 }
 
@@ -214,6 +236,7 @@ $('#checkStart').addEventListener('click', startCheck);
 $('#checkStop').addEventListener('click', () => { stopCheck(); setBadge(device.mic && device.camera ? 'live' : 'off', device.mic && device.camera ? 'Camera & mic OK' : 'Not checked'); });
 $('#camSel').addEventListener('change', startCheck);
 $('#micSel').addEventListener('change', startCheck);
+summary();
 
 $('#vdoOpen').addEventListener('click', () => {
   stopCheck(); // free the camera before VDO.Ninja asks for it
@@ -221,3 +244,8 @@ $('#vdoOpen').addEventListener('click', () => {
   if (w) w.opener = null;
   else toast('Your browser blocked the new tab. Allow pop-ups for this page.', 'bad');
 });
+
+// last, once everything above exists
+let startView = 'show';
+try { startView = sessionStorage.getItem('dz-host-view') || 'show'; } catch {}
+setView(startView);

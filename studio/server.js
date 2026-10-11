@@ -164,6 +164,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
 
   async function close() {
     obs.stop();
+    studio.stop();
     studio.flush();
     for (const l of [director, guest]) {
       for (const c of l.wss.clients) c.terminate();

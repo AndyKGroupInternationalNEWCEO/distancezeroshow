@@ -99,6 +99,12 @@ function zoned(tz, y, mo, d, hh, mi) {
     .formatToParts(guess).map(x => [x.type, +x.value]));
   return guess - (Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - guess);
 }
+/* "HH:MM" today in a given city, as a timestamp (reminders are typed in Vienna time) */
+export function zonedToday(tz, hhmm) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(Date.now()).map(x => [x.type, +x.value]));
+  const [hh, mm] = hhmm.split(':').map(Number);
+  return zoned(tz, p.year, p.month - 1, p.day, hh, mm);
+}
 /* same rule as the public website: the launch, then every nth weekday of the month */
 export function nextShow(show, now = Date.now()) {
   const L = new Date(show.launch).getTime(), S = show.schedule, len = S.minutes * 6e4;
