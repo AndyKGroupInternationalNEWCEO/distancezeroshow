@@ -184,6 +184,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
   for (let i = 1; i < 9; i++) { const py = Math.round((i * H) / 9) + 0.5; sx.beginPath(); sx.moveTo(0, py); sx.lineTo(W, py); sx.stroke(); }
 
   const state = { program: 'idle', from: 'idle', fade: 1, countdown: 0 };
+  let spec = null; // the analyser's spectrum while music or the piano plays, else null
 
   function background(t, level) {
     const g = x.createLinearGradient(0, 0, W, 0);
@@ -284,18 +285,21 @@ export function createWall({ width = 2048, height = 860 } = {}) {
         x.fillStyle = color; setFont(x, 500, 17 * S);
         spaced(x, place, cx, top + ch - 22 * S, 7 * S);
       };
-      card(andrej, W * 0.21, "DJ ANDY'K", 'VIENNA · AUSTRIA', AMBER, -1);
-      card(georgie, W * 0.79, 'GEORGIE', 'MELBOURNE · AUSTRALIA', ICE, 1);
+      card(andrej, W * 0.21, "DJ ANDY'K", 'ANDREJ KNEISL · VIENNA', AMBER, -1);
+      card(georgie, W * 0.79, 'GEORGIE WALKER', 'MELBOURNE · AUSTRALIA', ICE, 1);
       x.fillStyle = 'rgba(243,245,248,0.85)'; setFont(x, 400, 24 * S);
       spaced(x, 'BETWEEN TWO WORLDS. ONE ROOM.', W / 2, H * 0.9, 12 * S);
     },
     wave(t) {
       background(t, 0.7);
-      for (let i = 0; i < 3; i++) wave(t + i * 1.7, H * (0.45 + i * 0.12), (70 - i * 18) * S, 0.42 - i * 0.1, 8, 1.4);
-      // equaliser bars along the bottom
+      let level = 0;
+      if (spec) { for (let i = 1; i < 60; i++) level += spec[i]; level /= 59 * 255; }
+      for (let i = 0; i < 3; i++) wave(t + i * 1.7, H * (0.45 + i * 0.12), (70 - i * 18) * S * (1 + level * 1.6), 0.42 - i * 0.1, 8, 1.4);
+      // equaliser bars along the bottom: the real spectrum while something plays (bass in the middle), else an idle dance
       const n = 64, bw = W / n;
       for (let i = 0; i < n; i++) {
-        const u = i / n, v = 0.5 + 0.5 * Math.sin(t * 3.1 + i * 0.55) * Math.sin(t * 1.3 + i * 0.21);
+        const u = i / n, live = spec ? spec[1 + Math.floor(Math.abs(i - (n - 1) / 2) / (n / 2) * 72)] / 255 : 0;
+        const v = spec ? Math.min(1, live * 1.25) : 0.5 + 0.5 * Math.sin(t * 3.1 + i * 0.55) * Math.sin(t * 1.3 + i * 0.21);
         const col = u < 0.5 ? `rgba(242,166,80,${0.25 + v * 0.5})` : `rgba(169,200,238,${0.25 + v * 0.5})`;
         x.fillStyle = col; x.fillRect(i * bw + 3 * S, H - v * H * 0.16 - 8 * S, bw - 6 * S, v * H * 0.16);
       }
@@ -322,6 +326,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
       state.from = state.program; state.program = program; state.fade = 0;
     },
     countdown(n) { state.countdown = n; },
+    spectrum(bins) { spec = bins; },
     draw(t, dt) {
       x.textBaseline = 'alphabetic';
       if (state.fade < 1) {
@@ -387,14 +392,15 @@ export function createDeskFascia() {
   x.textBaseline = 'middle';
   x.fillStyle = '#f3f5f8'; setFont(x, 600, 64);
   spaced(x, 'DISTANCE // ZERO', w / 2, h * 0.5, 30);
+  // names sized to fit between the wordmark and the desk ends (the full names are longer than the first edition's)
   const name = (n, place, cx, col) => {
-    x.fillStyle = col; setFont(x, 700, 50);
-    spaced(x, n, cx, h * 0.4, 18);
-    x.fillStyle = 'rgba(201,206,214,0.8)'; setFont(x, 500, 26);
-    spaced(x, place, cx, h * 0.72, 12);
+    x.fillStyle = col; setFont(x, 700, 44);
+    spaced(x, n, cx, h * 0.4, 14);
+    x.fillStyle = 'rgba(201,206,214,0.8)'; setFont(x, 500, 24);
+    spaced(x, place, cx, h * 0.72, 10);
   };
-  name("DJ ANDY'K", 'VIENNA', w * 0.26, AMBER);
-  name('GEORGIE', 'MELBOURNE', w * 0.74, ICE);
+  name("DJ ANDY'K", 'ANDREJ KNEISL · VIENNA', w * 0.2, AMBER);
+  name('GEORGIE WALKER', 'MELBOURNE', w * 0.8, ICE);
   x.fillStyle = AMBER; x.fillRect(w * 0.38, h * 0.5 - 2, w * 0.05, 4);
   x.fillStyle = ICE; x.fillRect(w * 0.57, h * 0.5 - 2, w * 0.05, 4);
   return texture(c, { aniso: 16 });

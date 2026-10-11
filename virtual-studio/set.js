@@ -324,7 +324,8 @@ export function buildStudio({ scene, quality }) {
       const u = (A1 - a) / (A1 - A0); // 0 = Vienna side (left, -x), 1 = Melbourne side
       tmp.copy(C.amber).lerp(C.ice, THREE.MathUtils.smoothstep(u, 0.3, 0.7));
       const chase = 0.5 + 0.5 * Math.sin(u * 18 - t * (1.1 + 2.5 * L.music));
-      const k = L.fins * (0.45 + 0.55 * (L.music > 0.01 ? THREE.MathUtils.lerp(0.7, chase, L.music) : 0.75 + 0.25 * Math.sin(u * 6 - t * 0.6)));
+      const k = L.fins * (0.45 + 0.55 * (L.music > 0.01 ? THREE.MathUtils.lerp(0.7, chase, L.music) : 0.75 + 0.25 * Math.sin(u * 6 - t * 0.6)))
+        * (1 + L.aOn * (L.aBass * 1.5 + L.aMid * 0.6 * (0.5 + 0.5 * Math.sin(u * 22 - t * 4)))); // sound-to-light
       const bias = u < 0.5 ? L.amber : L.ice;
       stripMesh.setColorAt(i, tmp.multiplyScalar(k * bias * 2.2));
     });
@@ -370,8 +371,8 @@ export function buildStudio({ scene, quality }) {
   }
   anim.push((t, dt, L) => {
     for (const b of beams) {
-      b.material.uniforms.uOpacity.value = L.beams * (0.75 + 0.25 * Math.sin(t * 0.8 + b.userData.phase));
-      b.visible = L.beams > 0.005;
+      b.material.uniforms.uOpacity.value = L.beams * (0.75 + 0.25 * Math.sin(t * 0.8 + b.userData.phase)) + L.aOn * L.aHigh * 0.5 * (0.3 + 0.7 * L.music);
+      b.visible = b.material.uniforms.uOpacity.value > 0.005;
       b.rotation.x = Math.sin(t * 0.35 + b.userData.phase) * 0.12 * L.music;
       b.rotation.y = Math.cos(t * 0.27 + b.userData.phase) * 0.12 * L.music;
     }
@@ -433,11 +434,12 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- per-frame: lighting levels, LED colours, wall, tallies ----- */
   function update(t, dt, L, tally) {
-    for (const { m, k } of glows.amber) m.color.copy(m.userData.base).multiplyScalar(k * L.amber * L.accent);
-    for (const { m, k } of glows.ice) m.color.copy(m.userData.base).multiplyScalar(k * L.ice * L.accent);
+    const pulse = 1 + L.aOn * L.aBass * 0.9;
+    for (const { m, k } of glows.amber) m.color.copy(m.userData.base).multiplyScalar(k * L.amber * L.accent * pulse);
+    for (const { m, k } of glows.ice) m.color.copy(m.userData.base).multiplyScalar(k * L.ice * L.accent * pulse);
     for (const { m, k } of glows.white) m.color.copy(m.userData.base).multiplyScalar(k * (0.35 + 0.65 * L.accent));
     for (const { m, k } of glows.gradient) {
-      m.color.setScalar(k * L.accent * (0.85 + 0.15 * Math.sin(t * 1.2)));
+      m.color.setScalar(k * L.accent * (0.85 + 0.15 * Math.sin(t * 1.2)) * (1 + L.aOn * L.aBass * 1.3));
     }
     gradTex.offset.x = Math.sin(t * 0.2) * 0.04 * (1 + 3 * L.music);
     wallMat.color.setScalar(L.wall);
@@ -690,9 +692,10 @@ function musicStation(M, glows, anim) {
   }
   g.add(meters);
   anim.push((t, dt, L) => {
-    for (const r of jogs) r.rotation.y += dt * (0.4 + 2.6 * L.music);
+    for (const r of jogs) r.rotation.y += dt * (0.4 + 2.6 * L.music + 5 * L.aOn * L.aLevel);
     for (let ch = 0; ch < 4; ch++) {
-      const lvl = L.accent * (0.45 + 0.4 * Math.abs(Math.sin(t * (2.3 + ch * 0.7) + ch)) * (0.4 + 0.6 * L.music));
+      const heard = [L.aBass, L.aMid, L.aHigh, L.aLevel][ch] * 1.5;                 // real levels while something plays
+      const lvl = THREE.MathUtils.lerp(L.accent * (0.45 + 0.4 * Math.abs(Math.sin(t * (2.3 + ch * 0.7) + ch)) * (0.4 + 0.6 * L.music)), heard, L.aOn);
       for (let i = 0; i < 12; i++) {
         const on = i / 12 < lvl;
         meters.setColorAt(ch * 12 + i, on ? col.setRGB(i > 9 ? 3 : i > 7 ? 2.6 : 0.6, i > 9 ? 0.4 : i > 7 ? 1.6 : 1.9, i > 7 ? 0.2 : 0.9) : col.setRGB(0.03, 0.03, 0.035));

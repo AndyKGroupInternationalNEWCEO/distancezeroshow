@@ -6,8 +6,8 @@ import * as THREE from 'three';
 export const VIEWS = {
   studio: { label: 'Studio', long: 'Wide shot', pos: [0, 3.0, 11.4], target: [0, 1.75, -3], fov: 42, drift: 0.32, tally: 2 },
   desk: { label: 'Desk', long: 'Two-shot', pos: [0, 1.6, 3.9], target: [0, 1.12, -1.75], fov: 36, drift: 0.14, tally: 2 },
-  andy: { label: "Andy'K", long: "DJ Andy'K · Vienna", pos: [-0.35, 1.12, 1.75], target: [-0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 3 },
-  georgie: { label: 'Georgie', long: 'Georgie · Melbourne', pos: [0.35, 1.12, 1.75], target: [0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 1 },
+  andy: { label: "Andy'K", long: "DJ Andy'K · Andrej Kneisl · Vienna", pos: [-0.35, 1.12, 1.75], target: [-0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 3 },
+  georgie: { label: 'Georgie', long: 'Georgie Walker · Melbourne', pos: [0.35, 1.12, 1.75], target: [0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 1 },
   wall: { label: 'Video wall', long: 'LED wall and logo', pos: [0, 2.1, 1.9], target: [0, 3.25, -7], fov: 50, drift: 0.12, tally: 4 },
   crane: { label: 'Crane', long: 'High angle', pos: [7.4, 6.6, 7.6], target: [0, 1.0, -2.2], fov: 40, drift: 0.18, tally: 2 },
   floor: { label: 'Floor', long: 'Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0.08, tally: 3 },

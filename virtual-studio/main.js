@@ -10,6 +10,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { buildStudio } from './set.js';
 import { createDirector, VIEWS, ORDER } from './views.js';
+import { createSound } from './sound.js';
+import { createPanels } from './panels.js';
 
 /* lighting looks. `onAir` scales most of it; off air the studio sits under dim work light */
 export const LOOKS = {
@@ -125,7 +127,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   /* ----- state: look, on/off air (simulation only) ----- */
   let look = 'broadcast', onAir = false, sim = false, countdownTimer = 0, programmeAt = 0, programmeIndex = 0;
-  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0 };
+  // a* = what the studio "hears" (soundtrack and piano), 0 when silent
+  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 };
   const target = () => {
     const base = { ...LOOKS[look] };
     if (!onAir) return { ...base, key: base.key * OFF.key, rim: base.rim * OFF.rim, accent: base.accent * OFF.accent, fins: base.fins * OFF.fins, beams: 0, wall: OFF.wall, house: OFF.house, onAir: 0, music: base.music * 0.3 };
@@ -174,6 +177,10 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (!reducedMotion) countdownTimer = setInterval(step, 800);
   }
 
+  /* ----- sound: the music station's soundtrack and piano (nothing plays until the visitor clicks) ----- */
+  const sound = createSound();
+  const panels = createPanels({ sound, el: ui.panel, onMusicStart: () => { if (look !== 'music') setLook('music'); } });
+
   /* ----- UI wiring ----- */
   for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); director.go(b.dataset.view); });
   for (const b of ui.looks) b.addEventListener('click', () => setLook(b.dataset.look));
@@ -181,6 +188,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   ui.auto.addEventListener('click', () => director.setAuto(!director.auto));
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey || /input|select|textarea/i.test(e.target.tagName)) return;
+    if (document.body.dataset.piano === 'on') return; // the piano owns the keyboard while it is open
     const i = Number(e.key);
     if (i >= 1 && i <= ORDER.length) { director.setAuto(false); director.go(ORDER[i - 1]); }
     else if (e.key === 'o' || e.key === 'O') ui.onair.click();
@@ -209,6 +217,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || performance.now() - downAt.t > 450) return; // a drag, not a tap
     const view = focusAt(e.clientX, e.clientY);
     if (view) { director.setAuto(false); director.go(view); }
+    if (view === 'music') panels.open('station');
   });
   let hoverQueued = false;
   canvas.addEventListener('pointermove', e => {
@@ -270,6 +279,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     }
     if (onAir && look === 'music' && studio.wall.program !== 'wave') studio.wall.set('wave');
 
+    // the studio listens: fast attack, slower release, like a light desk's sound-to-light
+    const a = sound.levels(), playing = sound.state.playing;
+    L.aOn = lerp(L.aOn, a.on, 1 - Math.exp(-dt * 2.5));
+    for (const [k, v] of [['aBass', a.bass], ['aMid', a.mid], ['aHigh', a.high], ['aLevel', a.level]]) L[k] = v > L[k] ? lerp(L[k], v, 0.65) : lerp(L[k], v, 1 - Math.exp(-dt * 7));
+    studio.wall.spectrum(a.on ? sound.bins : null);
+    if (!onAir && playing && studio.wall.program === 'idle') studio.wall.set('wave');      // the wall becomes the visualiser
+    if (!onAir && !playing && studio.wall.program === 'wave') studio.wall.set('idle');
+
     wallAccum += dt;
     if (wallAccum >= wallStep) { studio.wall.draw(t, wallAccum); wallAccum = 0; }
     studio.update(t, dt, L, director.tally());
@@ -303,5 +320,5 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, studio, setOnAir, setLook };
+  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook };
 }

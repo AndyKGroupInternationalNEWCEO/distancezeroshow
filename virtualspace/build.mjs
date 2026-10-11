@@ -13,6 +13,7 @@ const HOST = 'https://virtualspace.distancezeroshow.com/';
 const T = 'assets/vendor/three-0.170.0/';
 const FILES = [
   'virtual-studio/main.js', 'virtual-studio/set.js', 'virtual-studio/screens.js', 'virtual-studio/views.js', 'virtual-studio/details.js',
+  'virtual-studio/sound.js', 'virtual-studio/panels.js', 'virtual-studio/chords.js', 'virtual-studio/schedule.js',
   T + 'three.module.min.js', T + 'LICENSE.txt',
   ...['controls/OrbitControls.js', 'geometries/RoundedBoxGeometry.js', 'lights/RectAreaLightUniformsLib.js', 'lights/RectAreaLightTexturesLib.js',
     'objects/Reflector.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
@@ -47,7 +48,7 @@ const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\
   .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
 const csp = [
   "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`, "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
-  "font-src 'self'", "connect-src 'self'", "media-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
+  "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com", // the soundtrack streams from the main site "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 ].join('; ');
 const vercel = {
   cleanUrls: true,
