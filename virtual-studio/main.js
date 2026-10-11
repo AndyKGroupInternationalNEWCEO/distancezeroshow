@@ -275,5 +275,5 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, setOnAir, setLook };
+  return { renderer, scene, camera, controls, director, studio, setOnAir, setLook };
 }

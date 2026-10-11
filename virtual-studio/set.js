@@ -372,10 +372,12 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- studio cameras and the jib ----- */
   const cams = [];
-  // placed so they frame the set in the wide and floor views instead of standing in front of the desk
-  for (const [i, pos] of [[-4.6, 0, 4.1], [2.3, 0, 6.4], [4.6, 0, 4.1]].entries()) {
+  // positions chosen by ray tests (scratch tool): in every viewpoint, across the whole cinematic drift and
+  // jib swing, no camera stands between the lens and the desk, the chairs or the mics
+  for (const [i, pos] of [[-4.2, 0, 4.6], [-2.7, 0, 5.5], [5.1, 0, 3.85]].entries()) {
     const n = i + 1;
     const cam = tvCamera(M, n, glows);
+    cam.group.userData.equipment = `camera ${n}`;
     cam.group.position.set(...pos);
     // cross-shooting: camera 1 (left) holds Georgie, camera 3 (right) holds Andy'K
     const aim = n === 1 ? SEATS.georgie : n === 3 ? SEATS.andy : new THREE.Vector3(0, 0, -1.95);
@@ -387,6 +389,7 @@ export function buildStudio({ scene, quality }) {
     cable(root, M, new THREE.Vector3(pos[0], 0.02, pos[2]), new THREE.Vector3(pos[0] * 2.4 + (n - 2) * 2, 0.02, 12));
   }
   const jib = jibCrane(M, glows);
+  jib.group.userData.equipment = 'jib';
   jib.group.position.set(7.6, 0, -1.6);
   add(jib.group);
   const js = contactShadow(2.1, 2.1, 0.55); js.position.set(7.6, 0.003, -1.6); add(js);
