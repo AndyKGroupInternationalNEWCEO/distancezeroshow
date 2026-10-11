@@ -12,7 +12,7 @@
   },
   "emergency": {
     "standbyScene": "STANDBY",
-    "micPattern": "mic|georgie|vdo",
+    "micPattern": "mic|mikro|georgie|vdo",
     "micInputs": []
   },
   "vdoNinja": {

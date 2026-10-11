@@ -85,7 +85,7 @@ npm test           # 16 end-to-end tests: real server + real WebSockets + mock O
 2. Click a scene, or press keys 1–9: OBS cuts. Enable Studio Mode in OBS: clicks go to preview, and **T** / *Take* transitions.
 3. Toggle a source's visibility; mute and unmute an audio source. The OBS mixer follows, and the meters move.
 4. Use **Record**, then stop it. Test **Go live** (hold 1.5 s) only with a YouTube *unlisted* test stream.
-5. Emergency: *Cut to standby* goes to `STANDBY`. *Mics off* mutes the sources tagged `MIC`, by default names containing mic/georgie/vdo, set in `emergency.micPattern`. Check that the music source is **not** tagged.
+5. Emergency: *Cut to standby* goes to `STANDBY`. *Mics off* mutes the sources tagged `MIC`, by default names containing mic, mikro (German OBS), georgie or vdo, set in `emergency.micPattern`. Check that the music source is **not** tagged.
 6. Quit OBS: a yellow strip appears and the controls lock. Restart OBS: it reconnects by itself.
 
 **Host Dashboard:** open the host link in a second browser profile, or on another device through the tunnel. Chat both ways and check *Seen*. Take segments, send a note (it flashes on Georgie's side) and run the camera check.
