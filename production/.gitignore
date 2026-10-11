@@ -1,0 +1,4 @@
+# downloaded avatar library files, converted textures and rendered clips: large, reproducible with avatars/fetch.sh
+avatars/source/
+avatars/web/
+poc/out-*.mp4

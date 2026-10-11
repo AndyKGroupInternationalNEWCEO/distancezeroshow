@@ -25,10 +25,12 @@ function materials(q) {
     alu: physical({ color: 0x8d9299, metalness: 1, roughness: 0.36, roughnessMap: brush, anisotropy: 0.8 }),
     edge: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1, roughness: 0.14 }),
     seam: new THREE.MeshStandardMaterial({ color: 0x020203, metalness: 0.2, roughness: 0.9 }),
-    deskGlass: physical({ color: 0x07090c, metalness: 0, roughness: 0.07, ior: 1.5, clearcoat: 1, clearcoatRoughness: 0.04 }),
+    // not mirror-smooth: a near-perfect finish focuses a spotlight into one point that bloom turns into a square
+    deskGlass: physical({ color: 0x07090c, metalness: 0, roughness: 0.24, ior: 1.5, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
     vent: new THREE.MeshStandardMaterial({ map: ventTexture(), metalness: 0.6, roughness: 0.5 }),
     champagne: physical({ color: 0xc9a671, metalness: 1, roughness: 0.24, roughnessMap: brush, anisotropy: 0.5 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0xe8ebef, metalness: 1, roughness: 0.07 }),
+    satin: new THREE.MeshStandardMaterial({ color: 0x6e737b, metalness: 1, roughness: 0.42, roughnessMap: rough }), // big flat chrome: mirror finish blows out from above
     blackGlass: physical({ color: 0x0b0c0e, metalness: 0.3, roughness: 0.62, clearcoat: 0.15, clearcoatRoughness: 0.5 }),
     shellGold: physical({ color: 0x8a7350, metalness: 1, roughness: 0.36, roughnessMap: brush, anisotropy: 0.4 }),
     leather: physical({ color: 0x0a0a0c, metalness: 0, roughness: 0.62, normalMap: leatherNormal(4), normalScale: new THREE.Vector2(0.5, 0.5), sheen: 0.25, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
@@ -451,8 +453,13 @@ function beamMaterial(color) {
     uniforms: { uColor: { value: color.clone() }, uOpacity: { value: 0 } },
     vertexShader: `varying float vV; varying vec3 vN; varying vec3 vView;
       void main(){ vV = uv.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vView = normalize(-mv.xyz); vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * mv; }`,
+    // guarded: seen straight down the cone axis the interpolated vectors can vanish, and one NaN pixel turns into
+    // black blocks once the bloom pass spreads it
     fragmentShader: `uniform vec3 uColor; uniform float uOpacity; varying float vV; varying vec3 vN; varying vec3 vView;
-      void main(){ float edge = pow(abs(dot(vN, vView)), 2.0); float a = uOpacity * edge * pow(vV, 1.6); gl_FragColor = vec4(uColor * a, a); }`,
+      void main(){ float d = dot(vN, vView); if (isnan(d)) d = 0.0;
+        float a = uOpacity * pow(min(abs(d), 1.0), 2.0) * pow(clamp(vV, 0.0, 1.0), 1.6);
+        if (isnan(a) || a < 0.0) a = 0.0;
+        gl_FragColor = vec4(uColor * a, a); }`,
     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
   });
 }
@@ -461,7 +468,7 @@ function chair(M) {
   const g = new THREE.Group();
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   // pedestal: polished base, gas-lift sleeve, swivel plate
-  add(new THREE.CylinderGeometry(0.33, 0.35, 0.03, 48), M.chrome, 0, 0.015, 0);
+  add(new THREE.CylinderGeometry(0.33, 0.35, 0.03, 48), M.satin, 0, 0.015, 0);
   add(new THREE.CylinderGeometry(0.055, 0.06, 0.012, 32), M.graphite, 0, 0.036, 0);
   add(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 24), M.chrome, 0, 0.13, 0);
   add(new THREE.CylinderGeometry(0.042, 0.05, 0.2, 24), M.graphite, 0, 0.3, 0);

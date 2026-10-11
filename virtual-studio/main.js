@@ -12,19 +12,19 @@ import { buildStudio } from './set.js';
 import { createDirector, VIEWS, ORDER } from './views.js';
 
 /* lighting looks. `onAir` scales most of it; off air the studio sits under dim work light */
-const LOOKS = {
+export const LOOKS = {
   broadcast: { key: 1, warm: 1, cool: 1, rim: 0.8, amber: 1, ice: 1, accent: 1, fins: 0.75, beams: 0.1, music: 0 },
   vienna: { key: 1, warm: 1.12, cool: 0.7, rim: 0.95, amber: 1.4, ice: 0.4, accent: 1, fins: 0.9, beams: 0.16, music: 0 },
   melbourne: { key: 1, warm: 0.72, cool: 1.12, rim: 0.95, amber: 0.4, ice: 1.4, accent: 1, fins: 0.9, beams: 0.16, music: 0 },
   music: { key: 0.55, warm: 0.9, cool: 0.95, rim: 1.25, amber: 1.2, ice: 1.2, accent: 1.15, fins: 1.25, beams: 0.85, music: 1 },
 };
-const OFF = { key: 0.36, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
-const ON = { wall: 1, house: 0.2, onAir: 1 };
+export const OFF = { key: 0.36, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
+export const ON = { wall: 1, house: 0.2, onAir: 1 };
 const PROGRAMME = [['cities', 15], ['presenters', 11], ['wave', 10]];
 
 // what the shiny surfaces reflect: a dark studio with a softbox overhead, the LED wall, key lights and the
 // amber (Vienna) and ice (Melbourne) light strips. Much closer to the set than a generic bright room.
-function studioEnvironment() {
+export function studioEnvironment() {
   const env = new THREE.Scene();
   env.add(new THREE.Mesh(new THREE.BoxGeometry(30, 12, 30), new THREE.MeshBasicMaterial({ color: 0x050607, side: THREE.BackSide })));
   const panel = (w, h, color, k, pos, look) => {

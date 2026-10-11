@@ -58,7 +58,10 @@ export function roughnessNoise(repeat = 2) {
     // a few faint scuffs and wipe marks
     const r = rng(99);
     x.strokeStyle = 'rgba(255,255,255,0.18)'; x.lineWidth = 1;
-    for (let i = 0; i < 40; i++) { const px = r() * 256, py = r() * 256; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (r() - 0.5) * 60, py + (r() - 0.5) * 12); x.stroke(); }
+    for (let i = 0; i < 40; i++) {
+      const px = r() * 256, py = r() * 256, dx = (r() - 0.5) * 60, dy = (r() - 0.5) * 12;
+      for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) { x.beginPath(); x.moveTo(px + ox, py + oy); x.lineTo(px + ox + dx, py + oy + dy); x.stroke(); }
+    }
     return c;
   });
   return tex(base, repeat);
@@ -137,9 +140,12 @@ export function floorMaps() {
     rx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 60; i++) {
       const px = rr() * s, py = rr() * s, rad = 20 + rr() * 70;
-      const g = rx.createRadialGradient(px, py, 0, px, py, rad);
-      g.addColorStop(0, 'rgba(60,60,60,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      rx.fillStyle = g; rx.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+      // drawn with wrap-around, so the map tiles seamlessly (a seam would cut highlights into hard squares)
+      for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+        const g = rx.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rad);
+        g.addColorStop(0, 'rgba(60,60,60,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        rx.fillStyle = g; rx.fillRect(px + ox - rad, py + oy - rad, rad * 2, rad * 2);
+      }
     }
     rx.fillStyle = 'rgba(255,255,255,0.6)'; rx.fillRect(0, 0, s, 2); rx.fillRect(0, 0, 2, s);
     return { map: tex(c, 24, true), roughness: tex(rc, 24) };

@@ -170,8 +170,9 @@ export function createWall({ width = 2048, height = 860 } = {}) {
 
   const vienna = skyline('vienna', Math.round(760 * S), Math.round(420 * S), AMBER);
   const melbourne = skyline('melbourne', Math.round(760 * S), Math.round(420 * S), ICE);
-  const andrej = photo('assets/andrej.webp');
-  const georgie = photo('assets/georgie.webp');
+  // relative to this module, so the wall also works from pages in other folders (production tests)
+  const andrej = photo(new URL('../assets/andrej.webp', import.meta.url).href);
+  const georgie = photo(new URL('../assets/georgie.webp', import.meta.url).href);
 
   // LED cabinet seams, drawn once
   const seams = canvas(W, H), sx = seams.getContext('2d');
