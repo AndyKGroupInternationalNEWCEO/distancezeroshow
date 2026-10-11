@@ -15,7 +15,8 @@
     "codes": "node server.js --show-codes",
     "rotate-codes": "node server.js --rotate-codes",
     "test": "node --test test/*.test.js",
-    "tunnel": "node tunnel.js"
+    "tunnel": "node tunnel.js",
+    "obs-check": "node obs-check.js"
   },
   "dependencies": {
     "ws": "^8.22.0"
