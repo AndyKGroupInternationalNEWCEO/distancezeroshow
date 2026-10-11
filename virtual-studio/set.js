@@ -145,6 +145,7 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- the curved presentation desk ----- */
   const desk = add(new THREE.Group());
+  desk.userData.focus = 'desk';
   desk.position.set(0, RISER, DESK_CENTER);
   const span = 0.56;
   const body = mesh(arcSlab(3.5, 3.98, span, 0.74), M.dark, desk);
@@ -213,6 +214,7 @@ export function buildStudio({ scene, quality }) {
   /* ----- presenter chairs ----- */
   for (const seat of [SEATS.andy, SEATS.georgie]) {
     const ch = chair(M);
+    ch.userData.focus = seat.x < 0 ? 'andy' : 'georgie';
     ch.position.copy(seat);
     ch.rotation.y = seat.x < 0 ? 0.12 : -0.12;
     add(ch);
@@ -225,6 +227,7 @@ export function buildStudio({ scene, quality }) {
   const wallMat = new THREE.MeshBasicMaterial({ map: wall.texture, side: THREE.BackSide, toneMapped: true });
   const wallMesh = mesh(new THREE.CylinderGeometry(WALL_R, WALL_R, WALL_H, 160, 1, true, Math.PI - WALL_SPAN, WALL_SPAN * 2), wallMat);
   wallMesh.position.set(0, WALL_Y, WALL_Z);
+  wallMesh.userData.focus = 'wall';
   const housing = mesh(new THREE.CylinderGeometry(WALL_R + 0.18, WALL_R + 0.18, WALL_H + 0.5, 160, 1, true, Math.PI - WALL_SPAN - 0.025, WALL_SPAN * 2 + 0.05), M.dark);
   housing.material = M.dark.clone(); housing.material.side = THREE.DoubleSide;
   housing.position.copy(wallMesh.position);
@@ -250,6 +253,7 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- the 3D logo, hanging in front of the wall ----- */
   const logo = buildLogo(M, glows);
+  logo.userData.focus = 'wall';
   logo.position.set(-1.31 * 1.25, 3.62, -5.55);
   logo.scale.setScalar(1.25);
   add(logo);
@@ -380,6 +384,7 @@ export function buildStudio({ scene, quality }) {
   for (const [i, pos] of [[-4.2, 0, 4.6], [-2.7, 0, 5.5], [5.1, 0, 3.85]].entries()) {
     const n = i + 1;
     const cam = tvCamera(M, n, glows);
+    cam.group.userData.focus = 'floor';
     cam.group.userData.equipment = `camera ${n}`;
     cam.group.position.set(...pos);
     // cross-shooting: camera 1 (left) holds Georgie, camera 3 (right) holds Andy'K
@@ -392,6 +397,7 @@ export function buildStudio({ scene, quality }) {
     cable(root, M, new THREE.Vector3(pos[0], 0.02, pos[2]), new THREE.Vector3(pos[0] * 2.4 + (n - 2) * 2, 0.02, 12));
   }
   const jib = jibCrane(M, glows);
+  jib.group.userData.focus = 'crane';
   jib.group.userData.equipment = 'jib';
   jib.group.position.set(7.6, 0, -1.6);
   add(jib.group);
@@ -405,6 +411,7 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- music station (the 30 % electronic part) ----- */
   const music = musicStation(M, glows, anim);
+  music.userData.focus = 'music';
   music.position.set(-5.4, 0, 0.1);
   music.rotation.y = 0.95;
   add(music);
@@ -444,7 +451,7 @@ export function buildStudio({ scene, quality }) {
   }
 
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
-  return { update, wall, cams, logo, desk, lights, music, floorOpaque };
+  return { update, wall, cams, logo, desk, lights, music, floorOpaque, root };
 }
 
 /* ---------- pieces ---------- */

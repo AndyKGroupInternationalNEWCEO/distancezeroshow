@@ -188,6 +188,34 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     else if (e.key === 'l' || e.key === 'L') { const keys = Object.keys(LOOKS); setLook(keys[(keys.indexOf(look) + 1) % keys.length]); }
   });
   canvas.addEventListener('pointerdown', () => ui.hint.classList.add('gone'), { once: true });
+
+  /* ----- click or tap an object to fly to it (desk, chairs, LED wall and logo, music station, cameras, crane) ----- */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  const focusAt = (x, y) => {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    for (const hit of ray.intersectObject(studio.root, true)) {
+      if (!hit.object.visible || hit.object.material?.isShaderMaterial) continue; // light beams are not objects
+      let o = hit.object;
+      while (o && !o.userData.focus) o = o.parent;
+      return o ? o.userData.focus : null;   // the first solid thing under the pointer decides
+    }
+    return null;
+  };
+  let downAt = null;
+  canvas.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener('pointerup', e => {
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || performance.now() - downAt.t > 450) return; // a drag, not a tap
+    const view = focusAt(e.clientX, e.clientY);
+    if (view) { director.setAuto(false); director.go(view); }
+  });
+  let hoverQueued = false;
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || e.buttons || hoverQueued) return;
+    hoverQueued = true;
+    requestAnimationFrame(() => { hoverQueued = false; canvas.style.cursor = focusAt(e.clientX, e.clientY) ? 'pointer' : ''; });
+  });
   setTimeout(() => ui.hint.classList.add('gone'), 9000);
 
   /* ----- sizing and adaptive quality ----- */
