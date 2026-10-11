@@ -45,8 +45,11 @@ export function texture(c, { srgb = true, aniso = 8 } = {}) {
   return t;
 }
 
-const clock = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date());
-const day = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()).toUpperCase();
+// the wall and pylon clocks read this; rendered clips set it to show time instead of the time of rendering
+let now = () => new Date();
+export function setClockSource(fn) { now = fn; }
+const clock = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(now());
+const day = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).format(now()).toUpperCase();
 const mix = (a, b, t) => a + (b - a) * t;
 
 // a horizontal amber → ice gradient strip, used for LED lines on the desk, riser and floor rings

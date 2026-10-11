@@ -30,9 +30,9 @@ function materials(q) {
     vent: new THREE.MeshStandardMaterial({ map: ventTexture(), metalness: 0.6, roughness: 0.5 }),
     champagne: physical({ color: 0xc9a671, metalness: 1, roughness: 0.24, roughnessMap: brush, anisotropy: 0.5 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0xe8ebef, metalness: 1, roughness: 0.07 }),
-    satin: new THREE.MeshStandardMaterial({ color: 0x6e737b, metalness: 1, roughness: 0.42, roughnessMap: rough }), // big flat chrome: mirror finish blows out from above
+    satin: new THREE.MeshStandardMaterial({ color: 0x6e737b, metalness: 1, roughness: 0.6, roughnessMap: rough }), // big flat chrome: mirror finish blows out from above
     blackGlass: physical({ color: 0x0b0c0e, metalness: 0.3, roughness: 0.62, clearcoat: 0.15, clearcoatRoughness: 0.5 }),
-    shellGold: physical({ color: 0x8a7350, metalness: 1, roughness: 0.36, roughnessMap: brush, anisotropy: 0.4 }),
+    shellGold: physical({ color: 0x8a7350, metalness: 1, roughness: 0.55, roughnessMap: brush, anisotropy: 0.4 }), // satin: a mirror finish turned rim light into neon outlines
     leather: physical({ color: 0x0a0a0c, metalness: 0, roughness: 0.62, normalMap: leatherNormal(4), normalScale: new THREE.Vector2(0.5, 0.5), sheen: 0.25, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x0c0c0d, metalness: 0, roughness: 0.85 }),
     camBody: new THREE.MeshStandardMaterial({ color: 0x2c2f35, metalness: 0.55, roughness: 0.5, roughnessMap: rough }),
@@ -52,6 +52,7 @@ function materials(q) {
   M.blackGlass.envMapIntensity = 0.25;
   M.blackGlass.roughnessMap = rough;
   M.deskGlass.envMapIntensity = 0.18;
+  M.shellGold.envMapIntensity = 0.35; // chair shells: at grazing angles they mirrored the bright side panels like neon
   M.floor.envMapIntensity = 0.35;
   M.riser.envMapIntensity = 0.35;
   return M;
