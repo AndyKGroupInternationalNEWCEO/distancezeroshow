@@ -18,8 +18,8 @@ const LOOKS = {
   melbourne: { key: 1, warm: 0.72, cool: 1.12, rim: 0.95, amber: 0.4, ice: 1.4, accent: 1, fins: 0.9, beams: 0.16, music: 0 },
   music: { key: 0.55, warm: 0.9, cool: 0.95, rim: 1.25, amber: 1.2, ice: 1.2, accent: 1.15, fins: 1.25, beams: 0.85, music: 1 },
 };
-const OFF = { key: 0.32, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
-const ON = { wall: 1, house: 0.12, onAir: 1 };
+const OFF = { key: 0.36, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
+const ON = { wall: 1, house: 0.2, onAir: 1 };
 const PROGRAMME = [['cities', 15], ['presenters', 11], ['wave', 10]];
 
 // what the shiny surfaces reflect: a dark studio with a softbox overhead, the LED wall, key lights and the
@@ -57,7 +57,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   let dpr = quality.dpr;
   renderer.setPixelRatio(dpr);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -69,7 +69,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   scene.fog = new THREE.FogExp2(0x040507, 0.024);
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(studioEnvironment(), 0.02).texture;
-  scene.environmentIntensity = 0.7;
+  scene.environmentIntensity = 0.8;
   pmrem.dispose();
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 80);
@@ -275,5 +275,5 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, director, setOnAir, setLook };
+  return { renderer, scene, camera, controls, director, setOnAir, setLook };
 }

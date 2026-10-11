@@ -3,6 +3,7 @@
 // (Melbourne) on the right, as seen from the cameras.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX } from './details.js';
 import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, AMBER, ICE } from './screens.js';
 
 export const RISER = 0.16;            // stage riser height
@@ -14,24 +15,30 @@ const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), champagne:
 
 function materials(q) {
   const physical = o => new THREE.MeshPhysicalMaterial(o);
+  const rough = roughnessNoise(2), brush = brushed(1);
   const M = {
-    floor: new THREE.MeshStandardMaterial({ color: 0x0b0c0f, metalness: 0.2, roughness: 0.55 }),
-    riser: physical({ color: 0x07080a, metalness: 0.25, roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
-    dark: new THREE.MeshStandardMaterial({ color: 0x17191d, metalness: 0.85, roughness: 0.34 }),
-    graphite: new THREE.MeshStandardMaterial({ color: 0x222429, metalness: 0.9, roughness: 0.26 }),
-    brushed: new THREE.MeshStandardMaterial({ color: 0x3a3e45, metalness: 1, roughness: 0.3 }),
-    champagne: new THREE.MeshStandardMaterial({ color: 0xc9a671, metalness: 1, roughness: 0.2 }),
+    floor: new THREE.MeshStandardMaterial({ color: 0x0b0c0f, metalness: 0.2, roughness: 0.6 }),
+    riser: physical({ color: 0x07080a, metalness: 0.25, roughness: 0.56, roughnessMap: rough, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x17191d, metalness: 0.85, roughness: 0.4, roughnessMap: rough }),
+    graphite: new THREE.MeshStandardMaterial({ color: 0x222429, metalness: 0.9, roughness: 0.32, roughnessMap: rough }),
+    brushed: physical({ color: 0x3a3e45, metalness: 1, roughness: 0.34, roughnessMap: brush, anisotropy: 0.6 }),
+    alu: physical({ color: 0x8d9299, metalness: 1, roughness: 0.36, roughnessMap: brush, anisotropy: 0.8 }),
+    edge: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1, roughness: 0.14 }),
+    seam: new THREE.MeshStandardMaterial({ color: 0x020203, metalness: 0.2, roughness: 0.9 }),
+    deskGlass: physical({ color: 0x07090c, metalness: 0, roughness: 0.07, ior: 1.5, clearcoat: 1, clearcoatRoughness: 0.04 }),
+    vent: new THREE.MeshStandardMaterial({ map: ventTexture(), metalness: 0.6, roughness: 0.5 }),
+    champagne: physical({ color: 0xc9a671, metalness: 1, roughness: 0.24, roughnessMap: brush, anisotropy: 0.5 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0xe8ebef, metalness: 1, roughness: 0.07 }),
     blackGlass: physical({ color: 0x0b0c0e, metalness: 0.3, roughness: 0.62, clearcoat: 0.15, clearcoatRoughness: 0.5 }),
-    shellGold: new THREE.MeshStandardMaterial({ color: 0x8a7350, metalness: 1, roughness: 0.32 }),
-    leather: physical({ color: 0x08080a, metalness: 0, roughness: 0.55, sheen: 0.25, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
+    shellGold: physical({ color: 0x8a7350, metalness: 1, roughness: 0.36, roughnessMap: brush, anisotropy: 0.4 }),
+    leather: physical({ color: 0x0a0a0c, metalness: 0, roughness: 0.62, normalMap: leatherNormal(4), normalScale: new THREE.Vector2(0.5, 0.5), sheen: 0.25, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x0c0c0d, metalness: 0, roughness: 0.85 }),
-    camBody: new THREE.MeshStandardMaterial({ color: 0x2c2f35, metalness: 0.55, roughness: 0.42 }),
-    camLight: new THREE.MeshStandardMaterial({ color: 0x8c9099, metalness: 0.6, roughness: 0.38 }),
+    camBody: new THREE.MeshStandardMaterial({ color: 0x2c2f35, metalness: 0.55, roughness: 0.5, roughnessMap: rough }),
+    camLight: new THREE.MeshStandardMaterial({ color: 0x8c9099, metalness: 0.6, roughness: 0.46, roughnessMap: rough }),
     lensGlass: physical({ color: 0x0a0d14, metalness: 0.2, roughness: 0.02, clearcoat: 1, iridescence: 0.6, iridescenceIOR: 1.6 }),
     prompterGlass: physical({ color: 0x0d1015, metalness: 0.4, roughness: 0.02, transparent: true, opacity: 0.55 }),
     wallBack: new THREE.MeshStandardMaterial({ color: 0x0a0b0d, metalness: 0.2, roughness: 0.9 }),
-    fin: new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.9, roughness: 0.4 }),
+    fin: new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.9, roughness: 0.46, roughnessMap: rough }),
     logoWarm: q.glass
       ? physical({ color: 0xffffff, metalness: 0, roughness: 0.06, transmission: 1, thickness: 0.35, ior: 1.5, attenuationColor: new THREE.Color(0xf2b77a), attenuationDistance: 0.7, clearcoat: 1, specularIntensity: 1 })
       : physical({ color: 0xb59a7c, metalness: 1, roughness: 0.12, clearcoat: 1 }),
@@ -41,6 +48,8 @@ function materials(q) {
   };
   // large flat dark surfaces: at low camera angles they would mirror the overhead softbox and read as pale slabs
   M.blackGlass.envMapIntensity = 0.25;
+  M.blackGlass.roughnessMap = rough;
+  M.deskGlass.envMapIntensity = 0.18;
   M.floor.envMapIntensity = 0.35;
   M.riser.envMapIntensity = 0.35;
   return M;
@@ -100,9 +109,9 @@ export function buildStudio({ scene, quality }) {
   const floorGeo = new THREE.CircleGeometry(26, 96).rotateX(-Math.PI / 2);
   const floor = mesh(floorGeo, M.floor);
   floor.receiveShadow = true;
-  floor.material.map = floorTiles(); floor.material.roughnessMap = floor.material.map;
-  floor.material.map.repeat.set(24, 24);
-  if (quality.reflections) { floor.material.transparent = true; floor.material.opacity = 0.88; }
+  const fm = floorMaps();
+  floor.material.map = fm.map; floor.material.roughnessMap = fm.roughness;
+  if (quality.reflections) { floor.material.transparent = true; floor.material.opacity = 0.85; }
 
   const riser = mesh(new THREE.CylinderGeometry(3.3, 3.36, RISER, 128), M.riser);
   riser.position.set(0, RISER / 2, -1.9);
@@ -111,6 +120,13 @@ export function buildStudio({ scene, quality }) {
   const riserBand = mesh(new THREE.CylinderGeometry(3.365, 3.365, 0.025, 128, 1, true), riserLed);
   riserBand.position.set(0, 0.03, -1.9);
   glows.gradient.push({ m: riserLed, k: 1.6 });
+  // riser deck: radial panel joints and a brushed edge band
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.31, j = mesh(new THREE.BoxGeometry(0.006, 0.002, 2.6), M.seam);
+    j.position.set(Math.sin(a) * 1.95, RISER + 0.001, -1.9 + Math.cos(a) * 1.95); j.rotation.y = a;
+  }
+  const riserEdge = mesh(new THREE.CylinderGeometry(3.335, 3.335, 0.02, 128, 1, true), M.alu);
+  riserEdge.position.set(0, RISER - 0.012, -1.9);
 
   for (const [r, k] of [[4.6, 1.1], [5.9, 0.55]]) {
     const ringMat = glow(new THREE.Color(1, 1, 1), gradTex);
@@ -148,7 +164,28 @@ export function buildStudio({ scene, quality }) {
   glows.gradient.push({ m: kick, k: 2 });
   // recessed plinth so the desk floats
   mesh(arcSlab(3.6, 3.9, span - 0.02, 0.05), M.rubber, desk);
+  // brushed aluminium bands, a smoked glass lip along the front of the top, a bright edge highlight
+  mesh(band(3.985, 0.05, span), M.alu, desk).position.y = 0.11;
+  mesh(band(3.985, 0.026, span), M.alu, desk).position.y = 0.675;
+  const lip = mesh(arcSlab(3.97, 4.125, span + 0.03, 0.008), M.deskGlass, desk);
+  lip.position.y = 0.8;
+  mesh(band(4.163, 0.006, span + 0.035), M.edge, desk).position.y = 0.797;
+  // construction joints between the panels (placed between the names, never across them)
+  const fs = span - 0.02;
+  for (const u of [0.13, 0.38, 0.62, 0.87]) {
+    const a = -fs + u * 2 * fs, j = mesh(new THREE.BoxGeometry(0.005, 0.54, 0.006), M.seam, desk);
+    j.position.set(3.982 * Math.sin(a), 0.405, 3.982 * Math.cos(a)); j.rotation.y = a;
+  }
+  for (const y of [0.325, 0.595]) mesh(band(3.984, 0.004, span), M.seam, desk).position.y = y;
+  // brushed end plates (dark, so they do not flare in the key light)
+  for (const sgn of [-1, 1]) {
+    const a = sgn * span, e = mesh(new THREE.BoxGeometry(0.012, 0.74, 0.5), M.brushed, desk);
+    e.position.set(3.74 * Math.sin(a), 0.37, 3.74 * Math.cos(a)); e.rotation.y = a;
+  }
   shadows(desk);
+  const deskShadow = arcShadow(3.35, 4.3, span + 0.06, 0.72);
+  deskShadow.position.y = 0.003;
+  desk.add(deskShadow);
 
   // desk props: broadcast microphones and slim monitors facing the presenters
   for (const [seat, col] of [[SEATS.andy, C.amber], [SEATS.georgie, C.ice]]) {
@@ -156,6 +193,7 @@ export function buildStudio({ scene, quality }) {
     m.position.set(seat.x * 0.92, RISER + 0.807, -1.02);
     m.rotation.y = Math.PI + (seat.x < 0 ? -0.15 : 0.15);
     add(m);
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 0.92, RISER + 0.809, -1.02); add(ms);
     const mon = new THREE.Group();
     mesh(new RoundedBoxGeometry(0.34, 0.21, 0.016, 2, 0.006), M.graphite, mon).position.y = 0.15;
     const screen = mesh(new THREE.PlaneGeometry(0.32, 0.19), new THREE.MeshBasicMaterial({ color: 0x1a2230 }), mon);
@@ -175,6 +213,7 @@ export function buildStudio({ scene, quality }) {
     ch.position.copy(seat);
     ch.rotation.y = seat.x < 0 ? 0.12 : -0.12;
     add(ch);
+    const cs = contactShadow(0.95, 0.95, 0.6); cs.position.set(seat.x, RISER + 0.003, seat.z); add(cs);
   }
 
   /* ----- LED video wall ----- */
@@ -190,6 +229,15 @@ export function buildStudio({ scene, quality }) {
     const b = mesh(new THREE.CylinderGeometry(WALL_R - 0.02, WALL_R - 0.02, 0.05, 160, 1, true, Math.PI - WALL_SPAN - 0.02, WALL_SPAN * 2 + 0.04), M.champagne);
     b.material = M.champagne.clone(); b.material.side = THREE.DoubleSide;
     b.position.set(0, y, WALL_Z);
+  }
+  // LED cabinet edges: dark end caps with a champagne reveal, like the frame of a real LED wall
+  for (const sgn of [-1, 1]) {
+    const a = Math.PI + sgn * (WALL_SPAN + 0.006), r = WALL_R + 0.06;
+    const cap = new THREE.Group();
+    cap.position.set(r * Math.sin(a), WALL_Y, WALL_Z + r * Math.cos(a)); cap.rotation.y = a;
+    mesh(new THREE.BoxGeometry(0.1, WALL_H + 0.5, 0.32), M.graphite, cap);
+    mesh(new THREE.BoxGeometry(0.012, WALL_H + 0.08, 0.33), M.champagne, cap).position.x = -sgn * 0.045;
+    add(cap);
   }
   // the wall's own light on the set
   const wallLight = new THREE.RectAreaLight(0xffffff, 1, 9, 3.6);
@@ -223,6 +271,7 @@ export function buildStudio({ scene, quality }) {
     const frame = mesh(new RoundedBoxGeometry(0.74, 4.6, 0.3, 3, 0.03), M.graphite, g);
     frame.position.set(0, 2.3, -0.16);
     mesh(new THREE.BoxGeometry(0.8, 0.06, 0.36), M.champagne, g).position.set(0, 0.03, -0.12);
+    const ps = contactShadow(1.2, 0.8, 0.55); ps.position.z = -0.14; g.add(ps);
     shadows(g);
     pylons.push(p);
   }
@@ -232,6 +281,7 @@ export function buildStudio({ scene, quality }) {
   const ROOM_R = 12.6, ROOM_Z = 1, ROOM_H = 8.4, A0 = Math.PI - 1.95, A1 = Math.PI + 1.95;
   const backWall = mesh(new THREE.CylinderGeometry(ROOM_R + 0.6, ROOM_R + 0.6, ROOM_H, 96, 1, true, A0 - 0.1, A1 - A0 + 0.2), M.wallBack);
   backWall.material = M.wallBack.clone(); backWall.material.side = THREE.BackSide;
+  backWall.material.map = panelJoints(46, 3); // architectural panel joints, mostly glimpsed between the fins
   backWall.position.set(0, ROOM_H / 2, ROOM_Z);
   const ceiling = mesh(new THREE.CircleGeometry(ROOM_R + 1, 64).rotateX(Math.PI / 2), M.wallBack);
   ceiling.position.set(0, ROOM_H, ROOM_Z);
@@ -322,7 +372,8 @@ export function buildStudio({ scene, quality }) {
 
   /* ----- studio cameras and the jib ----- */
   const cams = [];
-  for (const [i, pos] of [[1, [-3.4, 0, 4.6]], [2, [0.2, 0, 5.4]], [3, [3.4, 0, 4.6]]].entries()) {
+  // placed so they frame the set in the wide and floor views instead of standing in front of the desk
+  for (const [i, pos] of [[-4.6, 0, 4.1], [2.3, 0, 6.4], [4.6, 0, 4.1]].entries()) {
     const n = i + 1;
     const cam = tvCamera(M, n, glows);
     cam.group.position.set(...pos);
@@ -331,12 +382,14 @@ export function buildStudio({ scene, quality }) {
     cam.group.rotation.y = Math.atan2(aim.x - cam.group.position.x, aim.z - cam.group.position.z); // lens is local +z
     cam.head.rotation.x = -0.06;
     add(cam.group);
+    const sh = contactShadow(1.3, 1.3, 0.65); sh.position.set(pos[0], 0.003, pos[2]); add(sh);
     cams.push(cam);
     cable(root, M, new THREE.Vector3(pos[0], 0.02, pos[2]), new THREE.Vector3(pos[0] * 2.4 + (n - 2) * 2, 0.02, 12));
   }
   const jib = jibCrane(M, glows);
   jib.group.position.set(7.6, 0, -1.6);
   add(jib.group);
+  const js = contactShadow(2.1, 2.1, 0.55); js.position.set(7.6, 0.003, -1.6); add(js);
   cams.push(jib.cam);
   anim.push((t, dt, L) => {
     jib.arm.rotation.y = 0.12 + Math.sin(t * 0.11) * 0.3;
@@ -349,6 +402,7 @@ export function buildStudio({ scene, quality }) {
   music.position.set(-5.4, 0, 0.1);
   music.rotation.y = 0.95;
   add(music);
+  const mus = contactShadow(2.9, 1.3, 0.65); music.add(mus);
 
   /* ----- studio sign ----- */
   const signTex = studioSign();
@@ -389,26 +443,6 @@ export function buildStudio({ scene, quality }) {
 
 /* ---------- pieces ---------- */
 
-function floorTiles() {
-  const s = 512, c = document.createElement('canvas');
-  c.width = c.height = s;
-  const x = c.getContext('2d');
-  x.fillStyle = '#9a9a9a'; x.fillRect(0, 0, s, s);
-  // subtle mottling so the floor reflections break up like a real polished resin floor
-  for (let i = 0; i < 2200; i++) {
-    const v = 140 + Math.floor(Math.random() * 40);
-    x.fillStyle = `rgba(${v},${v},${v},0.08)`;
-    const r = 4 + Math.random() * 30;
-    x.beginPath(); x.arc(Math.random() * s, Math.random() * s, r, 0, Math.PI * 2); x.fill();
-  }
-  x.fillStyle = '#6e6e6e';
-  x.fillRect(0, 0, s, 2); x.fillRect(0, 0, 2, s);
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
-  return t;
-}
-
 function beamMaterial(color) {
   return new THREE.ShaderMaterial({
     uniforms: { uColor: { value: color.clone() }, uOpacity: { value: 0 } },
@@ -422,25 +456,34 @@ function beamMaterial(color) {
 
 function chair(M) {
   const g = new THREE.Group();
-  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  add(new THREE.CylinderGeometry(0.34, 0.36, 0.035, 48), M.chrome, 0, 0.018, 0);
-  add(new THREE.CylinderGeometry(0.034, 0.04, 0.36, 24), M.chrome, 0, 0.21, 0);
-  add(new THREE.CylinderGeometry(0.12, 0.09, 0.05, 32), M.graphite, 0, 0.41, 0);
-  add(new RoundedBoxGeometry(0.54, 0.12, 0.52, 5, 0.05), M.leather, 0, 0.5, 0.02);
-  add(new RoundedBoxGeometry(0.56, 0.035, 0.54, 3, 0.015), M.shellGold, 0, 0.43, 0.02);
+  const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  // pedestal: polished base, gas-lift sleeve, swivel plate
+  add(new THREE.CylinderGeometry(0.33, 0.35, 0.03, 48), M.chrome, 0, 0.015, 0);
+  add(new THREE.CylinderGeometry(0.055, 0.06, 0.012, 32), M.graphite, 0, 0.036, 0);
+  add(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 24), M.chrome, 0, 0.13, 0);
+  add(new THREE.CylinderGeometry(0.042, 0.05, 0.2, 24), M.graphite, 0, 0.3, 0);
+  add(new THREE.CylinderGeometry(0.15, 0.12, 0.03, 32), M.graphite, 0, 0.41, 0);
+  // seat: leather cushion on a brushed pan, piping around the sides, two stitched channels
+  add(new RoundedBoxGeometry(0.5, 0.03, 0.48, 3, 0.012), M.shellGold, 0, 0.43, 0.02);
+  add(new RoundedBoxGeometry(0.52, 0.12, 0.5, 6, 0.05), M.leather, 0, 0.5, 0.02);
+  add(new RoundedBoxGeometry(0.527, 0.007, 0.507, 3, 0.003), M.seam, 0, 0.5, 0.02);
+  for (const x of [-0.11, 0.11]) add(new THREE.BoxGeometry(0.004, 0.003, 0.42), M.seam, x, 0.561, 0.03);
+  // back: curved around the sitter, leather cushion in a champagne-metal shell, channel stitching
   const back = new THREE.Group();
-  back.position.set(0, 0.54, -0.26);
-  back.rotation.x = -0.14;
+  back.position.set(0, 0.58, -0.24);
+  back.rotation.x = -0.13;
   g.add(back);
-  const cushion = new THREE.Mesh(new RoundedBoxGeometry(0.48, 0.68, 0.08, 5, 0.035), M.leather); cushion.position.set(0, 0.4, 0.02); back.add(cushion);
-  for (let i = 1; i < 4; i++) { // channel stitching
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.006, 0.004), M.graphite); seam.position.set(0, 0.4 - 0.34 + i * 0.17, 0.062); back.add(seam);
-  }
-  const shell = new THREE.Mesh(new RoundedBoxGeometry(0.52, 0.72, 0.07, 5, 0.03), M.shellGold); shell.position.set(0, 0.4, -0.03); back.add(shell);
-  for (const s of [-1, 1]) {
-    add(new RoundedBoxGeometry(0.05, 0.035, 0.4, 2, 0.015), M.leather, s * 0.29, 0.7, 0.0);
-    add(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 12), M.chrome, s * 0.29, 0.62, 0.1);
-    add(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 12), M.chrome, s * 0.29, 0.62, -0.12);
+  const K = 0.42;
+  add(bendX(new RoundedBoxGeometry(0.46, 0.62, 0.075, 6, 0.034), K), M.leather, 0, 0.33, 0.02, back);
+  add(bendX(new RoundedBoxGeometry(0.5, 0.66, 0.055, 6, 0.026), K), M.shellGold, 0, 0.33, -0.028, back);
+  add(bendX(new RoundedBoxGeometry(0.468, 0.008, 0.08, 3, 0.003), K), M.seam, 0, 0.33 + 0.306, 0.02, back);
+  for (let i = 1; i < 4; i++) add(bendX(new THREE.BoxGeometry(0.42, 0.004, 0.004, 16, 1, 1), K), M.seam, 0, 0.33 - 0.31 + i * 0.155, 0.0585, back);
+  for (const x of [-0.22, 0.22]) add(new THREE.BoxGeometry(0.004, 0.56, 0.004), M.seam, x * 0.92, 0.33, 0.058 - K * x * x * 0.85, back);
+  // armrests: padded leather tops on brushed side plates
+  for (const sx of [-1, 1]) {
+    add(new RoundedBoxGeometry(0.065, 0.04, 0.34, 4, 0.018), M.leather, sx * 0.29, 0.715, -0.01);
+    add(new RoundedBoxGeometry(0.014, 0.17, 0.24, 2, 0.005), M.shellGold, sx * 0.288, 0.615, -0.02);
+    for (const z of [-0.09, 0.05]) add(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 12), M.chrome, sx * 0.296, 0.6, z).rotation.z = Math.PI / 2;
   }
   shadows(g);
   return g;
@@ -457,6 +500,14 @@ function microphone(M, color, glows) {
   const grill = new THREE.Mesh(new THREE.SphereGeometry(0.026, 24, 16), M.brushed); grill.position.y = 0.09; capsule.add(grill);
   const ringMat = glow(color);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0235, 0.003, 8, 32).rotateX(Math.PI / 2), ringMat); ring.position.y = 0.05; capsule.add(ring);
+  // shock mount: a ring around the body held by a small yoke on the arm
+  const shock = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.0035, 8, 32).rotateX(Math.PI / 2), M.graphite); shock.position.y = -0.01; capsule.add(shock);
+  for (const sx of [-1, 1]) { const y = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.008), M.graphite); y.position.set(sx * 0.036, -0.03, 0); capsule.add(y); }
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.012, 16), M.chrome); knob.rotation.z = Math.PI / 2; knob.position.set(0.04, -0.03, 0); capsule.add(knob);
+  // cable from the base into a desk grommet
+  const grommet = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.003, 8, 20).rotateX(Math.PI / 2), M.brushed); grommet.position.set(0.03, 0.002, -0.1); g.add(grommet);
+  const lead = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.012, -0.055), new THREE.Vector3(0.012, 0.01, -0.085), new THREE.Vector3(0.03, -0.01, -0.1)]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(lead, 12, 0.0025, 6), M.rubber));
   (color.getHex() === new THREE.Color(AMBER).getHex() ? glows.amber : glows.ice).push({ m: ringMat, k: 2.5 });
   shadows(g);
   return g;
@@ -481,6 +532,15 @@ function tvCamera(M, n, glows) {
     const spoke = add(new THREE.CylinderGeometry(0.01, 0.01, 0.3, 8), M.brushed, Math.cos(a) * 0.2, 0.82, Math.sin(a) * 0.2);
     spoke.rotation.set(0, -a, Math.PI / 2);
   }
+  // column collars, steering pedals and a cable clipped down the column to the base
+  for (const y of [0.8, 1.29]) add(new THREE.CylinderGeometry(0.088, 0.088, 0.03, 24), M.graphite, 0, y, 0);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + Math.PI / 3, pedal = add(new THREE.BoxGeometry(0.1, 0.02, 0.05), M.brushed, Math.cos(a) * 0.4, 0.21, Math.sin(a) * 0.4);
+    pedal.rotation.y = -a;
+  }
+  const camCable = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 1.45, -0.44), new THREE.Vector3(0.02, 1.2, -0.3), new THREE.Vector3(0.09, 0.9, -0.1), new THREE.Vector3(0.12, 0.45, -0.12), new THREE.Vector3(0.1, 0.22, -0.3), new THREE.Vector3(0.05, 0.02, -0.55)]);
+  add(new THREE.TubeGeometry(camCable, 40, 0.009, 6), M.rubber, 0, 0, 0);
+  for (const y of [0.62, 1.0]) add(new THREE.BoxGeometry(0.03, 0.02, 0.03), M.graphite, 0.1, y, -0.11);
   // pan/tilt head and camera: body, box lens, teleprompter hood, viewfinder, pan bars, tally
   const head = new THREE.Group();
   head.position.y = 1.32;
@@ -488,8 +548,26 @@ function tvCamera(M, n, glows) {
   add(new THREE.BoxGeometry(0.26, 0.1, 0.26), M.graphite, 0, 0, 0, head);
   add(new RoundedBoxGeometry(0.2, 0.26, 0.42, 3, 0.03), M.camBody, 0, 0.19, -0.1, head);
   add(new RoundedBoxGeometry(0.24, 0.27, 0.48, 3, 0.03), M.camLight, 0, 0.2, 0.32, head);
-  const lens = add(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 32), M.lensGlass, 0, 0.2, 0.57, head);
-  lens.rotation.x = Math.PI / 2;
+  // box lens front: focus ring (rubber), barrel, glass with a bright retaining ring, and a short hood
+  const lensGroup = new THREE.Group(); lensGroup.position.set(0, 0.2, 0.56); head.add(lensGroup);
+  const ax = geo => geo.rotateX(Math.PI / 2);
+  add(ax(new THREE.CylinderGeometry(0.104, 0.104, 0.035, 48)), M.rubber, 0, 0, 0.02, lensGroup);
+  for (let i = 0; i < 3; i++) add(ax(new THREE.TorusGeometry(0.104, 0.0025, 6, 48).rotateX(Math.PI / 2)), M.seam, 0, 0, 0.008 + i * 0.012, lensGroup);
+  add(ax(new THREE.CylinderGeometry(0.098, 0.1, 0.05, 48)), M.graphite, 0, 0, 0.06, lensGroup);
+  add(ax(new THREE.TorusGeometry(0.088, 0.005, 8, 48).rotateX(Math.PI / 2)), M.chrome, 0, 0, 0.083, lensGroup);
+  add(new THREE.CircleGeometry(0.087, 48), M.lensGlass, 0, 0, 0.08, lensGroup);
+  const hoodRing = add(ax(new THREE.CylinderGeometry(0.112, 0.102, 0.04, 48, 1, true)), M.graphite.clone(), 0, 0, 0.105, lensGroup);
+  hoodRing.material.side = THREE.DoubleSide;
+  // zoom rocker on the side of the lens
+  add(new RoundedBoxGeometry(0.03, 0.06, 0.09, 2, 0.008), M.graphite, 0.135, 0.17, 0.3, head);
+  // carrying handle, side vents, rear connectors
+  const handle = add(new THREE.TorusGeometry(0.075, 0.011, 8, 20, Math.PI), M.graphite, 0, 0.32, -0.1, head);
+  handle.rotation.y = Math.PI / 2;
+  for (const sx of [-1, 1]) {
+    const v = add(new THREE.PlaneGeometry(0.2, 0.11), M.vent, sx * 0.1015, 0.17, -0.13, head);
+    v.rotation.y = sx * Math.PI / 2;
+  }
+  for (const [x, y] of [[-0.05, 0.12], [0, 0.12], [0.05, 0.12], [-0.03, 0.22]]) add(ax(new THREE.CylinderGeometry(0.011, 0.011, 0.03, 16)), M.brushed, x, y, -0.325, head);
   // teleprompter in front of the lens
   const hood = new THREE.Group(); hood.position.set(0, 0.2, 0.8); head.add(hood);
   add(new THREE.BoxGeometry(0.5, 0.02, 0.4), M.graphite, 0, 0.21, 0, hood);
@@ -501,9 +579,11 @@ function tvCamera(M, n, glows) {
   add(new THREE.BoxGeometry(0.52, 0.44, 0.03), M.graphite, 0, 0, -0.2, hood).scale.set(1, 1, 1);
   const shroud = add(new THREE.BoxGeometry(0.5, 0.42, 0.01), new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.9 }), 0, 0, 0.2, hood);
   shroud.visible = false;
-  // viewfinder
+  // viewfinder with a small sunshade
   add(new RoundedBoxGeometry(0.2, 0.15, 0.14, 2, 0.02), M.camBody, 0, 0.42, -0.18, head);
-  const vfScreen = add(new THREE.PlaneGeometry(0.17, 0.11), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.42, 0.55) }), 0, 0.42, -0.251, head);
+  add(new THREE.BoxGeometry(0.2, 0.005, 0.06), M.graphite, 0, 0.497, -0.275, head);
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.005, 0.07, 0.06), M.graphite, sx * 0.1, 0.465, -0.275, head);
+  const vfScreen = add(new THREE.PlaneGeometry(0.17, 0.11), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.06, 0.08, 0.11) }), 0, 0.42, -0.251, head);
   vfScreen.rotation.y = Math.PI;
   // pan bars
   for (const s of [-1, 1]) {
@@ -562,6 +642,10 @@ function musicStation(M, glows, anim) {
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   add(new RoundedBoxGeometry(2.3, 0.94, 0.8, 4, 0.04), M.dark, 0, 0.47, 0);
   add(new RoundedBoxGeometry(2.36, 0.05, 0.86, 3, 0.02), M.blackGlass, 0, 0.965, 0);
+  for (const sx of [-1, 1]) {
+    const v = add(new THREE.PlaneGeometry(0.46, 0.3), M.vent, sx * 1.152, 0.42, 0);
+    v.rotation.y = sx * Math.PI / 2;
+  }
   const front = glow(new THREE.Color(1, 1, 1), gradientTexture());
   add(new THREE.PlaneGeometry(2.2, 0.018), front, 0, 0.88, 0.402);
   glows.gradient.push({ m: front, k: 2 });
@@ -682,8 +766,11 @@ function buildLights(root, quality, wallLight) {
   fill.position.set(0, 5.6, 1.6); fill.lookAt(0, 0.8, -1.8);
   const house = new THREE.RectAreaLight(C.cool, 0, 14, 10);
   house.position.set(0, 8.2, 0); house.lookAt(0, 0, 0);
-  const hemi = new THREE.HemisphereLight(0x2a303a, 0x050506, 0.4);
-  root.add(fill, house, hemi);
+  const hemi = new THREE.HemisphereLight(0x343a46, 0x0a0a0c, 0.4);
+  // soft front fill at camera height: lifts the furniture, floor and architecture out of the black, nothing more
+  const soft = new THREE.RectAreaLight(0xf2efe9, 0, 10, 2.4);
+  soft.position.set(0, 2.6, 9.5); soft.lookAt(0, 1.0, -2.5);
+  root.add(fill, house, hemi, soft);
   return {
     update(t, L) {
       const breathe = 1 + 0.04 * Math.sin(t * 0.7);
@@ -695,7 +782,8 @@ function buildLights(root, quality, wallLight) {
       logoSpot.intensity = 120 * L.accent;
       fill.intensity = 1.6 * L.key;
       house.intensity = 0.9 * L.house;
-      hemi.intensity = 0.25 + 0.3 * L.house;
+      hemi.intensity = 0.42 + 0.3 * L.house;
+      soft.intensity = 0.55 + 0.25 * L.house;
     },
   };
 }
