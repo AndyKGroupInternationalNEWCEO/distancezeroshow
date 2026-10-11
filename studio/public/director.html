@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07080a">
+<title>Director Studio — DISTANCE // ZERO</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/studio.css">
+<script type="module" src="/static/director.js"></script>
+</head>
+<body>
+<header class="mast">
+  <div class="brand"><b class="chrome">D//0</b><span class="label">Director Studio</span></div>
+  <div class="clocks">
+    <div class="clock vie"><span class="label"><i></i>Vienna</span><strong id="cVie" class="num">--:--:--</strong></div>
+    <div class="clock mel"><span class="label"><i></i>Melbourne</span><strong id="cMel" class="num">--:--:--</strong></div>
+  </div>
+  <div class="showclock" id="showclock"><span class="label" id="showLabel">Next show</span><strong id="showTime" class="num">--:--:--</strong></div>
+  <div class="pills" aria-live="polite">
+    <span class="pill" id="pStudio"><i></i>Studio</span>
+    <span class="pill" id="pObs"><i></i>OBS</span>
+    <span class="pill" id="pStream"><i></i>Stream</span>
+    <span class="pill" id="pRec"><i></i>Rec</span>
+    <span class="pill" id="pHost"><i></i>Georgie</span>
+    <form method="post" action="/logout"><button class="logout" type="submit">Sign out</button></form>
+  </div>
+</header>
+<div class="strip" id="strip" hidden></div>
+
+<main class="desk three">
+  <!-- ============ column A: vision ============ -->
+  <div class="col">
+    <section class="panel key" aria-labelledby="hSw">
+      <div class="ph"><h2 id="hSw">Switcher</h2><div class="aside"><span class="badge" id="swBadge">OBS</span></div></div>
+      <div class="program"><span class="label">Program</span><strong id="program">—</strong></div>
+      <div class="scenes" id="scenes"><p class="empty">Waiting for OBS…</p></div>
+      <div class="pb row" id="studioMode" hidden>
+        <span class="label grow">Studio Mode // Preview <b id="previewName" class="mel"></b></span>
+        <button class="b solid" id="take" type="button">Take <kbd>T</kbd></button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hSrc">
+      <div class="ph"><h2 id="hSrc">Sources in program</h2><div class="aside"><span class="label" id="srcScene"></span></div></div>
+      <ul class="list" id="sources"><li class="empty">No scene</li></ul>
+    </section>
+
+    <section class="panel" aria-labelledby="hGfx">
+      <div class="ph"><h2 id="hGfx">Graphics</h2><div class="aside"><span class="badge" id="gfxBadge">No overlay</span></div></div>
+      <div class="pb gfx">
+        <div class="gfx-toggles">
+          <button class="b" type="button" id="gBug" aria-pressed="false">D//0 bug</button>
+          <button class="b" type="button" id="gClocks" aria-pressed="false">City clocks</button>
+          <button class="b" type="button" id="gIdent" aria-pressed="false">Segment ident</button>
+        </div>
+        <div class="field"><label class="label" for="ltTitle">Lower third</label>
+          <input class="in" id="ltTitle" maxlength="80" placeholder="Name" autocomplete="off">
+          <input class="in" id="ltSub" maxlength="120" placeholder="Line two" autocomplete="off">
+        </div>
+        <div class="presets" id="presets">
+          <button class="b ghost" type="button" data-t="Andrej Kneisl" data-s="DJ Andy'K // Vienna" data-side="vienna">Andrej</button>
+          <button class="b ghost" type="button" data-t="Georgie Walker" data-s="Melbourne" data-side="melbourne">Georgie</button>
+          <button class="b ghost" type="button" data-t="DISTANCE // ZERO" data-s="Vienna // Melbourne // 15,731 km" data-side="vienna">Show</button>
+        </div>
+        <div class="row">
+          <select class="in grow" id="ltSide" aria-label="Lower third colour"><option value="vienna">Vienna (amber)</option><option value="melbourne">Melbourne (ice)</option></select>
+          <button class="b solid" type="button" id="ltShow">Show</button>
+          <button class="b" type="button" id="ltHide">Hide</button>
+          <button class="b ghost" type="button" id="gClear">Clear all</button>
+        </div>
+        <details>
+          <summary class="label">OBS browser source</summary>
+          <p class="hint mt">Add a Browser source in OBS, 1920 × 1080, with this URL. It is private to this Mac.</p>
+          <div class="row"><input class="in grow" id="overlayUrl" readonly aria-label="Overlay URL"><button class="b ghost" type="button" id="copyOverlay">Copy</button></div>
+        </details>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ column B: running order ============ -->
+  <div class="col">
+    <section class="panel key" aria-labelledby="hNow">
+      <div class="ph"><h2 id="hNow">On air now</h2><div class="aside"><span class="badge" id="roBadge"></span></div></div>
+      <div class="pb">
+        <div class="ident idle" id="ident"><div class="bug" aria-hidden="true">D//0</div><div class="plate"><strong id="segTitle">Show not started</strong><span id="segMeta">Take the first segment when you go live</span></div></div>
+      </div>
+      <div class="timers">
+        <div id="tElapsed"><span class="label">Elapsed</span><strong class="num">--:--</strong></div>
+        <div id="tRemain"><span class="label">Remaining</span><strong class="num">--:--</strong></div>
+        <div id="tOver"><span class="label">Show over/under</span><strong class="num">--:--</strong></div>
+      </div>
+      <div class="progress" id="segProgress"><i></i></div>
+      <p class="notes" id="segNotes" hidden></p>
+      <div class="next"><span class="label">Next</span><strong id="nextTitle">—</strong><span class="label" id="nextMeta"></span></div>
+      <div class="pb row">
+        <button class="b" type="button" id="prev">Back <kbd>[</kbd></button>
+        <button class="b solid grow" type="button" id="advance">Take next segment <kbd>]</kbd></button>
+        <button class="b ghost" type="button" id="resetShow">Reset</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hRo">
+      <div class="ph"><h2 id="hRo">Running order</h2><div class="aside"><span class="label" id="roTitle"></span><button class="b ghost" type="button" id="reload" title="Reload studio/data/rundown.json">Reload</button></div></div>
+      <ol class="ro" id="ro"></ol>
+      <div class="total" id="roTotal"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hNote">
+      <div class="ph"><h2 id="hNote">Note to Georgie</h2><div class="aside"><span class="saved" id="noteSaved">Sent</span></div></div>
+      <div class="pb">
+        <textarea class="in" id="note" maxlength="2000" rows="3" placeholder="Shown large on Georgie's dashboard. e.g. Stretch 2 min, guest is late."></textarea>
+        <div class="row end mt"><button class="b ghost" type="button" id="noteClear">Clear</button><button class="b solid" type="button" id="noteSend">Send note</button></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hMusic">
+      <div class="ph"><h2 id="hMusic">Music // Now playing</h2><div class="aside"><span class="badge manual" title="Not linked to DJ software yet. Typed in here, shown to Georgie.">Manual entry</span></div></div>
+      <div class="pb">
+        <div class="row">
+          <input class="in grow" id="mArtist" maxlength="120" placeholder="Artist" autocomplete="off">
+          <input class="in grow" id="mTitle" maxlength="160" placeholder="Title" autocomplete="off">
+          <input class="in grow" id="mLabel" maxlength="120" placeholder="Label" autocomplete="off">
+        </div>
+        <div class="row mt">
+          <span class="hint grow" id="mNow">Nothing set</span>
+          <button class="b ghost" type="button" id="mClear">Clear</button>
+          <button class="b solid" type="button" id="mSet">Set</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ column C: output, audio, safety, talkback ============ -->
+  <div class="col">
+    <section class="panel key" aria-labelledby="hOut">
+      <div class="ph"><h2 id="hOut">Output</h2><div class="aside"><span class="label" id="obsVer"></span></div></div>
+      <div class="outs">
+        <div class="out" id="outStream"><span class="label">YouTube stream</span><span class="tc num" id="streamTc">OFF</span>
+          <button class="b hold" type="button" id="streamBtn">Go live <small>hold</small></button></div>
+        <div class="out" id="outRec"><span class="label">Recording</span><span class="tc num" id="recTc">OFF</span>
+          <button class="b" type="button" id="recBtn">Record</button></div>
+      </div>
+      <div class="stats" id="stats"><span>CPU <b>—</b></span><span>FPS <b>—</b></span><span>Dropped <b>—</b></span><span>Congestion <b>—</b></span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hAud">
+      <div class="ph"><h2 id="hAud">Audio</h2><div class="aside"><span class="badge" id="audBadge">OBS</span></div></div>
+      <div class="mixer" id="mixer"><p class="empty pb">No audio sources</p></div>
+      <div class="scale" aria-hidden="true"><span>−60</span><span>−45</span><span>−30</span><span>−15</span><span>0 dB</span></div>
+    </section>
+
+    <section class="panel emerg" aria-labelledby="hEm">
+      <div class="ph"><h2 id="hEm">Emergency</h2></div>
+      <div class="pb emerg-grid">
+        <button class="b danger" type="button" id="emStandby">Cut to standby<small class="label" id="emStandbyName"></small></button>
+        <button class="b danger" type="button" id="emMics">Mics off<small class="label">all microphones</small></button>
+        <button class="b danger hold wide" type="button" id="emEnd">End stream now <small>hold 2 s</small></button>
+      </div>
+    </section>
+
+    <section class="panel key chat" aria-labelledby="hChat">
+      <div class="ph"><h2 id="hChat">Talkback // Georgie</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="hostBadge">Offline</span></div></div>
+      <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
+      <div>
+        <div class="quick">
+          <button type="button" data-say="Stand by, 30 seconds.">30 sec</button>
+          <button type="button" data-say="Wrap up please.">Wrap</button>
+          <button type="button" data-say="Stretch, we have time.">Stretch</button>
+          <button type="button" data-say="You're live.">Live</button>
+          <button type="button" data-say="Can't hear you, check your mic.">No audio</button>
+        </div>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <input class="in" id="chatInput" maxlength="1000" placeholder="Message Georgie" aria-label="Message to Georgie">
+          <button class="b solid" type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hLink">
+      <div class="ph"><h2 id="hLink">Melbourne link</h2><div class="aside"><span class="badge untested">VDO.Ninja // test separately</span></div></div>
+      <div class="hoststat" id="hostStat"></div>
+      <div class="pb">
+        <p class="hint">Georgie's camera reaches OBS through VDO.Ninja (free, peer-to-peer). Add a Browser source in OBS with this view link, 1920 × 1080, <b>Control audio via OBS</b> on.</p>
+        <div class="row mt"><input class="in grow" id="vdoView" readonly aria-label="VDO.Ninja view link for OBS"><button class="b ghost" type="button" id="copyVdo">Copy</button></div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

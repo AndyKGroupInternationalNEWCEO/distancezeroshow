@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07080a">
+<title>Host Dashboard — DISTANCE // ZERO</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/studio.css">
+<script type="module" src="/static/host.js"></script>
+</head>
+<body>
+<header class="mast">
+  <div class="brand"><b class="chrome">D//0</b><span class="label">Host // Melbourne</span></div>
+  <div class="clocks">
+    <div class="clock mel"><span class="label"><i></i>Melbourne</span><strong id="cMel" class="num">--:--:--</strong></div>
+    <div class="clock vie"><span class="label"><i></i>Vienna</span><strong id="cVie" class="num">--:--:--</strong></div>
+  </div>
+  <div class="showclock" id="showclock"><span class="label" id="showLabel">Next show</span><strong id="showTime" class="num">--:--:--</strong></div>
+  <div class="pills" aria-live="polite">
+    <span class="pill" id="pLink"><i></i>Vienna</span>
+    <span class="pill" id="pAndrej"><i></i>Andrej</span>
+    <span class="pill" id="pTally"><i></i>Off air</span>
+    <form method="post" action="/logout"><button class="logout" type="submit">Sign out</button></form>
+  </div>
+</header>
+<div class="strip off" id="strip">Connecting to the Vienna studio…</div>
+
+<main class="desk two">
+  <div class="col">
+    <section class="panel key" aria-labelledby="hNow">
+      <div class="ph"><h2 id="hNow">On air now</h2><div class="aside"><span class="badge" id="roBadge"></span></div></div>
+      <div class="pb">
+        <div class="ident idle" id="ident"><div class="bug" aria-hidden="true">D//0</div><div class="plate"><strong id="segTitle">Show not started</strong><span id="segMeta">Andrej starts the running order from Vienna</span></div></div>
+      </div>
+      <div class="timers">
+        <div id="tRemain"><span class="label">Remaining</span><strong class="num">--:--</strong></div>
+        <div id="tElapsed"><span class="label">Elapsed</span><strong class="num">--:--</strong></div>
+        <div id="tLen"><span class="label">Planned</span><strong class="num">--:--</strong></div>
+      </div>
+      <div class="progress" id="segProgress"><i></i></div>
+      <p class="notes" id="segNotes" hidden></p>
+      <div class="next"><span class="label">Next</span><strong id="nextTitle">—</strong><span class="label" id="nextMeta"></span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hCue" id="cuePanel" hidden>
+      <div class="ph"><h2 id="hCue">Note from Andrej</h2></div>
+      <div class="cue" id="cue" aria-live="assertive"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hMusic">
+      <div class="ph"><h2 id="hMusic">Now playing</h2><div class="aside"><span class="badge manual">Set by Andrej</span></div></div>
+      <div class="pb"><p id="music" class="hint">Nothing set</p></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hRo">
+      <div class="ph"><h2 id="hRo">Running order</h2><div class="aside"><span class="label" id="roTitle"></span></div></div>
+      <ol class="ro" id="ro"></ol>
+      <div class="total" id="roTotal"></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel key chat" aria-labelledby="hChat">
+      <div class="ph"><h2 id="hChat">Talkback // Andrej</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="andrejBadge">Offline</span></div></div>
+      <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
+      <div>
+        <div class="quick">
+          <button type="button" data-say="Ready.">Ready</button>
+          <button type="button" data-say="Give me a minute.">1 min</button>
+          <button type="button" data-say="Can't hear you, check the return feed.">No audio</button>
+          <button type="button" data-say="My connection is dropping.">Bad link</button>
+        </div>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <input class="in" id="chatInput" maxlength="1000" placeholder="Message Andrej" aria-label="Message to Andrej">
+          <button class="b solid" type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hCheck">
+      <div class="ph"><h2 id="hCheck">Camera & mic check</h2><div class="aside"><span class="badge off" id="checkBadge">Not checked</span></div></div>
+      <div class="pb">
+        <div class="preview" id="preview"><video id="video" playsinline muted autoplay hidden></video><div class="thirds" hidden id="thirds"></div><p id="previewMsg">Your camera stays on this device. Nothing is sent or recorded by this check.</p></div>
+        <div class="field mt"><span class="label">Microphone level <span id="micDb" class="num"></span></span><div class="lvl" id="micLvl"><i></i></div></div>
+        <div class="row mt">
+          <select class="in grow" id="camSel" aria-label="Camera" disabled><option>Camera</option></select>
+          <select class="in grow" id="micSel" aria-label="Microphone" disabled><option>Microphone</option></select>
+        </div>
+        <div class="row mt">
+          <span class="hint grow" id="camInfo"></span>
+          <button class="b" type="button" id="checkStop" hidden>Stop</button>
+          <button class="b solid" type="button" id="checkStart">Start check</button>
+        </div>
+      </div>
+      <div class="pb">
+        <ul class="checks" id="checks">
+          <li><label><input type="checkbox" data-k="headphones"> Headphones on. Speakers off, so Vienna doesn't hear itself back.</label></li>
+          <li><label><input type="checkbox" data-k="wired"> Ethernet cable, or sitting right next to the Wi-Fi.</label></li>
+          <li><label><input type="checkbox" data-k="light"> Light in front of you, not behind. Camera at eye level, eyes on the upper third line.</label></li>
+          <li><label><input type="checkbox" data-k="power"> Laptop on power. Do Not Disturb on. Other video apps closed.</label></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hVdo">
+      <div class="ph"><h2 id="hVdo">Join the studio // VDO.Ninja</h2><div class="aside"><span class="badge untested">Test separately</span></div></div>
+      <div class="pb">
+        <ol class="hint vdo-steps">
+          <li>Finish the check above, then press <b>Open studio link</b>. It opens VDO.Ninja in a new tab, free and peer-to-peer to Vienna.</li>
+          <li>Allow camera and microphone, choose the <b>same devices</b> as above, press <b>Start</b>.</li>
+          <li>Keep that tab open for the whole show. Come back here for the rundown and talkback.</li>
+        </ol>
+        <div class="row mt">
+          <label class="checks grow"><input type="checkbox" id="vdoJoined"> I'm in VDO.Ninja</label>
+          <button class="b solid" type="button" id="vdoOpen" disabled>Open studio link</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

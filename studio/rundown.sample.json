@@ -1,0 +1,17 @@
+{
+  "title": "Episode 1 // Sample running order",
+  "sample": true,
+  "segments": [
+    { "id": "open",      "title": "Opening Titles",        "kind": "VT",    "minutes": 2,  "lead": "both",    "notes": "Opening video full screen. Mics closed until the D//0 sting ends." },
+    { "id": "welcome",   "title": "Welcome // Vienna & Melbourne", "kind": "TALK", "minutes": 6, "lead": "both", "notes": "Local times, weather swap, what's coming up tonight." },
+    { "id": "playing",   "title": "Now Playing",           "kind": "MUSIC", "minutes": 15, "lead": "andrej",  "notes": "Two records each. Georgie back-announces the first one." },
+    { "id": "track",     "title": "Behind the Track",      "kind": "TALK",  "minutes": 15, "lead": "andrej",  "notes": "One release, taken apart by the person who made it." },
+    { "id": "discovery", "title": "Artist Discovery",      "kind": "TALK",  "minutes": 15, "lead": "georgie", "notes": "Georgie leads. Play the artist's track at the end of the segment." },
+    { "id": "break",     "title": "Music Break",           "kind": "MUSIC", "minutes": 5,  "lead": "andrej",  "notes": "Hosts off mic. Reset for the guest." },
+    { "id": "guest",     "title": "Live Guest",            "kind": "GUEST", "minutes": 25, "lead": "both",    "notes": "Researched properly. Interviewed improperly." },
+    { "id": "questions", "title": "Audience Questions",    "kind": "TALK",  "minutes": 15, "lead": "georgie", "notes": "Georgie reads questions from the live chat." },
+    { "id": "versus",    "title": "Ösi vs Aussie",         "kind": "TALK",  "minutes": 12, "lead": "both",    "notes": "Two countries with nearly the same name sort it out." },
+    { "id": "coming",    "title": "Coming Up",             "kind": "TALK",  "minutes": 5,  "lead": "both",    "notes": "Next show, next guest, next banger." },
+    { "id": "close",     "title": "Close & Credits",       "kind": "VT",    "minutes": 5,  "lead": "both",    "notes": "Goodbyes in both time zones. Roll credits over the outro track." }
+  ]
+}

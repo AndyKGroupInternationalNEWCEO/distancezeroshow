@@ -1,0 +1,21 @@
+{
+  "name": "distance-zero-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DISTANCE // ZERO Director Studio and Host Dashboard. Runs locally on the Vienna broadcast Mac.",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "mock-obs": "node test/mock-obs.js",
+    "codes": "node server.js --show-codes",
+    "rotate-codes": "node server.js --rotate-codes",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
