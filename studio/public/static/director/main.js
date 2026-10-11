@@ -6,8 +6,10 @@ import * as live from './live.js';
 import * as show from './show.js';
 import * as tech from './tech.js';
 import * as talk from './talk.js';
+import * as rehearse from './rehearse.js';
+import { notifier } from '../notify.js';
 
-const WS = ['live', 'show', 'tech'];
+const WS = ['live', 'show', 'tech', 'rehearse'];
 const memo = {};
 const ctx = {
   S: null, link: { state: 'connecting' }, ws: 'live', unread: 0,
@@ -24,7 +26,21 @@ ctx.conn = connect({ onStatus: st => {
 } });
 ctx.obs = (action, data = {}) => ctx.conn.send({ t: 'obs', action, ...data });
 
-ctx.conn.on('state', ({ s }) => { ctx.S = s; render(); });
+let firstState = true;
+ctx.conn.on('state', ({ s }) => {
+  ctx.S = s; render();
+  // opening the studio while a rehearsal runs lands in the Rehearsal workspace (unless a workspace was asked for)
+  if (firstState) { firstState = false; if (s.rehearsal?.active && !location.hash) setWs('rehearse'); }
+});
+ctx.note = notifier();
+ctx.conn.on('notify', m => {
+  const actions = [];
+  if (m.kind === 'call-drop') actions.push({ label: 'Call again', fn: () => ctx.callStart() });
+  if (m.kind === 'host-down' || m.kind === 'tunnel-down') actions.push({ label: 'What to do', fn: () => setWs('rehearse') });
+  if (m.kind === 'tunnel-up' && /NEW/.test(m.text)) actions.push({ label: 'Copy her link', fn: () => { setWs('rehearse'); document.querySelector('#rhCopy')?.click(); } });
+  if (m.kind === 'help') actions.push({ label: 'Show', fn: () => setWs('show') });
+  ctx.note.show({ ...m, actions });
+});
 ctx.conn.on('meters', ({ m }) => { live.meters(m); tech.meters(m); });
 ctx.conn.on('frame', f => live.frame(f));
 ctx.conn.on('log.history', ({ entries }) => tech.logHistory(entries));
@@ -37,8 +53,8 @@ chatPanel(ctx.conn, 'director', { onUnread: n => {
 } });
 runClocks(() => ctx.S);
 
-live.init(ctx); show.init(ctx); tech.init(ctx); talk.init(ctx);
-setInterval(() => { if (ctx.S) { live.tick(ctx); show.tick(ctx); } }, 250);
+live.init(ctx); show.init(ctx); tech.init(ctx); talk.init(ctx); rehearse.init(ctx);
+setInterval(() => { if (ctx.S) { live.tick(ctx); show.tick(ctx); rehearse.tick(ctx); } }, 250);
 
 /* ---------- workspaces ---------- */
 
@@ -66,8 +82,8 @@ $$('.tab').forEach(t => {
   t.addEventListener('click', () => setWs(t.dataset.ws));
   t.addEventListener('keydown', e => {
     const i = WS.indexOf(t.dataset.ws);
-    if (e.key === 'ArrowRight') setWs(WS[(i + 1) % 3], { focus: true });
-    if (e.key === 'ArrowLeft') setWs(WS[(i + 2) % 3], { focus: true });
+    if (e.key === 'ArrowRight') setWs(WS[(i + 1) % WS.length], { focus: true });
+    if (e.key === 'ArrowLeft') setWs(WS[(i + WS.length - 1) % WS.length], { focus: true });
   });
 });
 window.addEventListener('hashchange', () => setWs(location.hash.slice(1)));
@@ -107,12 +123,13 @@ function render() {
   show.render(ctx);
   tech.render(ctx);
   talk.render(ctx);
+  rehearse.render(ctx);
 }
 
 /* ---------- keyboard ---------- */
 
 document.addEventListener('keydown', e => {
-  if (e.altKey && !e.metaKey && !e.ctrlKey && /^Digit[123]$/.test(e.code)) { e.preventDefault(); setWs(WS[+e.code.slice(5) - 1]); return; }
+  if (e.altKey && !e.metaKey && !e.ctrlKey && /^Digit[1-4]$/.test(e.code)) { e.preventDefault(); setWs(WS[+e.code.slice(5) - 1]); return; }
   if (e.metaKey || e.ctrlKey || e.altKey || !ctx.S) return;
   if (e.target.closest('input, textarea, select, [contenteditable]')) return;
   if (e.key === 'Escape') { $('#help').hidden = true; return; }

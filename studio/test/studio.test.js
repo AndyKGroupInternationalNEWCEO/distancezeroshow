@@ -16,6 +16,7 @@ function config(obsPort) {
   c.director = { host: '127.0.0.1', port: 0 };
   c.guest = { host: '127.0.0.1', port: 0 };
   c.obs = { url: `ws://127.0.0.1:${obsPort}` };
+  c.call = { ...c.call, graceMs: 400 };
   return c;
 }
 
@@ -31,6 +32,7 @@ function client(base, { cookie, origin = base, query = '' } = {}) {
   let seq = 0;
   ws.on('message', raw => {
     const m = JSON.parse(raw);
+    if (m.t === 'check.echo') ws.send(JSON.stringify({ t: 'check.echo', nonce: m.nonce }));
     msgs.push(m);
     for (const w of [...waiters]) if (w.pred(m)) { waiters.splice(waiters.indexOf(w), 1); w.resolve(m); }
   });
@@ -499,7 +501,7 @@ test('private call: ring, accept, relay set-up only between the two people, hang
   d.close(); d2.close(); hst.close();
 });
 
-test('call ends when a side drops, and cannot start without the other person', async () => {
+test('a call survives a short studio-connection drop, and ends if the side does not come back', async () => {
   const d = client(D, { cookie: directorCookie });
   await d.opened;
   await new Promise(r => setTimeout(r, 50));
@@ -510,7 +512,15 @@ test('call ends when a side drops, and cannot start without the other person', a
   await hst.next(m => m.t === 'call.ring');
   await hst.send({ t: 'call.accept', cid });
   hst.close();
-  await d.next(m => m.t === 'call.end' && m.reason === 'connection lost');
+  await d.next(m => m.t === 'call.peer' && m.state === 'reconnecting');
+  assert.ok(!d.msgs.some(m => m.t === 'call.end'), 'not ended straight away: the media is peer-to-peer');
+  const back = client(G, { cookie: hostCookie });
+  await back.opened;
+  assert.equal((await back.send({ t: 'call.resume', cid })).ok, true);
+  await d.next(m => m.t === 'call.peer' && m.state === 'back');
+  assert.equal((await back.send({ t: 'call.signal', cid, candidate: { candidate: 'candidate:1 1 udp 1 192.0.2.1 1 typ host', sdpMid: '0', sdpMLineIndex: 0 } })).ok, true, 'signalling works again');
+  back.close();
+  await d.next(m => m.t === 'call.end' && m.reason === 'connection lost', 3000); // grace is 400 ms in the tests
   d.close();
 });
 
@@ -571,4 +581,182 @@ test('guided assistance goes to Georgie only, from the director only', async () 
   assert.equal((await hst.send({ t: 'assist', guide: 'hold' })).ok, false);
   assert.ok(!d.msgs.some(m => m.t === 'assist'));
   d.close(); hst.close();
+});
+
+
+/* ---------- Phase 3: rehearsal mode, verified checks, recovery, notifications, report ---------- */
+
+test('rehearsal never touches OBS and locks the stream and recording', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  if (mock.state.stream) await d.send({ t: 'obs', action: 'stream', on: false, confirm: true });
+  if (mock.state.record) await d.send({ t: 'obs', action: 'record', on: false });
+  const before = mock.log.length;
+  assert.equal((await hst.send({ t: 'rehearsal.start' })).ok, false, 'Georgie cannot start a rehearsal');
+  assert.equal((await d.send({ t: 'rehearsal.start' })).ok, true);
+  await hst.next(m => m.t === 'state' && m.s.rehearsal.active);
+  await new Promise(r => setTimeout(r, 300));
+  const writes = mock.log.slice(before).map(r => r.requestType).filter(t => /^(Set|Start|Stop|Trigger|Toggle)/.test(t));
+  assert.deepEqual(writes, [], 'starting a rehearsal sends no command to OBS');
+  const s1 = await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  assert.equal(s1.ok, false); assert.match(s1.error, /Rehearsal mode/);
+  assert.equal((await d.send({ t: 'obs', action: 'record', on: true })).ok, false);
+  assert.equal(mock.state.stream, false); assert.equal(mock.state.record, false);
+  assert.equal((await d.send({ t: 'rehearsal.start' })).ok, false, 'one at a time');
+  d.close(); hst.close();
+});
+
+test('checks pass only when verified; person checks need both people', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  assert.equal((await d.send({ t: 'rehearsal.check', check: 'auto' })).ok, true);
+  const { s } = await d.next(m => m.t === 'state' && m.s.rehearsal.active && ['obs', 'director', 'host', 'safety'].every(k => m.s.rehearsal.checks[k].status === 'pass'));
+  const ch = s.rehearsal.checks;
+  assert.match(ch.obs.detail, /answered in \d+ ms/);
+  assert.match(ch.host.detail, /Round trip \d+ ms on this Mac/);
+  assert.equal(ch.tunnel.status, 'warn', 'no public link running is a warning, never a pass');
+  for (const k of ['camera', 'mic', 'playback', 'call', 'screen', 'help']) assert.equal(ch[k].status, 'untested', `${k} is not passed without verification`);
+  assert.equal((await d.send({ t: 'rehearsal.check', check: 'camera' })).ok, false, 'camera cannot be "auto-passed"');
+
+  await hst.send({ t: 'check.result', check: 'camera', ok: true, detail: 'MacBook camera' });
+  let c = (await d.next(m => m.t === 'state' && m.s.rehearsal.checks.camera.status === 'warn')).s.rehearsal.checks.camera;
+  assert.match(c.detail, /waiting for Andrej/);
+  await d.send({ t: 'check.result', check: 'camera', ok: true, detail: 'FaceTime HD' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.camera.status === 'pass');
+  await hst.send({ t: 'check.result', check: 'mic', ok: false, detail: 'NotAllowedError' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.mic.status === 'fail');
+  await d.next(m => m.t === 'notify' && /microphone is not working/.test(m.text));
+  await hst.send({ t: 'check.result', check: 'mic', ok: true, detail: 'AirPods' });
+  await d.send({ t: 'check.result', check: 'mic', ok: true, detail: 'Shure' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.mic.status === 'pass');
+  assert.equal((await hst.send({ t: 'check.result', check: 'call', ok: true })).ok, true);
+  assert.equal((await d.next(m => m.t === 'state')).s.rehearsal.checks.call.status, 'untested', 'a person cannot self-report the call as working');
+
+  const askd = await d.send({ t: 'rehearsal.ask', items: ['camera', 'playback', 'help'] });
+  assert.equal(askd.ok, true);
+  assert.deepEqual((await hst.next(m => m.t === 'check.request')).items, ['camera', 'playback', 'help']);
+
+  const h = await hst.send({ t: 'help.raise', level: 'normal', text: 'Rehearsal test', kind: 'test' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.help.status === 'warn');
+  await d.send({ t: 'help.ack', hid: h.result.hid });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.help.status === 'pass');
+
+  const { result: { cid } } = await hst.send({ t: 'call.start' });
+  await d.next(m => m.t === 'call.ring');
+  await d.send({ t: 'call.accept', cid });
+  await hst.send({ t: 'call.stats', cid, stats: { rtt: 42, fps: 30, route: 'direct (peer-to-peer)' } });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.call.status === 'warn');
+  await d.send({ t: 'call.stats', cid, stats: { rtt: 40, fps: 29, route: 'direct (peer-to-peer)', peerScreen: true } });
+  const cs = (await d.next(m => m.t === 'state' && m.s.rehearsal.checks.call.status === 'pass' && m.s.rehearsal.checks.screen.status === 'pass')).s.rehearsal.checks;
+  assert.match(cs.screen.detail, /Georgie → Vienna/);
+  await d.send({ t: 'call.end', cid });
+  d.close(); hst.close();
+});
+
+test('public link: measured from the internet side, full link only for the director', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  assert.match((await d.send({ t: 'tunnel.link' })).error, /No public link/);
+  // stand-in for the launcher: the "public" address is the host port itself
+  fs.writeFileSync(path.join(dataDir, 'tunnel.json'), JSON.stringify({ url: G, pid: process.pid }));
+  const link = await d.send({ t: 'tunnel.link' });
+  assert.equal(link.ok, true);
+  assert.equal(link.result.link, `${G}/login#code=${app.secrets.hostCode}`);
+  assert.equal((await hst.send({ t: 'tunnel.link' })).ok, false, 'Georgie cannot read the link or code');
+  await d.send({ t: 'rehearsal.check', check: 'tunnel' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.tunnel.status === 'pass' && /answers from the internet/.test(m.s.rehearsal.checks.tunnel.detail));
+  fs.unlinkSync(path.join(dataDir, 'tunnel.json'));
+  await d.send({ t: 'rehearsal.check', check: 'tunnel' });
+  await d.next(m => m.t === 'state' && m.s.rehearsal.checks.tunnel.status === 'warn');
+  d.close(); hst.close();
+});
+
+test('notifications: Georgie and Andrej coming and going', async () => {
+  await until(() => ![...app.studio.clients].some(c => c.role === 'host')); // earlier tests' windows have closed
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  const hst = client(G, { cookie: hostCookie });
+  await hst.opened;
+  await d.next(m => m.t === 'notify' && m.kind === 'host-up' && /Georgie connected/.test(m.text));
+  hst.close();
+  await d.next(m => m.t === 'notify' && m.kind === 'host-down');
+  const h2 = client(G, { cookie: hostCookie });
+  await h2.opened;
+  d.close();
+  await h2.next(m => m.t === 'notify' && m.kind === 'director-down');
+  const d2 = client(D, { cookie: directorCookie });
+  await d2.opened;
+  await h2.next(m => m.t === 'notify' && m.kind === 'director-up');
+  h2.close(); d2.close();
+});
+
+test('report: interruptions, HELP, checks and outstanding issues; download for the director only', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  const end = await d.send({ t: 'rehearsal.end' });
+  assert.equal(end.ok, true, end.error);
+  const id = end.result.id;
+  const { s } = await d.next(m => m.t === 'state' && !m.s.rehearsal.active && m.s.reports[0]?.id === id);
+  assert.ok(s.reports[0].summary.passed >= 8);
+  const json = await fetch(`${D}/reports/${id}.json`, { headers: { Cookie: directorCookie } });
+  assert.equal(json.status, 200);
+  assert.match(json.headers.get('content-disposition'), /attachment; filename="DISTANCE-ZERO-rehearsal-/);
+  const r = await json.json();
+  assert.equal(r.recordings, 'none');
+  assert.ok(r.interruptions.some(i => i.what === 'Georgie\'s dashboard offline' && i.to), 'her drop and return are one closed interruption');
+  assert.ok(r.interruptions.some(i => i.what === 'Director Studio offline'));
+  assert.ok(r.help.some(h => h.text === 'Rehearsal test' && h.ackAt));
+  assert.ok(r.outstanding.some(o => /Not tested: Audio playback/.test(o)), 'untested checks are listed as outstanding');
+  assert.ok(r.outstanding.some(o => /headphones/.test(o)));
+  assert.ok(r.checks.find(c => c.id === 'camera').status === 'pass');
+  const html = await (await fetch(`${D}/reports/${id}.html`, { headers: { Cookie: directorCookie } })).text();
+  assert.match(html, /Rehearsal report/); assert.match(html, /No audio or video was recorded/);
+  assert.equal((await fetch(`${D}/reports/${id}.html`)).status, 401, 'needs the director session');
+  assert.equal((await fetch(`${G}/reports/${id}.html`, { headers: { Cookie: hostCookie } })).status, 404, 'not on the host port');
+  assert.equal((await fetch(`${D}/reports/..%2Fsecrets.json`, { headers: { Cookie: directorCookie } })).status, 404);
+  assert.equal((await d.send({ t: 'obs', action: 'record', on: true })).ok, true, 'lock released after the rehearsal');
+  await d.send({ t: 'obs', action: 'record', on: false });
+  d.close();
+});
+
+test('a public link that changes address between two probes still warns "NEW link"', async () => {
+  const { watchTunnel } = await import('../lib/tunnel.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dz-tunnel-'));
+  const seen = [];
+  fs.writeFileSync(path.join(dir, 'tunnel.json'), JSON.stringify({ url: G, pid: process.pid }));
+  const w = watchTunnel({ dataDir: dir, every: 60000, onChange: st => seen.push(st) });
+  await until(async () => (await w.check()).up);
+  assert.equal(w.status.newAddress, false, 'the first address is not "new"');
+  fs.writeFileSync(path.join(dir, 'tunnel.json'), JSON.stringify({ url: D, pid: process.pid })); // restarted elsewhere, never seen down
+  const st = await w.check();
+  assert.equal(st.up, true); assert.equal(st.newAddress, true);
+  assert.ok(seen.at(-1).newAddress);
+  w.stop(); fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a rehearsal and its stream lock survive a studio restart', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dz-restart-'));
+  const one = await startStudio({ config: config(mock.port), dataDir: dir, obsPassword: 'test-pass', log: quiet });
+  await until(() => one.obs.state.connected);
+  const base = `http://127.0.0.1:${one.director.port}`;
+  const ck = (await login(base, one.secrets.directorCode)).cookie;
+  const d = client(base, { cookie: ck });
+  await d.opened;
+  assert.equal((await d.send({ t: 'rehearsal.start' })).ok, true);
+  d.close();
+  await one.close();
+  const two = await startStudio({ config: config(mock.port), dataDir: dir, obsPassword: 'test-pass', log: quiet });
+  await until(() => two.obs.state.connected);
+  const base2 = `http://127.0.0.1:${two.director.port}`;
+  const d2 = client(base2, { cookie: ck });
+  await d2.opened;
+  const { s } = await d2.next(m => m.t === 'state');
+  assert.equal(s.rehearsal.active, true, 'still rehearsing after the restart');
+  const r = await d2.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  assert.equal(r.ok, false); assert.match(r.error, /Rehearsal mode/);
+  assert.equal(mock.state.stream, false);
+  const end = await d2.send({ t: 'rehearsal.end' });
+  assert.equal(end.ok, true);
+  d2.close(); await two.close();
+  fs.rmSync(dir, { recursive: true, force: true });
 });

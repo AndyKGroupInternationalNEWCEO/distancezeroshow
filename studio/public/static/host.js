@@ -2,6 +2,8 @@
 // camera/mic check. This page has no OBS or broadcast controls, and the server refuses them for this role anyway.
 import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segmentTimer, clock, day, nextShow, countdown, toast, chatPanel, titleBadge } from './common.js';
 import { createCall } from './call.js';
+import { notifier } from './notify.js';
+import { testDevices, playTone } from './checks.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 let downSince = 0, reconnects = 0, slowPings = 0;
@@ -29,6 +31,10 @@ conn.on('state', ({ s }) => { S = s; render(); });
 conn.on('alert', ({ text }) => alertBox(text));
 conn.on('help.update', () => {}); // the state update that follows repaints the help card
 conn.on('assist', a => assistCard(a));
+const note = notifier();
+conn.on('notify', m => note.show(m));
+conn.on('check.request', ({ items }) => checkCard(items));
+setInterval(() => renderStatus(), 5000); // keeps the "how long offline" advice current
 chatPanel(conn, 'host', { onUnread: n => { titleBadge('Host Dashboard — DISTANCE // ZERO')(n); const u = $('#unread'); u.hidden = !n; u.textContent = n + ' new'; } });
 runClocks(() => S);
 setInterval(() => S && tick(), 250);
@@ -55,7 +61,14 @@ function renderStatus() {
   l.className = 'light ' + (ok ? (slow ? 'warn' : 'ok') : 'bad');
   l.textContent = ok ? `Vienna ${link.rtt ?? '–'} ms` : 'Vienna offline';
   const strip = $('#strip'), t = S?.tally;
-  if (!ok) { strip.className = 'strip bad'; strip.textContent = everOpen ? 'Lost the link to Vienna. Reconnecting… Keep your VDO.Ninja tab open; your camera is not affected.' : 'Connecting to the Vienna studio…'; }
+  const downFor = downSince ? Date.now() - downSince : 0;
+  if (!ok) {
+    strip.className = 'strip bad';
+    strip.textContent = !everOpen ? 'Connecting to the Vienna studio…'
+      : downFor < 20000 ? 'Lost the link to Vienna. Reconnecting by itself… A call in progress keeps running for a moment.'
+      : 'Still no link to Vienna. 1) Check your internet. 2) Reload this page. 3) Still nothing: message Andrej by phone; he may need to send you a new link.';
+  }
+  else if (S?.rehearsal?.active && !t?.onAir) { strip.className = 'strip rehearsal'; strip.textContent = 'Rehearsal // private, not on air. Nothing you say goes out.'; }
   else if (t?.onAir) { strip.className = 'strip live'; strip.textContent = '● On air // Vienna is streaming to YouTube. Everything you say can be heard.'; }
   else if (t && !t.obs) { strip.className = 'strip warn'; strip.textContent = 'Off air // Vienna\'s broadcast software is not connected yet.'; }
   else { strip.className = 'strip off'; strip.textContent = 'Off air // not streaming' + (t?.recording ? ' // Vienna is recording' : ''); }
@@ -274,7 +287,7 @@ setView(startView);
 /* ---------- private call with Vienna ---------- */
 
 const call = createCall(conn, 'host', {
-  getState: () => S,
+  getState: () => S, note,
   onProblem: (kind, text, diag) => autoHelp('urgent', kind, text, diag),
 });
 call.onPhase(p => {
@@ -376,4 +389,57 @@ function assistCard({ guide, text }) {
         } }))));
   document.body.append(box);
   box.querySelector('.b.primary')?.focus();
+}
+
+
+/* ---------- rehearsal checks asked for by Vienna ---------- */
+
+function checkCard(items) {
+  $('.assist')?.remove();
+  setView('show');
+  const steps = [];
+  const line = (title, text, button) => { const res = h('span', { class: 'res' }); steps.push(h('li', {}, h('div', {}, h('strong', { text: title }), h('span', { class: 'hint', text })), res, button)); return res; };
+  if (items.includes('camera')) {
+    const btn = h('button', { type: 'button', class: 'b sm primary', text: 'Test now' });
+    const res = line('Camera & microphone', 'Your browser asks for permission: allow it. Then say a few words.', btn);
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Say something…'; stopCheck();
+      const r = await testDevices({ ms: 7000 });
+      device.camera = r.camera.ok; device.mic = r.mic.ok; device.cameraLabel = r.camera.detail; device.micLabel = r.mic.detail; report();
+      await conn.send({ t: 'check.result', check: 'camera', ok: r.camera.ok, detail: r.camera.detail }).catch(() => {});
+      await conn.send({ t: 'check.result', check: 'mic', ok: r.mic.ok, detail: r.mic.detail }).catch(() => {});
+      res.textContent = `${r.camera.ok ? '✓' : '✗'} camera  ${r.mic.ok ? '✓' : '✗'} mic`; res.className = 'res ' + (r.camera.ok && r.mic.ok ? 'ok' : 'bad');
+      btn.textContent = 'Test again'; btn.disabled = false;
+      if (!r.camera.ok || !r.mic.ok) res.title = [r.camera.detail, r.mic.detail].join(' · ');
+    });
+  }
+  if (items.includes('playback')) {
+    const wrap = h('span', { class: 'row' });
+    const res = line('Sound on your headphones', 'Press play: you should hear two soft notes.', wrap);
+    const answer = ok => { conn.send({ t: 'check.result', check: 'playback', ok, detail: ok ? 'tone heard' : 'tone NOT heard' }).catch(() => {}); res.textContent = ok ? '✓ heard' : '✗ not heard'; res.className = 'res ' + (ok ? 'ok' : 'bad'); draw(); };
+    const draw = asked => wrap.replaceChildren(...(asked ? [h('span', { class: 'hint', text: 'Heard it?' }), h('button', { type: 'button', class: 'b sm primary', text: 'Yes', onclick: () => answer(true) }), h('button', { type: 'button', class: 'b sm danger', text: 'No', onclick: () => answer(false) })]
+      : [h('button', { type: 'button', class: 'b sm primary', text: 'Play tone', onclick: async () => { await playTone(); draw(true); } })]));
+    draw(false);
+  }
+  if (items.includes('help')) {
+    const btn = h('button', { type: 'button', class: 'b sm primary', text: 'Send test HELP' });
+    const res = line('HELP button', 'Sends a test request to Vienna. Andrej answers it with "Seen".', btn);
+    btn.addEventListener('click', async () => {
+      try { await conn.send({ t: 'help.raise', level: 'normal', kind: 'test', text: 'Rehearsal test from Melbourne', diag: diagnostics() }); res.textContent = '✓ sent, waiting for Seen'; res.className = 'res ok'; btn.disabled = true; }
+      catch (e) { res.textContent = '✗ ' + e.message; res.className = 'res bad'; }
+    });
+  }
+  if (items.includes('screen')) {
+    const btn = h('button', { type: 'button', class: 'b sm primary', text: call.phase === 'idle' ? 'Call Vienna' : 'In call' });
+    line('Screen sharing', 'In the call window press "Share screen", pick a window, then "Stop sharing" after a few seconds.', btn);
+    btn.addEventListener('click', () => { if (call.phase === 'idle') call.start().catch(e => toast(e.message, 'bad')); });
+  }
+  const box = h('div', { class: 'assist check-card', role: 'dialog', 'aria-label': 'Rehearsal check from Vienna' },
+    h('div', {},
+      h('span', { class: 'label', text: 'Rehearsal check from Vienna' }),
+      h('h2', { class: 'display', text: 'Quick checks' }),
+      h('p', { class: 'hint', text: 'Nothing is recorded. Vienna only sees whether each check worked.' }),
+      h('ol', { class: 'checksteps' }, ...steps),
+      h('div', { class: 'row end mt' }, h('button', { type: 'button', class: 'b primary', text: 'Done', onclick: () => box.remove() }))));
+  document.body.append(box);
 }

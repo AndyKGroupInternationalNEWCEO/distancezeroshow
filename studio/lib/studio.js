@@ -8,11 +8,14 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { debounced } from './store.js';
 import { createTalk } from './talk.js';
+import { createRehearsal } from './rehearsal.js';
+import { watchTunnel } from './tunnel.js';
 
 const ROLES = ['director', 'host', 'overlay'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
-  'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'help.raise', 'help.cancel']);
+  'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
+  'check.echo', 'check.result']);
 const OVERLAY_ACTIONS = new Set(['ping']);
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
@@ -34,13 +37,16 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     reminders: saved.reminders || [],    // the director's own production reminders, never shown to the host
     settings: { standbyScene: '', micInputs: null, ...saved.settings },
     help: saved.help || [],             // HELP requests from Georgie (and automatic ones)
+    // a rehearsal survives a studio restart, and with it the stream/recording lock
+    rehearsal: saved.rehearsal || { active: false },
+    reports: saved.reports || [],
   };
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
   let lastChatId = chat.at(-1)?.id || 0;
   const events = [];
-  const saveState = debounced(() => store.write('state.json', state));
-  const saveChat = debounced(() => store.write('chat.json', chat.slice(-CHAT_KEEP)));
+  const saveState = debounced(() => store.writeSafe('state.json', state));
+  const saveChat = debounced(() => store.writeSafe('chat.json', chat.slice(-CHAT_KEEP)));
   const saveRundown = () => store.write('rundown.json', rundown);
   const chatLimit = new Map(); // role -> timestamps
   if (Array.isArray(state.settings.micInputs)) obs.setMicList(state.settings.micInputs);
@@ -74,20 +80,47 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
 
   /* ---------- event log (Technical Control) ---------- */
 
-  function logEvent(level, text) {
+  function logEvent(level, text, kind = '') {
+    rehearsal?.record(kind, level, text);
     const entry = { ts: Date.now(), level, text: str(text, 300) };
     events.push(entry);
     if (events.length > LOG_KEEP) events.shift();
     for (const c of clients) if (c.role === 'director') c.send({ t: 'log', entry });
   }
-  obs.on('link', (up, why) => logEvent(up ? 'ok' : 'bad', up ? `OBS connected (obs-websocket ${obs.state.version})` : `OBS disconnected: ${why}`));
+  /* notifications: one short, calm message per event; sound only when asked for (critical issues) */
+  const lastNote = new Map();
+  function notify(level, kind, text, { to = ['director'], sound = false, quiet = false } = {}) {
+    logEvent(level === 'critical' ? 'bad' : level === 'warn' ? 'warn' : 'ok', text, kind);
+    // merge only true repeats: the same topic in the same state within a few seconds. A change of state
+    // (disconnected → connected) is always shown, however quickly it follows.
+    const topic = kind.split('-')[0], now = Date.now(), last = lastNote.get(topic);
+    if (last && last.kind === kind && last.text === text && now - last.at < 8000) return;
+    lastNote.set(topic, { kind, text, at: now });
+    for (const c of clients) if (to.includes(c.role)) c.send({ t: 'notify', level, kind, text, sound, quiet, at: now });
+  }
+  let rehearsal = null;
+  let wasOnAir = false;
+  obs.on('state', st => { if (st.connected) wasOnAir = st.stream.active || st.record.active; });
+  obs.on('link', (up, why) => {
+    if (up) notify('ok', 'obs-up', `OBS connected (obs-websocket ${obs.state.version})`);
+    else notify(wasOnAir ? 'critical' : 'warn', 'obs-down', `OBS disconnected: ${why}${wasOnAir ? '. It was streaming or recording: check OBS now.' : ''}`, { sound: wasOnAir });
+  });
+  const tunnel = watchTunnel({ dataDir: store.dir, onChange: (st, before) => {
+    // a NEW address always warns, even when the restart happened between two probes (up → up, different address)
+    if (st.newAddress) notify('warn', 'tunnel-up', 'Georgie\'s public link is back with a NEW address. Copy the new link and send it to her: the old one no longer works.');
+    else if (st.up && !before.up) notify('ok', 'tunnel-up', 'Georgie\'s public link is online');
+    if (st.up) logEvent('ok', 'Public link up', 'tunnel-up'); else if (before.up) logEvent('warn', 'Public link down', 'tunnel-down');
+    else if (!st.up && before.up) notify([...clients].some(c => c.role === 'host' && c.remote) ? 'critical' : 'warn', 'tunnel-down', `Georgie's public link stopped answering: ${st.error || 'tunnel closed'}`, { sound: false });
+    changed();
+  } });
   let lastObsStatus = obs.state.status;
   obs.on('state', s => {
     if (s.status !== lastObsStatus && (s.status === 'auth-failed' || s.status === 'auth-required')) logEvent('bad', s.error);
     lastObsStatus = s.status;
   });
 
-  const talk = createTalk({ state, clients, obs, changed: () => changed(), logEvent });
+  rehearsal = createRehearsal({ state, clients, obs, store, tunnel, changed: () => changed(), notify });
+  const talk = createTalk({ state, clients, obs, changed: () => changed(), logEvent, notify, hooks: rehearsal.hooks, graceMs: config.call?.graceMs });
 
   /* ---------- switcher: the preview bus ---------- */
 
@@ -125,7 +158,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
           obsUrl: config.obs.url, directorPort: config.director.port, guestPort: config.guest.port, dataDir: store.dir,
         },
         vdo: { view: vdo.view, push: vdo.push }, overlayKey: secrets.overlayKey,
-        ...talk.view('director'), ice: config.call?.iceServers || [],
+        ...talk.view('director'), ice: config.call?.iceServers || [], ...rehearsal.view('director'),
       };
     }
     if (role === 'host') {
@@ -135,7 +168,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
         vdo: { push: vdo.push },
-        ...talk.view('host'), ice: config.call?.iceServers || [],
+        ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'),
       };
     }
     const seg = rundown.segments[state.pos.index];
@@ -180,10 +213,11 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
 
   /* ---------- connections ---------- */
 
-  function connect(ws, role) {
+  const count = role => [...clients].filter(c => c.role === role).length;
+  function connect(ws, role, { remote = false } = {}) {
     if (!ROLES.includes(role)) throw new Error('unknown role');
     const client = {
-      ws, role, monitors: false,
+      ws, role, remote, monitors: false,
       send(msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); },
     };
     clients.add(client);
@@ -191,7 +225,11 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     client.send({ t: 'state', s: view(role) });
     if (role !== 'overlay') client.send({ t: 'chat.history', msgs: chat.slice(-200) });
     if (role === 'director') client.send({ t: 'log.history', entries: events });
-    if (role === 'host') { logEvent('ok', 'Georgie connected'); talk.onConnect(client); }
+    if (role === 'host') {
+      if (count('host') === 1) notify('ok', 'host-up', `Georgie connected${remote ? ' (via her public link)' : ' (on this Mac)'}`);
+      talk.onConnect(client);
+    }
+    if (role === 'director' && count('director') === 1) { logEvent('ok', 'Director Studio connected', 'director-up'); notify('ok', 'director-up', 'Andrej is connected', { to: ['host'] }); }
     if (role === 'overlay') logEvent('ok', 'Graphics overlay connected');
     broadcastState();
     ws.on('message', raw => {
@@ -209,7 +247,8 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     });
     ws.on('close', () => {
       clients.delete(client);
-      if (role === 'host') logEvent('warn', 'Georgie disconnected');
+      if (role === 'host' && !count('host')) notify('warn', 'host-down', 'Georgie disconnected. Her page reconnects by itself; if she is not back in 30 s, call her phone.');
+      if (role === 'director' && !count('director')) { logEvent('warn', 'Director Studio disconnected', 'director-down'); notify('warn', 'director-down', 'Andrej\'s studio is reconnecting. Stay where you are.', { to: ['host'] }); }
       talk.onClose(client);
       if (role === 'overlay') logEvent('warn', 'Graphics overlay disconnected');
       broadcastState();
@@ -248,8 +287,16 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       case 'settings': return settingsAction(msg);
       case 'gfx': return gfxAction(msg);
       case 'emergency': return emergency(msg);
+      case 'tunnel.link': {
+        // Georgie's full sign-in link, only on request, only for the director (to copy into Signal/iMessage)
+        if (role !== 'director') throw new Error('Not allowed');
+        const t = await tunnel.check();
+        if (!t.running) throw new Error('No public link is running. Start it with the launcher or "npm run tunnel".');
+        return { link: `${t.url}/login#code=${secrets.hostCode}`, up: t.up };
+      }
       default:
         if (/^(call|help)\./.test(msg.t)) return talk.handle(client, msg);
+        if (/^(rehearsal|check)\./.test(msg.t)) return rehearsal.handle(client, msg);
         throw new Error(`Unknown message ${msg.t}`);
     }
   }
@@ -309,9 +356,11 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       }
       case 'stream':
         if (msg.confirm !== true) throw new Error('Stream start/stop needs confirmation');
+        if (msg.on && rehearsal.active) throw new Error('Rehearsal mode: the YouTube stream is locked. End the rehearsal first.');
         await obs.stream(!!msg.on);
         logEvent(msg.on ? 'live' : 'ok', msg.on ? 'Stream started' : 'Stream stopped'); return;
       case 'record':
+        if (msg.on && rehearsal.active) throw new Error('Rehearsal mode: OBS recording is locked. End the rehearsal first.');
         await obs.record(!!msg.on);
         logEvent('ok', msg.on ? 'Recording started' : 'Recording stopped'); return;
       case 'refresh': return obs.refresh();
@@ -448,6 +497,8 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   return {
     connect, view, vdo, clients,
     flush() { saveState.flush(); saveChat.flush(); },
-    stop() { clearInterval(monitorTimer); },
+    stop() { clearInterval(monitorTimer); tunnel.stop(); },
+    report(id) { return rehearsal.readReport(id); },
+    renderReport: r => rehearsal.renderHtml(r),
   };
 }

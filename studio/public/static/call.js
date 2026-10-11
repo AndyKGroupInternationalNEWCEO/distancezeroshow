@@ -8,10 +8,10 @@ const NAME = { director: 'Andrej', host: 'Georgie' };
 const CITY = { director: 'Vienna', host: 'Melbourne' };
 const DEFAULT_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 
-export function createCall(conn, me, { getState = () => null, onProblem = () => {} } = {}) {
+export function createCall(conn, me, { getState = () => null, onProblem = () => {}, note = null } = {}) {
   const peerRole = me === 'director' ? 'host' : 'director';
   let pc = null, cid = null, phase = 'idle', local = null, cam = null, screen = null, pending = [], startedAt = 0;
-  let statsTimer = 0, clockTimer = 0, restarted = false, ringer = null, iAmCaller = false;
+  let statsTimer = 0, clockTimer = 0, restarted = false, ringer = null, iAmCaller = false, peerScreen = false;
   const media = { mic: true, cam: true, screen: false };
   const listeners = new Set();
 
@@ -82,9 +82,11 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
         if (iAmCaller && !restarted) { restarted = true; status.textContent = 'Reconnecting…'; pc.restartIce(); offer(); }
         else if (!iAmCaller && !restarted) { restarted = true; status.textContent = 'Reconnecting…'; }
         else {
-          status.textContent = 'Connection failed';
           onProblem('call-failed', 'The private call could not connect (network blocks a direct connection)', { state: s });
-          toast('The call could not connect. Use the chat or VDO.Ninja, and tell Andrej.', 'bad');
+          if (cid) conn.send({ t: 'call.end', cid, reason: 'network' }).catch(() => {});
+          cleanup();
+          note?.show({ level: 'warn', kind: 'call-drop', title: 'Call could not hold', text: 'The networks blocked the call. Try once more; if it fails again, use talkback and VDO.Ninja.',
+            actions: [{ label: 'Call again', fn: () => start().catch(e => toast(e.message, 'bad')) }] });
         }
       }
     };
@@ -126,8 +128,22 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
       }
     } catch (e) { toast('Call set-up error: ' + e.message, 'bad'); }
   });
+  conn.on('call.peer', m => {
+    if (m.cid !== cid) return;
+    status.textContent = m.state === 'reconnecting' ? `${NAME[peerRole]}'s studio link is recovering… (call continues)` : 'Connected';
+  });
+  // our own studio connection came back: re-attach to the call (the media itself never stopped)
+  conn.on('open', () => {
+    if (!cid || phase === 'idle') return;
+    if (phase === 'ringing-in' || phase === 'calling') { cleanup(); return; }
+    conn.send({ t: 'call.resume', cid }).then(() => { status.textContent = 'Connected'; },
+      () => { cleanup(); note?.show({ level: 'warn', kind: 'call-drop', title: 'Call ended', text: 'The call ended while the studio link was down.', actions: [{ label: 'Call again', fn: () => start().catch(e => toast(e.message, 'bad')) }] }); });
+  });
+  // reloading or closing the page ends the call cleanly instead of leaving it hanging for the grace period
+  window.addEventListener('pagehide', () => { if (cid && phase !== 'idle') conn.send({ t: 'call.end', cid, reason: 'reload' }).catch(() => {}); });
   conn.on('call.media', m => {
     if (m.cid !== cid) return;
+    peerScreen = !!m.screen;
     const f = [];
     if (!m.mic) f.push(`${NAME[peerRole]} is muted`);
     if (!m.cam && !m.screen) f.push('camera off');
@@ -137,8 +153,8 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
   });
   conn.on('call.end', m => {
     if (m.cid !== cid) return;
-    if (phase !== 'idle' && m.reason && m.reason !== 'hung up') toast('Call ended: ' + m.reason);
-    else if (phase !== 'idle') toast('Call ended');
+    // the studio sends a notification with the reason; a dropped call gets a "Call again" there
+    if (!note && phase !== 'idle') toast('Call ended' + (m.reason && m.reason !== 'hung up' ? ': ' + m.reason : ''));
     cleanup();
   });
 
@@ -230,7 +246,7 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     r.forEach(s => { if (s.type === 'inbound-rtp' && s.kind === 'video') { fps = Math.round(s.framesPerSecond || 0); lost += s.packetsLost || 0; } if (s.type === 'inbound-rtp' && s.kind === 'audio') lost += s.packetsLost || 0; });
     quality.textContent = `${route} · ${rtt} ms · ${fps} fps${lost ? ' · lost ' + lost : ''}`;
     quality.className = 'cq ' + (rtt > 500 ? 'bad' : rtt > 250 ? 'warn' : 'ok');
-    conn.send({ t: 'call.stats', cid, stats: { rtt, kbps, fps, lost, route } }).catch(() => {});
+    conn.send({ t: 'call.stats', cid, stats: { rtt, kbps, fps, lost, route, peerScreen } }).catch(() => {});
   }
 
   /* ---------- ringing tone (WebAudio, no files) ---------- */
@@ -253,7 +269,7 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     ring(false);
     clearInterval(statsTimer); clearInterval(clockTimer);
     try { pc?.close(); } catch {}
-    pc = null; cid = null; startedAt = 0; restarted = false; pending = [];
+    pc = null; cid = null; startedAt = 0; restarted = false; pending = []; peerScreen = false;
     screen?.stop(); screen = null;
     local?.getTracks().forEach(t => t.stop()); local = null; cam = null;
     remoteV.srcObject = null; localV.srcObject = null;

@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 const LEVELS = ['normal', 'urgent', 'critical'];
 const GUIDES = ['camera', 'audio', 'vdo', 'network', 'reload', 'hold', 'custom'];
 const RING_MS = 45000;
+const GRACE_MS = 20000; // a call survives this long when one side's studio connection blips (media is peer-to-peer)
 const str = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max);
 const other = role => (role === 'director' ? 'host' : 'director');
 const NAME = { director: 'Andrej', host: 'Georgie' };
@@ -25,23 +26,27 @@ function cleanDiag(d) {
   return out;
 }
 
-export function createTalk({ state, clients, obs, changed, logEvent }) {
+export function createTalk({ state, clients, obs, changed, logEvent, notify = () => {}, hooks = {}, graceMs = GRACE_MS }) {
   state.help ??= [];
   let call = null; // { cid, from, caller, callee, phase: 'ringing'|'active', startedAt, ringTimer }
   const helpLimit = [];
 
   const toRole = (role, msg) => { for (const c of clients) if (c.role === role) c.send(msg); };
-  const peerOf = client => (client === call?.caller ? call.callee : client === call?.callee ? call.caller : null);
+  // undefined = not part of this call; null = part of it, but the other side is briefly reconnecting
+  const peerOf = client => (!call ? undefined : client === call.caller ? call.callee : client === call.callee ? call.caller : undefined);
 
   function endCall(reason, by) {
     if (!call) return;
     const c = call; call = null;
-    clearTimeout(c.ringTimer);
+    clearTimeout(c.ringTimer); clearTimeout(c.graceTimer);
     const msg = { t: 'call.end', cid: c.cid, reason };
     c.caller?.send(msg);
-    if (c.callee) c.callee.send(msg); else toRole(other(c.from), msg);
+    if (c.callee) c.callee.send(msg); else if (c.phase !== 'active') toRole(other(c.from), msg);
     const secs = c.startedAt ? Math.round((Date.now() - c.startedAt) / 1000) : 0;
-    logEvent(reason === 'connection lost' ? 'warn' : 'ok', `Call ${c.phase === 'active' ? `ended after ${secs} s` : 'not answered'} (${reason}${by ? ', ' + NAME[by] : ''})`);
+    const text = `Private call ${c.phase === 'active' ? `ended after ${secs} s` : 'not answered'} (${reason}${by ? ', ' + NAME[by] : ''})`;
+    const dropped = ['connection lost', 'network failure'].includes(reason);
+    notify(dropped ? 'warn' : 'info', dropped ? 'call-drop' : 'call-end', text, { to: ['director', 'host'] });
+    hooks.onCall?.('end', { reason, secs, dropped });
     changed();
   }
 
@@ -62,7 +67,9 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
     state.help.unshift(item);
     state.help = state.help.slice(0, 60);
     toRole('director', { t: 'help.new', item });
-    logEvent(level === 'normal' ? 'warn' : 'bad', `HELP ${level.toUpperCase()}${auto ? ' (automatic)' : ''}: ${text || kind}`);
+    notify(level === 'critical' ? 'critical' : level === 'urgent' ? 'warn' : 'info', 'help',
+      `HELP ${level.toUpperCase()}${auto ? ' (automatic)' : ''}: ${text || kind}`, { quiet: true });
+    hooks.onHelp?.('raise', item);
     changed();
     return item;
   }
@@ -77,7 +84,7 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
         call = { cid: crypto.randomBytes(6).toString('hex'), from: role, caller: client, callee: null, phase: 'ringing', startedAt: 0, video: msg.video !== false };
         call.ringTimer = setTimeout(() => endCall('no answer'), RING_MS);
         toRole(other(role), { t: 'call.ring', cid: call.cid, from: role, video: call.video });
-        logEvent('ok', `${NAME[role]} is calling ${NAME[other(role)]}`);
+        logEvent('ok', `${NAME[role]} is calling ${NAME[other(role)]}`, 'call-ring');
         changed();
         return { cid: call.cid };
       }
@@ -88,7 +95,8 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
         call.callee = client; call.phase = 'active'; call.startedAt = Date.now();
         call.caller.send({ t: 'call.accepted', cid: call.cid });
         for (const c of clients) if (c.role === role && c !== client) c.send({ t: 'call.end', cid: call.cid, reason: 'answered in another window' });
-        logEvent('ok', 'Call connected');
+        notify('ok', 'call-start', 'Private call started', { to: ['director', 'host'] });
+        hooks.onCall?.('start', {});
         changed();
         return;
       }
@@ -99,13 +107,15 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
       }
       case 'call.end': {
         if (!call || call.cid !== msg.cid) return;
-        if (client !== call.caller && client !== call.callee) throw new Error('Not your call');
-        return endCall('hung up', role);
+        const mine = client === call.caller || client === call.callee || call.orphan === role;
+        if (!mine) throw new Error('Not your call');
+        return endCall(msg.reason === 'network' ? 'network failure' : msg.reason === 'reload' ? 'page reloaded' : 'hung up', role);
       }
       case 'call.signal': {
         if (!call || call.cid !== msg.cid || call.phase !== 'active') throw new Error('No active call');
         const peer = peerOf(client);
-        if (!peer) throw new Error('Not your call');
+        if (peer === undefined) throw new Error('Not your call');
+        if (peer === null) throw new Error('The other side is reconnecting');
         const out = { t: 'call.signal', cid: call.cid };
         if (msg.sdp) {
           if (!['offer', 'answer'].includes(msg.sdp.type) || typeof msg.sdp.sdp !== 'string' || msg.sdp.sdp.length > 60000) throw new Error('Bad session description');
@@ -123,17 +133,31 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
       case 'call.media': {
         if (!call || call.cid !== msg.cid || call.phase !== 'active') return;
         const peer = peerOf(client);
-        if (!peer) throw new Error('Not your call');
+        if (peer === undefined) throw new Error('Not your call');
         const m = { mic: !!msg.mic, cam: !!msg.cam, screen: !!msg.screen };
-        peer.send({ t: 'call.media', cid: call.cid, ...m });
+        peer?.send({ t: 'call.media', cid: call.cid, ...m });
         if (m.screen !== !!call[role + 'Screen']) { call[role + 'Screen'] = m.screen; logEvent('ok', `${NAME[role]} ${m.screen ? 'started' : 'stopped'} screen sharing`); }
         return;
       }
       case 'call.stats': {
         // each side reports what it measures, so the director sees the call quality in one place
         if (!call || call.cid !== msg.cid || call.phase !== 'active') return;
+        if (peerOf(client) === undefined) throw new Error('Not your call');
         call[role + 'Stats'] = cleanDiag(msg.stats);
         call.route = str(msg.stats?.route, 40) || call.route;
+        hooks.onStats?.(role, call[role + 'Stats']);
+        changed();
+        return;
+      }
+      case 'call.resume': {
+        // the same person, back on a fresh studio connection (blip or second window), while the media kept flowing
+        if (!call || call.cid !== msg.cid || call.phase !== 'active') throw new Error('That call has ended');
+        const slot = call.orphan === role ? (call.from === role ? 'caller' : 'callee') : null;
+        if (!slot) throw new Error('Not your call');
+        clearTimeout(call.graceTimer);
+        call[slot] = client; call.orphan = null;
+        peerOf(client)?.send({ t: 'call.peer', cid: call.cid, state: 'back' });
+        logEvent('ok', `${NAME[role]} is back in the call`, 'call-resumed');
         changed();
         return;
       }
@@ -166,7 +190,8 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
         if (msg.t === 'help.ack' && h.status === 'open') { h.status = 'ack'; h.ackAt = Date.now(); }
         if (msg.t === 'help.resolve') { h.status = 'resolved'; h.resolvedAt = Date.now(); }
         toRole('host', { t: 'help.update', item: h });
-        logEvent('ok', `HELP ${msg.t === 'help.ack' ? 'seen' : 'resolved'}: ${h.text || h.kind}`);
+        logEvent('ok', `HELP ${msg.t === 'help.ack' ? 'seen' : 'resolved'}: ${h.text || h.kind}`, 'help-answer');
+        hooks.onHelp?.(msg.t === 'help.ack' ? 'ack' : 'resolve', h);
         changed();
         return;
       }
@@ -194,7 +219,19 @@ export function createTalk({ state, clients, obs, changed, logEvent }) {
   }
 
   function onClose(client) {
-    if (call && (client === call.caller || client === call.callee)) endCall('connection lost');
+    if (call && (client === call.caller || client === call.callee)) {
+      if (call.phase !== 'active') { endCall('connection lost'); }
+      else {
+        // keep the call for a short while: the two browsers are still connected to each other directly
+        const role = client.role;
+        if (client === call.caller) call.caller = null; else call.callee = null;
+        call.orphan = role;
+        clearTimeout(call.graceTimer);
+        call.graceTimer = setTimeout(() => endCall('connection lost'), graceMs);
+        (call.caller || call.callee)?.send({ t: 'call.peer', cid: call.cid, state: 'reconnecting' });
+        logEvent('warn', `${NAME[role]}'s studio connection dropped during the call; holding the call for ${Math.round(graceMs / 1000)} s`, 'call-hold');
+      }
+    }
     if (client.role === 'host' && ![...clients].some(c => c.role === 'host') && obs.state.stream.active) {
       raiseHelp({ level: 'critical', text: 'Georgie\'s dashboard disconnected while the show is live', auto: true, kind: 'host-offline', by: 'studio' });
     }

@@ -15,9 +15,10 @@
 <header class="bar">
   <div class="brand"><b class="chrome">D//0</b><span>Director</span></div>
   <nav class="tabs" role="tablist" aria-label="Workspaces">
-    <button class="tab" role="tab" id="tab-live" data-ws="live" aria-controls="ws-live" aria-selected="true">Live Control <kbd>⌥1</kbd></button>
-    <button class="tab" role="tab" id="tab-show" data-ws="show" aria-controls="ws-show" aria-selected="false">Show Control <span class="dot" id="dotShow" hidden></span><kbd>⌥2</kbd></button>
-    <button class="tab" role="tab" id="tab-tech" data-ws="tech" aria-controls="ws-tech" aria-selected="false">Technical <span class="dot bad" id="dotTech" hidden></span><kbd>⌥3</kbd></button>
+    <button class="tab" role="tab" id="tab-live" data-ws="live" aria-controls="ws-live" aria-selected="true">Live<span class="long"> Control</span> <kbd>⌥1</kbd></button>
+    <button class="tab" role="tab" id="tab-show" data-ws="show" aria-controls="ws-show" aria-selected="false">Show<span class="long"> Control</span> <span class="dot" id="dotShow" hidden></span><kbd>⌥2</kbd></button>
+    <button class="tab" role="tab" id="tab-tech" data-ws="tech" aria-controls="ws-tech" aria-selected="false">Tech<span class="long">nical</span> <span class="dot bad" id="dotTech" hidden></span><kbd>⌥3</kbd></button>
+    <button class="tab rh-tab" role="tab" id="tab-rehearse" data-ws="rehearse" aria-controls="ws-rehearse" aria-selected="false">Rehearsal <span class="dot" id="dotRehearse" hidden></span><kbd>⌥4</kbd></button>
   </nav>
   <div class="bar-right">
     <button class="b callbtn" type="button" id="callBtn" disabled>Call Georgie</button>
@@ -239,6 +240,65 @@
     </div>
   </section>
 
+  <!-- ======================= REHEARSAL ======================= -->
+  <section class="ws" id="ws-rehearse" role="tabpanel" aria-labelledby="tab-rehearse" hidden>
+    <div class="rh-hero card key" id="rhHero">
+      <div class="rh-state">
+        <span class="label">Private rehearsal</span>
+        <strong id="rhTitle">Ready when you are</strong>
+        <span class="hint" id="rhSub">Nothing goes on air. While the rehearsal runs, the YouTube stream and OBS recording are locked.</span>
+      </div>
+      <div class="rh-clock"><span class="label" id="rhClockLabel">Rehearsal time</span><strong id="rhTimer" class="num">--:--</strong></div>
+      <div class="rh-clock"><span class="label" id="rhShowLabel">Show starts in</span><strong id="rhCountdown" class="num">--</strong></div>
+      <button class="rh-go" type="button" id="rhToggle">Start rehearsal</button>
+    </div>
+
+    <div class="board" id="rhBoard" aria-live="polite"></div>
+
+    <div class="rh-grid">
+      <section class="card" aria-labelledby="hChecks">
+        <div class="card-h"><h2 id="hChecks">Pre-show check</h2>
+          <div class="aside"><span class="hint" id="rhScore"></span><button class="b sm" type="button" id="rhAuto">Run automatic checks</button><button class="b sm primary" type="button" id="rhAsk">Ask Georgie to run hers</button></div></div>
+        <ol class="checklist" id="rhChecks"></ol>
+        <p class="hint card-b">A check only shows <b>PASS</b> after it was really verified: measured by the studio, or confirmed by the person at that end. Everything else stays <b>NOT TESTED</b>.</p>
+      </section>
+
+      <div class="stack">
+        <section class="card key" aria-labelledby="hRhCall">
+          <div class="card-h"><h2 id="hRhCall">Talk to Georgie</h2><div class="aside"><span class="badge" id="rhCallBadge">Idle</span></div></div>
+          <div class="card-b">
+            <div class="row"><span class="grow hint" id="rhCallLine">Private video call, browser to browser. Nothing goes into OBS.</span><button class="b primary" type="button" id="rhCall">Call Georgie</button></div>
+            <div class="headphones mt" id="rhPhones">
+              <strong>Headphones on, both sides.</strong>
+              <span class="hint">Call audio on speakers feeds back into the microphones.</span>
+              <label class="checks"><input type="checkbox" id="rhMyPhones"> Mine are on (Vienna)</label>
+              <span class="light" id="rhHerPhones">Georgie: not confirmed</span>
+            </div>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="hRhLink">
+          <div class="card-h"><h2 id="hRhLink">Georgie's public link</h2><div class="aside"><span class="badge" id="rhLinkBadge">—</span></div></div>
+          <div class="card-b">
+            <p class="hint" id="rhLinkLine"></p>
+            <div class="row mt"><button class="b" type="button" id="rhCopy">Copy Georgie's link</button><span class="hint grow" id="rhCopied"></span></div>
+          </div>
+        </section>
+        <section class="card recover" id="rhRecover" aria-labelledby="hRec" hidden>
+          <div class="card-h"><h2 id="hRec">What to do now</h2></div>
+          <div class="card-b" id="rhRecoverBody"></div>
+        </section>
+        <section class="card" aria-labelledby="hTl">
+          <div class="card-h"><h2 id="hTl">Rehearsal timeline</h2></div>
+          <ol class="log" id="rhTimeline"></ol>
+        </section>
+        <section class="card" aria-labelledby="hReports">
+          <div class="card-h"><h2 id="hReports">Reports</h2><div class="aside"><span class="hint">Text only. Nothing is recorded.</span></div></div>
+          <ul class="reports" id="rhReports"></ul>
+        </section>
+      </div>
+    </div>
+  </section>
+
   <!-- ======================= TECHNICAL CONTROL ======================= -->
   <section class="ws" id="ws-tech" role="tabpanel" aria-labelledby="tab-tech" hidden>
     <div class="tech-grid">
@@ -301,7 +361,7 @@
   <div>
     <div class="row"><h2 class="label grow" id="helpTitle">Keyboard</h2><button class="b sm quiet" type="button" id="helpClose">Close</button></div>
     <dl>
-      <dt><kbd>⌥1</kbd> <kbd>⌥2</kbd> <kbd>⌥3</kbd></dt><dd>Live / Show / Technical</dd>
+      <dt><kbd>⌥1</kbd> <kbd>⌥2</kbd> <kbd>⌥3</kbd> <kbd>⌥4</kbd></dt><dd>Live / Show / Technical / Rehearsal</dd>
       <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Put scene on preview</dd>
       <dt><kbd>C</kbd></dt><dd>CUT preview to air</dd>
       <dt><kbd>T</kbd></dt><dd>TAKE preview to air with the transition</dd>

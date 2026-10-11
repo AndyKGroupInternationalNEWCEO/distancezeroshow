@@ -17,6 +17,10 @@ export function createStore(dir) {
       fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
       fs.renameSync(tmp, file(name));
     },
+    /* for timed background saves: a failed save is reported, never a crash in the middle of a show */
+    writeSafe(name, value) {
+      try { this.write(name, value); } catch (e) { console.warn(`[store] could not save ${name}: ${e.message}`); }
+    },
   };
 }
 

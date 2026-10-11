@@ -30,20 +30,33 @@ export function hms(ms, { sign = false } = {}) {
 export function connect({ query = '', onStatus = () => {} } = {}) {
   const handlers = {};
   const pending = new Map();
-  let ws, seq = 0, backoff = 800, rtt = null, pingTimer, open = false;
+  let ws, seq = 0, backoff = 800, rtt = null, pingTimer, open = false, retry = 0, guard = 0, lastPong = 0;
   const emit = (t, d) => (handlers[t] || []).forEach(f => f(d));
+  const ATTEMPT_MS = 6000;  // a connection attempt that has not opened by then is abandoned (blackholed networks hang for minutes)
+  const DEAD_MS = 15000;    // no answer to our pings for this long: the link is dead even if the browser has not noticed
 
   function start() {
+    clearTimeout(retry); clearTimeout(guard);
     onStatus({ state: 'connecting', rtt });
-    ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + query);
-    ws.onopen = () => {
-      open = true; backoff = 800;
+    const sock = ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + query);
+    // not open in time (hanging, or failed without a close event): give up on this attempt and try again
+    guard = setTimeout(() => { if (sock === ws && !open) lost(sock, 4000); }, ATTEMPT_MS);
+    sock.onerror = () => { if (sock === ws && !open) lost(sock, 4003); };
+    sock.onopen = () => {
+      if (sock !== ws) return;
+      clearTimeout(guard);
+      open = true; backoff = 800; lastPong = Date.now();
       onStatus({ state: 'open', rtt });
+      emit('open', {});
       ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 5000);
     };
-    ws.onmessage = e => {
+    sock.onmessage = e => {
+      if (sock !== ws) return;
       let m; try { m = JSON.parse(e.data); } catch { return; }
+      lastPong = Date.now(); // any traffic proves the link is alive
       if (m.t === 'pong') { rtt = Math.round(performance.now() - m.ts); onStatus({ state: 'open', rtt }); return; }
+      // the studio measures round trips during rehearsal checks: answer at once
+      if (m.t === 'check.echo') { sock.send(JSON.stringify({ t: 'check.echo', nonce: m.nonce })); return; }
       if (m.t === 'ack') {
         const p = pending.get(m.id); if (!p) return;
         pending.delete(m.id);
@@ -51,22 +64,38 @@ export function connect({ query = '', onStatus = () => {} } = {}) {
       }
       emit(m.t, m);
     };
-    ws.onclose = e => {
-      open = false; clearInterval(pingTimer);
-      for (const p of pending.values()) p.reject(new Error('Connection to the studio lost'));
-      pending.clear();
-      // 401 during the handshake shows up as an abnormal close before open: send them to sign in again
-      onStatus({ state: 'closed', rtt: null, code: e.code });
-      setTimeout(start, backoff); backoff = Math.min(backoff * 1.7, 8000);
-    };
+    sock.onclose = e => { if (sock === ws) lost(sock, e.code); };
   }
-  function ping() { if (open) ws.send(JSON.stringify({ t: 'ping', ts: performance.now() })); }
+  /* one place that handles every kind of loss: closed, failed to open in time, or silently dead */
+  function lost(sock, code) {
+    if (sock !== ws) return;
+    sock.onopen = sock.onmessage = sock.onclose = sock.onerror = null;
+    try { sock.close(); } catch {}
+    ws = null;
+    clearTimeout(guard); clearInterval(pingTimer);
+    const wasOpen = open;
+    open = false;
+    for (const p of pending.values()) p.reject(new Error('Connection to the studio lost'));
+    pending.clear();
+    // 401 during the handshake shows up as an abnormal close before open: the page checks the sign-in then
+    onStatus({ state: 'closed', rtt: null, code, wasOpen });
+    retry = setTimeout(start, backoff); backoff = Math.min(backoff * 1.7, 8000);
+  }
+  // back online (Wi-Fi returned, laptop woke up): try again now, abandoning any attempt that is still hanging
+  const now = () => { if (!open) { if (ws) lost(ws, 4001); clearTimeout(retry); backoff = 800; start(); } };
+  window.addEventListener('online', now);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') now(); });
+  function ping() {
+    if (!open || !ws) return;
+    if (Date.now() - lastPong > DEAD_MS) return lost(ws, 4002);
+    ws.send(JSON.stringify({ t: 'ping', ts: performance.now() }));
+  }
 
   start();
   return {
     on(t, f) { (handlers[t] ||= []).push(f); },
     send(msg) {
-      if (!open) return Promise.reject(new Error('Not connected to the studio'));
+      if (!open || !ws) return Promise.reject(new Error('Not connected to the studio'));
       const id = 'c' + ++seq;
       return new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });

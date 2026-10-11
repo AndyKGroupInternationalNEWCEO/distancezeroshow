@@ -8,7 +8,7 @@ const ORDER = { critical: 0, urgent: 1, normal: 2 };
 let call, alarm = 0, heard = new Set();
 
 export function init(ctx) {
-  call = createCall(ctx.conn, 'director', { getState: () => ctx.S });
+  call = createCall(ctx.conn, 'director', { getState: () => ctx.S, note: ctx.note });
   call.onPhase(p => {
     for (const b of [$('#callBtn'), $('#callBtn2')]) {
       b.textContent = p === 'idle' ? 'Call Georgie' : p === 'active' ? 'In call' : p === 'ringing-in' ? 'Georgie calling' : 'Calling…';
@@ -22,7 +22,6 @@ export function init(ctx) {
 
   ctx.conn.on('help.new', ({ item, repeat }) => {
     if (!repeat || item.level !== 'normal') chime(item.level);
-    if (!repeat) toast(`HELP ${LEVEL[item.level]}: ${item.text || item.kind}`, item.level === 'normal' ? '' : 'bad');
   });
 
   $('#guideSend').addEventListener('click', e => {

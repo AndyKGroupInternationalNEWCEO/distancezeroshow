@@ -103,6 +103,16 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (req.method === 'POST' && p === '/logout') {
         return send(req, res, 303, 'text/plain', '', { Location: '/login', 'Set-Cookie': cookieHeader(cookie, '', { clear: true, secure: viaHttps(req) }) });
       }
+      // rehearsal reports: director only, local only, offered as a download
+      const rep = role === 'director' && req.method === 'GET' && p.match(/^\/reports\/([0-9a-z-]{8,40})\.(html|json)$/);
+      if (rep) {
+        if (!authed(req)) return send(req, res, 401, 'text/plain; charset=utf-8', 'Sign in first');
+        const r = studio.report(rep[1]);
+        if (!r) return send(req, res, 404, 'text/plain; charset=utf-8', 'No such report');
+        const name = `DISTANCE-ZERO-rehearsal-${rep[1]}.${rep[2]}`;
+        return send(req, res, 200, rep[2] === 'html' ? 'text/html; charset=utf-8' : 'application/json', rep[2] === 'html' ? studio.renderReport(r) : JSON.stringify(r, null, 2),
+          { 'Content-Disposition': `attachment; filename="${name}"` });
+      }
       if (req.method === 'GET' && p === '/') {
         return authed(req) ? file(req, res, path.join(PUBLIC, page)) : send(req, res, 302, 'text/plain', '', { Location: '/login' });
       }
@@ -146,7 +156,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
         ws.on('pong', () => { alive.ok = true; });
         const hb = setInterval(() => { if (!alive.ok) return ws.terminate(); alive.ok = false; ws.ping(); }, 15000);
         ws.on('close', () => clearInterval(hb));
-        studio.connect(ws, as);
+        studio.connect(ws, as, { remote: proxied(req) });
       });
     });
 
@@ -166,11 +176,11 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
   async function close() {
     obs.stop();
     studio.stop();
+    // disconnect everyone first: their goodbyes change state (presence, rehearsal timeline) and must be saved too
+    for (const l of [director, guest]) for (const c of l.wss.clients) c.terminate();
+    await new Promise(r => setTimeout(r, 50));
     studio.flush();
-    for (const l of [director, guest]) {
-      for (const c of l.wss.clients) c.terminate();
-      await new Promise(r => l.server.close(r));
-    }
+    for (const l of [director, guest]) await new Promise(r => l.server.close(r));
   }
   return { director, guest, obs, studio, secrets, urls, close };
 }

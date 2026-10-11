@@ -42,13 +42,59 @@ The Director Studio (Andrej, Vienna) and the Host Dashboard (Georgie, Melbourne)
 | Headers | Strict CSP (no inline script, no framing), `no-referrer`, camera/mic only allowed on the host page. |
 | OBS password | `studio/.env.local` → `OBS_WEBSOCKET_PASSWORD=…` (gitignored). Never sent to any browser. |
 
+## Quick start
+
+**See [START-HERE.md](START-HERE.md).** Double-click `Start DISTANCE ZERO Studio` (or `npm run studio`). It starts the studio and Georgie's secure link together, opens the Director Studio signed in, and copies Georgie's link to your clipboard. It only connects to OBS and never streams, records or switches scenes.
+
+| Command | What it does |
+|---|---|
+| `npm run studio` | Studio + Georgie's public link + opens the Director Studio (the normal way) |
+| `npm start` | Studio only (local) |
+| `npm run tunnel` | Georgie's public link only, for when the studio already runs via `npm start` |
+| `npm run codes` / `npm run rotate-codes` | Show the access codes / replace them and sign everyone out |
+| `npm test` | 35 end-to-end tests against a mock OBS |
+
+## Rehearsal mode (Phase 3)
+
+- **Start rehearsal** (Rehearsal tab, ⌥4). It sends nothing to OBS. While it runs, the **server refuses to start the YouTube stream or OBS recording**. Stopping stays possible, and so does the emergency "End stream".
+- **Board:** Vienna · Melbourne · Georgie camera & mic · Private call · HELP system · Broadcast safety, each PASS / WARNING / FAILED / NOT TESTED.
+- **Pre-show check:** eleven checks, each with how it is verified:
+
+| Check | Verified by |
+|---|---|
+| OBS connection | the studio asks OBS for its version and measures the answer |
+| Director Studio / Host Dashboard connection | a round trip from the server to each dashboard (Georgie's through her public link) |
+| Georgie's public link | the server fetches it from the internet side |
+| Camera / Microphone permission | each person's browser opens the device; the mic must hear a voice |
+| Audio playback | each person plays a tone and confirms hearing it |
+| Private call connectivity | both browsers report media flowing (route, round trip, frame rate) |
+| Screen sharing | the receiving browser reports frames of the shared screen |
+| HELP notification test | Georgie's test request reaches Vienna and Andrej presses Seen |
+| Broadcast safety | OBS reports not streaming and not recording, while the lock is on |
+
+  Nothing becomes PASS without that verification. A person cannot mark the call, screen sharing or HELP as passed.
+- **Report:** at the end you get date, duration, connection interruptions with durations, technical warnings, HELP requests with response times, every check, and outstanding issues. Download it as HTML or JSON from the Reports list. It is text only; **no audio or video is ever recorded**. It's stored in `data/reports/`.
+
+## Reliability and recovery
+
+| Situation | What the studio does |
+|---|---|
+| Georgie loses internet | Her page retries by itself. An attempt that hangs is abandoned after 6 s, a silent link is detected after 15 s, and "back online" reconnects at once. Vienna gets a notification and a "What to do now" card. |
+| The Director Studio disconnects | Same reconnect logic. Georgie is told "Andrej's studio is reconnecting, stay where you are". |
+| A tab reloads | Everything is restored from the server. A call in that tab ends cleanly at once. |
+| A private call's studio link blips | The call is held for 20 s (the video is peer-to-peer) and re-attaches when the link returns. A call that cannot reconnect ends cleanly with "Call again". |
+| The Cloudflare tunnel dies | The launcher restarts it automatically. The studio probes the public address every 15 s, and a new address always triggers "NEW link for Georgie" with a copy button. |
+| OBS drops | Notification (critical if it was streaming or recording). The studio reconnects by itself and never restarts a broadcast or changes OBS. |
+
+**Notifications** are short cards, bottom left, one per event. Repeats are merged, and info disappears after a few seconds. Only critical issues and HELP make a sound.
+
 ## Demo with Georgie: runbook
 
 **Night before (Vienna):** run `npm test` (should say 29 pass). Keep OBS closed or untouched; the demo doesn't need it.
 
 **Morning, Vienna Mac** (three Terminal windows):
 1. `cd ~/distancezeroshow/studio && npm start`. Open the Director link it prints, in Chrome.
-2. `npm run tunnel`. It prints **Georgie's private link** (`https://….trycloudflare.com/login#code=…`). Send it to her by Signal or iMessage only. Leave this window open.
+2. `npm run tunnel`. It prints **Georgie's private link** (`https://….trycloudflare.com/login#code=…`). Send it to her by Signal or iMessage only. Leave this window open. (Easier: `npm run studio` does steps 1 and 2 in one go.)
 3. Put on **headphones**. Call audio plays on this Mac, and speakers would leak into the mic.
 
 **Georgie (Melbourne):** open the link in **Chrome** (Safari also works) on a laptop.
@@ -128,7 +174,7 @@ The guest port only listens on `127.0.0.1`. To reach it from Melbourne, use one 
 
 ```bash
 cd studio
-npm test           # 29 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
+npm test           # 35 end-to-end tests: real server + real WebSockets + mock OBS (protocol v5 with auth)
 ```
 
 **Rehearse without OBS:** in one terminal run `npm run mock-obs`, in another `OBS_WEBSOCKET_PASSWORD=mock-password npm start`. You get 8 scenes with moving monitor pictures, German transition names, sources, audio meters, faders, three jingles, stream and record. Don't do this while real OBS is using port 4455.
@@ -158,6 +204,12 @@ npm test           # 29 end-to-end tests: real server + real WebSockets + mock O
 - Security model above, 24 automated tests.
 
 ## Not finished (next phases)
+
+- **Phase 3 limits:**
+  - When Georgie's internet dies without closing the connection, Vienna may only notice after up to ~30 s: the server's heartbeat is 15 s, plus one missed answer. Her own page notices within 15 s.
+  - Camera, mic and playback checks prove the device works in that browser at that moment, not that the same device is chosen in VDO.Ninja.
+  - The rehearsal report has no per-minute call-quality graph, only the latest round trip.
+  - The launcher copies Georgie's link to the clipboard, so paste it before copying anything else.
 
 - **The Vienna ↔ Melbourne call over two real home networks has not been tried yet.** It's tested between two separate browsers, including Georgie's side over the public tunnel. STUN works from the Vienna network. There's no TURN relay yet, so strict networks (some mobile hotspots, corporate Wi-Fi) may block the call.
 - Quick-tunnel addresses change on every start and Cloudflare gives no uptime guarantee for them. For regular shows, use Tailscale or a named tunnel.

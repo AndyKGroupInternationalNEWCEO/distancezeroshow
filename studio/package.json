@@ -9,6 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "studio": "node start.js",
     "start": "node server.js",
     "mock-obs": "node test/mock-obs.js",
     "codes": "node server.js --show-codes",
