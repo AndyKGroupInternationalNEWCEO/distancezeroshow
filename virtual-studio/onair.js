@@ -69,7 +69,6 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     ui.exit.addEventListener('click', close);
 
     el = h('div', { class: 'air', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'On-air simulation. Not a real broadcast.', hidden: '' },
-      h('div', { class: 'air-src' }, a, b),
       h('div', { class: 'air-gfx', 'aria-hidden': 'true' },
         h('div', { class: 'air-top' },
           h('div', { class: 'air-onair' }, h('i'), h('b', { text: 'ON AIR' }), h('small', { text: 'Simulation' })),
@@ -83,6 +82,10 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
         h('div', { class: 'air-snd' }, ui.mute, ui.vol),
         ui.exit));
     document.body.append(el);
+    // the players sit behind the 3D canvas, full size: hidden by the studio but "visible" to the browser. Safari and
+    // iPhone pause a muted video they consider invisible (power saving), which stopped the studio film
+    ui.src = h('div', { class: 'air-src', 'aria-hidden': 'true', hidden: '' }, a, b);
+    document.body.prepend(ui.src);
     el.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(); } });
     // the wall draws whichever player is current, and the outgoing one while they dissolve
     const rvfc = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
@@ -106,7 +109,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
 
   // put a video on the wall: the opening once, then the studio film as the background
   function roll(which) {
-    const was = part; part = which;
+    const was = part; part = which; lastT = -1;
     const next = cur === a ? b : a;
     if (!next.currentSrc.endsWith(VIDEO[which])) next.src = VIDEO[which];   // same clip: no reload, just back to the start
     else if (next.currentTime > 0.05) next.currentTime = 0;
@@ -124,7 +127,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     stopBed(); prev?.pause(); prev = null; fadeT = 1; cur?.pause(); cur = null;
     const i = tracks(THEME);
     if (i < 0) return opening();
-    part = 'theme'; fresh = true;
+    part = 'theme'; fresh = true; lastT = -1;
     studio.wall.set('wave'); director.setAuto(true);
     sound.playlist(null); sound.after(() => opening()); applySound();
     sound.play(i).catch(() => opening());                        // no theme (blocked or offline): straight to the opening
@@ -150,9 +153,23 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
   }
   function stopBed() { sound.after(null); if (!bedOn && part !== 'theme') return; bedOn = false; sound.stop(); sound.playlist(null); sound.level(0.85); }
 
+  // a part that does not get going within a few seconds is skipped, so the simulation never hangs on one screen
+  let lastProgress = 0, lastT = -1;
+  function watchdog(now) {
+    if (music) { lastProgress = now; return; }
+    const t = part === 'theme' ? sound.state.time : cur ? cur.currentTime : 0;
+    if (t !== lastT) { lastT = t; lastProgress = now; return; }
+    if (now - lastProgress < (part === 'theme' ? 8000 : 6000)) return;
+    lastProgress = now;
+    if (part === 'theme') opening();
+    else if (part === 'opening') roll('studio');
+    else if (part === 'studio') cur?.play().catch(() => studio.wall.set('wave'));   // still stuck: the wall shows the visualiser
+  }
+
   function tick(now) {
     raf = requestAnimationFrame(tick);
     ui.clock();
+    watchdog(now);
     if (part === 'theme' && !music) {                             // countdown to the show while the theme plays
       const st = sound.state, left = Math.max(0, Math.ceil((st.duration || 94) - st.time));
       const txt = `The show starts in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
@@ -204,9 +221,10 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     studio.liftLogo(true);                                        // fly the hanging logo up, clear of the video
     // Safari only lets a video start with sound from a click: start both players now, during the click, and pause
     // them at once, so the opening and the studio film can start later on their own, sound included
+    ui.src.hidden = false;
     for (const [v, src] of [[a, VIDEO.opening], [b, VIDEO.studio]]) {
-      v.src = src; v.muted = false; v.volume = 0;
-      v.play().then(() => { if (v !== cur) { v.pause(); v.currentTime = 0; } }).catch(() => {});
+      v.src = src; v.muted = false;
+      v.play().catch(() => {}); v.pause();                         // the call during the click is what unlocks it
     }
     start();
     cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
@@ -219,6 +237,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     isOpen = false;
     cancelAnimationFrame(raf);
     for (const v of [a, b]) { v.pause(); v.removeAttribute('src'); v.load(); }
+    ui.src.hidden = true;
     stopBed();
     cur = prev = null;
     el.hidden = true; document.body.classList.remove('air-on');

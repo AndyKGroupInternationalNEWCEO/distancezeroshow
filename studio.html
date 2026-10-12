@@ -232,9 +232,10 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 .air{position:fixed;inset:0;z-index:20;color:var(--chrome-hi);font-family:var(--wide);overflow:hidden;pointer-events:none}
 .air-ctl,.air-notice{pointer-events:auto}
 .air[hidden]{display:none}
-/* the players are off screen: their picture is drawn onto the studio's LED wall */
-.air-src{position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;overflow:hidden;pointer-events:none}
-.air-src video{width:2px;height:2px}
+/* the players sit behind the 3D canvas (earlier in the page, so the canvas covers them); their picture is drawn onto the LED wall */
+.air-src{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.air-src[hidden]{display:none}
+.air-src video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .air-gfx{position:absolute;inset:0;z-index:1;pointer-events:none}
 .air-notice,.air-ctl{z-index:2}
 .air-top{position:absolute;top:calc(env(safe-area-inset-top,0px) + 22px);left:var(--gut);right:var(--gut);display:flex;justify-content:space-between;align-items:flex-start}
