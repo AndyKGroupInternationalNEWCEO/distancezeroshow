@@ -7,6 +7,13 @@ The studio runs on the **Vienna Mac**. Georgie only needs a link and Chrome.
 - Node and `cloudflared` are installed (`brew install cloudflared`).
 - The OBS WebSocket password is saved in `studio/.env.local`.
 
+## Georgie's permanent link (Tailscale, once)
+Without Tailscale her link changes on every start (Cloudflare). With it, it stays the same for every show.
+1. Install: `brew install --cask tailscale-app` (asks for your Mac password).
+2. Open **Tailscale** from Applications, allow the VPN configuration, sign in (with GitHub).
+3. Start the studio as usual. The first time only, line 3 shows a Tailscale link to **switch on Funnel** for this Mac: open it and confirm.
+From then on line 3 says **her permanent link is ready**: send it to Georgie once. She still needs only her browser, and her own access code protects it.
+
 ## Every rehearsal or show
 
 1. **Open OBS** (optional for a rehearsal). The studio never streams, records or switches scenes by itself.
