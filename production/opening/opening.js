@@ -14,6 +14,9 @@ import { setClockSource } from '../../virtual-studio/screens.js';
 import { createActor, bend, folder, ramp, smooth, clamp01, lerpAngle } from '../lib/actors.js';
 
 export const DURATION = 90;
+// the approved 3D logo after the key visual (kv), with a calmer bloom on the final reveal (80–90 s); logo=v1 shows the first version
+const LOGO = new URLSearchParams(location.search).get('logo') || 'kv';
+const BLOOM = LOGO === 'kv' ? [[0, 0.62], [80, 0.62], [83, 0.3]] : [[0, 0.62]];
 const FREEZE = 88.5;                       // from here every frame is identical: a clean frame for OBS
 const SEAT_TOP = RISER + 0.56;
 const SHOW_START = Date.UTC(2027, 0, 27, 9, 0, 0); // 10:00 Vienna (CET = UTC+1) on 27 Jan 2027
@@ -53,9 +56,10 @@ const LIGHT = {
   beams: [[0, 0], [9, 0], [12, 0.1], [80, 0.1], [83, 0.6], [86, 0.35]],
   music: [[0, 0], [80, 0], [83, 0.5], [86, 0.2]],
   onAir: [[0, 0], [10, 0], [10.2, 1]],
+  bloom: BLOOM,
 };
 function lighting(t) {
-  const L = { ...LOOKS.broadcast };
+  const L = { ...LOOKS.broadcast, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 }; // the set's sound-to-light inputs: silent
   for (const [k, keys] of Object.entries(LIGHT)) {
     let v = keys[0][1];
     for (let i = 1; i < keys.length; i++) {
@@ -185,6 +189,18 @@ const SHOTS = {
 };
 const easeOut = u => 1 - Math.pow(1 - u, 3);
 function shot(name, u) { const s = SHOTS[name]; return { pos: s.pos.getPoint(u), target: s.target.getPoint(u), fov: s.fov }; }
+// v2 correction (approved): 40.5–50 s is a high top shot that tracks Georgie's entrance from above, so neither
+// presenter's face is turned towards the lens (in v1 a head-height follow saw Andy'K arriving face-on).
+// ?version=v1 reproduces the original master exactly.
+const VERSION = new URLSearchParams(location.search).get('version') || 'v2';
+const TOP = { h: 6.0, back: 1.1, ahead: 0, fov: 40 }; // height (m), behind her (m), look-ahead (m), lens
+function topFollow(actor, t) {
+  const p = actor.where(t), lag = actor.where(t - 1.0), h = lerpAngle(lag.heading, p.heading, 0.3);
+  const fwd = new V(Math.sin(h), 0, Math.cos(h)), drift = smooth(clamp01((t - 40.5) / 9.5));
+  // above and slightly behind her, lowering a little as she reaches the desk; looks steeply down, a step ahead of her
+  const q = new URLSearchParams(location.search), H = +(q.get('h') || TOP.h), B = +(q.get('b') || TOP.back), A = +(q.get('a') || TOP.ahead);
+  return { pos: new V(p.x, H - 0.4 * drift, p.z).addScaledVector(fwd, -B), target: new V(p.x, 0, p.z).addScaledVector(fwd, A), fov: +(q.get('f') || TOP.fov) };
+}
 function follow(actor, t, dist, height) {
   // behind the actor, along a slightly delayed heading, so the camera trails like an operator would
   const p = actor.where(t), lag = actor.where(t - 0.7), h = lerpAngle(lag.heading, p.heading, 0.35);
@@ -198,7 +214,7 @@ function cameraAt(t, cast) {
   if (t < 15) return shot('wake', smooth(t / 15));
   if (t < 30) return shot('crew', smooth((t - 15) / 15));
   if (t < 40.5) return follow(cast.andy, t, 2.4, 1.95);
-  if (t < 50) return follow(cast.georgie, t, 2.8, 2.05);
+  if (t < 50) return VERSION === 'v1' ? follow(cast.georgie, t, 2.8, 2.05) : topFollow(cast.georgie, t);
   if (t < 65) return shot('desk', smooth((t - 50) / 15));
   if (t < 80) return shot('rise', smooth((t - 65) / 15));
   return shot('logo', easeOut(clamp01((t - 80) / (FREEZE - 80))));
@@ -229,7 +245,7 @@ export async function start({ canvas, width, height, realtime = true, progress =
   let clockT = 0;
   setClockSource(() => new Date(SHOW_START - (DURATION - clockT) * 1000));
 
-  const studio = buildStudio({ scene, quality });
+  const studio = buildStudio({ scene, quality, logo: LOGO });
   const mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x6a6d73 });
   mirror.rotation.x = -Math.PI / 2; mirror.position.y = -0.002; scene.add(mirror);
   progress(0.25);
@@ -239,7 +255,8 @@ export async function start({ canvas, width, height, realtime = true, progress =
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(width * quality.bloomScale, height * quality.bloomScale), 0.62, 0.55, 0.86));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(width * quality.bloomScale, height * quality.bloomScale), 0.62, 0.55, 0.86);
+  composer.addPass(bloom);
   composer.addPass(new OutputPass());
   composer.setSize(width, height);
 
@@ -254,13 +271,31 @@ export async function start({ canvas, width, height, realtime = true, progress =
     cast.pose(t);
     const c = cameraAt(t, cast);
     camera.position.copy(c.pos); camera.fov = c.fov; camera.updateProjectionMatrix(); camera.lookAt(c.target);
+    bloom.strength = L.bloom;
     composer.render(dt);
   }
   frame(0, 1 / 30);
   await renderer.compileAsync(scene, camera);
   progress(1);
 
+  // review tool: is a presenter's face readable in this frame? (head in the picture, face turned towards the lens)
+  const headPos = new V(), browPos = new V(), toCam = new V(), ndc = new V();
+  function faces(t) {
+    api.seek(t);
+    return Object.fromEntries([['andy', cast.andy], ['georgie', cast.georgie]].map(([k, a]) => {
+      if (!a.group.visible) return [k, { visible: false }];
+      a.bones.Bip01_Head.getWorldPosition(headPos); a.bones.Bip01_MMiddleEyebrow.getWorldPosition(browPos);
+      const faceDir = browPos.clone().sub(headPos).setY(0).normalize();              // where the face points (horizontal)
+      toCam.copy(camera.position).sub(headPos).normalize();
+      ndc.copy(headPos).project(camera);
+      const inFrame = Math.abs(ndc.x) < 1 && Math.abs(ndc.y) < 1 && ndc.z < 1;
+      const facing = faceDir.dot(toCam);                                                // 1 = straight at the lens
+      const px = (0.24 / headPos.distanceTo(camera.position)) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 540; // head height in 1080p pixels
+      return [k, { inFrame, facing: +facing.toFixed(2), px: Math.round(px), readable: inFrame && facing > 0.34 && px > 14 }];
+    }));
+  }
   const api = {
+    faces, version: VERSION,
     duration: DURATION, freezeAt: FREEZE, cues: CUES, info: cast.info, renderer, scene, camera,
     seek(t) { frame(t, Math.max(0, Math.min(0.2, t - last)) || 1 / 30); last = t; },
     grab(type = 'image/jpeg', q = 0.95) { return canvas.toDataURL(type, q); },
