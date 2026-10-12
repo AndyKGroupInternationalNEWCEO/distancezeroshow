@@ -10,6 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { execFile } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import { createStore } from './lib/store.js';
 import { loadSecrets, codeMatches, sameSecret, makeSession, checkSession, cookieHeader, parseCookies, limiter } from './lib/auth.js';
@@ -112,6 +114,44 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (req.method === 'GET' && p === '/favicon.svg') return file(req, res, path.join(SITE_ASSETS, 'favicon.svg'));
       if (req.method === 'GET' && p === '/login') return file(req, res, path.join(PUBLIC, 'login.html'));
       if (req.method === 'POST' && p === '/login') return login(req, res);
+      // SCRIPT import from PDF (free local tool: pdftotext) and export to PDF (headless Chrome if present, else a printable page).
+      // Director on this Mac only. The import is returned for review; nothing is applied here.
+      if (role === 'director' && p.startsWith('/script/') && (proxied(req) || !authed(req))) return send(req, res, 403, 'text/plain', 'No');
+      if (role === 'director' && req.method === 'POST' && p === '/script/import-pdf') {
+        const chunks = []; let size = 0;
+        req.on('data', c => { size += c.length; if (size > 25 * 1024 * 1024) req.destroy(); else chunks.push(c); });
+        req.on('end', () => {
+          const tmp = path.join(os.tmpdir(), `dz-import-${process.pid}-${Date.now()}.pdf`);
+          fs.writeFileSync(tmp, Buffer.concat(chunks), { mode: 0o600 });
+          execFile('pdftotext', ['-layout', '-enc', 'UTF-8', tmp, '-'], { maxBuffer: 20 * 1024 * 1024, timeout: 30000 }, (err, out) => {
+            fs.rm(tmp, () => {});
+            if (err) return send(req, res, 422, 'application/json', JSON.stringify({ ok: false, error: /ENOENT/.test(err.message) ? 'PDF import needs pdftotext (brew install poppler)' : 'This PDF could not be read as text' }));
+            const text = String(out).replace(/\f/g, '\n');
+            send(req, res, 200, 'application/json', JSON.stringify({ ok: true, text, ...studio.parseScript(text) }));
+          });
+        });
+        return;
+      }
+      if (role === 'director' && req.method === 'GET' && (p === '/script/export.pdf' || p === '/script/print')) {
+        const html = studio.scriptHtml(), name = studio.scriptName();
+        const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+        if (p === '/script/print' || !fs.existsSync(chrome)) return send(req, res, 200, 'text/html; charset=utf-8', html.replace('</body>', '<script>print()</script></body>'));
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dz-export-')), src = path.join(dir, 'script.html'), out = path.join(dir, 'script.pdf');
+        fs.writeFileSync(src, html);
+        // headless Chrome writes the PDF but may keep running: wait for a complete file (ends with %%EOF), then close it
+        const proc = execFile(chrome, ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', `--user-data-dir=${dir}/profile`, `--print-to-pdf=${out}`, 'file://' + src], () => {});
+        const started = Date.now();
+        const poll = setInterval(() => {
+          let pdf = null;
+          try { const b = fs.readFileSync(out); if (b.length > 1000 && b.subarray(-32).toString('latin1').includes('%%EOF')) pdf = b; } catch {}
+          if (!pdf && Date.now() - started < 45000) return;
+          clearInterval(poll); proc.kill();
+          setTimeout(() => fs.rm(dir, { recursive: true, force: true }, () => {}), 2000);
+          if (!pdf) return send(req, res, 200, 'text/html; charset=utf-8', html.replace('</body>', '<script>print()</script></body>'));
+          send(req, res, 200, 'application/pdf', pdf, { 'Content-Disposition': `attachment; filename="${name}.pdf"` });
+        }, 300);
+        return;
+      }
       // private preview of a library file (jingle or video) for the Director's own headphones: this Mac only, signed in,
       // never through a proxy, with byte ranges so long WAVs and videos can seek
       const mm = role === 'director' && req.method === 'GET' && /^\/media\/([A-Z0-9]{1,4})$/.exec(p);

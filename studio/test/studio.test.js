@@ -919,3 +919,23 @@ test('episode scripts: copy of the master, private notes, versions, reviewed imp
   await d.send({ t: 'episode.open', episode: ep.id });
   d.close(); hst.close();
 });
+
+test('script export to PDF and PDF import preview are Director-only and apply nothing', async () => {
+  const hostTry = await fetch(G + '/script/print', { headers: { Cookie: hostCookie } });
+  assert.notEqual(hostTry.status, 200);
+  assert.equal((await fetch(D + '/script/print')).status, 403, 'needs a session');
+  assert.equal((await fetch(D + '/script/print', { headers: { Cookie: directorCookie, 'X-Forwarded-For': '1.2.3.4' } })).status, 403, 'not through a proxy');
+  const page = await (await fetch(D + '/script/print', { headers: { Cookie: directorCookie } })).text();
+  assert.match(page, /SEGMENT 01 — /);
+  const r = await fetch(D + '/script/export.pdf', { headers: { Cookie: directorCookie } });
+  assert.equal(r.status, 200);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (r.headers.get('content-type') !== 'application/pdf') return; // no Chrome on this machine: printable page instead
+  assert.equal(buf.subarray(0, 5).toString(), '%PDF-');
+  const imp = await fetch(D + '/script/import-pdf', { method: 'POST', headers: { Cookie: directorCookie, 'Content-Type': 'application/pdf' }, body: buf });
+  const j = await imp.json();
+  assert.equal(j.ok, true);
+  assert.equal(j.missing.length, 0, 'every segment title is found again');
+  const bad = await fetch(D + '/script/import-pdf', { method: 'POST', headers: { Cookie: directorCookie }, body: 'not a pdf' });
+  assert.equal(bad.status, 422);
+});

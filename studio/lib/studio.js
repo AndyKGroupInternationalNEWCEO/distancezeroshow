@@ -11,7 +11,7 @@ import { debounced } from './store.js';
 import { createTalk } from './talk.js';
 import { createRehearsal } from './rehearsal.js';
 import { watchTunnel } from './tunnel.js';
-import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, LOCK_MINUTES } from './script.js';
+import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, renderHtml, LOCK_MINUTES } from './script.js';
 
 const ROLES = ['director', 'host', 'overlay'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
@@ -788,5 +788,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     stop() { clearInterval(monitorTimer); tunnel.stop(); },
     report(id) { return rehearsal.readReport(id); },
     renderReport: r => rehearsal.renderHtml(r),
+    // script import / export for the HTTP routes (Director only)
+    parseScript: text => splitBySegments(text, rundown.segments),
+    scriptHtml: () => renderHtml(rundown, id => { const m = media?.get(id); return m ? `${m.id} — ${m.title}${m.available ? '' : ' (NOT AVAILABLE)'}` : id; }),
+    scriptName: () => (rundown.episode?.id || 'DISTANCE-ZERO-script'),
   };
 }
