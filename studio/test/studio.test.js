@@ -818,3 +818,39 @@ test('one sign-in page: the Director code on the public page hands over to this 
   // the host page never opens the Director Studio
   assert.equal((await post(G, '/handoff', { t })).status, 404);
 });
+
+test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, standby and graphics; kept on disk', async () => {
+  const d = client(D, { cookie: directorCookie }), ov = client(D, { query: '?overlay=' + encodeURIComponent(app.secrets.overlayKey) });
+  await Promise.all([d.opened, ov.opened]);
+  await d.send({ t: 'rundown', action: 'reset' });
+  const st0 = await d.next(m => m.t === 'state' && Array.isArray(m.s.shows));
+  assert.deepEqual(st0.s.shows.map(x => x.id), ['sunday', 'friday']);
+  // Sunday
+  assert.equal((await d.send({ t: 'show.select', show: 'sunday' })).ok, true);
+  const sun = await d.next(m => m.t === 'state' && m.s.showId === 'sunday');
+  assert.equal(mock.state.collection, 'DZ — Sunday Show');
+  assert.equal(sun.s.rundown.title, 'DISTANCE // ZERO — Sunday Show');
+  assert.equal(sun.s.rundown.segments[0].title, 'Opening Titles');
+  assert.equal(sun.s.settings.micMode, 'list', 'the show\'s own microphone list');
+  assert.equal(sun.s.settings.standbyScene, 'STANDBY');
+  await ov.next(m => m.t === 'state' && m.s.gfx.tagline === 'Vienna // Melbourne' && m.s.gfx.clocks === true);
+  // Friday: one host, its own rundown, collection and graphics
+  assert.equal((await d.send({ t: 'show.select', show: 'friday' })).ok, true);
+  const fri = await d.next(m => m.t === 'state' && m.s.showId === 'friday');
+  assert.equal(mock.state.collection, "DJ Andy'K — Friday Show");
+  assert.equal(fri.s.rundown.title, "DJ Andy'K — Friday DJ Show");
+  assert.ok(fri.s.rundown.segments.every(x => x.lead === 'andrej'));
+  await ov.next(m => m.t === 'state' && m.s.gfx.tagline === "DJ Andy'K // Friday" && m.s.gfx.clocks === false);
+  // kept across a restart: the choice is in state.json, the rundown in rundown.json
+  await new Promise(r => setTimeout(r, 1200));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'), 'utf8')).showId, 'friday');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'rundown.json'), 'utf8')).title, "DJ Andy'K — Friday DJ Show");
+  // not while the show clock runs, and never while streaming
+  await d.send({ t: 'rundown', action: 'next' });
+  assert.equal((await d.send({ t: 'show.select', show: 'sunday' })).ok, false);
+  await d.send({ t: 'rundown', action: 'reset' });
+  assert.equal((await d.send({ t: 'show.select', show: 'nope' })).ok, false);
+  // back to Sunday for the other tests
+  await d.send({ t: 'show.select', show: 'sunday' });
+  d.close(); ov.close();
+});

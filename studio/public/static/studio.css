@@ -721,3 +721,7 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
   .mon,.deck,.ribbon,.busrow{max-width:100%}
   kbd{display:none}
 }
+
+/* SELECT SHOW: the saved show presets (Sunday // Friday) */
+.showpick{display:flex;flex-direction:column;gap:2px;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim,#8a9099)}
+.showpick select{background:rgba(6,7,9,.7);color:var(--chrome-hi);border:1px solid var(--line-2);padding:6px 8px;font:inherit;font-size:.78rem;letter-spacing:.06em;max-width:15em}

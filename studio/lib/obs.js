@@ -331,6 +331,13 @@ export class Obs extends EventEmitter {
     try { await switchFn(); }
     finally { await this.request('SetCurrentSceneTransition', { transitionName: current }).catch(e => this.log.warn('[obs] restore transition:', e.message)); }
   }
+  // scene collections: each show has its own (sources, scenes, layout); switching reloads OBS's whole scene setup
+  async sceneCollections() { const r = await this.request('GetSceneCollectionList'); return { current: r.currentSceneCollectionName, all: r.sceneCollections || [] }; }
+  async setSceneCollection(name) {
+    if (this.state.stream.active || this.state.record.active) throw new Error('Not while streaming or recording');
+    await this.request('SetCurrentSceneCollection', { sceneCollectionName: name });
+    setTimeout(() => this.refresh().catch(() => {}), 1500);      // OBS loads the collection, then the studio reads it again
+  }
   async setTransition(name) {
     if (!this.state.transitions.some(t => t.name === name)) throw new Error(`OBS has no transition called "${name}"`);
     await this.request('SetCurrentSceneTransition', { transitionName: name });

@@ -33,7 +33,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { transitionName: 'Überblende', transitionKind: 'fade_transition', transitionFixed: false, transitionConfigurable: true },
     { transitionName: 'Stinger // D//0', transitionKind: 'obs_stinger_transition', transitionFixed: true, transitionConfigurable: true },
   ];
-  const st = { program: 'STANDBY', preview: 'OPENING', studioMode: false, stream: false, record: false, streamStart: 0, recordStart: 0,
+  const st = { collection: 'Unbenannt', collections: ['Unbenannt', 'DZ — Sunday Show', "DJ Andy'K — Friday Show"], program: 'STANDBY', preview: 'OPENING', studioMode: false, stream: false, record: false, streamStart: 0, recordStart: 0,
     transition: 'Überblende', duration: 300, media: {} };
   const PALETTE = { STANDBY: ['#1b1e24', '#07080a'], OPENING: ['#3a2a16', '#07080a'], VIENNA: ['#4a3016', '#111317'], MELBOURNE: ['#1d2c40', '#0b1018'],
     'SPLIT // BOTH': ['#3a2a16', '#1d2c40'], GUEST: ['#2a2230', '#0b0b10'], MUSIC: ['#16302a', '#07080a'], CREDITS: ['#202020', '#000'] };
@@ -68,6 +68,11 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
 
   const handlers = {
     GetVersion: () => ({ obsVersion: '31.0.0-mock', obsWebSocketVersion: '5.5.0-mock' }),
+    GetSceneCollectionList: () => ({ currentSceneCollectionName: st.collection, sceneCollections: st.collections }),
+    SetCurrentSceneCollection: d => {
+      if (!st.collections.includes(d.sceneCollectionName)) throw [600, 'No scene collection'];
+      st.collection = d.sceneCollectionName; event('CurrentSceneCollectionChanged', { sceneCollectionName: st.collection }); return {};
+    },
     GetSceneList: () => ({ currentProgramSceneName: st.program, currentPreviewSceneName: st.studioMode ? st.preview : null,
       scenes: scenes.map((sceneName, i) => ({ sceneName, sceneIndex: scenes.length - 1 - i })) }),
     GetStudioModeEnabled: () => ({ studioModeEnabled: st.studioMode }),

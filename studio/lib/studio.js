@@ -41,6 +41,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     // a rehearsal survives a studio restart, and with it the stream/recording lock
     rehearsal: saved.rehearsal || { active: false },
     reports: saved.reports || [],
+    showId: saved.showId || '',         // the selected show preset (Sunday / Friday), kept across restarts
   };
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
@@ -57,6 +58,15 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   const saveState = debounced(() => store.writeSafe('state.json', state));
   const saveChat = debounced(() => store.writeSafe('chat.json', chat.slice(-CHAT_KEEP)));
   const saveRundown = () => store.write('rundown.json', rundown);
+
+  /* show presets: studio/shows/*.json, one per show (Sunday // DISTANCE ZERO, Friday // DJ Andy'K). Selecting one sets
+     the OBS scene collection, rundown, microphones, standby scene, transition and overlay graphics in one go. */
+  const SHOWS_DIR = path.join(path.dirname(sampleRundownPath), 'shows');
+  const shows = (() => {
+    try { return fs.readdirSync(SHOWS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync(path.join(SHOWS_DIR, f), 'utf8'))).sort((a, b) => a.id.localeCompare(b.id)).reverse(); }
+    catch { return []; }
+  })();
+  const showList = () => shows.map(x => ({ id: x.id, name: x.name, hosts: x.hosts, collection: x.obs?.sceneCollection || '' }));
 
   /* rundown templates: one saved rundown per episode, in data/rundowns/<name>.json */
   const TPL_DIR = path.join(store.dir, 'rundowns');
@@ -175,7 +185,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), rundown: rundownView(), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, rundown: rundownView(), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -312,6 +322,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       case 'reminder': return reminderAction(msg);
       case 'settings': return settingsAction(msg);
       case 'gfx': return gfxAction(msg);
+      case 'show.select': return selectShow(msg);
       case 'emergency': return emergency(msg);
       case 'tunnel.link': {
         // Georgie's full sign-in link, only on request, only for the director (to copy into Signal/iMessage)
@@ -507,6 +518,40 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     }
     logEvent('ok', 'Technical settings changed');
     changed();
+  }
+
+  async function selectShow(msg) {
+    const x = shows.find(s => s.id === msg.show);
+    if (!x) throw new Error('No such show');
+    const o = obs.state;
+    if (o.stream.active || o.record.active) throw new Error('Not while streaming or recording. End them first.');
+    if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first, then select the show.');
+    const notes = [];
+    // 1. OBS: the show's own scene collection (sources, scenes, layout). The studio never builds or deletes one here.
+    if (o.connected && x.obs?.sceneCollection) {
+      const c = await obs.sceneCollections().catch(() => null);
+      if (!c) notes.push('OBS did not list its scene collections');
+      else if (!c.all.includes(x.obs.sceneCollection)) notes.push(`OBS has no scene collection "${x.obs.sceneCollection}" yet (npm run obs-setup creates it)`);
+      else if (c.current !== x.obs.sceneCollection) await obs.setSceneCollection(x.obs.sceneCollection);
+    } else if (!o.connected) notes.push('OBS is offline: its scene collection is switched the next time you select the show with OBS open');
+    // 2. rundown, 3. microphones and standby scene, 4. overlay graphics
+    rundown = { title: str(x.rundown?.title, 120), sample: false,
+      segments: (x.rundown?.segments || []).slice(0, 60).map(seg => cleanSegment({ ...seg, id: 'seg-' + crypto.randomBytes(4).toString('hex') }, 'seg')) };
+    state.pos.index = -1; state.pos.segmentStartedAt = null;
+    saveRundown();
+    state.settings.micInputs = (x.mics || []).map(n => str(n, 256));
+    obs.setMicList(state.settings.micInputs);
+    state.settings.standbyScene = str(x.obs?.standbyScene, 256);
+    state.gfx = { ...state.gfx, tagline: str(x.overlay?.tagline, 60), clocks: !!x.overlay?.clocks, ident: false, lowerThird: { ...state.gfx.lowerThird, visible: false } };
+    state.showId = x.id;
+    // 5. transition: by kind, because OBS names them in its own language (Fade / Überblende)
+    if (o.connected && x.obs?.transition) setTimeout(async () => {
+      const t = obs.state.transitions.find(tr => tr.kind === x.obs.transition + '_transition');
+      if (t) { await obs.setTransition(t.name).catch(() => {}); if (x.obs.transitionMs) await obs.setTransitionDuration(x.obs.transitionMs).catch(() => {}); }
+    }, 2500);
+    logEvent(notes.length ? 'warn' : 'ok', `Show selected: ${x.name}${notes.length ? ' — ' + notes.join('; ') : ''}`);
+    changed();
+    return { notes };
   }
 
   function gfxAction(msg) {

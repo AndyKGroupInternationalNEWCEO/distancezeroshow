@@ -17,6 +17,7 @@ function start() {
 function paint(s) {
   const g = s.gfx;
   $('bug').classList.toggle('on', g.bug);
+  $('bugTag').textContent = g.tagline || 'Vienna // Melbourne';
   $('clocks').classList.toggle('on', g.clocks);
   $('identTitle').textContent = s.segment?.title || '';
   $('ident').classList.toggle('on', g.ident && !!s.segment);

@@ -37,3 +37,6 @@ body{font-family:"Archivo",system-ui,sans-serif;color:var(--chrome-hi);-webkit-f
 .plate span:empty{display:none}
 .nolink{position:absolute;left:20px;bottom:20px;background:#000;color:#ffb3b5;font:14px system-ui;padding:6px 10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* approved key-visual logo in the bug; the line under it follows the selected show */
+.bug svg.logo{display:block;margin-left:auto;width:calc(150 * var(--u));height:auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}

@@ -1,0 +1,432 @@
+{
+  "id": "sunday",
+  "name": "SUNDAY — DISTANCE // ZERO",
+  "hosts": [
+    "andrej",
+    "georgie"
+  ],
+  "obs": {
+    "sceneCollection": "DZ — Sunday Show",
+    "standbyScene": "STANDBY",
+    "transition": "fade",
+    "transitionMs": 600
+  },
+  "overlay": {
+    "tagline": "Vienna // Melbourne",
+    "clocks": true
+  },
+  "mics": [
+    "Mic // Andrej",
+    "VDO // Georgie"
+  ],
+  "rundown": {
+    "title": "DISTANCE // ZERO — Sunday Show",
+    "segments": [
+      {
+        "id": "open",
+        "title": "Opening Titles",
+        "kind": "VT",
+        "minutes": 2,
+        "lead": "both",
+        "notes": "Opening video full screen. Mics closed until the D//0 sting ends."
+      },
+      {
+        "id": "welcome",
+        "title": "Welcome // Vienna & Melbourne",
+        "kind": "TALK",
+        "minutes": 6,
+        "lead": "both",
+        "notes": "Local times, weather swap, what's coming up tonight."
+      },
+      {
+        "id": "playing",
+        "title": "Now Playing",
+        "kind": "MUSIC",
+        "minutes": 15,
+        "lead": "andrej",
+        "notes": "Two records each. Georgie back-announces the first one."
+      },
+      {
+        "id": "track",
+        "title": "Behind the Track",
+        "kind": "TALK",
+        "minutes": 15,
+        "lead": "andrej",
+        "notes": "One release, taken apart by the person who made it."
+      },
+      {
+        "id": "discovery",
+        "title": "Artist Discovery",
+        "kind": "TALK",
+        "minutes": 15,
+        "lead": "georgie",
+        "notes": "Georgie leads. Play the artist's track at the end of the segment."
+      },
+      {
+        "id": "break",
+        "title": "Music Break",
+        "kind": "MUSIC",
+        "minutes": 5,
+        "lead": "andrej",
+        "notes": "Hosts off mic. Reset for the guest."
+      },
+      {
+        "id": "guest",
+        "title": "Live Guest",
+        "kind": "GUEST",
+        "minutes": 25,
+        "lead": "both",
+        "notes": "Researched properly. Interviewed improperly."
+      },
+      {
+        "id": "questions",
+        "title": "Audience Questions",
+        "kind": "TALK",
+        "minutes": 15,
+        "lead": "georgie",
+        "notes": "Georgie reads questions from the live chat."
+      },
+      {
+        "id": "versus",
+        "title": "Ösi vs Aussie",
+        "kind": "TALK",
+        "minutes": 12,
+        "lead": "both",
+        "notes": "Two countries with nearly the same name sort it out."
+      },
+      {
+        "id": "coming",
+        "title": "Coming Up",
+        "kind": "TALK",
+        "minutes": 5,
+        "lead": "both",
+        "notes": "Next show, next guest, next banger."
+      },
+      {
+        "id": "close",
+        "title": "Close & Credits",
+        "kind": "VT",
+        "minutes": 5,
+        "lead": "both",
+        "notes": "Goodbyes in both time zones. Roll credits over the outro track."
+      }
+    ]
+  },
+  "sources": {
+    "Cam // Andrej": {
+      "kind": "camera"
+    },
+    "VDO // Georgie": {
+      "kind": "vdo"
+    },
+    "D//0 Overlay": {
+      "kind": "overlay"
+    },
+    "Studio Loop": {
+      "kind": "media",
+      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
+      "loop": true
+    },
+    "Opening Video": {
+      "kind": "media",
+      "file": "shared-assets/previews/DISTANCE_ZERO_OPENING_NEW_LOGO_preview-A.mp4",
+      "restart": true
+    },
+    "Logo Reveal": {
+      "kind": "media",
+      "file": "shared-assets/show DO/ligobidhjvj.mp4",
+      "restart": true
+    },
+    "Mic // Andrej": {
+      "kind": "mic"
+    },
+    "DJ Mixer": {
+      "kind": "mixer",
+      "note": "choose the DJ mixer's audio device in OBS once"
+    },
+    "Jingle // D//0 Opening": {
+      "kind": "audio",
+      "file": "shared-assets/show DO/DISTANolohohCE __ ZERO_master.wav"
+    },
+    "Jingle // slot 2": {
+      "kind": "audio",
+      "file": "",
+      "note": "add the file later"
+    },
+    "Jingle // slot 3": {
+      "kind": "audio",
+      "file": "",
+      "note": "add the file later"
+    },
+    "Music // DISTANCE ZERO Theme": {
+      "kind": "audio",
+      "file": "shared-assets/show DO/1.DISTANCE __ ZERO_master.wav"
+    },
+    "Bed // Three-Note Signature": {
+      "kind": "audio",
+      "file": "shared-assets/show DO/DISTANCE ZERO - Three-Note Signature.wav",
+      "loop": true
+    },
+    "Bed // Three-Note Signature B": {
+      "kind": "audio",
+      "file": "shared-assets/show DO/DISTANCE ZERO - Three-Note Signature (B).wav",
+      "loop": true
+    }
+  },
+  "scenes": [
+    {
+      "name": "STANDBY",
+      "role": "standby",
+      "items": [
+        [
+          "Studio Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "OPENING",
+      "role": "opening",
+      "items": [
+        [
+          "Opening Video",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "SPLIT // BOTH",
+      "role": "talk",
+      "items": [
+        [
+          "Studio Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "Cam // Andrej",
+          {
+            "x": 64,
+            "y": 200,
+            "w": 880,
+            "h": 495
+          }
+        ],
+        [
+          "VDO // Georgie",
+          {
+            "x": 976,
+            "y": 200,
+            "w": 880,
+            "h": 495
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "VIENNA",
+      "role": "host1",
+      "items": [
+        [
+          "Cam // Andrej",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "MELBOURNE",
+      "role": "host2",
+      "items": [
+        [
+          "VDO // Georgie",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "GUEST",
+      "role": "guest",
+      "items": [
+        [
+          "Studio Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "Cam // Andrej",
+          {
+            "x": 64,
+            "y": 200,
+            "w": 880,
+            "h": 495
+          }
+        ],
+        [
+          "VDO // Georgie",
+          {
+            "x": 976,
+            "y": 200,
+            "w": 880,
+            "h": 495
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ],
+      "note": "a guest joins as a second VDO.Ninja feed later"
+    },
+    {
+      "name": "MUSIC",
+      "role": "music",
+      "items": [
+        [
+          "Studio Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "BREAK",
+      "role": "break",
+      "items": [
+        [
+          "Logo Reveal",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "CREDITS",
+      "role": "ending",
+      "items": [
+        [
+          "Studio Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    }
+  ],
+  "audioOnly": [
+    "Mic // Andrej",
+    "DJ Mixer",
+    "Jingle // D//0 Opening",
+    "Jingle // slot 2",
+    "Jingle // slot 3",
+    "Music // DISTANCE ZERO Theme",
+    "Bed // Three-Note Signature",
+    "Bed // Three-Note Signature B"
+  ]
+}

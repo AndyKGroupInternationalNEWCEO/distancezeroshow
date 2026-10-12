@@ -17,7 +17,8 @@
     "test": "node --test test/*.test.js",
     "tunnel": "node tunnel.js",
     "obs-check": "node obs-check.js",
-    "rotate-overlay": "node server.js --rotate-overlay"
+    "rotate-overlay": "node server.js --rotate-overlay",
+    "obs-setup": "node obs-setup.js"
   },
   "dependencies": {
     "ws": "^8.22.0"

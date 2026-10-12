@@ -1,7 +1,7 @@
 // Director Studio shell: one connection to the studio server, three workspaces (Live, Show, Technical),
 // keyboard, and pop-out windows so each workspace can live on its own screen later.
 // Every control sends a request to the local studio server, which checks the director role and talks to OBS.
-import { $, $$, connect, checkSignedIn, runClocks, chatPanel, titleBadge } from '../common.js';
+import { $, $$, connect, checkSignedIn, runClocks, chatPanel, titleBadge, act, toast } from '../common.js';
 import * as live from './live.js';
 import * as show from './show.js';
 import * as tech from './tech.js';
@@ -93,6 +93,18 @@ setWs(location.hash.slice(1) || 'live');
 
 initLayout();
 
+// selecting a show loads its OBS scene collection, rundown, microphones, standby scene, transition and graphics
+$('#showPick').addEventListener('change', e => {
+  const id = e.target.value; if (!id) return;
+  act(null, async () => {
+    try {
+      const r = await ctx.conn.send({ t: 'show.select', show: id });
+      const notes = r?.result?.notes || r?.notes || [];
+      if (notes.length) toast(notes.join(' · '), 'warn');
+    } catch (err) { e.target.value = ctx.S?.showId || ''; throw err; }
+  }, 'Show loaded');
+});
+
 $('#popout').addEventListener('click', () => {
   const w = window.open(location.pathname + '#' + ctx.ws, 'dz-' + ctx.ws, 'popup,width=1440,height=900');
   if (w) w.opener = null;
@@ -102,6 +114,11 @@ $('#popout').addEventListener('click', () => {
 
 function header() {
   const S = ctx.S, o = S?.obs;
+  // SELECT SHOW: lists the presets; the current one stays selected
+  const pick = $('#showPick'), shows = S?.shows || [];
+  if (pick.dataset.n !== String(shows.length)) { pick.replaceChildren(...shows.map(x => Object.assign(document.createElement('option'), { value: x.id, textContent: x.name }))); pick.dataset.n = String(shows.length); }
+  if (!shows.some(x => x.id === S?.showId) && !pick.querySelector('option[value=""]')) pick.prepend(Object.assign(document.createElement('option'), { value: '', textContent: '— choose —' }));
+  if (document.activeElement !== pick) pick.value = S?.showId || '';
   const air = $('#tallyAir'), rec = $('#tallyRec');
   const live = !!o?.stream.active;
   air.className = 'tally' + (live ? (o.stream.reconnecting ? ' warn' : ' on') : '');

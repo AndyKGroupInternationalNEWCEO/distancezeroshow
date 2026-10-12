@@ -1,0 +1,302 @@
+{
+  "id": "friday",
+  "name": "FRIDAY — DJ ANDY'K",
+  "hosts": [
+    "andrej"
+  ],
+  "obs": {
+    "sceneCollection": "DJ Andy'K — Friday Show",
+    "standbyScene": "STANDBY",
+    "transition": "fade",
+    "transitionMs": 400
+  },
+  "overlay": {
+    "tagline": "DJ Andy'K // Friday",
+    "clocks": false
+  },
+  "mics": [
+    "Mic // Andrej"
+  ],
+  "rundown": {
+    "title": "DJ Andy'K — Friday DJ Show",
+    "segments": [
+      {
+        "title": "Opening",
+        "kind": "VT",
+        "minutes": 1,
+        "lead": "andrej"
+      },
+      {
+        "title": "Hello // tonight's set",
+        "kind": "TALK",
+        "minutes": 3,
+        "lead": "andrej"
+      },
+      {
+        "title": "DJ Set // part 1",
+        "kind": "MUSIC",
+        "minutes": 40,
+        "lead": "andrej"
+      },
+      {
+        "title": "Shout-outs & requests",
+        "kind": "TALK",
+        "minutes": 5,
+        "lead": "andrej"
+      },
+      {
+        "title": "DJ Set // part 2",
+        "kind": "MUSIC",
+        "minutes": 40,
+        "lead": "andrej"
+      },
+      {
+        "title": "Track IDs & thank you",
+        "kind": "TALK",
+        "minutes": 5,
+        "lead": "andrej"
+      },
+      {
+        "title": "Closing",
+        "kind": "VT",
+        "minutes": 2,
+        "lead": "andrej"
+      }
+    ]
+  },
+  "sources": {
+    "Cam // Andrej": {
+      "kind": "camera"
+    },
+    "D//0 Overlay": {
+      "kind": "overlay"
+    },
+    "Visuals Loop": {
+      "kind": "media",
+      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
+      "loop": true,
+      "note": "replace with your own DJ visuals any time"
+    },
+    "Opening Video": {
+      "kind": "media",
+      "file": "",
+      "restart": true,
+      "note": "add the Friday opening video later"
+    },
+    "Mic // Andrej": {
+      "kind": "mic"
+    },
+    "DJ Mixer": {
+      "kind": "mixer",
+      "note": "choose the DJ mixer's audio device in OBS once"
+    },
+    "Jingle // DJ Andy'K Short": {
+      "kind": "audio",
+      "file": "shared-assets/jingles/DjAndykoffcial Jinge short.mp3"
+    },
+    "Jingle // SOU Clean": {
+      "kind": "audio",
+      "file": "shared-assets/jingles/DJ ANDY K - SOU - CLEAN.mp3"
+    },
+    "Jingle // SOU Club": {
+      "kind": "audio",
+      "file": "shared-assets/jingles/DJ ANDY K - SOU - CLUB.mp3"
+    },
+    "Jingle // DR Clean": {
+      "kind": "audio",
+      "file": "shared-assets/jingles/DJ ANDY K - DR - CLEAN.mp3"
+    },
+    "Jingle // DR Club": {
+      "kind": "audio",
+      "file": "shared-assets/jingles/DJ ANDY K - DR - CLUB.mp3"
+    }
+  },
+  "scenes": [
+    {
+      "name": "STANDBY",
+      "role": "standby",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "OPENING",
+      "role": "opening",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "Opening Video",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "DJ BOOTH",
+      "role": "host1",
+      "items": [
+        [
+          "Cam // Andrej",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "DJ + VISUALS",
+      "role": "music",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "Cam // Andrej",
+          {
+            "x": 1216,
+            "y": 652,
+            "w": 640,
+            "h": 360
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "VISUALS",
+      "role": "visuals",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "BREAK",
+      "role": "break",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    },
+    {
+      "name": "CREDITS",
+      "role": "ending",
+      "items": [
+        [
+          "Visuals Loop",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ],
+        [
+          "D//0 Overlay",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ]
+    }
+  ],
+  "audioOnly": [
+    "Mic // Andrej",
+    "DJ Mixer",
+    "Jingle // DJ Andy'K Short",
+    "Jingle // SOU Clean",
+    "Jingle // SOU Club",
+    "Jingle // DR Clean",
+    "Jingle // DR Club"
+  ]
+}
