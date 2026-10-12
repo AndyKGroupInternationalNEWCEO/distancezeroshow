@@ -10,7 +10,8 @@ import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTe
 export const RISER = 0.16;            // stage riser height
 export const DESK_CENTER = -4.4;      // z of the circle the desk is an arc of
 export const SEATS = { andy: new THREE.Vector3(-0.95, RISER, -1.95), georgie: new THREE.Vector3(0.95, RISER, -1.95) };
-const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), champagne: new THREE.Color('#e3c79a'), warm: new THREE.Color('#fff0dc'), cool: new THREE.Color('#e6efff') };
+const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), champagne: new THREE.Color('#e3c79a'), warm: new THREE.Color('#fff0dc'), cool: new THREE.Color('#e6efff'),
+  tungsten: new THREE.Color('#ffa64d') };   // an old filament bulb: yellow to amber, never white
 
 /* ---------- materials ---------- */
 
@@ -443,14 +444,15 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'kv' }) {
   add(sign);
 
   /* ----- lights ----- */
-  const lights = buildLights(root, quality, wallLight);
+  // the truss fixture right above the grand (Melbourne side) is the one that turns to it in the piano shot
+  const lights = buildLights(root, quality, wallLight, fixtures.children[1]);
 
   /* ----- per-frame: lighting levels, LED colours, wall, tallies ----- */
   function update(t, dt, L, tally) {
     const pulse = 1 + L.aOn * L.aBass * 0.9;
     for (const { m, k } of glows.amber) m.color.copy(m.userData.base).multiplyScalar(k * L.amber * L.accent * pulse);
     for (const { m, k } of glows.ice) m.color.copy(m.userData.base).multiplyScalar(k * L.ice * L.accent * pulse);
-    for (const { m, k } of glows.white) m.color.copy(m.userData.base).multiplyScalar(k * (0.35 + 0.65 * L.accent));
+    for (const { m, k } of glows.white) m.color.copy(m.userData.base).multiplyScalar(k * (0.35 + 0.65 * L.accent) * (1 - 0.75 * L.solo));
     for (const { m, k } of glows.gradient) {
       m.color.setScalar(k * L.accent * (0.85 + 0.15 * Math.sin(t * 1.2)) * (1 + L.aOn * L.aBass * 1.3));
     }
@@ -838,7 +840,7 @@ function buildLogoKV(M, glows) {
 
 /* ---------- lights ---------- */
 
-function buildLights(root, quality, wallLight) {
+function buildLights(root, quality, wallLight, pianoLamp) {
   const spot = (color, pos, target, { angle = 0.42, penumbra = 0.65, shadow = false } = {}) => {
     const l = new THREE.SpotLight(color, 0, 0, angle, penumbra, 2);
     l.position.copy(pos); l.target.position.copy(target);
@@ -858,6 +860,22 @@ function buildLights(root, quality, wallLight) {
   const djSpot = spot(C.amber, new THREE.Vector3(-4.2, 6.5, 2.4), new THREE.Vector3(-5.4, 0.9, 0.1), { angle: 0.32 });
   // the grand piano opposite: a soft cool top light, so the lacquer shows its curves (Melbourne side)
   const pianoSpot = spot(C.cool, new THREE.Vector3(3.6, 6.4, 3.2), new THREE.Vector3(5.6, 0.8, 0.1), { angle: 0.34, penumbra: 0.85 });
+  // the piano shot: everything else goes down and that truss fixture tilts onto the grand with one narrow,
+  // warm spot, like a single old bulb over the piano in an empty hall
+  const soloAim = new THREE.Vector3(5.65, 0.8, 0.2);
+  pianoLamp.updateWorldMatrix(true, false);
+  const restQ = pianoLamp.quaternion.clone();
+  pianoLamp.lookAt(soloAim);
+  const aimQ = pianoLamp.quaternion.clone();
+  pianoLamp.quaternion.copy(restQ);
+  const soloFrom = pianoLamp.getWorldPosition(new THREE.Vector3());
+  const soloSpot = spot(C.tungsten, soloFrom, soloAim, { angle: 0.26, penumbra: 0.55 });
+  const soloLen = soloFrom.distanceTo(soloAim);
+  const soloBeam = new THREE.Mesh(new THREE.ConeGeometry(Math.tan(0.26) * soloLen, soloLen, 32, 1, true).translate(0, -soloLen / 2, 0).rotateX(-Math.PI / 2), beamMaterial(C.tungsten));
+  soloBeam.position.z = 0.2;
+  pianoLamp.add(soloBeam);
+  const soloLens = pianoLamp.children[1];
+  soloLens.material = glow(C.warm);   // its own lens, so it can glow on its own (a clone would lose userData.base)
   const logoSpot = spot(C.warm, new THREE.Vector3(0, 7.4, -2.2), new THREE.Vector3(0, 3.6, -5.6), { angle: 0.3, penumbra: 0.9 });
   const fill = new THREE.RectAreaLight(C.warm, 0, 5.5, 1.6);
   fill.position.set(0, 5.6, 1.6); fill.lookAt(0, 0.8, -1.8);
@@ -876,12 +894,17 @@ function buildLights(root, quality, wallLight) {
       rimA.intensity = 140 * L.rim * L.amber * breathe;
       rimI.intensity = 140 * L.rim * L.ice * (2 - breathe);
       djSpot.intensity = 120 * L.accent * (0.6 + 0.4 * L.music);
-      pianoSpot.intensity = 95 * L.accent * (0.75 + 0.25 * L.music);
+      pianoSpot.intensity = 95 * L.accent * (0.75 + 0.25 * L.music) * (1 - L.solo);
+      soloSpot.intensity = 480 * L.solo;
+      soloBeam.material.uniforms.uOpacity.value = 0.16 * L.solo;
+      soloBeam.visible = L.solo > 0.01;
+      soloLens.material.color.copy(soloLens.material.userData.base).multiplyScalar(1.8 * (0.35 + 0.65 * L.accent)).lerp(C.tungsten, L.solo).multiplyScalar(1 + 3 * L.solo);
+      pianoLamp.quaternion.slerpQuaternions(restQ, aimQ, THREE.MathUtils.smoothstep(L.solo, 0, 1));
       logoSpot.intensity = 120 * L.accent;
       fill.intensity = 1.6 * L.key;
       house.intensity = 0.9 * L.house;
-      hemi.intensity = 0.42 + 0.3 * L.house;
-      soft.intensity = 0.55 + 0.25 * L.house;
+      hemi.intensity = (0.42 + 0.3 * L.house) * (1 - 0.75 * L.solo);
+      soft.intensity = (0.55 + 0.25 * L.house) * (1 - 0.85 * L.solo);
     },
   };
 }

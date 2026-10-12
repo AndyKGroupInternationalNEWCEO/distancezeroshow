@@ -23,6 +23,8 @@ export const LOOKS = {
 };
 export const OFF = { key: 0.36, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
 export const ON = { wall: 1, house: 0.2, onAir: 1 };
+// the piano shot, on or off air: the studio goes down to a glow and one warm spot from the truss takes the grand
+export const SOLO = { key: 0.08, rim: 0.12, accent: 0.18, fins: 0.15, beams: 0, wall: 0.2, house: 0.25 };
 const PROGRAMME = [['cities', 15], ['presenters', 11], ['wave', 10]];
 
 // what the shiny surfaces reflect: a dark studio with a softbox overhead, the LED wall, key lights and the
@@ -131,11 +133,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   /* ----- state: look, on/off air (simulation only) ----- */
   let look = 'broadcast', onAir = false, sim = false, countdownTimer = 0, programmeAt = 0, programmeIndex = 0;
   // a* = what the studio "hears" (soundtrack and piano), 0 when silent
-  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 };
+  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 };
   const target = () => {
     const base = { ...LOOKS[look] };
-    if (!onAir) return { ...base, key: base.key * OFF.key, rim: base.rim * OFF.rim, accent: base.accent * OFF.accent, fins: base.fins * OFF.fins, beams: 0, wall: OFF.wall, house: OFF.house, onAir: 0, music: base.music * 0.3 };
-    return { ...base, ...ON };
+    const goal = onAir ? { ...base, ...ON }
+      : { ...base, key: base.key * OFF.key, rim: base.rim * OFF.rim, accent: base.accent * OFF.accent, fins: base.fins * OFF.fins, beams: 0, wall: OFF.wall, house: OFF.house, onAir: 0, music: base.music * 0.3 };
+    goal.solo = director.current === 'piano' ? 1 : 0;
+    if (goal.solo) for (const [k, v] of Object.entries(SOLO)) goal[k] *= v;
+    return goal;
   };
 
   function showTally() {
@@ -310,6 +315,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     wallAccum += dt;
     if (studio.wall.program === 'film' ? studio.wall.fresh() : wallAccum >= wallStep) { studio.wall.draw(t, wallAccum); wallAccum = 0; }
     studio.update(t, dt, L, director.tally());
+    scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
+    bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 
     director.update(dt, now);
     controls.update(dt);
