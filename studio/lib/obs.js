@@ -386,6 +386,16 @@ export class Obs extends EventEmitter {
     if (!MEDIA[action]) throw new Error('Unknown media action');
     await this.request('TriggerMediaInputAction', { inputName: name, mediaAction: MEDIA[action] });
   }
+  // the library's players: load a file into an OBS media source and play it from the start (or stop it)
+  async playFile(inputName, file, loop = false) {
+    if (!this.state.media.some(m => m.name === inputName)) throw new Error(`OBS has no "${inputName}" in this show (npm run obs-setup -- sunday friday --players)`);
+    await this.request('SetInputSettings', { inputName, inputSettings: { local_file: file, looping: !!loop, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: !loop }, overlay: true });
+    await this.request('TriggerMediaInputAction', { inputName, mediaAction: MEDIA.restart || 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART' });
+  }
+  async stopFile(inputName) {
+    if (!this.state.media.some(m => m.name === inputName)) return;
+    await this.request('TriggerMediaInputAction', { inputName, mediaAction: MEDIA.stop || 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP' });
+  }
   async muteMics() {
     const mics = this.state.audio.filter(a => a.mic);
     if (!mics.length) throw new Error('No microphone sources tagged. Tag them in Technical Control → Audio sources.');

@@ -1,0 +1,373 @@
+{
+  "_about": "Media catalog of the Broadcast Studio. Audio = the master WAV jingles (matched by title in audioDir). Video = the show's MP4 cards. Entries without a file show NOT AVAILABLE. IDs follow the official catalog; 03 is not identified yet and is deliberately absent.",
+  "audioDir": "shared-assets/jingles/DZ-masters",
+  "audio": [
+    {
+      "id": "01",
+      "title": "FRIDAY LIVE OPENING",
+      "shows": [
+        "friday"
+      ]
+    },
+    {
+      "id": "02",
+      "title": "FRIDAY DJ TRANSITION",
+      "shows": [
+        "friday"
+      ]
+    },
+    {
+      "id": "04",
+      "title": "SHORT BREAK",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "05",
+      "title": "WELCOME BACK",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "06",
+      "title": "NEXT SEGMENT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "07",
+      "title": "END OF SHOW",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "08",
+      "title": "WORLD PREMIERE",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "09",
+      "title": "SPECIAL GUEST",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "10",
+      "title": "LIVE MUSIC SESSION",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "11",
+      "title": "TECHNICAL BREAK",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "12",
+      "title": "COMING UP NEXT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "13",
+      "title": "LIVE CHAT IS OPEN",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "14",
+      "title": "CALLING LINES ARE OPEN",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "15",
+      "title": "THIS IS GEORGIE WALKER",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "16",
+      "title": "THIS IS ANDREJ KNEISL / DJ ANDY'K",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "17",
+      "title": "SUNDAY SHOW OPENING",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "18",
+      "title": "SHOW STARTING SOON",
+      "shows": [
+        "sunday"
+      ]
+    },
+    {
+      "id": "19",
+      "title": "FRIDAY SHOW CLOSING",
+      "shows": [
+        "friday"
+      ]
+    },
+    {
+      "id": "20",
+      "title": "PLEASE STAND BY",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "21",
+      "title": "SUNDAY SHOW CLOSING",
+      "shows": [
+        "sunday"
+      ]
+    }
+  ],
+  "video": [
+    {
+      "id": "V01",
+      "title": "SUNDAY MAIN SHOW OPENING",
+      "category": "OPENING",
+      "shows": [
+        "sunday"
+      ],
+      "file": "shared-assets/previews/DISTANCE_ZERO_OPENING_NEW_LOGO_preview-A.mp4",
+      "embeddedAudio": true,
+      "linkedAudio": "17"
+    },
+    {
+      "id": "V02",
+      "title": "FRIDAY LIVE OPENING",
+      "category": "OPENING",
+      "shows": [
+        "friday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "01"
+    },
+    {
+      "id": "V03",
+      "title": "SHOW STARTING SOON — THE SHOW STARTS SOON",
+      "category": "OPENING",
+      "shows": [
+        "sunday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_01_THE_SHOW_STARTS_SOON_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "18"
+    },
+    {
+      "id": "V04",
+      "title": "WORLD PREMIERE",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "08"
+    },
+    {
+      "id": "V05",
+      "title": "SPECIAL GUEST",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "09"
+    },
+    {
+      "id": "V06",
+      "title": "LIVE MUSIC SESSION",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "10"
+    },
+    {
+      "id": "V07",
+      "title": "COMING UP NEXT",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_04_COMING_UP_NEXT_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "12"
+    },
+    {
+      "id": "V08",
+      "title": "LIVE CHAT IS OPEN",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "13"
+    },
+    {
+      "id": "V09",
+      "title": "CALLING LINES ARE OPEN",
+      "category": "PROGRAM",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "14"
+    },
+    {
+      "id": "V10",
+      "title": "SHORT BREAK — WE'LL BE RIGHT BACK",
+      "category": "BREAKS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_02_WELL_BE_RIGHT_BACK_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "04"
+    },
+    {
+      "id": "V11",
+      "title": "WELCOME BACK — WE ARE BACK",
+      "category": "BREAKS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_03_WE_ARE_BACK_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "05"
+    },
+    {
+      "id": "V12",
+      "title": "TECHNICAL BREAK",
+      "category": "BREAKS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "11"
+    },
+    {
+      "id": "V13",
+      "title": "PLEASE STAND BY",
+      "category": "BREAKS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_05_PLEASE_STAND_BY_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "20"
+    },
+    {
+      "id": "V14",
+      "title": "SUNDAY SHOW CLOSING",
+      "category": "CLOSING",
+      "shows": [
+        "sunday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "21"
+    },
+    {
+      "id": "V15",
+      "title": "FRIDAY SHOW CLOSING",
+      "category": "CLOSING",
+      "shows": [
+        "friday"
+      ],
+      "file": null,
+      "embeddedAudio": false,
+      "linkedAudio": "19"
+    },
+    {
+      "id": "V16",
+      "title": "END OF BROADCAST — THIS BROADCAST HAS ENDED",
+      "category": "CLOSING",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_07_THIS_BROADCAST_HAS_ENDED_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "07"
+    },
+    {
+      "id": "V17",
+      "title": "THANK YOU FOR WATCHING",
+      "category": "CLOSING",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/1080p/DZ_06_THANK_YOU_FOR_WATCHING_1080p.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": null
+    },
+    {
+      "id": "V18",
+      "title": "D//0 LOGO REVEAL",
+      "category": "VISUALS",
+      "shows": [
+        "sunday"
+      ],
+      "file": "shared-assets/show DO/ligobidhjvj.mp4",
+      "embeddedAudio": true,
+      "linkedAudio": null
+    },
+    {
+      "id": "V19",
+      "title": "STUDIO LOOP",
+      "category": "VISUALS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
+      "embeddedAudio": true,
+      "linkedAudio": null
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import { createStore } from './lib/store.js';
 import { loadSecrets, codeMatches, sameSecret, makeSession, checkSession, cookieHeader, parseCookies, limiter } from './lib/auth.js';
 import { Obs, isLoopbackUrl } from './lib/obs.js';
 import { createStudio } from './lib/studio.js';
+import { createMedia } from './lib/media.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -41,7 +42,8 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
   const store = createStore(dataDir);
   const secrets = loadSecrets(store, { rotate });
   const obs = new Obs({ url: config.obs.url, password: obsPassword, micPattern: config.emergency.micPattern, micInputs: config.emergency.micInputs, log });
-  const studio = createStudio({ config, store, secrets, obs, sampleRundownPath: path.join(ROOT, 'rundown.sample.json'), log });
+  const media = createMedia({ root: ROOT, dzRoot: path.resolve(ROOT, '..', '..') });
+  const studio = createStudio({ config, store, secrets, obs, media, sampleRundownPath: path.join(ROOT, 'rundown.sample.json'), log });
 
   const loginLimit = limiter(10, 10 * 60 * 1000);
   // one sign-in page for both people: the Director code typed on the PUBLIC page does not open the Director Studio
@@ -110,6 +112,24 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (req.method === 'GET' && p === '/favicon.svg') return file(req, res, path.join(SITE_ASSETS, 'favicon.svg'));
       if (req.method === 'GET' && p === '/login') return file(req, res, path.join(PUBLIC, 'login.html'));
       if (req.method === 'POST' && p === '/login') return login(req, res);
+      // private preview of a library file (jingle or video) for the Director's own headphones: this Mac only, signed in,
+      // never through a proxy, with byte ranges so long WAVs and videos can seek
+      const mm = role === 'director' && req.method === 'GET' && /^\/media\/([A-Z0-9]{1,4})$/.exec(p);
+      if (mm) {
+        if (proxied(req) || !authed(req)) return send(req, res, 403, 'text/plain', 'No');
+        const item = media.get(mm[1]);
+        if (!item?.available) return send(req, res, 404, 'text/plain; charset=utf-8', 'Not available');
+        const size = fs.statSync(item.file).size, type = item.type === 'audio' ? 'audio/wav' : /\.mov$/i.test(item.file) ? 'video/quicktime' : 'video/mp4';
+        const r = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+        if (r) {
+          const start = r[1] === '' ? size - Number(r[2]) : Number(r[1]), end = Math.min(r[1] !== '' && r[2] !== '' ? Number(r[2]) : size - 1, size - 1);
+          if (!(start >= 0 && start <= end)) return send(req, res, 416, 'text/plain', '', { 'Content-Range': `bytes */${size}` });
+          res.writeHead(206, { ...headers(req, type), 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+          return fs.createReadStream(item.file, { start, end }).pipe(res);
+        }
+        res.writeHead(200, { ...headers(req, type), 'Accept-Ranges': 'bytes', 'Content-Length': size });
+        return fs.createReadStream(item.file).pipe(res);
+      }
       if (role === 'director' && !proxied(req) && req.method === 'GET' && p === '/handoff') return file(req, res, path.join(PUBLIC, 'handoff.html'));
       if (role === 'director' && !proxied(req) && req.method === 'POST' && p === '/handoff') {
         let body = '';

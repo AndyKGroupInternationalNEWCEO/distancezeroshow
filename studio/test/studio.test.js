@@ -830,7 +830,8 @@ test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, stand
   const sun = await d.next(m => m.t === 'state' && m.s.showId === 'sunday');
   assert.equal(mock.state.collection, 'DZ — Sunday Show');
   assert.equal(sun.s.rundown.title, 'DISTANCE // ZERO — Sunday Show');
-  assert.equal(sun.s.rundown.segments[0].title, 'Opening Titles');
+  assert.equal(sun.s.rundown.segments[0].title, 'SHOW STARTING SOON');
+  assert.equal(sun.s.rundown.segments.reduce((a, x) => a + x.minutes, 0), 150, 'Sunday master: 150 minutes');
   assert.equal(sun.s.settings.micMode, 'list', 'the show\'s own microphone list');
   assert.equal(sun.s.settings.standbyScene, 'STANDBY');
   await ov.next(m => m.t === 'state' && m.s.gfx.tagline === 'Vienna // Melbourne' && m.s.gfx.clocks === true);
@@ -840,6 +841,7 @@ test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, stand
   assert.equal(mock.state.collection, "DJ Andy'K — Friday Show");
   assert.equal(fri.s.rundown.title, "DJ Andy'K — Friday DJ Show");
   assert.ok(fri.s.rundown.segments.every(x => x.lead === 'andrej'));
+  assert.equal(fri.s.rundown.segments.reduce((a, x) => a + x.minutes, 0), 90, 'Friday master: 90 minutes');
   await ov.next(m => m.t === 'state' && m.s.gfx.tagline === "DJ Andy'K // Friday" && m.s.gfx.clocks === false);
   // kept across a restart: the choice is in state.json, the rundown in rundown.json
   await new Promise(r => setTimeout(r, 1200));
@@ -853,4 +855,67 @@ test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, stand
   // back to Sunday for the other tests
   await d.send({ t: 'show.select', show: 'sunday' });
   d.close(); ov.close();
+});
+
+test('episode scripts: copy of the master, private notes, versions, reviewed import, and the T−180 lock enforced by the server', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  await d.send({ t: 'rundown', action: 'reset' });
+  // a new Sunday episode far in the future: editable
+  const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const made = await d.send({ t: 'episode.new', format: 'sunday', date: future, start: '10:00' });
+  assert.equal(made.ok, true, JSON.stringify(made));
+  const st = await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === future);
+  const ep = st.s.rundown.episode, segs = st.s.rundown.segments;
+  assert.match(ep.id, /^DZ-SUN-\d{8}$/); assert.equal(st.s.rundown.locked, false);
+  assert.equal(segs.length, 14); assert.equal(segs[4].cues.jingle, '04'); assert.match(segs[2].script, /EPISODE-SPECIFIC/);
+  // the master on disk is untouched by edits
+  const master = fs.readFileSync(path.join(process.cwd(), 'shows', 'sunday.json'), 'utf8');
+  const welcome = segs[2];
+  assert.equal((await d.send({ t: 'script.update', segmentId: welcome.id, fields: { script: "ANDY'K: Servus Vienna!\nGEORGIE: G'day Melbourne!", director: 'Camera 1 first' } })).ok, true);
+  assert.equal(fs.readFileSync(path.join(process.cwd(), 'shows', 'sunday.json'), 'utf8'), master, 'master never written');
+  assert.match(fs.readFileSync(path.join(dataDir, 'episodes', ep.id + '.json'), 'utf8'), /Servus Vienna/);
+  // Georgie sees the script but not the Director instructions; she cannot edit the script
+  const hs = await hst.next(m => m.t === 'state' && m.s.rundown.segments[2]?.script?.includes('Servus'));
+  assert.equal(hs.s.rundown.segments[2].director, undefined);
+  assert.equal((await hst.send({ t: 'script.update', segmentId: welcome.id, fields: { script: 'x' } })).ok, false);
+  // private notes: each sees only their own
+  assert.equal((await d.send({ t: 'notes.set', segmentId: welcome.id, text: 'Andrej private' })).ok, true);
+  assert.equal((await hst.send({ t: 'notes.set', segmentId: welcome.id, text: 'Georgie private' })).ok, true);
+  const dn = await d.next(m => m.t === 'state' && m.s.myNotes?.[welcome.id] === 'Andrej private');
+  assert.ok(!JSON.stringify(dn.s).includes('Georgie private'));
+  const hn = await hst.next(m => m.t === 'state' && m.s.myNotes?.[welcome.id] === 'Georgie private');
+  assert.ok(!JSON.stringify(hn.s).includes('Andrej private'));
+  // import: parse gives a preview only; applying needs confirm
+  const parsed = await d.send({ t: 'script.parse', text: 'WELCOME TO DISTANCE ZERO\nANDY\'K: Imported hello\nVIENNA × MELBOURNE\nGEORGIE: Imported story' });
+  assert.equal(parsed.result.segments.length, 2);
+  assert.equal((await d.send({ t: 'script.import', parts: parsed.result.segments })).ok, false, 'needs confirmation');
+  assert.equal((await d.send({ t: 'script.import', parts: parsed.result.segments, confirm: true })).ok, true);
+  await d.next(m => m.t === 'state' && m.s.rundown.segments[2].script.includes('Imported hello'));
+  // version protection: the earlier text can be restored
+  fs.mkdirSync(path.join(dataDir, 'episodes', ep.id + '.versions'), { recursive: true });
+  const vfiles = fs.readdirSync(path.join(dataDir, 'episodes', ep.id + '.versions'));
+  assert.ok(vfiles.length >= 1, 'a previous version was kept');
+  assert.equal((await d.send({ t: 'script.restore' })).ok, true);
+  // lock: a start time less than 180 minutes away is refused; an episode already inside the window is read-only
+  const soon = new Date(Date.now() + 60 * 60000);
+  const vienna = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(soon).split(' ');
+  assert.equal((await d.send({ t: 'episode.meta', date: vienna[0], start: vienna[1] })).ok, false, 'cannot move the start into the lock window');
+  // simulate an episode inside the window, written on disk (as after a restart), then opened
+  const r = JSON.parse(fs.readFileSync(path.join(dataDir, 'episodes', ep.id + '.json'), 'utf8'));
+  r.episode.id = 'DZ-SUN-LOCKTEST'; r.episode.date = vienna[0]; r.episode.start = vienna[1];
+  fs.writeFileSync(path.join(dataDir, 'episodes', 'DZ-SUN-LOCKTEST.json'), JSON.stringify(r));
+  { const o = await d.send({ t: 'episode.open', episode: 'DZ-SUN-LOCKTEST' }); assert.equal(o.ok, true, JSON.stringify(o)); }
+  const lk = await d.next(m => m.t === 'state' && m.s.rundown.episode?.id === 'DZ-SUN-LOCKTEST');
+  assert.equal(lk.s.rundown.locked, true);
+  for (const m of [{ t: 'script.update', segmentId: lk.s.rundown.segments[2].id, fields: { script: 'late change' } }, { t: 'rundown', action: 'title', title: 'x' },
+    { t: 'rundown', action: 'add' }, { t: 'script.restore' }, { t: 'episode.meta', title: 'x' }])
+    assert.equal((await d.send(m)).ok, false, 'locked: ' + JSON.stringify(m));
+  // still working while locked: reading, private notes, the segment advance
+  assert.equal((await d.send({ t: 'notes.set', segmentId: 'x', text: 'still fine' })).ok, true);
+  assert.equal((await d.send({ t: 'rundown', action: 'next' })).ok, true);
+  await d.send({ t: 'rundown', action: 'reset' });
+  // back to an editable future episode for the other tests
+  await d.send({ t: 'episode.open', episode: ep.id });
+  d.close(); hst.close();
 });

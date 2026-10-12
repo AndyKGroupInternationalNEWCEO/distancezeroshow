@@ -11,19 +11,20 @@ import { debounced } from './store.js';
 import { createTalk } from './talk.js';
 import { createRehearsal } from './rehearsal.js';
 import { watchTunnel } from './tunnel.js';
+import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, LOCK_MINUTES } from './script.js';
 
 const ROLES = ['director', 'host', 'overlay'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
-  'check.echo', 'check.result']);
+  'check.echo', 'check.result', 'notes.set']);
 const OVERLAY_ACTIONS = new Set(['ping']);
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
 const LEADS = ['andrej', 'georgie', 'both'];
 const str = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max);
 
-export function createStudio({ config, store, secrets, obs, sampleRundownPath, log = console }) {
+export function createStudio({ config, store, secrets, obs, media = null, sampleRundownPath, log = console }) {
   const clients = new Set(); // { ws, role, send, monitors }
   const saved = store.read('state.json', {});
   const state = {
@@ -41,7 +42,8 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     // a rehearsal survives a studio restart, and with it the stream/recording lock
     rehearsal: saved.rehearsal || { active: false },
     reports: saved.reports || [],
-    showId: saved.showId || '',         // the selected show preset (Sunday / Friday), kept across restarts
+    showId: saved.showId || '',
+    mediaAir: saved.mediaAir || { audio: null, video: null },   // what the studio last put on air through the OBS players         // the selected show preset (Sunday / Friday), kept across restarts
   };
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
@@ -57,7 +59,57 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   })();
   const saveState = debounced(() => store.writeSafe('state.json', state));
   const saveChat = debounced(() => store.writeSafe('chat.json', chat.slice(-CHAT_KEEP)));
-  const saveRundown = () => store.write('rundown.json', rundown);
+  /* the rundown IS the active episode script. Every save also goes to data/episodes/<id>.json; before a changed
+     version replaces the file, the previous one is kept in data/episodes/<id>.versions/ (at most one per minute, last 40) */
+  const EP_DIR = path.join(store.dir, 'episodes');
+  let lastVersionAt = 0;
+  function saveRundown() {
+    rundown.savedAt = Date.now();
+    store.write('rundown.json', rundown);                                   // throws on failure: the client shows SAVE FAILED
+    const ep = rundown.episode; if (!ep?.id) return;
+    fs.mkdirSync(EP_DIR, { recursive: true, mode: 0o700 });
+    const file = path.join(EP_DIR, ep.id + '.json'), body = JSON.stringify(rundown, null, 2);
+    if (fs.existsSync(file)) {
+      const old = fs.readFileSync(file, 'utf8');
+      const strip = t => t.replace(/"savedAt": \d+,?/, '');
+      if (strip(old) !== strip(body) && Date.now() - lastVersionAt > 60000) {
+        const vdir = path.join(EP_DIR, ep.id + '.versions'); fs.mkdirSync(vdir, { recursive: true, mode: 0o700 });
+        fs.writeFileSync(path.join(vdir, Date.now() + '.json'), old, { mode: 0o600 });
+        lastVersionAt = Date.now();
+        const all = fs.readdirSync(vdir).sort(); for (const f of all.slice(0, Math.max(0, all.length - 40))) fs.rmSync(path.join(vdir, f));
+      }
+    }
+    const tmp = file + '.tmp'; fs.writeFileSync(tmp, body, { mode: 0o600 }); fs.renameSync(tmp, file);
+  }
+  const locked = () => isLocked(rundown.episode);
+  // the production freeze: enforced here, on the server clock, for every way in (no unlock action exists)
+  function assertEditable() {
+    if (locked()) throw new Error('SCRIPT LOCKED — READY FOR BROADCAST. Editing is disabled from 180 minutes before the start.');
+  }
+  function episodeList() {
+    try {
+      return fs.readdirSync(EP_DIR).filter(f => f.endsWith('.json')).map(f => {
+        try { const r = JSON.parse(fs.readFileSync(path.join(EP_DIR, f), 'utf8')); const e = cleanEpisode(r.episode);
+          return e && { id: e.id, title: str(r.title, 120), format: e.format, date: e.date, start: e.start, locked: isLocked(e), savedAt: r.savedAt || 0 }; }
+        catch { return null; }
+      }).filter(Boolean).sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.savedAt - a.savedAt);
+    } catch { return []; }
+  }
+  function versionCount() { try { return fs.readdirSync(path.join(EP_DIR, rundown.episode.id + '.versions')).length; } catch { return 0; } }
+  // a new episode = a copy of the show's master script (the master in studio/shows is never written)
+  function episodeFromMaster(fmt, { date = '', start = '', title = '' } = {}) {
+    const x = shows.find(s => s.id === fmt); if (!x) throw new Error('No such show format');
+    const tag = fmt === 'friday' ? 'DJ-FRI' : 'DZ-SUN', d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
+    let id = d ? `${tag}-${d.replace(/-/g, '')}` : `${tag}-DRAFT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+    for (let n = 2; fs.existsSync(path.join(EP_DIR, id + '.json')); n++) id = id.replace(/(-\d+)?$/, '') + '-' + n;
+    return { title: str(title, 120) || str(x.rundown?.title, 120), sample: false,
+      episode: cleanEpisode({ id, format: fmt, master: x.rundown?.master || '', date: d, start: /^\d{1,2}:\d{2}$/.test(start) ? start : (x.obs?.defaultStart || '') }),
+      segments: (x.rundown?.segments || []).slice(0, 60).map(seg => cleanSegment({ ...seg, id: 'seg-' + crypto.randomBytes(4).toString('hex') }, 'seg')) };
+  }
+  // personal notes: Andrej's and Georgie's are separate files, each only ever sent to its owner
+  const NOTE_FILE = who => path.join(store.dir, `notes-${who}.json`);
+  const readNotes = who => { try { return JSON.parse(fs.readFileSync(NOTE_FILE(who), 'utf8')); } catch { return {}; } };
+  const notesFor = who => (rundown.episode?.id && readNotes(who)[rundown.episode.id]) || {};
 
   /* show presets: studio/shows/*.json, one per show (Sunday // DISTANCE ZERO, Friday // DJ Andy'K). Selecting one sets
      the OBS scene collection, rundown, microphones, standby scene, transition and overlay graphics in one go. */
@@ -94,6 +146,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     }
     r.title = str(r.title, 120);
     r.segments = (r.segments || []).map((s, i) => cleanSegment(s, 'seg' + i));
+    r.episode = cleanEpisode(r.episode);
     return r;
   }
   function cleanSegment(s, fallbackId) {
@@ -101,7 +154,13 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       id: str(s.id, 40) || fallbackId, title: str(s.title, 80) || 'Untitled', kind: str(s.kind, 12).toUpperCase() || 'TALK',
       minutes: Math.max(0, Math.min(600, Math.round((Number(s.minutes) || 0) * 2) / 2)), lead: LEADS.includes(s.lead) ? s.lead : 'both',
       notes: str(s.notes, 2000),
+      ...cleanScript(s),
     };
+  }
+  function cleanEpisode(e) {
+    if (!e || !e.id) return null;
+    const startAt = startInstant(e.date, e.start);
+    return { id: str(e.id, 40), format: e.format === 'friday' ? 'friday' : 'sunday', master: str(e.master, 40), date: str(e.date, 10), start: str(e.start, 5), startAt };
   }
 
   const vdo = (() => {
@@ -178,7 +237,10 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     host: [...clients].some(c => c.role === 'host'),
     overlay: [...clients].filter(c => c.role === 'overlay').length,
   });
-  const rundownView = () => ({ title: rundown.title, sample: !!rundown.sample, segments: rundown.segments, ...state.pos });
+  const scriptState = () => ({ episode: rundown.episode, locked: locked(), lockAt: lockAt(rundown.episode), lockMinutes: LOCK_MINUTES, savedAt: rundown.savedAt || 0 });
+  const rundownView = () => ({ title: rundown.title, sample: !!rundown.sample, segments: rundown.segments, ...state.pos, ...scriptState() });
+  // Georgie: the script and cues, never the Director's own instructions
+  const hostRundownView = () => ({ ...rundownView(), segments: rundown.segments.map(({ director, ...seg }) => seg) });
   const showView = () => ({ title: config.show.title, launch: config.show.launch, schedule: config.show.schedule });
 
   function view(role) {
@@ -186,7 +248,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), shows: showList(), showId: state.showId, rundown: rundownView(), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -200,7 +262,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     }
     if (role === 'host') {
       return {
-        show: showView(), rundown: rundownView(), note: state.note, music: state.music,
+        show: showView(), rundown: hostRundownView(), myNotes: notesFor('georgie'), note: state.note, music: state.music,
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
@@ -324,6 +386,17 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       case 'settings': return settingsAction(msg);
       case 'gfx': return gfxAction(msg);
       case 'show.select': return selectShow(msg);
+      case 'episode.new': return episodeNew(msg);
+      case 'episode.open': return episodeOpen(msg);
+      case 'episode.meta': return episodeMeta(msg);
+      case 'script.update': return scriptUpdate(msg);
+      case 'script.restore': return scriptRestore();
+      case 'script.parse': return { ...splitBySegments(str(msg.text, 400000), rundown.segments) };
+      case 'script.import': return scriptImport(msg);
+      case 'notes.set': return notesSet(client, msg);
+      case 'media.air': return mediaAir(msg);
+      case 'media.stop': return mediaStop(msg);
+      case 'media.rescan': media?.scan(); changed(); return;
       case 'emergency': return emergency(msg);
       case 'tunnel.link': {
         // Georgie's full sign-in link, only on request, only for the director (to copy into Signal/iMessage)
@@ -417,6 +490,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     const at = i => { const s = segs[Number(i)]; if (!s) throw new Error('No such segment'); return s; };
     // structural edits keep "on air now" pointing at the same segment
     const edit = fn => {
+      assertEditable();
       const currentId = segs[p.index]?.id;
       fn();
       rundown.sample = false;
@@ -461,6 +535,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         return { template: id };
       }
       case 'loadTemplate': {
+        assertEditable();
         if (p.showStartedAt) throw new Error('The show clock is running. Press Reset first, then load a template.');
         let t;
         try { t = JSON.parse(fs.readFileSync(tplFile(msg.template), 'utf8')); } catch { throw new Error('No such template'); }
@@ -475,7 +550,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         templates = listTemplates();
         break;
       }
-      case 'reload': rundown = loadRundown(); if (p.index >= rundown.segments.length) { p.index = -1; p.segmentStartedAt = null; } break;
+      case 'reload': assertEditable(); rundown = loadRundown(); if (p.index >= rundown.segments.length) { p.index = -1; p.segmentStartedAt = null; } break;
       default: throw new Error('Unknown rundown action');
     }
     changed();
@@ -521,6 +596,116 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     changed();
   }
 
+  /* JINGLES // AUDIO and VIDEOS // VISUALS on air: one deliberate Director action loads the file into the show's
+     Jingle Player / Video Player in OBS. A video with its own sound never gets the separate WAV on top unless asked. */
+  async function mediaAir(msg) {
+    const item = media?.get(str(msg.media, 4));
+    if (!item) throw new Error('No such media');
+    if (!item.available) throw new Error(`${item.id} — ${item.title}: ${item.type === 'video' ? 'VIDEO' : 'AUDIO'} NOT AVAILABLE`);
+    if (!obs.state.connected) throw new Error('OBS is not connected');
+    if (item.type === 'audio') {
+      await obs.playFile('Jingle Player', item.file, false);
+      state.mediaAir.audio = { id: item.id, title: item.title, at: Date.now() };
+    } else {
+      const scene = str(msg.scene, 256);
+      await obs.playFile('Video Player', item.file, !!msg.loop);
+      state.mediaAir.video = { id: item.id, title: item.title, at: Date.now(), loop: !!msg.loop, embeddedAudio: !!item.embeddedAudio };
+      // the picture: the given scene, or VT when the program scene has no Video Player
+      const target = scene || (obs.state.items.some(i => i.name === 'Video Player') ? '' : 'VT');
+      if (target) await obs.setProgram(target);
+      if (msg.withAudio && item.linkedAudio) {
+        if (item.embeddedAudio && msg.audioMode !== 'both') throw new Error('This video has its own sound: the linked jingle was not added (choose "both" to play both)');
+        const a = media.get(item.linkedAudio);
+        if (a?.available) { await obs.playFile('Jingle Player', a.file, false); state.mediaAir.audio = { id: a.id, title: a.title, at: Date.now() }; }
+      }
+    }
+    logEvent('ok', `On air: ${item.id} — ${item.title}`);
+    changed();
+  }
+  async function mediaStop(msg) {
+    const kinds = msg.kind === 'audio' ? ['audio'] : msg.kind === 'video' ? ['video'] : ['audio', 'video'];
+    for (const k of kinds) { await obs.stopFile(k === 'audio' ? 'Jingle Player' : 'Video Player'); state.mediaAir[k] = null; }
+    logEvent('ok', `Stopped: ${kinds.join(' + ')}`);
+    changed();
+  }
+
+  /* ---------- episodes and their scripts (editing in REHEARSAL; the server enforces the T−180 lock) ---------- */
+  function episodeNew(msg) {
+    if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first.');
+    if (locked()) throw new Error('The current episode is locked for broadcast. A new episode can be prepared after the show.');
+    rundown = episodeFromMaster(msg.format === 'friday' ? 'friday' : 'sunday', { date: str(msg.date, 10), start: str(msg.start, 5), title: str(msg.title, 120) });
+    state.pos.index = -1; state.pos.segmentStartedAt = null;
+    saveRundown(); logEvent('ok', `New episode ${rundown.episode.id} from ${rundown.episode.master}`); changed();
+    return { id: rundown.episode.id };
+  }
+  function episodeOpen(msg) {
+    if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first.');
+    const id = str(msg.episode, 40); if (!/^[A-Z0-9-]{3,40}$/.test(id)) throw new Error('No such episode');
+    let r; try { r = JSON.parse(fs.readFileSync(path.join(EP_DIR, id + '.json'), 'utf8')); } catch { throw new Error('No such episode'); }
+    r.segments = (r.segments || []).map((x, i) => cleanSegment(x, 'seg' + i)); r.episode = cleanEpisode(r.episode); r.title = str(r.title, 120);
+    rundown = r; state.pos.index = -1; state.pos.segmentStartedAt = null;
+    store.write('rundown.json', rundown); logEvent('ok', `Episode opened: ${id}`); changed();
+  }
+  function episodeMeta(msg) {
+    assertEditable();
+    const ep = rundown.episode; if (!ep) throw new Error('Create an episode from the master script first');
+    const date = 'date' in msg ? str(msg.date, 10) : ep.date, start = 'start' in msg ? str(msg.start, 5) : ep.start;
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Date: YYYY-MM-DD');
+    if (start && !/^\d{1,2}:\d{2}$/.test(start)) throw new Error('Start: HH:MM (Vienna)');
+    const next = cleanEpisode({ ...ep, date, start });
+    if (isLocked(next)) throw new Error('That start time would lock the script immediately (it is less than 180 minutes away)');
+    rundown.episode = next;
+    if ('title' in msg) rundown.title = str(msg.title, 120);
+    saveRundown(); changed();
+  }
+  const SCRIPT_FIELDS = ['script', 'talkingPoints', 'presenters', 'guest', 'questions', 'cues', 'director', 'closing'];
+  function scriptUpdate(msg) {
+    assertEditable();
+    const seg = rundown.segments.find(x => x.id === str(msg.segmentId, 40)); if (!seg) throw new Error('No such segment');
+    const f = msg.fields || {}, patch = {};
+    for (const k of SCRIPT_FIELDS) if (k in f) patch[k] = f[k];
+    for (const k of ['title', 'kind', 'minutes', 'lead', 'notes']) if (k in f) patch[k] = f[k];
+    Object.assign(seg, cleanSegment({ ...seg, ...patch, id: seg.id }, seg.id));
+    rundown.sample = false;
+    saveRundown(); changed();
+    return { savedAt: rundown.savedAt };
+  }
+  function scriptRestore() {
+    assertEditable();
+    const vdir = path.join(EP_DIR, (rundown.episode?.id || '-') + '.versions');
+    let files = []; try { files = fs.readdirSync(vdir).filter(f => f.endsWith('.json')).sort(); } catch {}
+    if (!files.length) throw new Error('No earlier version saved yet');
+    const prev = JSON.parse(fs.readFileSync(path.join(vdir, files.at(-1)), 'utf8'));
+    fs.rmSync(path.join(vdir, files.at(-1)));                               // restoring consumes it, so a second restore goes one further back
+    prev.segments = prev.segments.map((x, i) => cleanSegment(x, 'seg' + i)); prev.episode = cleanEpisode(prev.episode);
+    rundown = prev; lastVersionAt = Date.now();
+    saveRundown(); logEvent('warn', `Script restored to the version of ${new Date(prev.savedAt || Date.now()).toLocaleString('en-GB')}`); changed();
+  }
+  // apply a reviewed import (PDF or pasted text): only the segments the Director confirmed, never silently
+  function scriptImport(msg) {
+    assertEditable();
+    if (msg.confirm !== true) throw new Error('Review the import first, then confirm it');
+    const parts = Array.isArray(msg.parts) ? msg.parts : [];
+    let n = 0;
+    for (const part of parts) {
+      const seg = rundown.segments.find(x => x.id === str(part.segmentId, 40)); if (!seg) continue;
+      seg.script = str(part.text, 20000); n++;
+    }
+    if (!n) throw new Error('Nothing to import');
+    rundown.sample = false;
+    saveRundown(); logEvent('ok', `Script imported into ${n} segment${n > 1 ? 's' : ''}`); changed();
+    return { segments: n };
+  }
+  // private notes: each account writes only its own file; never part of the locked script
+  function notesSet(client, msg) {
+    const who = client.role === 'host' ? 'georgie' : 'andrej', ep = rundown.episode?.id || 'no-episode';
+    const all = readNotes(who), mine = all[ep] || (all[ep] = {});
+    mine[str(msg.segmentId, 40) || '_episode'] = str(msg.text, 6000);
+    fs.writeFileSync(NOTE_FILE(who) + '.tmp', JSON.stringify(all), { mode: 0o600 }); fs.renameSync(NOTE_FILE(who) + '.tmp', NOTE_FILE(who));
+    client.send({ t: 'state', s: view(client.role) });
+    return { savedAt: Date.now() };
+  }
+
   async function selectShow(msg) {
     const x = shows.find(s => s.id === msg.show);
     if (!x) throw new Error('No such show');
@@ -539,10 +724,15 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       setTimeout(async () => { if (!obs.state.stream.active && !obs.state.record.active && obs.hasScene(x.obs.standbyScene)) await obs.setProgram(x.obs.standbyScene).catch(() => {}); }, 3500);
     } else if (!o.connected) notes.push('OBS is offline: its scene collection is switched the next time you select the show with OBS open');
     // 2. rundown, 3. microphones and standby scene, 4. overlay graphics
-    rundown = { title: str(x.rundown?.title, 120), sample: false,
-      segments: (x.rundown?.segments || []).slice(0, 60).map(seg => cleanSegment({ ...seg, id: 'seg-' + crypto.randomBytes(4).toString('hex') }, 'seg')) };
-    state.pos.index = -1; state.pos.segmentStartedAt = null;
-    saveRundown();
+    // the episode: stays if it already belongs to this show; otherwise the latest episode of this show, or a new copy
+    // of its master script. A locked episode is never swapped out.
+    if (rundown.episode?.format !== x.id) {
+      if (locked()) throw new Error('The current episode is locked for broadcast: it cannot be replaced by another show');
+      const latest = episodeList().find(e => e.format === x.id && !e.locked);
+      if (latest) episodeOpen({ episode: latest.id });
+      else { rundown = episodeFromMaster(x.id); saveRundown(); }
+      state.pos.index = -1; state.pos.segmentStartedAt = null;
+    }
     state.settings.micInputs = (x.mics || []).map(n => str(n, 256));
     obs.setMicList(state.settings.micInputs);
     state.settings.standbyScene = str(x.obs?.standbyScene, 256);

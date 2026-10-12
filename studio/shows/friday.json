@@ -18,49 +18,176 @@
     "Mic // Andrej"
   ],
   "rundown": {
+    "master": "FRIDAY_MASTER_SCRIPT",
     "title": "DJ Andy'K — Friday DJ Show",
     "segments": [
       {
-        "title": "Opening",
+        "title": "FRIDAY LIVE OPENING",
         "kind": "VT",
-        "minutes": 1,
-        "lead": "andrej"
-      },
-      {
-        "title": "Hello // tonight's set",
-        "kind": "TALK",
-        "minutes": 3,
-        "lead": "andrej"
-      },
-      {
-        "title": "DJ Set // part 1",
-        "kind": "MUSIC",
-        "minutes": 40,
-        "lead": "andrej"
-      },
-      {
-        "title": "Shout-outs & requests",
-        "kind": "TALK",
         "minutes": 5,
-        "lead": "andrej"
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: [EPISODE-SPECIFIC — Friday hello]",
+        "talkingPoints": "",
+        "director": "FRIDAY LIVE OPENING video: not available yet; jingle 01 over the visuals.",
+        "closing": "",
+        "cues": {
+          "scene": "OPENING",
+          "jingle": "01",
+          "video": "V02",
+          "mode": "once",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
       },
       {
-        "title": "DJ Set // part 2",
+        "title": "DJ SET — PART 1",
         "kind": "MUSIC",
-        "minutes": 40,
-        "lead": "andrej"
+        "minutes": 20,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "",
+        "talkingPoints": "",
+        "director": "DJ set part 1 (20 min). Do not extend beyond the structure.",
+        "closing": "",
+        "cues": {
+          "scene": "DJ + VISUALS",
+          "jingle": "02",
+          "video": "",
+          "mode": "once",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
       },
       {
-        "title": "Track IDs & thank you",
-        "kind": "TALK",
-        "minutes": 5,
-        "lead": "andrej"
+        "title": "BREAK 01",
+        "kind": "BREAK",
+        "minutes": 15,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Break 01: 15:00. Mic muted. Return on Director confirmation: jingle 05 — WELCOME BACK.",
+        "closing": "",
+        "cues": {
+          "scene": "BREAK",
+          "jingle": "04",
+          "video": "V10",
+          "mode": "loop",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
       },
       {
-        "title": "Closing",
+        "title": "DJ SET — PART 2",
+        "kind": "MUSIC",
+        "minutes": 25,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "",
+        "talkingPoints": "",
+        "director": "DJ set part 2 (25 min).",
+        "closing": "",
+        "cues": {
+          "scene": "DJ + VISUALS",
+          "jingle": "02",
+          "video": "",
+          "mode": "once",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
+      },
+      {
+        "title": "BREAK 02",
+        "kind": "BREAK",
+        "minutes": 15,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Break 02: 15:00. Mic muted. Return on Director confirmation.",
+        "closing": "",
+        "cues": {
+          "scene": "BREAK",
+          "jingle": "04",
+          "video": "V10",
+          "mode": "loop",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
+      },
+      {
+        "title": "FINAL TRACKS",
+        "kind": "MUSIC",
+        "minutes": 8,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Final tracks (8 min).",
+        "closing": "",
+        "cues": {
+          "scene": "DJ + VISUALS",
+          "jingle": "",
+          "video": "",
+          "mode": "once",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
+      },
+      {
+        "title": "FRIDAY SHOW CLOSING",
         "kind": "VT",
         "minutes": 2,
-        "lead": "andrej"
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: [EPISODE-SPECIFIC — Friday goodbye]",
+        "talkingPoints": "",
+        "director": "Closing jingle 19, then end the stream.",
+        "closing": "",
+        "cues": {
+          "scene": "CREDITS",
+          "jingle": "19",
+          "video": "",
+          "mode": "once",
+          "audioMode": "wav",
+          "music": ""
+        },
+        "guest": {
+          "name": "",
+          "details": ""
+        },
+        "questions": []
       }
     ]
   },

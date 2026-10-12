@@ -17,6 +17,7 @@ const DZ = path.resolve(ROOT, '..', '..');                       // ~/DISTANCE-Z
 for (const f of ['.env.local', '.env']) { try { process.loadEnvFile(path.join(ROOT, f)); break; } catch {} }
 const config = loadConfig();
 const wanted = process.argv.slice(2).filter(a => !a.startsWith('-'));
+const PLAYERS = process.argv.includes('--players');   // add the media players to EXISTING show collections (nothing else changes)
 if (!wanted.length) { console.log('Usage: npm run obs-setup -- sunday friday'); process.exit(1); }
 const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', id + '.json'), 'utf8')));
 
@@ -69,6 +70,40 @@ async function switchTo(type, name) {
 }
 const timeout = setTimeout(() => { say('FAIL  no connection to OBS within 10 s (is OBS open with its WebSocket server on?)'); process.exit(1); }, 10000);
 
+// Media players for the studio's JINGLES // AUDIO and VIDEOS // VISUALS libraries: the studio loads the chosen file
+// into them and plays it. Jingle Player sits in the sound scene (live in every shot); Video Player sits in a new VT
+// scene and on top of OPENING / BREAK / CREDITS (below the graphics); empty, it is transparent.
+async function addPlayers(show, existing) {
+  const name = show.obs.sceneCollection;
+  if (!existing.includes(name)) { say(`SKIP  "${name}" does not exist (run obs-setup without --players first)`); return; }
+  await switchTo('SetCurrentSceneCollection', name);
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  const scenes = new Set((await req('GetSceneList')).scenes.map(s => s.sceneName));
+  const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
+  const done = [];
+  if (!inputs.has('Jingle Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'Jingle Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('Jingle Player'); }
+  const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
+  const place = async (scene, created) => {
+    const items = (await req('GetSceneItemList', { sceneName: scene })).sceneItems;
+    let it = items.find(i => i.sourceName === 'Video Player');
+    if (it && !created) return;
+    const id = it ? it.sceneItemId : (await req('CreateSceneItem', { sceneName: scene, sourceName: 'Video Player' })).sceneItemId;
+    await req('SetSceneItemTransform', { sceneName: scene, sceneItemId: id, sceneItemTransform: full });
+    const ov = (await req('GetSceneItemList', { sceneName: scene })).sceneItems.find(i => i.sourceName === 'D//0 Overlay');
+    if (ov) await req('SetSceneItemIndex', { sceneName: scene, sceneItemId: id, sceneItemIndex: ov.sceneItemIndex });   // just below the graphics
+    done.push(`Video Player in ${scene}`);
+  };
+  if (!scenes.has('VT')) {
+    await req('CreateScene', { sceneName: 'VT' });
+    if (!inputs.has('Video Player')) { await req('CreateInput', { sceneName: 'VT', inputName: 'Video Player', inputKind: 'ffmpeg_source', inputSettings: player }); inputs.add('Video Player'); await place('VT', true); }
+    await req('CreateSceneItem', { sceneName: 'VT', sourceName: 'D//0 Overlay' }).catch(() => {});
+    await req('CreateSceneItem', { sceneName: 'VT', sourceName: 'AUDIO // ALL' });
+    done.push('scene VT');
+  }
+  for (const sc of ['OPENING', 'BREAK', 'CREDITS']) if (scenes.has(sc)) await place(sc, false);
+  say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": players already there, nothing changed`);
+}
+
 obs.on('link', async up => {
   if (!up) return;
   clearTimeout(timeout);
@@ -82,6 +117,12 @@ obs.on('link', async up => {
     say(`OK    backup of OBS scene collections: data/obs-backups/${stamp}/`);
     const before = await req('GetSceneCollectionList');
     const cam = existingCamera();
+    if (PLAYERS) {
+      for (const show of shows) await addPlayers(show, before.sceneCollections);
+      await switchTo('SetCurrentSceneCollection', before.currentSceneCollectionName);
+      say(`OK    back to the collection that was open before: "${before.currentSceneCollectionName}"`);
+      obs.stop(); process.exit(0);
+    }
     for (const show of shows) {
       const name = show.obs.sceneCollection;
       if (before.sceneCollections.includes(name)) {
