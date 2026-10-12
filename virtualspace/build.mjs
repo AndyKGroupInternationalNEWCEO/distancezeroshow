@@ -59,7 +59,10 @@ const STUDIO_HOST = 'studio.distancezeroshow.com', STUDIO_TARGET = 'https://macb
 const vercel = {
   cleanUrls: true,
   trailingSlash: false,
-  redirects: [{ source: '/:path*', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/:path*', permanent: false }],
+  redirects: [
+    { source: '/', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/', permanent: false },   // the bare address too
+    { source: '/:path*', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/:path*', permanent: false },
+  ],
   headers: [
     { source: '/assets/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
     { source: '/virtual-studio/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=300, must-revalidate' }] },
