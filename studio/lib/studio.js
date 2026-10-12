@@ -139,6 +139,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   obs.on('state', st => { if (st.connected) wasOnAir = st.stream.active || st.record.active; });
   obs.on('link', (up, why) => {
     if (up) notify('ok', 'obs-up', `OBS connected (obs-websocket ${obs.state.version})`);
+    if (up) setTimeout(() => obs.refreshBrowser('D//0 Overlay').catch(() => {}), 1500);   // the graphics page loads even if OBS started first
     else notify(wasOnAir ? 'critical' : 'warn', 'obs-down', `OBS disconnected: ${why}${wasOnAir ? '. It was streaming or recording: check OBS now.' : ''}`, { sound: wasOnAir });
   });
   const tunnel = watchTunnel({ dataDir: store.dir, onChange: (st, before) => {
@@ -533,6 +534,9 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
       if (!c) notes.push('OBS did not list its scene collections');
       else if (!c.all.includes(x.obs.sceneCollection)) notes.push(`OBS has no scene collection "${x.obs.sceneCollection}" yet (npm run obs-setup creates it)`);
       else if (c.current !== x.obs.sceneCollection) await obs.setSceneCollection(x.obs.sceneCollection);
+      setTimeout(() => obs.refreshBrowser('D//0 Overlay').catch(() => {}), 4000);       // graphics of the newly loaded collection
+      // start every show on its standby scene (OBS may reopen a collection on any scene, even the hidden sound scene)
+      setTimeout(async () => { if (!obs.state.stream.active && !obs.state.record.active && obs.hasScene(x.obs.standbyScene)) await obs.setProgram(x.obs.standbyScene).catch(() => {}); }, 3500);
     } else if (!o.connected) notes.push('OBS is offline: its scene collection is switched the next time you select the show with OBS open');
     // 2. rundown, 3. microphones and standby scene, 4. overlay graphics
     rundown = { title: str(x.rundown?.title, 120), sample: false,

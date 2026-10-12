@@ -57,6 +57,16 @@ function inputFor(name, src, cam) {
 const obs = new Obs({ url: process.env.OBS_URL || config.obs.url, password: process.env.OBS_WEBSOCKET_PASSWORD || '', micPattern: config.emergency.micPattern, log: { log() {}, warn() {}, error() {} } });
 const req = (t, d) => obs.request(t, d);
 const say = (...a) => console.log(...a);
+// switching or creating a collection makes OBS reload everything: it can take longer than one request may wait
+async function switchTo(type, name) {
+  await req(type, { sceneCollectionName: name }).catch(e => { if (!/did not answer/.test(e.message)) throw e; });
+  for (let i = 0; i < 40; i++) {
+    const c = await req('GetSceneCollectionList').catch(() => null);
+    if (c?.currentSceneCollectionName === name) { await new Promise(r => setTimeout(r, 1500)); return; }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error(`OBS did not open the collection "${name}"`);
+}
 const timeout = setTimeout(() => { say('FAIL  no connection to OBS within 10 s (is OBS open with its WebSocket server on?)'); process.exit(1); }, 10000);
 
 obs.on('link', async up => {
@@ -74,16 +84,28 @@ obs.on('link', async up => {
     const cam = existingCamera();
     for (const show of shows) {
       const name = show.obs.sceneCollection;
-      if (before.sceneCollections.includes(name)) { say(`SKIP  "${name}" already exists: left exactly as it is`); continue; }
-      await req('CreateSceneCollection', { sceneCollectionName: name });           // OBS creates it and switches to it
-      await new Promise(r => setTimeout(r, 2500));
+      if (before.sceneCollections.includes(name)) {
+        // only an EMPTY collection (one blank scene, no sources: left over from an interrupted run) is finished;
+        // anything with content is left exactly as it is
+        await switchTo('SetCurrentSceneCollection', name);
+        const sc = (await req('GetSceneList')).scenes, ins = (await req('GetInputList')).inputs;
+        const empty = sc.length === 1 && !ins.some(i => i.inputKind !== 'coreaudio_input_capture' && i.inputKind !== 'coreaudio_output_capture')
+          && !(await req('GetSceneItemList', { sceneName: sc[0].sceneName })).sceneItems.length;
+        if (!empty) { say(`SKIP  "${name}" already exists with content: left exactly as it is`); continue; }
+        say(`      "${name}" exists but is empty (interrupted run): finishing it`);
+      } else await switchTo('CreateSceneCollection', name);                       // OBS creates it and switches to it
       const defaults = (await req('GetSceneList')).scenes.map(s => s.sceneName);
       // a hidden helper scene with every sound source (mic, DJ mixer, jingles, beds), nested in each show scene,
       // so they are live in every shot and the studio's jingle cart can play them
       const AUDIO = 'AUDIO // ALL';
       await req('CreateScene', { sceneName: AUDIO });
       const made = new Set(), missing = [];
+      // OBS gives every new collection its global "Mic/Aux" input: that becomes "Mic // Andrej", so the voice is never doubled
+      const globalMic = (await req('GetInputList', { inputKind: 'coreaudio_input_capture' })).inputs[0]?.inputName;
+      if (globalMic && show.sources['Mic // Andrej']) { await req('SetInputName', { inputName: globalMic, newInputName: 'Mic // Andrej' }); made.add('Mic // Andrej'); }
+      const global = new Set(globalMic ? ['Mic // Andrej'] : []);
       const add = async (scene, src, enabled = true) => {
+        if (global.has(src)) return null;                              // a global input is live in every scene already
         if (made.has(src)) return (await req('CreateSceneItem', { sceneName: scene, sourceName: src, sceneItemEnabled: enabled })).sceneItemId;
         const def = inputFor(src, show.sources[src], cam);
         const r = await req('CreateInput', { sceneName: scene, inputName: src, inputKind: def.kind, inputSettings: def.settings, sceneItemEnabled: enabled });
@@ -98,6 +120,7 @@ obs.on('link', async up => {
         await req('CreateScene', { sceneName: sc.name });
         for (const [src, box] of sc.items) {
           const id = await add(sc.name, src);
+          if (id == null) continue;
           await req('SetSceneItemTransform', { sceneName: sc.name, sceneItemId: id, sceneItemTransform: {
             positionX: box.x, positionY: box.y, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: box.w, boundsHeight: box.h } });
         }
@@ -110,7 +133,7 @@ obs.on('link', async up => {
       const notes = Object.entries(show.sources).filter(([, s]) => s.note && s.kind !== 'audio').map(([n, s]) => `${n}: ${s.note}`);
       if (notes.length) say('      to do once: ' + notes.join(' · '));
     }
-    await req('SetCurrentSceneCollection', { sceneCollectionName: before.currentSceneCollectionName });
+    await switchTo('SetCurrentSceneCollection', before.currentSceneCollectionName);
     say(`OK    back to the collection that was open before: "${before.currentSceneCollectionName}"`);
     obs.stop(); process.exit(0);
   } catch (e) { say('FAIL  ' + e.message); obs.stop(); process.exit(1); }

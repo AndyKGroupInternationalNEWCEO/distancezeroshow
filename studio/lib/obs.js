@@ -177,7 +177,8 @@ export class Obs extends EventEmitter {
 
   setScenes(scenes) {
     // OBS lists scenes bottom-up; show them in the same order as the OBS Scenes dock
-    this.state.scenes = [...scenes].sort((a, b) => b.sceneIndex - a.sceneIndex).map(s => s.sceneName);
+    // the show collections' helper scene with all sound sources (AUDIO // ALL) is nested in every scene, never a shot of its own
+    this.state.scenes = [...scenes].sort((a, b) => b.sceneIndex - a.sceneIndex).map(s => s.sceneName).filter(n => !/^AUDIO \/\//.test(n));
   }
 
   async refreshTransitions() {
@@ -331,11 +332,24 @@ export class Obs extends EventEmitter {
     try { await switchFn(); }
     finally { await this.request('SetCurrentSceneTransition', { transitionName: current }).catch(e => this.log.warn('[obs] restore transition:', e.message)); }
   }
+  // reload a browser source (the overlay page fails to load if OBS started before the studio, and never retries)
+  async refreshBrowser(name) {
+    if (!(await this.request('GetInputList', { inputKind: 'browser_source' })).inputs.some(i => i.inputName === name)) return false;
+    await this.request('PressInputPropertiesButton', { inputName: name, propertyName: 'refreshnocache' });
+    return true;
+  }
   // scene collections: each show has its own (sources, scenes, layout); switching reloads OBS's whole scene setup
   async sceneCollections() { const r = await this.request('GetSceneCollectionList'); return { current: r.currentSceneCollectionName, all: r.sceneCollections || [] }; }
   async setSceneCollection(name) {
     if (this.state.stream.active || this.state.record.active) throw new Error('Not while streaming or recording');
-    await this.request('SetCurrentSceneCollection', { sceneCollectionName: name });
+    // loading a whole collection can take OBS longer than one request may wait: then check until it is really open
+    await this.request('SetCurrentSceneCollection', { sceneCollectionName: name }).catch(e => { if (!/did not answer/.test(e.message)) throw e; });
+    for (let i = 0; i < 40; i++) {
+      const c = await this.request('GetSceneCollectionList').catch(() => null);
+      if (c?.currentSceneCollectionName === name) break;
+      if (i === 39) throw new Error(`OBS did not open the scene collection "${name}"`);
+      await new Promise(r => setTimeout(r, 500));
+    }
     setTimeout(() => this.refresh().catch(() => {}), 1500);      // OBS loads the collection, then the studio reads it again
   }
   async setTransition(name) {

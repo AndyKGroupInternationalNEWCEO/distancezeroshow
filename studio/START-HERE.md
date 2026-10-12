@@ -14,6 +14,15 @@ Without Tailscale her link changes on every start (Cloudflare). With it, it stay
 3. Start the studio as usual. The first time only, line 3 shows a Tailscale link to **switch on Funnel** for this Mac: open it and confirm.
 From then on line 3 says **her permanent link is ready**: send it to Georgie once. She still needs only her browser, and her own access code protects it.
 
+## Two shows, saved
+In the Director Studio top bar, **Select show**: **SUNDAY — DISTANCE // ZERO** or **FRIDAY — DJ ANDY'K**. OBS switches to that
+show's own scene collection (scenes, cameras, videos, jingles, layout), and the rundown, microphones, standby scene,
+transition and graphics follow. The choice stays after a restart. Not possible while streaming, recording or with the
+show clock running (press Reset first). Presets: `studio/shows/*.json`. Build the OBS collections once with
+`npm run obs-setup -- sunday friday` (backs up OBS first, never changes an existing collection).
+Still to do once in OBS: choose the **DJ Mixer** audio device; add files for **Jingle // slot 2, slot 3** (Sunday) and
+**Opening Video** (Friday) when you have them.
+
 ## Every rehearsal or show
 
 1. **Open OBS** (optional for a rehearsal). The studio never streams, records or switches scenes by itself.
