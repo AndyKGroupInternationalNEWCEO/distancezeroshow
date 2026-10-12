@@ -9,7 +9,7 @@ async function submit(code) {
   try {
     const r = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok && j.ok) return location.replace('/');
+    if (r.ok && j.ok) return location.replace(j.next || '/');   // the Director is handed over to the Vienna Mac
     err.textContent = j.error || 'Sign-in failed.';
   } catch { err.textContent = 'Cannot reach the studio server.'; }
 }

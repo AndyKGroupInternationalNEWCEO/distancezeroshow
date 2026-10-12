@@ -87,7 +87,11 @@ test('pages require sign-in; each port only accepts its own code', async () => {
     assert.equal(r.headers.get('location'), '/login');
   }
   assert.equal((await login(D, 'WRONG-CODE')).status, 401);
-  assert.equal((await login(G, app.secrets.directorCode)).status, 401, 'director code must not work on the host port');
+  { // the director code on the host port gives no session there, only a hand-over to the Director listener on this Mac
+    const r = await login(G, app.secrets.directorCode);
+    assert.equal(r.cookie, '', 'no director session on the host port');
+    assert.match(r.body.next, /^http:\/\/127\.0\.0\.1:\d+\/handoff#t=/);
+  }
   assert.equal((await login(D, app.secrets.hostCode)).status, 401, 'host code must not work on the director port');
   const ok = await login(G, app.secrets.hostCode.toLowerCase().replace(/-/g, ' '));
   assert.equal(ok.status, 200, 'codes are forgiving about case and separators');
@@ -790,4 +794,27 @@ test('rundown templates: save per episode, load only with the clock stopped, del
   assert.equal((await d.send({ t: 'rundown', action: 'deleteTemplate', template: 'episode-001' })).ok, true);
   assert.ok(!fs.existsSync(path.join(dataDir, 'rundowns', 'episode-001.json')));
   d.close(); hst.close();
+});
+
+test('one sign-in page: the Director code on the public page hands over to this Mac with a one-time ticket', async () => {
+  const codes = JSON.parse(fs.readFileSync(path.join(dataDir, 'secrets.json'), 'utf8'));
+  const post = (base, p, body, headers = {}) => fetch(base + p, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  // Georgie's code on the public page: her own session, no hand-over
+  const hr = await post(G, '/login', { code: codes.hostCode });
+  const hj = await hr.json();
+  assert.equal(hj.ok, true); assert.equal(hj.next, undefined); assert.match(hr.headers.get('set-cookie') || '', /dz_host=/);
+  // the Director code on the public page: no Director session there, a ticket for the local Director listener
+  const dr = await post(G, '/login', { code: codes.directorCode });
+  const dj = await dr.json();
+  assert.equal(dj.role, 'director'); assert.equal(dr.headers.get('set-cookie'), null);
+  const t = new URLSearchParams(new URL(dj.next).hash.slice(1)).get('t');
+  assert.ok(new URL(dj.next).hostname === '127.0.0.1');
+  // through a proxy (= from the internet) the hand-over is refused
+  assert.equal((await post(D, '/handoff', { t }, { 'x-forwarded-for': '203.0.113.9' })).status, 403);
+  const ok = await post(D, '/handoff', { t });
+  assert.equal(ok.status, 200); assert.match(ok.headers.get('set-cookie') || '', /dz_director=/);
+  assert.equal((await post(D, '/handoff', { t })).status, 401, 'a ticket works once');
+  assert.equal((await post(D, '/handoff', { t: 'made-up' })).status, 401);
+  // the host page never opens the Director Studio
+  assert.equal((await post(G, '/handoff', { t })).status, 404);
 });

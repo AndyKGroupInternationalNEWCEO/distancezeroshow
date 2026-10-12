@@ -8,6 +8,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createStore } from './lib/store.js';
@@ -43,6 +44,12 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
   const studio = createStudio({ config, store, secrets, obs, sampleRundownPath: path.join(ROOT, 'rundown.sample.json'), log });
 
   const loginLimit = limiter(10, 10 * 60 * 1000);
+  // one sign-in page for both people: the Director code typed on the PUBLIC page does not open the Director Studio
+  // there. It creates a one-time ticket (60 s) that only the Director listener on this Mac (127.0.0.1) accepts, so
+  // the Director Studio still works on the Vienna Mac only.
+  const tickets = new Map();
+  const newTicket = () => { const t = crypto.randomBytes(24).toString('base64url'); tickets.set(t, Date.now() + 60000); return t; };
+  const useTicket = t => { const exp = tickets.get(t); tickets.delete(t); for (const [k, e] of tickets) if (e < Date.now()) tickets.delete(k); return !!exp && exp >= Date.now(); };
   const director = listener('director', config.director);
   const guest = listener('host', config.guest);
   await Promise.all([director.ready, guest.ready]);
@@ -54,7 +61,9 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
     const page = role === 'director' ? 'director.html' : 'host.html';
     const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 }); // call set-up messages can exceed 16 KB
 
-    const clientIp = req => String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim();
+    // the LAST x-forwarded-for entry is the one our own proxy (Tailscale) added; earlier ones can be forged by the visitor,
+    // which would let them dodge the sign-in attempt limit
+    const clientIp = req => String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',').pop().trim();
     // behind Cloudflare (x-forwarded-proto) or Tailscale Funnel (always https on *.ts.net): cookies are marked Secure
     const viaHttps = req => req.headers['x-forwarded-proto'] === 'https' || /\.ts\.net(:\d+)?$/i.test(String(req.headers.host || ''));
     const authed = req => checkSession(secrets.cookieSecret, parseCookies(req.headers.cookie)[cookie], role);
@@ -101,6 +110,18 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (req.method === 'GET' && p === '/favicon.svg') return file(req, res, path.join(SITE_ASSETS, 'favicon.svg'));
       if (req.method === 'GET' && p === '/login') return file(req, res, path.join(PUBLIC, 'login.html'));
       if (req.method === 'POST' && p === '/login') return login(req, res);
+      if (role === 'director' && !proxied(req) && req.method === 'GET' && p === '/handoff') return file(req, res, path.join(PUBLIC, 'handoff.html'));
+      if (role === 'director' && !proxied(req) && req.method === 'POST' && p === '/handoff') {
+        let body = '';
+        req.on('data', c => { body += c; if (body.length > 512) req.destroy(); });
+        req.on('end', () => {
+          let t = ''; try { t = String(JSON.parse(body).t || ''); } catch {}
+          if (!useTicket(t)) return send(req, res, 401, 'application/json', JSON.stringify({ ok: false, error: 'This sign-in link expired. Sign in again.' }));
+          log.log('[auth] director signed in on this Mac (from the public sign-in page)');
+          send(req, res, 200, 'application/json', JSON.stringify({ ok: true }), { 'Set-Cookie': cookieHeader(cookie, makeSession(secrets.cookieSecret, 'director'), { secure: false }) });
+        });
+        return;
+      }
       if (req.method === 'POST' && p === '/logout') {
         return send(req, res, 303, 'text/plain', '', { Location: '/login', 'Set-Cookie': cookieHeader(cookie, '', { clear: true, secure: viaHttps(req) }) });
       }
@@ -129,6 +150,11 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       req.on('end', () => {
         let given = '';
         try { given = JSON.parse(body).code; } catch { given = new URLSearchParams(body).get('code'); }
+        if (role === 'host' && codeMatches(given, secrets.directorCode)) {
+          log.log(`[auth] director code on the public sign-in page from ${clientIp(req)}: handed over to the Vienna Mac`);
+          return send(req, res, 200, 'application/json', JSON.stringify({ ok: true, role: 'director',
+            next: `http://127.0.0.1:${config.director.port}/handoff#t=${newTicket()}` }));
+        }
         if (!codeMatches(given, roleCode)) {
           log.warn(`[auth] failed ${role} login from ${clientIp(req)}`);
           return send(req, res, 401, 'application/json', JSON.stringify({ ok: false, error: 'That access code is not right.' }));
