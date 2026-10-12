@@ -245,7 +245,7 @@ export async function start({ canvas, width, height, realtime = true, progress =
   let clockT = 0;
   setClockSource(() => new Date(SHOW_START - (DURATION - clockT) * 1000));
 
-  const studio = buildStudio({ scene, quality, logo: LOGO });
+  const studio = buildStudio({ scene, quality, logo: LOGO, guest: false });   // blocked before the guest chair
   const mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x6a6d73 });
   mirror.rotation.x = -Math.PI / 2; mirror.position.y = -0.002; scene.add(mirror);
   progress(0.25);

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 // tally: which studio camera would be "taking" this shot (1-3 pedestals, 4 the jib)
 export const VIEWS = {
   studio: { label: 'Studio', long: 'Wide shot', pos: [0, 3.0, 11.4], target: [0, 1.75, -3], fov: 42, drift: 0.32, tally: 2 },
-  desk: { label: 'Desk', long: 'Two-shot', pos: [0, 1.6, 3.9], target: [0, 1.12, -1.75], fov: 36, drift: 0.14, tally: 2 },
+  desk: { label: 'Desk', long: 'Three-shot', pos: [0, 1.6, 3.9], target: [0, 1.12, -1.75], fov: 36, drift: 0.14, tally: 2 },
   andy: { label: "Andy'K", long: "DJ Andy'K · Andrej Kneisl · Vienna", pos: [-0.35, 1.12, 1.75], target: [-0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 3 },
   georgie: { label: 'Georgie', long: 'Georgie Walker · Melbourne', pos: [0.35, 1.12, 1.75], target: [0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 1 },
   wall: { label: 'Video wall', long: 'LED wall and logo', pos: [0, 2.1, 1.9], target: [0, 3.25, -7], fov: 50, drift: 0.12, tally: 4 },

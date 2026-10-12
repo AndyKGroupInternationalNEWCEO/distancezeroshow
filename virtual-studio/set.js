@@ -9,7 +9,7 @@ import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTe
 
 export const RISER = 0.16;            // stage riser height
 export const DESK_CENTER = -4.4;      // z of the circle the desk is an arc of
-export const SEATS = { andy: new THREE.Vector3(-0.95, RISER, -1.95), georgie: new THREE.Vector3(0.95, RISER, -1.95) };
+export const SEATS = { andy: new THREE.Vector3(-0.95, RISER, -1.95), georgie: new THREE.Vector3(0.95, RISER, -1.95), guest: new THREE.Vector3(0, RISER, -1.95) };
 const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), champagne: new THREE.Color('#e3c79a'), warm: new THREE.Color('#fff0dc'), cool: new THREE.Color('#e6efff'),
   tungsten: new THREE.Color('#ffa64d') };   // an old filament bulb: yellow to amber, never white
 
@@ -100,7 +100,9 @@ function roundRectShape(x, y, w, h, r, shape = new THREE.Shape()) {
 
 /* ---------- build ---------- */
 
-export function buildStudio({ scene, quality, logo: logoStyle = 'kv' }) {
+// guest: the third chair, in the middle for the show's guest (the recorded opening and the proof of concept were
+// blocked without it: the assistant walks through that spot)
+export function buildStudio({ scene, quality, logo: logoStyle = 'kv', guest = true }) {
   const M = materials(quality);
   const root = new THREE.Group();
   scene.add(root);
@@ -193,7 +195,15 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'kv' }) {
   deskShadow.position.y = 0.003;
   desk.add(deskShadow);
 
-  // desk props: broadcast microphones and slim monitors facing the presenters
+  // desk props: broadcast microphones and slim monitors facing the presenters; the guest has a microphone only,
+  // so nothing stands in the middle of the desk in the front shots
+  if (guest) {
+    const m = microphone(M, C.champagne, glows);
+    m.position.set(0, RISER + 0.807, -1.02);
+    m.rotation.y = Math.PI;
+    add(m);
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0, RISER + 0.809, -1.02); add(ms);
+  }
   for (const [seat, col] of [[SEATS.andy, C.amber], [SEATS.georgie, C.ice]]) {
     const m = microphone(M, col, glows);
     m.position.set(seat.x * 0.92, RISER + 0.807, -1.02);
@@ -213,12 +223,12 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'kv' }) {
     add(mon);
   }
 
-  /* ----- presenter chairs ----- */
-  for (const seat of [SEATS.andy, SEATS.georgie]) {
+  /* ----- presenter chairs, and the guest's chair between them ----- */
+  for (const seat of guest ? [SEATS.andy, SEATS.guest, SEATS.georgie] : [SEATS.andy, SEATS.georgie]) {
     const ch = chair(M);
-    ch.userData.focus = seat.x < 0 ? 'andy' : 'georgie';
+    ch.userData.focus = seat.x < 0 ? 'andy' : seat.x > 0 ? 'georgie' : 'desk';
     ch.position.copy(seat);
-    ch.rotation.y = seat.x < 0 ? 0.12 : -0.12;
+    ch.rotation.y = seat.x < 0 ? 0.12 : seat.x > 0 ? -0.12 : 0;
     add(ch);
     const cs = contactShadow(0.95, 0.95, 0.6); cs.position.set(seat.x, RISER + 0.003, seat.z); add(cs);
   }
@@ -543,7 +553,8 @@ function microphone(M, color, glows) {
   const grommet = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.003, 8, 20).rotateX(Math.PI / 2), M.brushed); grommet.position.set(0.03, 0.002, -0.1); g.add(grommet);
   const lead = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.012, -0.055), new THREE.Vector3(0.012, 0.01, -0.085), new THREE.Vector3(0.03, -0.01, -0.1)]);
   g.add(new THREE.Mesh(new THREE.TubeGeometry(lead, 12, 0.0025, 6), M.rubber));
-  (color.getHex() === new THREE.Color(AMBER).getHex() ? glows.amber : glows.ice).push({ m: ringMat, k: 2.5 });
+  const hex = color.getHex();
+  (hex === new THREE.Color(AMBER).getHex() ? glows.amber : hex === new THREE.Color(ICE).getHex() ? glows.ice : glows.white).push({ m: ringMat, k: 2.5 });
   shadows(g);
   return g;
 }

@@ -222,7 +222,7 @@ export async function start({ canvas, width, height, progress = () => {}, realti
   scene.environmentIntensity = 0.8;
   const camera = new THREE.PerspectiveCamera(46, width / height, 0.05, 80);
 
-  const studio = buildStudio({ scene, quality });
+  const studio = buildStudio({ scene, quality, guest: false });
   if (quality.reflections) {
     const mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x6a6d73 });
     mirror.rotation.x = -Math.PI / 2; mirror.position.y = -0.002; scene.add(mirror);
