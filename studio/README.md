@@ -220,8 +220,8 @@ npm test           # 35 end-to-end tests: real server + real WebSockets + mock O
 - Monitors are snapshots (about 3 fps), not live video. Full-motion return would need OBS's virtual camera or NDI.
 - Multi-screen is "one workspace per window". There's no saved window layout yet.
 - No YouTube API integration: no viewer count, no live chat questions feed, no stream health from YouTube's side. OBS stats only.
-- No multiple director accounts. The event log lives in memory and resets when the server restarts.
-- No audible chat alert. Unread shows as a badge and in the tab title only.
+- No multiple director accounts. (The event log is kept in `data/events.jsonl`, last 200 entries, and comes back after a restart.)
+- A new message from Georgie plays one soft tone in the Director Studio, besides the badge and the tab title.
 - Phone layout works but is not optimised. Desktop and tablet are the targets.
 
 ## Costs

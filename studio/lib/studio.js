@@ -5,6 +5,7 @@
 // Every client message is checked against its role here, on the server. The browser UI hiding a button
 // is never the protection.
 import fs from 'node:fs';
+import path from 'node:path';
 import crypto from 'node:crypto';
 import { debounced } from './store.js';
 import { createTalk } from './talk.js';
@@ -44,7 +45,15 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
   let lastChatId = chat.at(-1)?.id || 0;
-  const events = [];
+  // the event log survives a restart: kept in data/events.jsonl (last entries only), shown again on the next start
+  const LOG_FILE = path.join(store.dir, 'events.jsonl');
+  const events = (() => {
+    try {
+      const lines = fs.readFileSync(LOG_FILE, 'utf8').trim().split('\n').slice(-LOG_KEEP);
+      fs.writeFileSync(LOG_FILE, lines.join('\n') + '\n');                         // trim the file at every start
+      return lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    } catch { return []; }
+  })();
   const saveState = debounced(() => store.writeSafe('state.json', state));
   const saveChat = debounced(() => store.writeSafe('chat.json', chat.slice(-CHAT_KEEP)));
   const saveRundown = () => store.write('rundown.json', rundown);
@@ -85,6 +94,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     const entry = { ts: Date.now(), level, text: str(text, 300) };
     events.push(entry);
     if (events.length > LOG_KEEP) events.shift();
+    fs.appendFile(LOG_FILE, JSON.stringify(entry) + '\n', () => {});              // best effort: never blocks the show
     for (const c of clients) if (c.role === 'director') c.send({ t: 'log', entry });
   }
   /* notifications: one short, calm message per event; sound only when asked for (critical issues) */

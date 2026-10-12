@@ -46,6 +46,7 @@ ctx.conn.on('frame', f => live.frame(f));
 ctx.conn.on('log.history', ({ entries }) => tech.logHistory(entries));
 ctx.conn.on('log', ({ entry }) => tech.logEntry(entry));
 chatPanel(ctx.conn, 'director', { onUnread: n => {
+  if (n > ctx.unread) ctx.note.chime?.();                      // a new message from Georgie: one soft tone
   ctx.unread = n;
   titleBadge('Director Studio — DISTANCE // ZERO')(n);
   const u = $('#unread'); u.hidden = !n; u.textContent = n + ' new';

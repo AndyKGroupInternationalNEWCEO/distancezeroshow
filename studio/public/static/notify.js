@@ -25,6 +25,15 @@ export function notifier() {
       });
     } catch {}
   }
+  // a single soft tone for a new chat message (gentler than the two-tone alert for critical issues)
+  function chime() {
+    try {
+      const ac = beep.ac ||= new AudioContext(), t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = 880; o.connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.start(t); o.stop(t + 0.55);
+    } catch {}
+  }
   function show({ level = 'info', kind = '', title, text, actions = [], sound = false, key }) {
     key ||= kind + '|' + text;
     const prev = open.get(key);
@@ -47,5 +56,5 @@ export function notifier() {
     if (sound) beep();
     return entry;
   }
-  return { show };
+  return { show, chime };
 }
