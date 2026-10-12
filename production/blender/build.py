@@ -10,7 +10,8 @@ CACHE = os.path.join(HERE, 'cache')
 AV = os.path.join(HERE, '..', 'avatars')
 meta = json.load(open(os.path.join(CACHE, 'scene.json')))
 FRAMES = meta['frames']['count']
-K_LIGHT = float(os.environ.get('DZ_K', '4.0'))            # global light calibration against the reference frames (4: closest to them)
+# the look of the real-time studio: deep black room, light only where the fixtures and LEDs put it
+K_LIGHT = float(os.environ.get('DZ_K', '2.0'))            # global light calibration against the reference frames
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -40,7 +41,7 @@ for mat in bpy.data.materials:
     if not rough.is_linked: rough.default_value = max(0.08, rough.default_value)
     em = p.inputs['Emission Strength']
     if em.default_value > 0 and (p.inputs['Emission Color'].is_linked or max(p.inputs['Emission Color'].default_value[:3]) > 0):
-        em.default_value *= float(os.environ.get('DZ_EMIT', '1.0'))   # LED strips and screens really light the room in Cycles
+        em.default_value *= float(os.environ.get('DZ_EMIT', '2.0'))   # LED strips and screens really light the room in Cycles
 
 # floor: one dark, slightly glossy studio floor (the real-time mirror is replaced by real ray-traced reflections)
 floor_info = next(s for s in meta['shaders'] if s['kind'].startswith('Reflector'))
@@ -50,7 +51,7 @@ for c in floor.users_collection: c.objects.unlink(floor)
 c_set.objects.link(floor)
 fm = bpy.data.materials.new('Floor'); fm.use_nodes = True
 fp = principled(fm)
-fp.inputs['Base Color'].default_value = (0.012, 0.013, 0.016, 1)
+fp.inputs['Base Color'].default_value = (0.006, 0.006, 0.007, 1)
 fp.inputs['Roughness'].default_value = 0.22
 fp.inputs['Coat Weight'].default_value = 0.6
 fp.inputs['Coat Roughness'].default_value = 0.08
@@ -126,7 +127,7 @@ bg.inputs['Color'].default_value = (0.004, 0.005, 0.007, 1); bg.inputs['Strength
 # haze: makes the spotlight beams visible like the real-time cones did, through real light scattering
 if os.environ.get('DZ_HAZE', '1') == '1':
     vol = world.node_tree.nodes.new('ShaderNodeVolumePrincipled')
-    vol.inputs['Density'].default_value = float(os.environ.get('DZ_HAZE_DENSITY', '0.003'))
+    vol.inputs['Density'].default_value = float(os.environ.get('DZ_HAZE_DENSITY', '0.002'))
     vol.inputs['Anisotropy'].default_value = 0.55
     world.node_tree.links.new(vol.outputs['Volume'], world.node_tree.nodes['World Output'].inputs['Volume'])
 
@@ -249,11 +250,11 @@ for d in prefs.devices: d.use = True
 cy.device = 'GPU'
 cy.samples = int(os.environ.get('DZ_SAMPLES', '256')); cy.use_adaptive_sampling = True; cy.adaptive_threshold = 0.02
 cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'
-cy.max_bounces = 8; cy.diffuse_bounces = 3; cy.glossy_bounces = 4; cy.transmission_bounces = 6; cy.volume_bounces = 1
+cy.max_bounces = 8; cy.diffuse_bounces = 2; cy.glossy_bounces = 4; cy.transmission_bounces = 6; cy.volume_bounces = 1
 cy.sample_clamp_indirect = 8
 cy.use_auto_tile = True; cy.tile_size = 1024                          # keeps memory in check on 8 GB
 scene.view_settings.view_transform = 'AgX'; scene.view_settings.look = 'AgX - Medium High Contrast'
-scene.view_settings.exposure = float(os.environ.get('DZ_EXPOSURE', '0.0'))
+scene.view_settings.exposure = float(os.environ.get('DZ_EXPOSURE', '-0.5'))
 
 # light bloom on the LEDs and screens, like a real camera lens
 tree = bpy.data.node_groups.new('DZ compositor', 'CompositorNodeTree')
