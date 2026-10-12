@@ -110,6 +110,9 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 .looks .b[data-look="music"][aria-pressed="true"]{background:linear-gradient(100deg,var(--amber),#f3f5f8,var(--ice))}
 .fine{font-size:.6rem;letter-spacing:.06em;color:var(--dim);text-align:center;max-width:62ch;line-height:1.5}
 .fine a{color:var(--chrome)}
+.fine .legal{display:inline-block;margin-top:4px;letter-spacing:.1em}
+.fine .legal a{color:var(--dim);text-decoration:none}
+.fine .legal a:hover{color:var(--chrome-hi)}
 
 /* loader and fallback */
 .loader{position:fixed;inset:0;z-index:20;display:grid;place-content:center;justify-items:center;gap:22px;background:var(--black);transition:opacity .9s}
@@ -350,7 +353,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
     <button class="b" id="musicBtn" type="button" aria-expanded="false" aria-controls="panel" title="Soundtrack, piano and DJ Andy'K">♪ Music station</button>
     <button class="b" id="liveBtn" type="button" aria-expanded="false" aria-controls="panel" title="When the real show is on">Show schedule</button>
   </div>
-  <p class="fine">A virtual set preview. “Simulate on air” plays a full-screen simulation on this page; nothing is recorded or broadcast. First show 27 January 2027 · <a href="/">distancezeroshow.com</a></p>
+  <p class="fine">A virtual set preview. “Simulate on air” plays a full-screen simulation on this page; nothing is recorded or broadcast. First show 27 January 2027 · <a href="/">distancezeroshow.com</a><br><span class="legal"><a href="https://distancezeroshow.com/impressum#en">Impressum</a> · <a href="https://distancezeroshow.com/privacy#en">Privacy</a> · <a href="https://distancezeroshow.com/cookies#en">Cookies</a> · <a href="https://distancezeroshow.com/terms#en">Terms of use</a> · <a href="https://distancezeroshow.com/disclaimer#en">Disclaimer</a></span></p>
 </nav>
 
 <aside class="panel" id="panel" hidden aria-labelledby="panelTitle">
@@ -367,6 +370,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
     <h1>The 3D studio can't run here</h1>
     <p id="fbtext">This browser or device doesn't support WebGL 2, which the interactive studio needs. Try a current version of Safari, Chrome, Firefox or Edge on a recent phone, tablet or computer.</p>
     <a class="b" href="/">Back to distancezeroshow.com</a>
+    <p class="fine legal" style="margin-top:18px"><a href="https://distancezeroshow.com/impressum#en">Impressum</a> · <a href="https://distancezeroshow.com/privacy#en">Privacy</a> · <a href="https://distancezeroshow.com/cookies#en">Cookies</a> · <a href="https://distancezeroshow.com/terms#en">Terms of use</a> · <a href="https://distancezeroshow.com/disclaimer#en">Disclaimer</a></p>
   </div>
 </section>
 <noscript><style>.loader{display:none}</style><section class="fallback"><div class="card"><h1>The 3D studio needs JavaScript</h1><p>Turn on JavaScript to explore the DISTANCE // ZERO virtual studio.</p><a class="b" href="/">Back to distancezeroshow.com</a></div></section></noscript>
