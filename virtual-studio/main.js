@@ -12,6 +12,7 @@ import { buildStudio } from './set.js';
 import { createDirector, VIEWS, ORDER } from './views.js';
 import { createSound } from './sound.js';
 import { createPanels } from './panels.js';
+import { createOnAir } from './onair.js';
 
 /* lighting looks. `onAir` scales most of it; off air the studio sits under dim work light */
 export const LOOKS = {
@@ -79,7 +80,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   camera.position.set(...v0.pos);
 
   /* ----- the set ----- */
-  const studio = buildStudio({ scene, quality });
+  const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'kv' });
   progress(0.7);
 
   let mirror = null;
@@ -115,11 +116,13 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   controls.screenSpacePanning = true;
 
   const lens = { fov: v0.fov };
+  let air = null;   // the full-screen on-air simulation (created below)
   const director = createDirector({
     camera, lens, controls, reducedMotion,
     onView: name => {
       for (const b of ui.views) b.setAttribute('aria-pressed', String(b.dataset.view === name));
       ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
+      air?.shot(name);
       showTally();
     },
     onAuto: on => { ui.auto.setAttribute('aria-pressed', String(on)); ui.auto.querySelector('span').textContent = on ? 'Auto camera on' : 'Auto camera off'; },
@@ -140,10 +143,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     ui.cam.textContent = onAir ? (n === 4 ? 'JIB' : `CAM ${n}`) : 'CAM —';
   }
 
+  // the wall's own on-air programme, except while the simulation player has the wall for the show's video
+  const setWall = program => { if (!air?.isOpen) studio.wall.set(program); };
+
   function setLook(name) {
     look = name;
     for (const b of ui.looks) b.setAttribute('aria-pressed', String(b.dataset.look === name));
-    if (onAir) studio.wall.set(name === 'music' ? 'wave' : PROGRAMME[programmeIndex][0]);
+    air?.look(name);
+    if (onAir) setWall(name === 'music' ? 'wave' : PROGRAMME[programmeIndex][0]);
   }
 
   function setOnAir(on) {
@@ -161,14 +168,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     }
     // a short stand-by count, then lights up. Always labelled as a simulation.
     ui.status.textContent = 'Simulation starting';
-    let n = reducedMotion ? 0 : 3;
+    let n = reducedMotion || air?.isOpen ? 0 : 3;   // the player starts its own video straight away
     const step = () => {
       if (n > 0) { studio.wall.countdown(n); ui.count.hidden = false; ui.count.textContent = String(n); n--; return; }
       clearInterval(countdownTimer);
       studio.wall.countdown(0); ui.count.hidden = true;
       onAir = true;
       programmeIndex = 0; programmeAt = clock.elapsed;
-      studio.wall.set(look === 'music' ? 'wave' : PROGRAMME[0][0]);
+      setWall(look === 'music' ? 'wave' : PROGRAMME[0][0]);
       ui.status.textContent = 'Simulated on air';
       ui.live.textContent = 'Simulated on-air lighting. Nothing is being broadcast.';
       showTally();
@@ -184,7 +191,11 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   /* ----- UI wiring ----- */
   for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); director.go(b.dataset.view); });
   for (const b of ui.looks) b.addEventListener('click', () => setLook(b.dataset.look));
-  ui.onair.addEventListener('click', () => { sim = !sim; setOnAir(sim); });
+  // "Simulate on air": full screen, on-air lighting, the show's video on the LED wall and broadcast graphics on top
+  air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion,
+    onStart: () => { panels.close(); sim = true; setOnAir(true); },
+    onEnd: () => { sim = false; setOnAir(false); } });
+  ui.onair.addEventListener('click', () => (air.isOpen ? air.close() : air.open()));
   ui.auto.addEventListener('click', () => director.setAuto(!director.auto));
   addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey || /input|select|textarea/i.test(e.target.tagName)) return;
@@ -217,8 +228,17 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || performance.now() - downAt.t > 450) return; // a drag, not a tap
     const view = focusAt(e.clientX, e.clientY);
     if (view) { director.setAuto(false); director.go(view); }
-    if (view === 'music') panels.open('station');
+    // the music station and the grand open the music panel (the grand on its existing Piano tab). On a touch screen the
+    // browser still sends a click after the tap, which would land on the panel just opened (on a phone it covers the
+    // lower half): so the panel opens with that click, or shortly after the tap if no click comes
+    const tab = view === 'music' ? [] : view === 'piano' ? ['piano'] : null;
+    if (!tab) return;
+    clearTimeout(panelTimer);
+    pendingPanel = () => { pendingPanel = null; clearTimeout(panelTimer); panels.open('station', ...tab); };
+    panelTimer = setTimeout(() => pendingPanel?.(), e.pointerType === 'mouse' ? 0 : 400);
   });
+  let pendingPanel = null, panelTimer = 0;
+  canvas.addEventListener('click', () => { if (pendingPanel) setTimeout(() => pendingPanel?.(), 0); });
   let hoverQueued = false;
   canvas.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse' || e.buttons || hoverQueued) return;
@@ -275,9 +295,9 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
     if (onAir && look !== 'music' && t - programmeAt > PROGRAMME[programmeIndex][1]) {
       programmeIndex = (programmeIndex + 1) % PROGRAMME.length; programmeAt = t;
-      studio.wall.set(PROGRAMME[programmeIndex][0]);
+      setWall(PROGRAMME[programmeIndex][0]);
     }
-    if (onAir && look === 'music' && studio.wall.program !== 'wave') studio.wall.set('wave');
+    if (onAir && look === 'music' && studio.wall.program !== 'wave') setWall('wave');
 
     // the studio listens: fast attack, slower release, like a light desk's sound-to-light
     const a = sound.levels(), playing = sound.state.playing;
@@ -288,7 +308,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (!onAir && !playing && studio.wall.program === 'wave') studio.wall.set('idle');
 
     wallAccum += dt;
-    if (wallAccum >= wallStep) { studio.wall.draw(t, wallAccum); wallAccum = 0; }
+    if (studio.wall.program === 'film' ? studio.wall.fresh() : wallAccum >= wallStep) { studio.wall.draw(t, wallAccum); wallAccum = 0; }
     studio.update(t, dt, L, director.tally());
 
     director.update(dt, now);
@@ -320,5 +340,5 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook };
+  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air };
 }

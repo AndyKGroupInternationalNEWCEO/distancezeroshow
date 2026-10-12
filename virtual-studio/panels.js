@@ -209,7 +209,7 @@ export function createPanels({ sound, el, onMusicStart }) {
       h('p', { class: 'grp', text: 'After that' }), ...next.slice(1, 3).map(when),
       h('p', { class: 'pnote' }, 'Then every third Sunday of the month, 10:00 Vienna, 120 minutes.'),
       h('div', { class: 'ctl left' }, ext(SHOW.livePage, 'Official live page', 'pbtn'), h('a', { href: SHOW.calendar, class: 'pbtn', text: '+ Add to calendar' })),
-      h('div', { class: 'simnote' }, h('b', { text: 'Not the same thing: ' }), '“Simulate on air” in this studio only changes the lighting on this page. It is a simulation, not the show, and nothing is broadcast.'));
+      h('div', { class: 'simnote' }, h('b', { text: 'Not the same thing: ' }), '“Simulate on air” in this studio plays a full-screen simulation on this page. It is a simulation, not the show, and nothing is broadcast.'));
   }
 
   return { open, close: hide, get current() { return current; } };

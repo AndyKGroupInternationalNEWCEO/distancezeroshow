@@ -185,6 +185,8 @@ export function createWall({ width = 2048, height = 860 } = {}) {
 
   const state = { program: 'idle', from: 'idle', fade: 1, countdown: 0 };
   let spec = null; // the analyser's spectrum while music or the piano plays, else null
+  let film = null, filmFresh = () => true; // the show's own video on the wall during the on-air simulation
+  const side = canvas(96, 40), sideX = side.getContext('2d');  // a tiny copy, stretched: soft sides for almost nothing
 
   function background(t, level) {
     const g = x.createLinearGradient(0, 0, W, 0);
@@ -232,6 +234,20 @@ export function createWall({ width = 2048, height = 860 } = {}) {
   }
 
   const programs = {
+    // the show's video on the wall: the full picture in the middle, a dimmed, blurred copy filling the sides
+    film(t) {
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      for (const [v, alpha] of film ? film() : []) {
+        if (!v || v.readyState < 2 || !v.videoWidth || alpha <= 0) continue;
+        const vw = v.videoWidth, vh = v.videoHeight, k = H / vh, w = vw * k;
+        x.globalAlpha = alpha;
+        sideX.drawImage(v, 0, 0, 96, 40);
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        x.globalAlpha = alpha * 0.34; x.drawImage(side, 0, 0, W, H); x.globalAlpha = alpha;
+        x.drawImage(v, (W - w) / 2, 0, w, H);
+        x.globalAlpha = 1;
+      }
+    },
     idle(t) {
       background(t, 0.4);
       wave(t * 0.4, H * 0.62, 26 * S, 0.22, 3, 0.6);
@@ -327,6 +343,9 @@ export function createWall({ width = 2048, height = 860 } = {}) {
     },
     countdown(n) { state.countdown = n; },
     spectrum(bins) { spec = bins; },
+    film(source, fresh) { film = source; filmFresh = fresh || (() => true); },
+    // in film mode the wall redraws on every new video frame (24 fps), not on its own clock: no judder
+    fresh() { return filmFresh(); },
     draw(t, dt) {
       x.textBaseline = 'alphabetic';
       if (state.fade < 1) {
@@ -344,7 +363,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
     },
     // a rough average colour of the current programme, for the light the wall throws onto the set
     tint() {
-      return { idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9] }[state.program];
+      return { film: [0.6, 0.62, 0.7], idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9] }[state.program];
     },
   };
 }

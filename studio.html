@@ -226,6 +226,80 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
   .shot{top:calc(env(safe-area-inset-top,0px) + 56px)}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+
+/* ---------- on-air simulation: full-screen broadcast player (simulation only, nothing is streamed) ---------- */
+body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-on .count,body.air-on .panel{visibility:hidden}
+.air{position:fixed;inset:0;z-index:20;color:var(--chrome-hi);font-family:var(--wide);overflow:hidden;pointer-events:none}
+.air-ctl,.air-notice{pointer-events:auto}
+.air[hidden]{display:none}
+/* the players are off screen: their picture is drawn onto the studio's LED wall */
+.air-src{position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;overflow:hidden;pointer-events:none}
+.air-src video{width:2px;height:2px}
+.air-gfx{position:absolute;inset:0;z-index:1;pointer-events:none}
+.air-notice,.air-ctl{z-index:2}
+.air-top{position:absolute;top:calc(env(safe-area-inset-top,0px) + 22px);left:var(--gut);right:var(--gut);display:flex;justify-content:space-between;align-items:flex-start}
+.air-onair{display:flex;align-items:center;gap:10px;padding:8px 14px 8px 12px;border-radius:6px;background:rgba(150,16,12,.82);
+  box-shadow:0 0 0 1px rgba(255,120,110,.5),0 6px 24px rgba(0,0,0,.5);letter-spacing:.16em;font-size:.82rem}
+.air-onair i{width:10px;height:10px;border-radius:50%;background:#ff6b5e;box-shadow:0 0 10px #ff4a3d;animation:pulse 1.6s ease-in-out infinite}
+.air-onair b{font-weight:800;font-stretch:115%}
+.air-onair small{font-size:.62rem;letter-spacing:.14em;opacity:.85;text-transform:uppercase;border-left:1px solid rgba(255,255,255,.35);padding-left:10px}
+.air-bug{width:clamp(78px,9vw,132px);height:auto;opacity:.86}
+.air-notice{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 24px);transform:translateX(-50%);margin:0;
+  padding:7px 14px;border-radius:999px;background:rgba(4,5,7,.72);border:1px solid rgba(227,199,154,.55);color:var(--champagne);
+  font-size:.7rem;font-weight:700;letter-spacing:.18em;white-space:nowrap;pointer-events:none}
+.air-bottom{position:absolute;left:var(--gut);right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 112px);display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.air-l3{display:flex;flex-direction:column;gap:4px;padding:12px 20px 12px 16px;background:linear-gradient(90deg,rgba(4,5,7,.86),rgba(4,5,7,.55));
+  border-left:3px solid var(--amber);box-shadow:inset -3px 0 0 var(--ice);border-radius:2px;max-width:min(560px,70vw)}
+.air-l3 b{font-size:clamp(1rem,1.9vw,1.5rem);font-weight:800;font-stretch:120%;letter-spacing:.08em}
+.air-l3 span{font-size:clamp(.7rem,1vw,.85rem);letter-spacing:.14em;color:var(--chrome);text-transform:uppercase}
+.air-meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:.72rem;letter-spacing:.16em}
+.air-cam{padding:4px 9px;border:1px solid var(--red);background:rgba(255,74,61,.2);border-radius:4px}
+.air-clock{padding:5px 10px;background:rgba(4,5,7,.7);border-radius:4px;color:var(--chrome)}
+.air-clock b{color:var(--chrome-hi);font-weight:700}
+.air-ticker{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);height:32px;background:rgba(4,5,7,.82);
+  border-top:1px solid rgba(242,166,80,.45);border-bottom:1px solid rgba(169,200,238,.35);overflow:hidden;display:flex;align-items:center}
+.air-track{display:flex;gap:18px;white-space:nowrap;padding-left:18px;font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;animation:ticker 42s linear infinite}
+.air-track i{font-style:normal;color:var(--amber)} .air-track span:first-child{color:var(--champagne);font-weight:700}
+.air.still .air-track{animation:none}
+@keyframes ticker{to{transform:translateX(-50%)}}
+.air-ctl{position:absolute;left:var(--gut);right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.air-srcs,.air-snd{display:flex;gap:6px;align-items:center}
+.air-b{appearance:none;border:1px solid var(--line);background:rgba(10,11,14,.72);color:var(--chrome);font:inherit;font-size:.7rem;letter-spacing:.14em;
+  text-transform:uppercase;padding:9px 13px;border-radius:999px;cursor:pointer;min-height:40px}
+.air-b[aria-pressed="true"]{background:var(--chrome-hi);color:#08090b;border-color:transparent}
+.air-sound[aria-pressed="true"]{background:rgba(10,11,14,.72);color:var(--dim)}
+.air-vol{width:110px;accent-color:var(--amber)}
+.air-exit{margin-left:auto;appearance:none;border:1px solid rgba(255,255,255,.8);background:#f3f5f8;color:#07080a;font:inherit;font-weight:800;
+  font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;padding:11px 18px;border-radius:999px;cursor:pointer;min-height:44px}
+.air-b:focus-visible,.air-exit:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.air-b{white-space:nowrap;flex:none}
+/* phones, portrait: looks and sound in one row that scrolls sideways, Exit full width below; then ticker, notice, caption */
+@media (orientation:portrait){
+  .air-ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+  .air-srcs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .air-srcs::-webkit-scrollbar{display:none}
+  .air-vol{display:none}
+  .air-exit{grid-column:1/-1;margin-left:0;width:100%}
+  .air-ticker{bottom:calc(env(safe-area-inset-bottom,0px) + 116px);height:28px}
+  .air-notice{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 154px);font-size:.6rem;letter-spacing:.12em}
+  .air-bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 196px);flex-direction:column-reverse;align-items:stretch;gap:8px}
+  .air-meta{flex-direction:row;justify-content:space-between;align-items:center}
+  .air-l3{max-width:none}
+}
+/* phones, landscape: one row of controls, the looks scroll sideways; ticker and caption above it */
+@media (orientation:landscape) and (max-height:500px){
+  .air-top{top:calc(env(safe-area-inset-top,0px) + 12px)}
+  .air-notice{top:calc(env(safe-area-inset-top,0px) + 14px);font-size:.58rem;padding:6px 12px}
+  .air-onair{padding:6px 10px;font-size:.7rem}
+  .air-ctl{flex-wrap:nowrap;bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
+  .air-srcs{flex:1;min-width:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .air-srcs::-webkit-scrollbar{display:none}
+  .air-vol{display:none}
+  .air-exit{margin-left:0}
+  .air-ticker{bottom:calc(env(safe-area-inset-bottom,0px) + 60px);height:26px}
+  .air-bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
+  .air-l3{padding:8px 14px 8px 12px} .air-l3 b{font-size:1rem}
+}
 </style>
 <script type="importmap">
 { "imports": { "three": "./assets/vendor/three-0.170.0/three.module.min.js", "three/addons/": "./assets/vendor/three-0.170.0/addons/" } }
@@ -260,7 +334,7 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
     <button class="b" type="button" data-view="music"><kbd>8</kbd>Music</button>
   </div>
   <div class="row ctrl">
-    <button class="b onair" id="onair" type="button" aria-pressed="false" title="Lighting simulation only. Nothing is broadcast. (O)"><i></i><span>Simulate on air</span></button>
+    <button class="b onair" id="onair" type="button" aria-pressed="false" title="Full-screen simulation. Nothing is broadcast or recorded. (O)"><i></i><span>Simulate on air</span></button>
     <span class="sep"></span>
     <div class="row looks" role="group" aria-label="Lighting look" style="padding:0">
       <button class="b" type="button" data-look="broadcast" aria-pressed="true">Broadcast</button>
@@ -274,7 +348,7 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
     <button class="b" id="musicBtn" type="button" aria-expanded="false" aria-controls="panel" title="Soundtrack, piano and DJ Andy'K">♪ Music station</button>
     <button class="b" id="liveBtn" type="button" aria-expanded="false" aria-controls="panel" title="When the real show is on">Show schedule</button>
   </div>
-  <p class="fine">A virtual set preview. “Simulate on air” only changes the lighting on this page; nothing is recorded or broadcast. First show 27 January 2027 · <a href="/">distancezeroshow.com</a></p>
+  <p class="fine">A virtual set preview. “Simulate on air” plays a full-screen simulation on this page; nothing is recorded or broadcast. First show 27 January 2027 · <a href="/">distancezeroshow.com</a></p>
 </nav>
 
 <aside class="panel" id="panel" hidden aria-labelledby="panelTitle">

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX } from './details.js';
+import { grandPiano } from './grandpiano.js';
 import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, AMBER, ICE } from './screens.js';
 
 export const RISER = 0.16;            // stage riser height
@@ -98,7 +99,7 @@ function roundRectShape(x, y, w, h, r, shape = new THREE.Shape()) {
 
 /* ---------- build ---------- */
 
-export function buildStudio({ scene, quality }) {
+export function buildStudio({ scene, quality, logo: logoStyle = 'kv' }) {
   const M = materials(quality);
   const root = new THREE.Group();
   scene.add(root);
@@ -252,9 +253,9 @@ export function buildStudio({ scene, quality }) {
   add(wallLight);
 
   /* ----- the 3D logo, hanging in front of the wall ----- */
-  const logo = buildLogo(M, glows);
+  const logo = logoStyle === 'kv' ? buildLogoKV(M, glows) : buildLogo(M, glows);
   logo.userData.focus = 'wall';
-  logo.position.set(-1.31 * 1.25, 3.62, -5.55);
+  logo.position.set(logoStyle === 'kv' ? 0 : -1.31 * 1.25, 3.62, -5.55);   // the key-visual logo is centred in its own group
   logo.scale.setScalar(1.25);
   add(logo);
   for (const x of [-1.2, 1.2]) {
@@ -262,7 +263,9 @@ export function buildStudio({ scene, quality }) {
     cable.position.set(x, 3.62 + 1.25 + 1.55, -5.5);
   }
   shadows(logo, true, false);
-  anim.push((t, dt, L) => { logo.position.y = 3.62 + Math.sin(t * 0.45) * 0.015; });
+  // during the on-air simulation the logo is flown up above the wall, so the video on the wall is not covered
+  let lift = 0, liftTo = 0;
+  anim.push((t, dt, L) => { lift += (liftTo - lift) * Math.min(1, dt * 1.2); logo.position.y = 3.62 + lift * 2.0 + Math.sin(t * 0.45) * 0.015; });
 
   /* ----- Vienna and Melbourne light pylons ----- */
   const pylons = [];
@@ -418,6 +421,16 @@ export function buildStudio({ scene, quality }) {
   add(music);
   const mus = contactShadow(2.9, 1.3, 0.65); music.add(mus);
 
+  /* ----- black concert grand, on the Melbourne side opposite the DJ booth ----- */
+  // the pianist faces out of the set with the open lid towards the cameras, as on a concert stage;
+  // placed by ray tests so that it stays clear of every camera view of the desk and of the walkways
+  const piano = grandPiano(M);
+  piano.userData.focus = 'piano';
+  piano.position.set(4.75, 0, 0.55);
+  piano.rotation.y = -Math.PI / 2 + 0.38;
+  add(piano);
+  const ps = contactShadow(3.0, 1.9, 0.6); ps.position.set(0, 0.003, -1.25); piano.add(ps);
+
   /* ----- studio sign ----- */
   const signTex = studioSign();
   const signMat = new THREE.MeshBasicMaterial({ map: signTex, color: 0x222222 });
@@ -453,7 +466,7 @@ export function buildStudio({ scene, quality }) {
   }
 
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
-  return { update, wall, cams, logo, desk, lights, music, floorOpaque, root };
+  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, liftLogo(on) { liftTo = on ? 1 : 0; } };
 }
 
 /* ---------- pieces ---------- */
@@ -762,6 +775,67 @@ function buildLogo(M, glows) {
   return g;
 }
 
+/* ---------- logo after the key visual (assets/keyvisual.jpg): the official reference for the 3D logo ----------
+   Proportions measured on the key visual, letter height 1: a wide D with a square stem and big rounded corners on the
+   right, two thin parallel slashes, a tall rounded 0 with a narrow slot. Spacing keeps every part clear of the next,
+   bevels included. Warm Vienna side (D and first slash), cool
+   Melbourne side (second slash and 0). Deeper, crisper glass than the first version. */
+
+// a closed polyline: follows the outline exactly, so corners stay sharp (a smoothed curve overshot into small curls)
+class Outline extends THREE.Curve {
+  constructor(points) {
+    super();
+    const p = points.filter((q, i) => i === 0 || q.distanceTo(points[i - 1]) > 1e-5);
+    if (p.length > 1 && p[0].distanceTo(p[p.length - 1]) < 1e-5) p.pop();
+    this.p = p; this.len = [0];
+    for (let i = 1; i <= p.length; i++) this.len.push(this.len[i - 1] + p[i - 1].distanceTo(p[i % p.length]));
+  }
+  getPoint(t, target = new THREE.Vector3()) {
+    const d = (t % 1) * this.len[this.len.length - 1], { p, len } = this;
+    let i = 1; while (i < len.length - 1 && len[i] < d) i++;
+    const k = (d - len[i - 1]) / (len[i] - len[i - 1] || 1);
+    return target.copy(p[i - 1]).lerp(p[i % p.length], k);
+  }
+}
+
+// rectangle with its own radius per corner: [bottom-left, bottom-right, top-right, top-left]
+function cornerShape(x, y, w, h, [bl, br, tr, tl], shape = new THREE.Shape()) {
+  shape.moveTo(x + bl, y);
+  shape.lineTo(x + w - br, y); if (br) shape.absarc(x + w - br, y + br, br, -Math.PI / 2, 0, false);
+  shape.lineTo(x + w, y + h - tr); if (tr) shape.absarc(x + w - tr, y + h - tr, tr, 0, Math.PI / 2, false);
+  shape.lineTo(x + tl, y + h); if (tl) shape.absarc(x + tl, y + h - tl, tl, Math.PI / 2, Math.PI, false);
+  shape.lineTo(x, y + bl); if (bl) shape.absarc(x + bl, y + bl, bl, Math.PI, Math.PI * 1.5, false);
+  return shape;
+}
+
+function buildLogoKV(M, glows) {
+  const g = new THREE.Group();
+  const D = cornerShape(0, 0, 0.84, 1, [0, 0.42, 0.42, 0]);
+  D.holes.push(cornerShape(0.24, 0.22, 0.4, 0.56, [0, 0.2, 0.2, 0], new THREE.Path()));
+  const slash = x0 => { const s = new THREE.Shape(); s.moveTo(x0, 0); s.lineTo(x0 + 0.11, 0); s.lineTo(x0 + 0.40, 1); s.lineTo(x0 + 0.29, 1); s.closePath(); return s; };
+  const O = cornerShape(1.38, 0, 0.72, 1, [0.34, 0.34, 0.34, 0.34]);
+  O.holes.push(cornerShape(1.63, 0.23, 0.22, 0.54, [0.11, 0.11, 0.11, 0.11], new THREE.Path()));
+  const parts = [[D, M.logoWarm, C.amber], [slash(0.82), M.logoWarm, C.amber], [slash(0.99), M.logoCool, C.ice], [O, M.logoCool, C.ice]];
+  const depth = 0.22;
+  for (const [shape, mat, col] of parts) {
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 2, curveSegments: 48 });
+    g.add(new THREE.Mesh(geo, mat));
+    const lineMat = glow(col);
+    (col === C.amber ? glows.amber : glows.ice).push({ m: lineMat, k: 3.2 });
+    for (const path of [shape, ...shape.holes]) {
+      const outline = new Outline(path.getPoints(48).map(p => new THREE.Vector3(p.x, p.y, 0)));
+      for (const z of [depth + 0.042, -0.042]) {
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(outline, outline.p.length * 2, z > 0 ? 0.007 : 0.005, 6, true), lineMat);
+        tube.position.z = z;
+        g.add(tube);
+      }
+    }
+  }
+  const box = new THREE.Box3().setFromObject(g), cx = (box.min.x + box.max.x) / 2;
+  for (const c of g.children) c.position.x -= cx;                          // centred, so it hangs between the cables
+  return g;
+}
+
 /* ---------- lights ---------- */
 
 function buildLights(root, quality, wallLight) {
@@ -782,6 +856,8 @@ function buildLights(root, quality, wallLight) {
   const rimA = spot(C.amber, new THREE.Vector3(-3.2, 6.0, -5.6), new THREE.Vector3(-0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8 });
   const rimI = spot(C.ice, new THREE.Vector3(3.2, 6.0, -5.6), new THREE.Vector3(0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8 });
   const djSpot = spot(C.amber, new THREE.Vector3(-4.2, 6.5, 2.4), new THREE.Vector3(-5.4, 0.9, 0.1), { angle: 0.32 });
+  // the grand piano opposite: a soft cool top light, so the lacquer shows its curves (Melbourne side)
+  const pianoSpot = spot(C.cool, new THREE.Vector3(3.6, 6.4, 3.2), new THREE.Vector3(5.6, 0.8, 0.1), { angle: 0.34, penumbra: 0.85 });
   const logoSpot = spot(C.warm, new THREE.Vector3(0, 7.4, -2.2), new THREE.Vector3(0, 3.6, -5.6), { angle: 0.3, penumbra: 0.9 });
   const fill = new THREE.RectAreaLight(C.warm, 0, 5.5, 1.6);
   fill.position.set(0, 5.6, 1.6); fill.lookAt(0, 0.8, -1.8);
@@ -800,6 +876,7 @@ function buildLights(root, quality, wallLight) {
       rimA.intensity = 140 * L.rim * L.amber * breathe;
       rimI.intensity = 140 * L.rim * L.ice * (2 - breathe);
       djSpot.intensity = 120 * L.accent * (0.6 + 0.4 * L.music);
+      pianoSpot.intensity = 95 * L.accent * (0.75 + 0.25 * L.music);
       logoSpot.intensity = 120 * L.accent;
       fill.intensity = 1.6 * L.key;
       house.intensity = 0.9 * L.house;

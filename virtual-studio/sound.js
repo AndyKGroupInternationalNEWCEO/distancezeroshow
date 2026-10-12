@@ -27,7 +27,7 @@ export function createSound() {
   const audio = new Audio();
   audio.crossOrigin = 'anonymous'; // the main site sends Access-Control-Allow-Origin: *, so the lights can "hear" it
   audio.preload = 'none';
-  let index = -1, failed = '';
+  let index = -1, failed = '', only = null, musicLevel = 0.85, afterThis = null;   // afterThis: run once when the current track ends, instead of the next track   // only: a playlist the player keeps to (the on-air simulation's music bed)
 
   function ensure() {
     if (ctx) { if (ctx.state !== 'running') ctx.resume().catch(() => {}); return ctx; }
@@ -52,10 +52,10 @@ export function createSound() {
     audio.src = SITE + TRACKS[index].file;
     musicGain.gain.cancelScheduledValues(ctx.currentTime);
     musicGain.gain.setValueAtTime(0, ctx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(0.85, ctx.currentTime + 1.2);
+    musicGain.gain.linearRampToValueAtTime(musicLevel, ctx.currentTime + 1.2);
     return audio.play().catch(e => { failed = 'Playback was blocked or the track could not load.'; emit(); throw e; });
   }
-  audio.addEventListener('ended', () => play(index + 1).catch(() => {}));
+  audio.addEventListener('ended', () => afterThis ? (h => { afterThis = null; h(); })(afterThis) : play(only ? only[(only.indexOf(index) + 1) % only.length] : index + 1).catch(() => {}));
   audio.addEventListener('error', () => { failed = 'This track could not be loaded from distancezeroshow.com.'; emit(); });
   for (const ev of ['play', 'pause', 'loadedmetadata', 'durationchange']) audio.addEventListener(ev, emit);
   let lastTick = 0;
@@ -123,6 +123,12 @@ export function createSound() {
     next() { return play(index + 1); }, prev() { return play(index - 1); },
     seek(fraction) { if (audio.duration) audio.currentTime = fraction * audio.duration; },
     stop() { audio.pause(); },
+    // keep to these tracks (indexes into TRACKS), one after another; null = the whole soundtrack again
+    playlist(list) { only = list; },
+    // when the current track ends, do this instead of playing the next one (null = back to normal)
+    after(fn) { afterThis = fn; },
+    // overall music level (0.85 normally); a music bed under talk sits lower
+    level(v) { musicLevel = v; if (ctx) { musicGain.gain.cancelScheduledValues(ctx.currentTime); musicGain.gain.setTargetAtTime(v, ctx.currentTime, 0.2); } },
     get state() { return state(); },
     onChange(f) { listeners.add(f); return () => listeners.delete(f); },
   };

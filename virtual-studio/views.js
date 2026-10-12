@@ -12,9 +12,10 @@ export const VIEWS = {
   crane: { label: 'Crane', long: 'High angle', pos: [7.4, 6.6, 7.6], target: [0, 1.0, -2.2], fov: 40, drift: 0.18, tally: 2 },
   floor: { label: 'Floor', long: 'Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0.08, tally: 3 },
   music: { label: 'Music', long: 'Music station', pos: [-2.5, 1.85, 3.1], target: [-5.4, 1.0, 0.1], fov: 38, drift: 0.12, tally: 1 },
+  piano: { label: 'Piano', long: 'Grand piano', pos: [2.3, 1.75, 3.6], target: [5.0, 0.85, -0.2], fov: 40, drift: 0.1, tally: 3 },
 };
 export const ORDER = Object.keys(VIEWS);
-const TOUR = ['studio', 'desk', 'andy', 'georgie', 'crane', 'wall', 'floor', 'music'];
+const TOUR = ['studio', 'desk', 'andy', 'georgie', 'crane', 'wall', 'floor', 'music', 'piano'];
 const HOLD = 8.5;
 
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
