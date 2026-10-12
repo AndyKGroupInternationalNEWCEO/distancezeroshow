@@ -52,9 +52,14 @@ const csp = [
   "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com", // the soundtrack streams from the main site
   "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 ].join('; ');
+// studio.distancezeroshow.com is only a door: this project's free HTTPS certificate answers for it and sends
+// every request, path and all, to the Broadcast Studio's host address (Tailscale). The #code part of Georgie's
+// link stays in her browser and comes along. Temporary (307), so the target can change without browsers caching it.
+const STUDIO_HOST = 'studio.distancezeroshow.com', STUDIO_TARGET = 'https://macbook-air-von-andrej.tailff4ac2.ts.net';
 const vercel = {
   cleanUrls: true,
   trailingSlash: false,
+  redirects: [{ source: '/:path*', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/:path*', permanent: false }],
   headers: [
     { source: '/assets/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
     { source: '/virtual-studio/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=300, must-revalidate' }] },
