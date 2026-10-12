@@ -760,3 +760,34 @@ test('a rehearsal and its stream lock survive a studio restart', async () => {
   d2.close(); await two.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('rundown templates: save per episode, load only with the clock stopped, delete; host cannot touch them', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  await d.send({ t: 'rundown', action: 'reset' });
+  await d.send({ t: 'rundown', action: 'title', title: 'Episode 001 — Opening night' });
+  const saved = await d.send({ t: 'rundown', action: 'saveTemplate', name: 'Episode 001' });
+  assert.equal(saved.ok, true);
+  const st = await d.next(m => m.t === 'state' && m.s.templates?.some(t => t.name === 'Episode 001'));
+  const tpl = st.s.templates.find(t => t.name === 'Episode 001');
+  assert.equal(tpl.id, 'episode-001');
+  assert.ok(tpl.segments > 0);
+  assert.ok(fs.existsSync(path.join(dataDir, 'rundowns', 'episode-001.json')));
+  // change the rundown, then bring the template back
+  await d.send({ t: 'rundown', action: 'title', title: 'Something else' });
+  const loaded = await d.send({ t: 'rundown', action: 'loadTemplate', template: 'episode-001' });
+  assert.equal(loaded.ok, true, JSON.stringify(loaded));
+  await d.next(m => m.t === 'state' && m.s.rundown.title === 'Episode 001 — Opening night' && !m.s.rundown.sample);
+  // not while the show clock runs
+  await d.send({ t: 'rundown', action: 'next' });
+  const blocked = await d.send({ t: 'rundown', action: 'loadTemplate', template: 'episode-001' });
+  assert.equal(blocked.ok, false);
+  await d.send({ t: 'rundown', action: 'reset' });
+  // ids are checked: no path tricks
+  assert.equal((await d.send({ t: 'rundown', action: 'loadTemplate', template: '../secrets' })).ok, false);
+  // the host has no access to templates
+  assert.equal((await hst.send({ t: 'rundown', action: 'saveTemplate', name: 'x' })).ok, false);
+  assert.equal((await d.send({ t: 'rundown', action: 'deleteTemplate', template: 'episode-001' })).ok, true);
+  assert.ok(!fs.existsSync(path.join(dataDir, 'rundowns', 'episode-001.json')));
+  d.close(); hst.close();
+});

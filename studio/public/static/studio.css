@@ -692,3 +692,9 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
 .notes{top:auto;bottom:18px;left:18px;right:auto}
 .toasts{left:50%;right:auto;transform:translateX(-50%);bottom:18px}
 .callpanel.left~.notes{left:auto;right:18px}
+
+/* rundown templates (one per episode) */
+.tpl{display:grid;gap:8px}
+.tpl-row{display:flex;gap:8px;align-items:center}
+.tpl-row .in{flex:1;min-width:0}
+.tpl-row .b{flex:none;white-space:nowrap}

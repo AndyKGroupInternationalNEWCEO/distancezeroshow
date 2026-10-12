@@ -57,6 +57,22 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
   const saveState = debounced(() => store.writeSafe('state.json', state));
   const saveChat = debounced(() => store.writeSafe('chat.json', chat.slice(-CHAT_KEEP)));
   const saveRundown = () => store.write('rundown.json', rundown);
+
+  /* rundown templates: one saved rundown per episode, in data/rundowns/<name>.json */
+  const TPL_DIR = path.join(store.dir, 'rundowns');
+  const slug = t => str(t, 80).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'episode';
+  const tplFile = id => { if (!/^[a-z0-9-]{1,60}$/.test(String(id))) throw new Error('No such template'); return path.join(TPL_DIR, id + '.json'); };
+  function listTemplates() {
+    try {
+      return fs.readdirSync(TPL_DIR).filter(f => f.endsWith('.json')).map(f => {
+        try {
+          const t = JSON.parse(fs.readFileSync(path.join(TPL_DIR, f), 'utf8')), segs = Array.isArray(t.segments) ? t.segments : [];
+          return { id: f.slice(0, -5), name: str(t.name, 80), title: str(t.title, 120), savedAt: Number(t.savedAt) || 0, segments: segs.length, minutes: segs.reduce((a, x) => a + (Number(x.minutes) || 0), 0) };
+        } catch { return null; }
+      }).filter(Boolean).sort((a, b) => b.savedAt - a.savedAt);
+    } catch { return []; }
+  }
+  let templates = listTemplates();
   const chatLimit = new Map(); // role -> timestamps
   if (Array.isArray(state.settings.micInputs)) obs.setMicList(state.settings.micInputs);
 
@@ -159,7 +175,7 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), rundown: rundownView(), note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), rundown: rundownView(), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -424,6 +440,29 @@ export function createStudio({ config, store, secrets, obs, sampleRundownPath, l
         break;
       }
       case 'title': edit(() => { rundown.title = str(msg.title, 120); }); break;
+      case 'saveTemplate': {
+        const name = str(msg.name, 80) || rundown.title || 'Episode', id = slug(name);
+        if (!fs.existsSync(tplFile(id)) && templates.length >= 100) throw new Error('Up to 100 templates. Delete an old one first.');
+        fs.mkdirSync(TPL_DIR, { recursive: true, mode: 0o700 });
+        fs.writeFileSync(tplFile(id), JSON.stringify({ name, title: rundown.title, savedAt: now, segments: segs }, null, 2), { mode: 0o600 });
+        templates = listTemplates(); changed();
+        return { template: id };
+      }
+      case 'loadTemplate': {
+        if (p.showStartedAt) throw new Error('The show clock is running. Press Reset first, then load a template.');
+        let t;
+        try { t = JSON.parse(fs.readFileSync(tplFile(msg.template), 'utf8')); } catch { throw new Error('No such template'); }
+        rundown = { title: str(t.title, 120) || str(t.name, 80), sample: false,
+          segments: (t.segments || []).slice(0, 60).map(x => cleanSegment({ ...x, id: 'seg-' + crypto.randomBytes(4).toString('hex') }, 'seg')) };
+        p.index = -1; p.segmentStartedAt = null;
+        saveRundown();
+        break;
+      }
+      case 'deleteTemplate': {
+        try { fs.unlinkSync(tplFile(msg.template)); } catch { throw new Error('No such template'); }
+        templates = listTemplates();
+        break;
+      }
       case 'reload': rundown = loadRundown(); if (p.index >= rundown.segments.length) { p.index = -1; p.segmentStartedAt = null; } break;
       default: throw new Error('Unknown rundown action');
     }

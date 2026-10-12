@@ -18,6 +18,20 @@ export function init(ctx) {
   }));
   $('#roTitle').addEventListener('change', e => act(null, () => rd('title', { title: e.target.value }), 'Title saved'));
 
+  // episode templates: save the current rundown under a name, load one back (only while the show clock is stopped)
+  $('#tplSave').addEventListener('click', e => act(e.currentTarget, async () => {
+    const name = $('#tplName').value.trim() || $('#roTitle').value.trim();
+    await rd('saveTemplate', { name }); $('#tplName').value = '';
+  }, 'Template saved'));
+  $('#tplLoad').addEventListener('click', e => {
+    const id = $('#tplPick').value; if (!id) return;
+    if (confirmTwice(e.currentTarget, 'Replace rundown? Click again')) act(e.currentTarget, () => rd('loadTemplate', { template: id }), 'Template loaded');
+  });
+  $('#tplDel').addEventListener('click', e => {
+    const id = $('#tplPick').value; if (!id) return;
+    if (confirmTwice(e.currentTarget, 'Delete? Click again')) act(e.currentTarget, () => rd('deleteTemplate', { template: id }), 'Template deleted');
+  });
+
   const note = $('#note');
   note.addEventListener('input', () => { note.dataset.dirty = '1'; });
   const flash = () => { $('#noteSaved').classList.add('show'); setTimeout(() => $('#noteSaved').classList.remove('show'), 1600); };
@@ -76,6 +90,16 @@ export function render(ctx) {
   $('#advance').firstChild.textContent = r.index < 0 ? 'Start show // first segment ' : nxt ? 'Take next segment ' : 'Last segment ';
   $('#advance').disabled = r.index >= 0 && !nxt;
   $('#prev').disabled = r.index <= 0;
+  const pick = $('#tplPick'), list = S.templates || [], sig = list.map(t => t.id + t.savedAt).join();
+  if (pick.dataset.sig !== sig && document.activeElement !== pick) {
+    const keep = pick.value;
+    pick.replaceChildren(...(list.length ? list.map(t => h('option', { value: t.id, text: `${t.name} // ${t.segments} segments // ${t.minutes} min` }))
+      : [h('option', { value: '', text: 'No saved templates yet' })]));
+    if (list.some(t => t.id === keep)) pick.value = keep;
+    pick.dataset.sig = sig;
+  }
+  $('#tplLoad').disabled = $('#tplDel').disabled = !list.length;
+  $('#tplLoad').title = r.showStartedAt ? 'Reset the show clock first' : '';
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);

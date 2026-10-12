@@ -124,6 +124,12 @@
           <div class="card-h"><h2 id="hRo">Rundown</h2>
             <div class="aside"><button class="b sm quiet" type="button" id="roAdd">+ Segment</button><button class="b sm quiet" type="button" id="reload" title="Reload studio/data/rundown.json">Reload</button></div></div>
           <div class="card-b"><input class="in" id="roTitle" maxlength="120" aria-label="Rundown title" placeholder="Episode title"></div>
+          <div class="card-b tpl" aria-label="Episode templates">
+            <div class="tpl-row"><select class="in" id="tplPick" aria-label="Saved episode templates"></select>
+              <button class="b sm quiet" type="button" id="tplLoad">Load</button><button class="b sm quiet" type="button" id="tplDel">Delete</button></div>
+            <div class="tpl-row"><input class="in" id="tplName" maxlength="80" aria-label="Template name" placeholder="Save this rundown as, e.g. Episode 001">
+              <button class="b sm quiet" type="button" id="tplSave">Save template</button></div>
+          </div>
           <ol class="ro" id="ro"></ol>
           <div class="total" id="roTotal"></div>
         </section>
