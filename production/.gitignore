@@ -4,3 +4,5 @@ avatars/web/
 poc/out-*.mp4
 opening/out/
 opening/review/
+# the presenters' face reference photos: personal, kept out of git
+avatars/reference/

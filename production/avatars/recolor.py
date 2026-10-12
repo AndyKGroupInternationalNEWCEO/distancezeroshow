@@ -24,5 +24,6 @@ recolor('web/m019_body_color.jpg', 'web/m019_body_color_black.jpg',
 # Georgie: pink blazer -> black blazer; the light blue shirt stays
 recolor('web/f005_body_color.jpg', 'web/f005_body_color_black.jpg',
         [(0.31, 0.0, 0.69, 0.8), (0.02, 0.27, 0.98, 0.48)],
-        lambda r, g, b: r > b + 18 and r > g + 10, 0.2)
+        # the pink cloth and its light pinstripes (they stayed white and read as a silver jacket from above)
+        lambda r, g, b: (r > b + 18 and r > g + 10) or (r >= b - 4 and min(r, g, b) > 150), 0.2)
 print('ok')

@@ -10,7 +10,7 @@ CACHE = os.path.join(HERE, 'cache')
 AV = os.path.join(HERE, '..', 'avatars')
 meta = json.load(open(os.path.join(CACHE, 'scene.json')))
 FRAMES = meta['frames']['count']
-K_LIGHT = float(os.environ.get('DZ_K', '1.0'))            # global light calibration against the reference frames
+K_LIGHT = float(os.environ.get('DZ_K', '4.0'))            # global light calibration against the reference frames (4: closest to them)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -160,6 +160,7 @@ def avatar_material(name, info):
     nrm = tex_node(nt, os.path.join(src, f'{code}_{part}_normal.tga'), False, -900, -200)
     spec = tex_node(nt, os.path.join(src, f'{code}_{part}_specular.tga'), False, -900, -500)
     nmap = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(nrm.outputs['Color'], nmap.inputs['Color'])
+    nmap.inputs['Strength'].default_value = 0.7                      # the library normals are cut for game lighting
     # skin mask: warm, mid-saturated pixels
     hsv = nt.nodes.new('ShaderNodeSeparateColor'); hsv.mode = 'HSV'; nt.links.new(col.outputs['Color'], hsv.inputs['Color'])
     hue_ok = nt.nodes.new('ShaderNodeMath'); hue_ok.operation = 'LESS_THAN'; hue_ok.inputs[1].default_value = 0.11
@@ -178,7 +179,8 @@ def avatar_material(name, info):
     skin.inputs['Specular IOR Level'].default_value = 0.45
     skin.inputs['Coat Weight'].default_value = 0.08; skin.inputs['Coat Roughness'].default_value = 0.35
     cloth = nt.nodes.new('ShaderNodeBsdfPrincipled')
-    cloth.inputs['Sheen Weight'].default_value = 0.6; cloth.inputs['Sheen Roughness'].default_value = 0.45
+    # a little sheen only: at 0.6 the black blazer read as silver from the overhead camera
+    cloth.inputs['Sheen Weight'].default_value = 0.18; cloth.inputs['Sheen Roughness'].default_value = 0.6
     cloth.inputs['Specular IOR Level'].default_value = 0.25
     for b in (skin, cloth):
         nt.links.new(col.outputs['Color'], b.inputs['Base Color'])
