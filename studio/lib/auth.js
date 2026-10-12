@@ -11,8 +11,14 @@ function code(groups = 5) {
   return s;
 }
 
-export function loadSecrets(store, { rotate = false } = {}) {
+export function loadSecrets(store, { rotate = false, rotateOverlay = false } = {}) {
   let s = store.read('secrets.json');
+  // only the OBS overlay key: both access codes and every sign-in stay as they are
+  if (s && rotateOverlay && !rotate) {
+    s = { ...s, overlayKey: crypto.randomBytes(24).toString('base64url'), overlayRotatedAt: new Date().toISOString() };
+    store.write('secrets.json', s);
+    return s;
+  }
   if (!s || rotate) {
     const keep = s || {};
     s = {

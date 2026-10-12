@@ -4,7 +4,7 @@
 //   Guest listener     127.0.0.1:4748  Host Dashboard only. This is the one port that may be shared with
 //                                      Melbourne through a tunnel (see README). It has no route to OBS control.
 //
-// Usage: npm start | npm run codes | npm run rotate-codes
+// Usage: npm start | npm run codes | npm run rotate-codes | npm run rotate-overlay
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -55,7 +55,8 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
     const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 }); // call set-up messages can exceed 16 KB
 
     const clientIp = req => String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim();
-    const viaHttps = req => req.headers['x-forwarded-proto'] === 'https';
+    // behind Cloudflare (x-forwarded-proto) or Tailscale Funnel (always https on *.ts.net): cookies are marked Secure
+    const viaHttps = req => req.headers['x-forwarded-proto'] === 'https' || /\.ts\.net(:\d+)?$/i.test(String(req.headers.host || ''));
     const authed = req => checkSession(secrets.cookieSecret, parseCookies(req.headers.cookie)[cookie], role);
     const safeHost = req => String(req.headers['x-forwarded-host'] || req.headers.host || '').replace(/[^a-zA-Z0-9.:\-\[\]]/g, '');
 
@@ -191,6 +192,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const f of ['.env.local', '.env']) { try { process.loadEnvFile(path.join(ROOT, f)); break; } catch {} }
   const args = new Set(process.argv.slice(2));
   const config = loadConfig();
+  if (args.has('--rotate-overlay')) {
+    const s = loadSecrets(createStore(path.join(ROOT, 'data')), { rotateOverlay: true });
+    console.log('New OBS overlay key. The Director and Host access codes did NOT change; nobody is signed out.\n');
+    console.log('Update the URL of the overlay Browser Source in OBS to (a running studio picks the key up after a restart):');
+    console.log(`OBS overlay    http://${config.director.host}:${config.director.port}/overlay?key=${s.overlayKey}\n`);
+    process.exit(0);
+  }
   if (args.has('--show-codes') || args.has('--rotate-codes')) {
     const s = loadSecrets(createStore(path.join(ROOT, 'data')), { rotate: args.has('--rotate-codes') });
     if (args.has('--rotate-codes')) console.log('New codes created. Everyone signed in before is signed out.\n');

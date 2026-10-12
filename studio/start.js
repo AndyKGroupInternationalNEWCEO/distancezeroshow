@@ -9,7 +9,7 @@ import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { startStudio, loadConfig } from './server.js';
-import { startTunnel, hasCloudflared } from './lib/tunnel.js';
+import { startTunnel, hasCloudflared, tailscaleCli, tailscaleState, startFunnel } from './lib/tunnel.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 for (const f of ['.env.local', '.env']) { try { process.loadEnvFile(path.join(ROOT, f)); break; } catch {} }
@@ -62,21 +62,34 @@ line(1, 'OBS', obsLine());
 if (!args.has('--no-open')) execFile('open', [directorUrl], () => {});
 line(2, 'Director', `${args.has('--no-open') ? 'open' : 'opened in your browser'}: ${D}http://127.0.0.1:${app.director.port}${X}  ${D}(npm run codes shows the sign-in link)${X}`);
 
-/* 3 — Georgie's public link */
+/* 3 — Georgie's public link: Tailscale Funnel (stable address) when it is set up, else a Cloudflare quick tunnel */
 let tunnel = null;
+const announce = stable => async (url, restarts) => {
+  const link = `${url}/login#code=${app.secrets.hostCode}`;
+  const copied = await copy(link);
+  if (restarts && !stable) console.log(`\n  ${A}${B}NEW LINK FOR GEORGIE${X} ${A}(the public link restarted, the old one no longer works)${X}`);
+  line(3, 'Georgie', `${G}${stable ? 'her permanent link is ready' : 'public link ready'}${X}${copied ? ` and ${B}copied to your clipboard${X}${stable ? '' : ': paste it into Signal or iMessage for Georgie'}` : ''}.`);
+  console.log(`              ${D}${url}/login#code=•••• (private: send only to Georgie${stable ? '; it stays the same for every show' : ''})${X}`);
+};
+const ts = args.has('--cloudflare') ? '' : tailscaleCli();
+const tsState = ts ? tailscaleState(ts) : null;
 if (args.has('--no-tunnel')) line(3, 'Georgie', `${D}no public link (--no-tunnel). Local test: http://127.0.0.1:${app.guest.port}${X}`);
-else if (!hasCloudflared()) line(3, 'Georgie', `${R}cloudflared is missing.${X} Install once: brew install cloudflared, then start again.`);
+else if (ts && tsState.running) {
+  line(3, 'Georgie', `${D}starting her permanent link (Tailscale)…${X}`);
+  tunnel = startFunnel({
+    cli: ts, port: app.guest.port, dataDir, verbose: !!process.env.TUNNEL_VERBOSE,
+    onUrl: announce(true),
+    onApproval(url) { line(3, 'Georgie', `${A}one-time step:${X} switch on Tailscale Funnel for this Mac in the browser: ${url}`); },
+    onDown(msg) { console.log(`  ${R}!${X}  ${msg}`); },
+  });
+}
+else if (!hasCloudflared()) line(3, 'Georgie', `${R}no public link:${X} ${ts ? 'Tailscale is installed but not signed in (open the Tailscale app and sign in).' : 'install Tailscale once (see START-HERE.md).'}`);
 else {
+  if (ts) line(3, 'Georgie', `${A}Tailscale is installed but not signed in${X} (${tsState.state}): using a temporary Cloudflare link for now.`);
   line(3, 'Georgie', `${D}starting her secure public link…${X}`);
   tunnel = startTunnel({
     port: app.guest.port, dataDir, verbose: !!process.env.TUNNEL_VERBOSE,
-    async onUrl(url, restarts) {
-      const link = `${url}/login#code=${app.secrets.hostCode}`;
-      const copied = await copy(link);
-      if (restarts) console.log(`\n  ${A}${B}NEW LINK FOR GEORGIE${X} ${A}(the public link restarted, the old one no longer works)${X}`);
-      line(3, 'Georgie', `${G}public link ready${X}${copied ? ` and ${B}copied to your clipboard${X}: paste it into Signal or iMessage for Georgie` : ''}.`);
-      console.log(`              ${D}${url}/login#code=•••• (private: send only to Georgie)${X}`);
-    },
+    onUrl: announce(false),
     onDown(msg) { console.log(`  ${R}!${X}  ${msg}`); },
   });
 }
