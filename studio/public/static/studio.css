@@ -698,3 +698,26 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
 .tpl-row{display:flex;gap:8px;align-items:center}
 .tpl-row .in{flex:1;min-width:0}
 .tpl-row .b{flex:none;white-space:nowrap}
+
+/* window layout panel */
+.layout-pop{position:fixed;z-index:60;top:64px;right:16px;width:min(340px,calc(100vw - 32px));background:var(--panel,#0e1014);border:1px solid var(--line-2);padding:14px;display:grid;gap:10px;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.layout-pop[hidden]{display:none}
+.lp-h{margin:0;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:.72rem}
+.lp-meta{margin:0;color:var(--dim,#8a9099);font-size:.8rem}
+.lp-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.85rem}
+
+/* ---------- phones (Director and Host): no sideways scrolling, nothing zoomed out, fingers not mouse ---------- */
+@media (max-width:600px){
+  .bar-right{flex-wrap:wrap;width:100%;margin-left:0;gap:8px;justify-content:space-between}
+  #layoutBtn,#helpBtn,#popout,.layout-pop{display:none}
+  .bar .callbtn{flex:1 1 100%;min-height:44px}
+  .clock.show .label{max-width:7em}
+  .card-h{flex-wrap:wrap;row-gap:8px}
+  .card-h .aside{flex-wrap:wrap;gap:6px}
+  .live-grid,.show-grid,.tech-grid,.deck,.host-main,.check-grid{grid-template-columns:minmax(0,1fr)}  /* 1fr alone stretched to the monitors' size */
+  .timers{grid-template-columns:minmax(0,1fr)}
+  .b.sm,.iconbtn,.tab,.signout{min-height:40px}
+  .trans{grid-template-columns:1fr}
+  .mon,.deck,.ribbon,.busrow{max-width:100%}
+  kbd{display:none}
+}

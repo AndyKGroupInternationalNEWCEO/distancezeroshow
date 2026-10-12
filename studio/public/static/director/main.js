@@ -8,6 +8,7 @@ import * as tech from './tech.js';
 import * as talk from './talk.js';
 import * as rehearse from './rehearse.js';
 import { notifier } from '../notify.js';
+import { initLayout } from './layout.js';
 
 const WS = ['live', 'show', 'tech', 'rehearse'];
 const memo = {};
@@ -89,6 +90,8 @@ $$('.tab').forEach(t => {
 });
 window.addEventListener('hashchange', () => setWs(location.hash.slice(1)));
 setWs(location.hash.slice(1) || 'live');
+
+initLayout();
 
 $('#popout').addEventListener('click', () => {
   const w = window.open(location.pathname + '#' + ctx.ws, 'dz-' + ctx.ws, 'popup,width=1440,height=900');

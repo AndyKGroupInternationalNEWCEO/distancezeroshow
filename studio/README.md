@@ -216,13 +216,13 @@ npm test           # 35 end-to-end tests: real server + real WebSockets + mock O
 
 - **VDO.Ninja is not end-to-end tested.** The links are generated (stable private stream ID and password) but have not been tried with real cameras. Not yet done: return feed / programme monitor for Georgie, and a view of her feed in the Director Studio.
 - **Music information is manual.** There is no link to DJ software (Rekordbox/Serato/Traktor) yet.
-- The rundown is still the **sample** until you edit it; it's labelled as such. There are no saved rundown templates per episode yet; each show reuses `studio/data/rundown.json`.
+- The rundown is still the **sample** until you edit it; it's labelled as such. Each episode can be saved as a **template** (Show → Rundown → Save template) and loaded again later, only while the show clock is stopped. Templates live in `studio/data/rundowns/`.
 - Monitors are snapshots (about 3 fps), not live video. Full-motion return would need OBS's virtual camera or NDI.
-- Multi-screen is "one workspace per window". There's no saved window layout yet.
+- Multi-screen is "one workspace per window". The **window layout** (▦ in the top bar) remembers which workspace runs in which window, where and how big; each saved window reopens with its own button, because browsers allow one new window per click. Saved in this browser only.
 - No YouTube API integration: no viewer count, no live chat questions feed, no stream health from YouTube's side. OBS stats only.
 - No multiple director accounts. (The event log is kept in `data/events.jsonl`, last 200 entries, and comes back after a restart.)
 - A new message from Georgie plays one soft tone in the Director Studio, besides the badge and the tab title.
-- Phone layout works but is not optimised. Desktop and tablet are the targets.
+- Phones: Director and Host pages fit an iPhone (390 px) without zooming or sideways scrolling, tested in WebKit (Safari's engine) and Chrome. Desktop and tablet stay the main targets for running a show.
 
 ## Costs
 
