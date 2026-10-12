@@ -85,7 +85,7 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": ""
+          "music": "", "returnJingle": "05", "returnVideo": ""
         },
         "guest": {
           "name": "",
@@ -133,7 +133,7 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": ""
+          "music": "", "returnJingle": "05", "returnVideo": ""
         },
         "guest": {
           "name": "",

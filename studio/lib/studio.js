@@ -43,6 +43,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     rehearsal: saved.rehearsal || { active: false },
     reports: saved.reports || [],
     showId: saved.showId || '',
+    // a running break: when it started, which microphones the studio muted for it (they come back on RETURN TO LIVE only)
+    brk: saved.brk || { active: false },
     mediaAir: saved.mediaAir || { audio: null, video: null },   // what the studio last put on air through the OBS players         // the selected show preset (Sunday / Friday), kept across restarts
   };
   let rundown = loadRundown();
@@ -248,7 +250,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -262,7 +264,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     }
     if (role === 'host') {
       return {
-        show: showView(), rundown: hostRundownView(), myNotes: notesFor('georgie'), note: state.note, music: state.music,
+        show: showView(), rundown: hostRundownView(), now: Date.now(), brk: breakView('host'), myNotes: notesFor('georgie'), note: state.note, music: state.music,
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
@@ -397,6 +399,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'media.air': return mediaAir(msg);
       case 'media.stop': return mediaStop(msg);
       case 'media.rescan': media?.scan(); changed(); return;
+      case 'cue.go': return cueGo(msg);
+      case 'cue.fire': return cueFire(msg);
+      case 'break.return': return breakReturn(msg);
       case 'emergency': return emergency(msg);
       case 'tunnel.link': {
         // Georgie's full sign-in link, only on request, only for the director (to copy into Signal/iMessage)
@@ -501,11 +506,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       }
       saveRundown();
     };
+    if (state.brk.active && ['next', 'prev', 'go'].includes(msg.action)) throw new Error('A break is running: use RETURN TO LIVE');
     switch (msg.action) {
       case 'next': go(Math.min(p.index + 1, segs.length - 1)); break;
       case 'prev': go(Math.max(p.index - 1, 0)); break;
       case 'go': go(Number(msg.index)); break;
-      case 'reset': p.index = -1; p.segmentStartedAt = null; p.showStartedAt = null; break;
+      case 'reset':
+        if (state.brk.active) logEvent('warn', `Show reset during a break: ${state.brk.muted.join(', ') || 'no microphones'} stay muted until you unmute them`);
+        p.index = -1; p.segmentStartedAt = null; p.showStartedAt = null; state.brk = { active: false }; break;
       case 'notes': at(msg.index).notes = str(msg.notes, 2000); edit(() => {}); break;
       case 'update': {
         const s = at(msg.index), f = msg.fields || {};
@@ -627,6 +635,120 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     for (const k of kinds) { await obs.stopFile(k === 'audio' ? 'Jingle Player' : 'Video Player'); state.mediaAir[k] = null; }
     logEvent('ok', `Stopped: ${kinds.join(' + ')}`);
     changed();
+  }
+
+  /* ---------- SHOW CLOCK, linked cues and breaks ----------
+     One deliberate Director action moves to a segment and fires its cues together: OBS scene, video (once or loop),
+     jingle. A video with its own sound never gets the WAV on top unless the cue says "both". Nothing advances by
+     itself: a break that reaches zero shows BREAK COMPLETE — READY TO RETURN and waits for RETURN TO LIVE. */
+  const hasInput = n => obs.state.media.some(m => m.name === n);
+  async function sceneHas(scene, src) {
+    try { return (await obs.request('GetSceneItemList', { sceneName: scene })).sceneItems.some(i => i.sourceName === src); } catch { return false; }
+  }
+  async function fireCues(c) {
+    if (!obs.state.connected) throw new Error('OBS is not connected');
+    const done = [], skipped = [];
+    const vid = c.video ? media?.get(c.video) : null, wav = c.jingle ? media?.get(c.jingle) : null;
+    if (c.video && !vid) skipped.push(`${c.video}: not in the media library`);
+    if (c.jingle && !wav) skipped.push(`${c.jingle}: not in the media library`);
+    let scene = c.scene;
+    if (scene && !obs.hasScene(scene)) { skipped.push(`SCENE ${scene}: not in this OBS collection`); scene = ''; }
+    const playVideo = vid?.available && hasInput('Video Player');
+    if (vid && !vid.available) skipped.push(`${vid.id} — ${vid.title}: VIDEO NOT AVAILABLE`);
+    else if (vid && !playVideo) skipped.push(`${vid.id}: OBS has no Video Player yet (npm run obs-setup -- --players)`);
+    // the picture: the cue's scene if it shows the Video Player, otherwise the VT scene for the video
+    if (playVideo && scene && !(await sceneHas(scene, 'Video Player'))) { if (obs.hasScene('VT')) { skipped.push(`SCENE ${scene} has no Video Player: the video plays in VT`); scene = 'VT'; } }
+    if (playVideo) {
+      await obs.playFile('Video Player', vid.file, c.mode === 'loop');
+      state.mediaAir.video = { id: vid.id, title: vid.title, at: Date.now(), loop: c.mode === 'loop', embeddedAudio: !!vid.embeddedAudio };
+      done.push(`VIDEO ${vid.id} — ${vid.title}${c.mode === 'loop' ? ' (LOOP)' : ''}`);
+    }
+    if (scene) { await obs.setProgram(scene); done.push(`SCENE ${scene}`); }
+    if (wav) {
+      const videoSound = playVideo && vid.embeddedAudio;
+      if (c.audioMode === 'video' || (videoSound && c.audioMode !== 'both')) skipped.push(`${wav.id} — ${wav.title}: not played, the video carries the sound`);
+      else if (!wav.available) skipped.push(`${wav.id} — ${wav.title}: AUDIO NOT AVAILABLE`);
+      else if (!hasInput('Jingle Player')) skipped.push(`${wav.id}: OBS has no Jingle Player yet (npm run obs-setup -- --players)`);
+      else {
+        await obs.playFile('Jingle Player', wav.file, false);
+        state.mediaAir.audio = { id: wav.id, title: wav.title, at: Date.now() };
+        done.push(`JINGLE ${wav.id} — ${wav.title}`);
+      }
+    }
+    return { done, skipped };
+  }
+  function moveTo(i) {
+    const p = state.pos, now = Date.now();
+    if (!rundown.segments[i]) throw new Error('No such segment');
+    p.index = i; p.segmentStartedAt = now;
+    if (!p.showStartedAt) p.showStartedAt = now;
+  }
+  // GO: the next segment (or a chosen one) with its cues. Into a BREAK: the broadcast microphones are muted first.
+  async function cueGo(msg) {
+    if (state.brk.active) throw new Error('A break is running: use RETURN TO LIVE');
+    const i = msg.index == null ? state.pos.index + 1 : Number(msg.index);
+    const seg = rundown.segments[i]; if (!seg) throw new Error('No such segment');
+    const c = cleanScript(seg).cues;
+    let muted = [];
+    if (seg.kind === 'BREAK') {
+      if (!obs.state.connected) throw new Error('OBS is not connected: the microphones cannot be muted for the break');
+      muted = obs.state.audio.filter(a => a.mic && !a.muted).map(a => a.name);
+      for (const n of muted) await obs.setMute(n, true);
+    }
+    const r = obs.state.connected ? await fireCues(c) : { done: [], skipped: ['OBS is not connected: cues not fired'] };
+    moveTo(i);
+    if (seg.kind === 'BREAK') {
+      state.brk = { active: true, index: i, startedAt: state.pos.segmentStartedAt, muted, returnJingle: c.returnJingle, returnVideo: c.returnVideo };
+      toRole('host', { t: 'alert', text: `${seg.title}: you are OFF AIR. Backstage call only, the public sees the break.` });
+      logEvent('ok', `BREAK started: ${seg.title} · microphones muted: ${muted.join(', ') || 'none were live'}`);
+    } else logEvent('ok', `GO ${String(i + 1).padStart(2, '0')} ${seg.title}${r.done.length ? ' · ' + r.done.join(' · ') : ''}`);
+    for (const x of r.skipped) logEvent('warn', x);
+    changed();
+    return r;
+  }
+  // fire the cues of the current (or a chosen) segment again, without moving the show on
+  async function cueFire(msg) {
+    const seg = rundown.segments[msg.index == null ? state.pos.index : Number(msg.index)]; if (!seg) throw new Error('No such segment');
+    const r = await fireCues(cleanScript(seg).cues);
+    for (const x of r.skipped) logEvent('warn', x);
+    changed(); return r;
+  }
+  // RETURN TO LIVE: only on the Director's confirmation. The break loop stops, the next segment's scene comes up,
+  // the muted microphones come back, then the return jingle (WELCOME BACK) — or the next segment's own cue.
+  async function breakReturn(msg) {
+    if (msg.confirm !== true) throw new Error('Needs confirmation');
+    const b = state.brk; if (!b.active) throw new Error('No break is running');
+    const i = b.index + 1, seg = rundown.segments[i];
+    if (!seg) throw new Error('There is no segment after this break');
+    if (!obs.state.connected) throw new Error('OBS is not connected');
+    const nc = cleanScript(seg).cues;
+    if (state.mediaAir.video) { await obs.stopFile('Video Player'); state.mediaAir.video = null; }
+    const r = await fireCues({ ...nc, jingle: b.returnJingle || nc.jingle, video: b.returnVideo || nc.video, mode: b.returnVideo ? 'once' : nc.mode });
+    const back = [];
+    for (const n of b.muted || []) { try { await obs.setMute(n, false); back.push(n); } catch (e) { r.skipped.push(`${n}: could not unmute (${e.message})`); } }
+    moveTo(i);
+    state.brk = { active: false, lastReturnAt: Date.now() };
+    toRole('host', { t: 'alert', text: `BACK ON AIR: ${seg.title}` });
+    logEvent('ok', `RETURN TO LIVE: ${seg.title} · microphones on: ${back.join(', ') || 'none'}`);
+    for (const x of r.skipped) logEvent('warn', x);
+    changed();
+    return r;
+  }
+  // what a break shows on the dashboards; the Director also gets the isolation check (what could still reach the stream)
+  function breakView(role) {
+    const b = state.brk;
+    if (!b.active) return { active: false };
+    const seg = rundown.segments[b.index], next = rundown.segments[b.index + 1];
+    const out = { active: true, index: b.index, title: seg?.title || 'BREAK', startedAt: b.startedAt, planned: (Number(seg?.minutes) || 0) * 60, next: next?.title || '' };
+    if (role !== 'director') return out;
+    const a = obs.state.audio || [];
+    return { ...out, muted: b.muted || [], isolation: {
+      obs: obs.state.connected,
+      micsLive: a.filter(x => x.mic && !x.muted).map(x => x.name),
+      micsTagged: a.filter(x => x.mic).length,
+      camsOnAir: (obs.state.items || []).filter(x => x.enabled && /^(Cam|VDO) \/\//.test(x.name)).map(x => x.name),
+      otherLive: a.filter(x => !x.mic && !x.muted && /mixer|aux|input_capture/i.test(x.name + ' ' + x.kind)).map(x => x.name),
+    } };
   }
 
   /* ---------- episodes and their scripts (editing in REHEARSAL; the server enforces the T−180 lock) ---------- */

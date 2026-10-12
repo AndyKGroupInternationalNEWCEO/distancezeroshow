@@ -7,6 +7,7 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { startStudio, loadConfig } from '../server.js';
 import { startMockObs } from './mock-obs.js';
+import { showClock, plan } from '../public/static/clock.js';
 
 const quiet = { log() {}, warn() {} };
 let mock, app, dataDir, D, G, directorCookie, hostCookie;
@@ -378,7 +379,7 @@ test('faders and the jingle cart', async () => {
   const d = client(D, { cookie: directorCookie });
   await d.opened;
   const { s } = await d.next(m => m.t === 'state' && m.s.obs.media.length);
-  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore']);
+  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player']);
   assert.equal((await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: -6 })).ok, true);
   assert.equal(mock.inputs.find(i => i.inputName === 'DJ Mixer').volumeDb, -6);
   await d.next(m => m.t === 'state' && m.s.obs.audio.find(a => a.name === 'DJ Mixer').volumeDb === -6);
@@ -938,4 +939,65 @@ test('script export to PDF and PDF import preview are Director-only and apply no
   assert.equal(j.missing.length, 0, 'every segment title is found again');
   const bad = await fetch(D + '/script/import-pdf', { method: 'POST', headers: { Cookie: directorCookie }, body: 'not a pdf' });
   assert.equal(bad.status, 422);
+});
+
+test('show clock: elapsed, remaining, overrun and ON TIME / AHEAD / BEHIND from the plan', () => {
+  const segs = [{ title: 'A', minutes: 5 }, { title: 'B', minutes: 10 }, { title: 'C', minutes: 5 }];
+  assert.deepEqual(plan(segs).map(x => x.end), [300, 900, 1200]);
+  const t0 = 1_000_000_000_000;
+  assert.equal(showClock(segs, { index: -1 }, t0).running, false);
+  // B started exactly on plan, 2 min in
+  let c = showClock(segs, { index: 1, showStartedAt: t0, segmentStartedAt: t0 + 300e3 }, t0 + 420e3);
+  assert.equal(c.status, 'ON TIME'); assert.equal(c.remaining, 480); assert.equal(c.elapsed, 420); assert.equal(c.next.title, 'C');
+  // B started 2:15 late
+  c = showClock(segs, { index: 1, showStartedAt: t0, segmentStartedAt: t0 + 435e3 }, t0 + 440e3);
+  assert.equal(c.label, '02:15 BEHIND SCHEDULE');
+  // B started 1 min early
+  c = showClock(segs, { index: 1, showStartedAt: t0, segmentStartedAt: t0 + 240e3 }, t0 + 250e3);
+  assert.equal(c.status, 'AHEAD OF SCHEDULE');
+  // B on time but running 40 s over
+  c = showClock(segs, { index: 1, showStartedAt: t0, segmentStartedAt: t0 + 300e3 }, t0 + 940e3);
+  assert.equal(c.overrun, 40); assert.equal(c.remaining, -40); assert.equal(c.status, 'BEHIND SCHEDULE');
+});
+
+test('linked cues and breaks: GO fires scene + video + jingle; a break mutes the mics; only RETURN TO LIVE brings them back', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  await d.send({ t: 'rundown', action: 'reset' });
+  const mic = () => mock.inputs.find(i => i.inputName === 'Mic // Andrej');
+  mic().muted = false; mock.inputs.find(i => i.inputName === 'VDO // Georgie').muted = false;
+  await d.send({ t: 'obs', action: 'refresh' });
+  // the host can see the clock but never fire cues or end a break
+  assert.equal((await hst.send({ t: 'cue.go' })).ok, false);
+  assert.equal((await hst.send({ t: 'break.return', confirm: true })).ok, false);
+  // GO 01: SHOW STARTING SOON — STANDBY, the STARTING SOON card looping, jingle 18 (not available: reported, nothing faked)
+  const g1 = await d.send({ t: 'cue.go', index: 0 });
+  assert.equal(g1.ok, true, JSON.stringify(g1));
+  assert.equal(mock.state.program, 'STANDBY');
+  // into BREAK 01 (index 4): microphones muted first, BREAK scene, break loop
+  const g = await d.send({ t: 'cue.go', index: 4 });
+  assert.equal(g.ok, true, JSON.stringify(g));
+  assert.equal(mock.state.program, 'BREAK');
+  assert.equal(mic().muted, true, 'Mic // Andrej muted for the break');
+  assert.equal(mock.inputs.find(i => i.inputName === 'VDO // Georgie').muted, true);
+  assert.match(mock.inputs.find(i => i.inputName === 'Video Player').settings.local_file || '', /DZ_02/);
+  const bs = await d.next(m => m.t === 'state' && m.s.brk?.active);
+  assert.deepEqual(bs.s.brk.muted.sort(), ['Mic // Andrej', 'VDO // Georgie']);
+  assert.deepEqual(bs.s.brk.isolation.micsLive, []);
+  assert.deepEqual(bs.s.brk.isolation.camsOnAir, []);
+  const hb = await hst.next(m => m.t === 'state' && m.s.brk?.active);
+  assert.equal(hb.s.brk.next, 'MUSIC & STORIES'); assert.equal(hb.s.brk.isolation, undefined, 'no OBS details for the host');
+  // nothing moves on by itself, and the normal NEXT is refused during a break
+  assert.equal((await d.send({ t: 'rundown', action: 'next' })).ok, false);
+  assert.equal((await d.send({ t: 'cue.go' })).ok, false);
+  assert.equal((await d.send({ t: 'break.return' })).ok, false, 'needs confirmation');
+  // RETURN TO LIVE: next scene, mics back on, WELCOME BACK jingle
+  const r = await d.send({ t: 'break.return', confirm: true });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(mock.state.program, 'MUSIC'); assert.equal(mic().muted, false);
+  assert.match(mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file || '', /WELCOME BACK/i);
+  const after = await d.next(m => m.t === 'state' && !m.s.brk?.active && m.s.rundown.index === 5);
+  assert.equal(after.s.rundown.segments[after.s.rundown.index].title, 'MUSIC & STORIES');
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close(); hst.close();
 });

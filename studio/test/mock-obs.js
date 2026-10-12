@@ -16,6 +16,15 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { sceneItemId: 3, sourceName: 'D//0 Overlay', inputKind: 'browser_source', sceneItemEnabled: true, sceneItemIndex: 2 },
     { sceneItemId: 4, sourceName: 'Studio Loop', inputKind: 'ffmpeg_source', sceneItemEnabled: si < 2, sceneItemIndex: 3 },
   ]]));
+  items.STANDBY.push({ sceneItemId: 5, sourceName: 'Video Player', inputKind: 'ffmpeg_source', sceneItemEnabled: true, sceneItemIndex: 4 });
+  // the break card and VT scenes: no cameras, only the Video Player under the overlay (like obs-setup --players)
+  for (const s of ['BREAK', 'VT']) {
+    scenes.push(s);
+    items[s] = [
+      { sceneItemId: 1, sourceName: 'Video Player', inputKind: 'ffmpeg_source', sceneItemEnabled: true, sceneItemIndex: 0 },
+      { sceneItemId: 2, sourceName: 'D//0 Overlay', inputKind: 'browser_source', sceneItemEnabled: true, sceneItemIndex: 1 },
+    ];
+  }
   const inputs = [
     { inputName: 'Mic // Andrej', inputKind: 'coreaudio_input_capture', audio: true, muted: false },
     { inputName: 'VDO // Georgie', inputKind: 'browser_source', audio: true, muted: false },
@@ -25,6 +34,8 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { inputName: 'Jingle // D//0 Sting', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 6200 },
     { inputName: 'Jingle // Ösi vs Aussie', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 9800 },
     { inputName: 'Bed // Talk Underscore', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 182000 },
+    { inputName: 'Jingle Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 5000, settings: {} },
+    { inputName: 'Video Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 30000, settings: {} },
   ];
   for (const i of inputs) if (i.audio) i.volumeDb = 0;
   // German names on purpose: the real Vienna OBS runs in German, and the studio must find "Cut" by kind
@@ -144,6 +155,11 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
       const i = inputs.find(x => x.inputName === d.inputName && x.media);
       if (!i) throw [604, 'Not a media input'];
       return mediaStatus(i);
+    },
+    SetInputSettings: d => {
+      const i = inputs.find(x => x.inputName === d.inputName);
+      if (!i) throw [600, 'No such input'];
+      i.settings = { ...(i.settings || {}), ...d.inputSettings }; return {};
     },
     TriggerMediaInputAction: d => {
       const i = inputs.find(x => x.inputName === d.inputName && x.media);

@@ -100,7 +100,7 @@ async function addPlayers(show, existing) {
     await req('CreateSceneItem', { sceneName: 'VT', sourceName: 'AUDIO // ALL' });
     done.push('scene VT');
   }
-  for (const sc of ['OPENING', 'BREAK', 'CREDITS']) if (scenes.has(sc)) await place(sc, false);
+  for (const sc of ['STANDBY', 'OPENING', 'MUSIC', 'BREAK', 'CREDITS']) if (scenes.has(sc)) await place(sc, false);
   say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": players already there, nothing changed`);
 }
 
