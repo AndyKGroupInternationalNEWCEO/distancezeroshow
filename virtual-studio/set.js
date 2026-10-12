@@ -158,7 +158,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'kv', guest = tr
   const trim = mesh(band(4.155, 0.05, span + 0.035), M.champagne, desk);
   trim.position.y = 0.77;
   // fascia with names and wordmark, lit from inside
-  const fasciaMat = new THREE.MeshStandardMaterial({ color: 0x0c0d10, metalness: 0.6, roughness: 0.3, emissive: 0xffffff, emissiveMap: createDeskFascia(), emissiveIntensity: 1 });
+  const fasciaMat = new THREE.MeshStandardMaterial({ color: 0x0c0d10, metalness: 0.6, roughness: 0.3, emissive: 0xffffff, emissiveMap: createDeskFascia({ guest }), emissiveIntensity: 1 });
   fasciaMat.side = THREE.DoubleSide;
   const fascia = mesh(band(3.99, 0.26, span - 0.02), fasciaMat, desk);
   fascia.position.y = 0.46;

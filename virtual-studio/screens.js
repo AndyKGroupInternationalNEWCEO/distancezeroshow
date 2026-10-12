@@ -405,12 +405,15 @@ export function createPylon({ city, tz, coords, color, w = 256, h = 1792 }) {
 
 /* ---------- desk fascia: names under each chair, wordmark in the middle ---------- */
 
-export function createDeskFascia() {
+// guest: the wordmark moves up to the names' line and SPECIAL GUEST sits under it, in front of the guest's chair
+export function createDeskFascia({ guest = false } = {}) {
   const w = 4096, h = 256, c = canvas(w, h), x = c.getContext('2d');
   x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
   x.textBaseline = 'middle';
   x.fillStyle = '#f3f5f8'; setFont(x, 600, 64);
-  spaced(x, 'DISTANCE // ZERO', w / 2, h * 0.5, 30);
+  const mid = guest ? h * 0.4 : h * 0.5;
+  spaced(x, 'DISTANCE // ZERO', w / 2, mid, 30);
+  if (guest) { x.fillStyle = '#e3c79a'; setFont(x, 600, 26); spaced(x, 'SPECIAL GUEST', w / 2, h * 0.72, 12); }
   // names sized to fit between the wordmark and the desk ends (the full names are longer than the first edition's)
   const name = (n, place, cx, col) => {
     x.fillStyle = col; setFont(x, 700, 44);
@@ -420,8 +423,8 @@ export function createDeskFascia() {
   };
   name("DJ ANDY'K", 'ANDREJ KNEISL · VIENNA', w * 0.2, AMBER);
   name('GEORGIE WALKER', 'MELBOURNE', w * 0.8, ICE);
-  x.fillStyle = AMBER; x.fillRect(w * 0.38, h * 0.5 - 2, w * 0.05, 4);
-  x.fillStyle = ICE; x.fillRect(w * 0.57, h * 0.5 - 2, w * 0.05, 4);
+  x.fillStyle = AMBER; x.fillRect(w * 0.38, mid - 2, w * 0.05, 4);
+  x.fillStyle = ICE; x.fillRect(w * 0.57, mid - 2, w * 0.05, 4);
   return texture(c, { aniso: 16 });
 }
 
