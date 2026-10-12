@@ -20,6 +20,9 @@
     <button class="tab" role="tab" id="tab-tech" data-ws="tech" aria-controls="ws-tech" aria-selected="false">Tech<span class="long">nical</span> <span class="dot bad" id="dotTech" hidden></span><kbd>⌥3</kbd></button>
     <button class="tab rh-tab" role="tab" id="tab-rehearse" data-ws="rehearse" aria-controls="ws-rehearse" aria-selected="false">Rehearsal <span class="dot" id="dotRehearse" hidden></span><kbd>⌥4</kbd></button>
   </nav>
+  <div class="modesw" role="group" aria-label="Mode">
+    <button type="button" id="modeDirector" aria-pressed="true">DIRECTOR</button><button type="button" id="modeHost" aria-pressed="false">HOST</button>
+  </div>
   <div class="bar-right">
     <label class="showpick"><span>Select show</span><select id="showPick" aria-label="Select show"></select></label>
     <button class="b callbtn" type="button" id="callBtn" disabled>Call Georgie</button>
@@ -101,155 +104,203 @@
 
   <!-- ======================= SHOW CONTROL ======================= -->
   <section class="ws" id="ws-show" role="tabpanel" aria-labelledby="tab-show" hidden>
-    <div class="show-grid">
-      <div class="stack">
-        <section class="card key" aria-labelledby="hNow">
-          <div class="card-h"><h2 id="hNow">On air now</h2><div class="aside"><span class="badge" id="roBadge"></span></div></div>
-          <div class="card-b">
-            <div class="ident idle" id="ident"><div class="bug" aria-hidden="true">D//0</div><div class="plate"><strong id="segTitle">Show not started</strong><span id="segMeta">Take the first segment when you go live</span></div></div>
-            <div class="timers">
-              <div id="tElapsed"><span class="label">Elapsed</span><strong>--:--</strong></div>
-              <div id="tRemain"><span class="label">Remaining</span><strong>--:--</strong></div>
-              <div id="tOver"><span class="label">Show over / under</span><strong>--:--</strong></div>
+    <div class="show3">
+      <div class="mon3" id="showMons" aria-label="Monitors"></div>
+      <div class="show3-body">
+        <div class="col side-l">
+          <section class="card bm" id="breakMons" aria-label="Break monitors" hidden></section>
+          <section class="card key" aria-labelledby="hClock">
+            <div class="card-h"><h2 id="hClock">Show clock</h2><div class="aside"><span class="badge" id="lockBadge"></span></div></div>
+            <div class="card-b" id="showClock"></div>
+            <div class="card-b">
+              <div class="row">
+                <button class="b primary grow go" type="button" id="goBtn">GO <kbd>]</kbd></button>
+              </div>
+              <p class="hint mt" id="goHint"></p>
+              <div class="row mt">
+                <button class="b sm quiet" type="button" id="prev">Back <kbd>[</kbd></button>
+                <button class="b sm quiet" type="button" id="advance" title="Move to the next segment without firing its cues">Next without cues</button>
+                <button class="b sm quiet" type="button" id="refire" title="Fire the cues of the current segment again">Fire cues again</button>
+                <span class="grow"></span>
+                <button class="b sm quiet" type="button" id="resetShow">Reset</button>
+              </div>
+              <ul class="cue-result" id="cueResult" hidden></ul>
             </div>
-            <div class="progress" id="segProgress"><i></i></div>
-            <p class="segnotes" id="segNotes" hidden></p>
-            <div class="nextline"><span class="label">Next</span><strong id="nextTitle">—</strong><span class="label" id="nextMeta"></span></div>
-            <div class="row mt">
-              <button class="b" type="button" id="prev">Back <kbd>[</kbd></button>
-              <button class="b primary grow" type="button" id="advance">Take next segment <kbd>]</kbd></button>
-              <button class="b quiet" type="button" id="resetShow">Reset</button>
-            </div>
+          </section>
+          <section class="card grow-card" aria-labelledby="hRo">
+            <div class="card-h"><h2 id="hRo">Rundown</h2><div class="aside"><span class="badge" id="roBadge"></span><span class="hint">Edit in Rehearsal</span></div></div>
+            <ol class="ro ro-ro" id="ro"></ol>
+            <div class="total" id="roTotal"></div>
+          </section>
+        </div>
+
+        <div class="col center">
+          <section class="card key live-script" aria-labelledby="hScript">
+            <div class="card-h"><h2 id="hScript">Live show script</h2><div class="aside"><span class="hint" id="epLine"></span></div></div>
+            <div class="card-b ls" id="liveScript"></div>
+          </section>
+        </div>
+
+        <div class="col side-r">
+          <nav class="subtabs" role="tablist" aria-label="Side panels" id="sideTabs">
+            <button type="button" role="tab" data-p="audio" aria-selected="true">Audio</button>
+            <button type="button" role="tab" data-p="video" aria-selected="false">Video</button>
+            <button type="button" role="tab" data-p="gfx" aria-selected="false">Graphics</button>
+            <button type="button" role="tab" data-p="talk" aria-selected="false">Talk <span class="dot" id="dotTalk" hidden></span></button>
+            <button type="button" role="tab" data-p="more" aria-selected="false">More</button>
+          </nav>
+          <div class="sidep" data-p="audio">
+            <section class="card" aria-labelledby="hJA">
+              <div class="card-h"><h2 id="hJA">Jingles // audio</h2><div class="aside"><span class="badge" id="jaAir">—</span></div></div>
+              <div class="card-b"><div class="row"><select class="in sm" id="jaFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="jaStop">STOP</button></div></div>
+              <ul class="lib" id="jaList"></ul>
+              <p class="hint card-b">PREVIEW plays only in your headphones. PLAY goes on air through the OBS Jingle Player.</p>
+            </section>
+            <section class="card" aria-labelledby="hJingles">
+              <div class="card-h"><h2 id="hJingles">OBS media sources</h2><div class="aside"><span class="badge" id="cartBadge">OBS</span></div></div>
+              <div class="card-b">
+                <div class="cart" id="cart"></div>
+                <p class="hint mt">Plays OBS media sources. A jingle is heard on air only if its source sits in the live scene.</p>
+              </div>
+            </section>
           </div>
-        </section>
-        <section class="card" aria-labelledby="hRo">
-          <div class="card-h"><h2 id="hRo">Rundown</h2>
-            <div class="aside"><button class="b sm quiet" type="button" id="roAdd">+ Segment</button><button class="b sm quiet" type="button" id="reload" title="Reload studio/data/rundown.json">Reload</button></div></div>
-          <div class="card-b"><input class="in" id="roTitle" maxlength="120" aria-label="Rundown title" placeholder="Episode title"></div>
-          <div class="card-b tpl" aria-label="Episode templates">
-            <div class="tpl-row"><select class="in" id="tplPick" aria-label="Saved episode templates"></select>
-              <button class="b sm quiet" type="button" id="tplLoad">Load</button><button class="b sm quiet" type="button" id="tplDel">Delete</button></div>
-            <div class="tpl-row"><input class="in" id="tplName" maxlength="80" aria-label="Template name" placeholder="Save this rundown as, e.g. Episode 001">
-              <button class="b sm quiet" type="button" id="tplSave">Save template</button></div>
+          <div class="sidep" data-p="video" hidden>
+            <section class="card" aria-labelledby="hVV">
+              <div class="card-h"><h2 id="hVV">Videos // visuals</h2><div class="aside"><span class="badge" id="vvAir">—</span></div></div>
+              <div class="card-b"><div class="row"><select class="in sm" id="vvCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option></select>
+                <label class="checks"><input type="checkbox" id="vvLoop"> LOOP</label><span class="grow"></span><button class="b sm" type="button" id="vvStop">STOP</button></div></div>
+              <ul class="lib" id="vvList"></ul>
+              <div class="card-b"><video id="vvPrev" class="vprev" controls playsinline hidden></video></div>
+            </section>
           </div>
-          <ol class="ro" id="ro"></ol>
-          <div class="total" id="roTotal"></div>
-        </section>
+          <div class="sidep" data-p="gfx" hidden>
+            <section class="card" aria-labelledby="hGfx">
+              <div class="card-h"><h2 id="hGfx">Graphics</h2><div class="aside"><span class="badge" id="gfxBadge">No overlay</span></div></div>
+              <div class="card-b">
+                <div class="gfx-toggles">
+                  <button class="b" type="button" id="gBug" aria-pressed="false">D//0 bug</button>
+                  <button class="b" type="button" id="gClocks" aria-pressed="false">Clocks</button>
+                  <button class="b" type="button" id="gIdent" aria-pressed="false">Ident</button>
+                </div>
+              </div>
+              <div class="card-b">
+                <span class="label">Lower third</span>
+                <div class="fields mt">
+                  <input class="in" id="ltTitle" maxlength="80" placeholder="Name" autocomplete="off" aria-label="Lower third name">
+                  <input class="in" id="ltSub" maxlength="120" placeholder="Line two" autocomplete="off" aria-label="Lower third line two">
+                </div>
+                <div class="presets mt" id="presets">
+                  <button class="b sm quiet" type="button" data-t="Andrej Kneisl" data-s="DJ Andy'K // Vienna" data-side="vienna">Andrej</button>
+                  <button class="b sm quiet" type="button" data-t="Georgie Walker" data-s="Melbourne" data-side="melbourne">Georgie</button>
+                  <button class="b sm quiet" type="button" data-t="DISTANCE // ZERO" data-s="Vienna // Melbourne // 15,731 km" data-side="vienna">Show</button>
+                </div>
+                <div class="row mt">
+                  <select class="in grow" id="ltSide" aria-label="Lower third colour"><option value="vienna">Vienna (amber)</option><option value="melbourne">Melbourne (ice)</option></select>
+                  <button class="b primary" type="button" id="ltShow">Show</button>
+                  <button class="b" type="button" id="ltHide">Hide</button>
+                </div>
+                <div class="row mt"><button class="b sm quiet" type="button" id="gClear">Clear all graphics</button></div>
+              </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="talk" hidden>
+            <section class="card key chat" aria-labelledby="hChat">
+              <div class="card-h"><h2 id="hChat">Talkback // Georgie</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="hostBadge">Offline</span></div></div>
+              <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
+              <div>
+                <div class="quick">
+                  <button type="button" data-say="Stand by, 30 seconds.">30 sec</button>
+                  <button type="button" data-say="Wrap up please.">Wrap</button>
+                  <button type="button" data-say="Stretch, we have time.">Stretch</button>
+                  <button type="button" data-say="You're live.">Live</button>
+                  <button type="button" data-say="Can't hear you, check your mic.">No audio</button>
+                </div>
+                <form class="chat-form" id="chatForm" autocomplete="off">
+                  <input class="in" id="chatInput" maxlength="1000" placeholder="Message Georgie" aria-label="Message to Georgie">
+                  <button class="b primary" type="submit">Send</button>
+                </form>
+              </div>
+            </section>
+            <section class="card" aria-labelledby="hNote">
+              <div class="card-h"><h2 id="hNote">Instruction to Georgie</h2><div class="aside"><span class="saved" id="noteSaved">Sent</span></div></div>
+              <div class="card-b">
+                <textarea class="in" id="note" maxlength="2000" rows="3" placeholder="Shown large on Georgie's screen. e.g. Stretch 2 min, the guest is late."></textarea>
+                <div class="row end mt"><button class="b quiet" type="button" id="noteClear">Clear</button><button class="b primary" type="button" id="noteSend">Send</button></div>
+              </div>
+            </section>
+            <section class="card" aria-labelledby="hAssist">
+              <div class="card-h"><h2 id="hAssist">Help & guidance</h2><div class="aside"><button class="b sm" type="button" id="callBtn2">Call Georgie</button></div></div>
+              <div class="card-b">
+                <ul class="helplist" id="helpList"></ul>
+                <span class="label">Guide Georgie through a fix</span>
+                <div class="row mt">
+                  <select class="in grow" id="guideSel" aria-label="Guide">
+                    <option value="camera">Camera not working</option><option value="audio">Sound problem</option>
+                    <option value="vdo">Rejoin VDO.Ninja</option><option value="network">Slow internet</option>
+                    <option value="reload">Reload her dashboard</option><option value="hold">Hold, we're fixing it</option>
+                    <option value="custom">Own instructions…</option>
+                  </select>
+                  <button class="b primary" type="button" id="guideSend">Send guide</button>
+                </div>
+                <input class="in mt" id="guideText" maxlength="600" placeholder="Extra words for Georgie (optional; required for own instructions)" aria-label="Guidance text">
+              </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="more" hidden>
+            <section class="card" aria-labelledby="hMusic">
+              <div class="card-h"><h2 id="hMusic">Music // now playing</h2><div class="aside"><span class="badge manual" title="Not linked to DJ software yet. Typed in here, shown to Georgie.">Manual entry</span></div></div>
+              <div class="card-b">
+                <div class="fields three">
+                  <input class="in" id="mArtist" maxlength="120" placeholder="Artist" autocomplete="off" aria-label="Artist">
+                  <input class="in" id="mTitle" maxlength="160" placeholder="Title" autocomplete="off" aria-label="Title">
+                  <input class="in" id="mLabel" maxlength="120" placeholder="Label" autocomplete="off" aria-label="Label">
+                </div>
+                <div class="row mt"><span class="hint grow" id="mNow">Nothing set</span><button class="b quiet" type="button" id="mClear">Clear</button><button class="b primary" type="button" id="mSet">Set</button></div>
+              </div>
+              <div class="card-b"><span class="label">Played tonight</span><ul class="playlog mt" id="playlog"></ul></div>
+            </section>
+            <section class="card" aria-labelledby="hRem">
+              <div class="card-h"><h2 id="hRem">Production reminders</h2><div class="aside"><span class="hint">Only you see these</span></div></div>
+              <div class="card-b">
+                <ul class="rem-list" id="remList"></ul>
+                <form class="row mt" id="remForm" autocomplete="off">
+                  <input class="in grow" id="remText" maxlength="200" placeholder="e.g. Call the guest" aria-label="Reminder">
+                  <input class="in" id="remAt" type="time" aria-label="Reminder time (Vienna)">
+                  <button class="b" type="submit">Add</button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
+    </div>
+  </section>
 
-      <div class="stack">
-        <section class="card" aria-labelledby="hGfx">
-          <div class="card-h"><h2 id="hGfx">Graphics</h2><div class="aside"><span class="badge" id="gfxBadge">No overlay</span></div></div>
-          <div class="card-b">
-            <div class="gfx-toggles">
-              <button class="b" type="button" id="gBug" aria-pressed="false">D//0 bug</button>
-              <button class="b" type="button" id="gClocks" aria-pressed="false">Clocks</button>
-              <button class="b" type="button" id="gIdent" aria-pressed="false">Ident</button>
-            </div>
-          </div>
-          <div class="card-b">
-            <span class="label">Lower third</span>
-            <div class="fields mt">
-              <input class="in" id="ltTitle" maxlength="80" placeholder="Name" autocomplete="off" aria-label="Lower third name">
-              <input class="in" id="ltSub" maxlength="120" placeholder="Line two" autocomplete="off" aria-label="Lower third line two">
-            </div>
-            <div class="presets mt" id="presets">
-              <button class="b sm quiet" type="button" data-t="Andrej Kneisl" data-s="DJ Andy'K // Vienna" data-side="vienna">Andrej</button>
-              <button class="b sm quiet" type="button" data-t="Georgie Walker" data-s="Melbourne" data-side="melbourne">Georgie</button>
-              <button class="b sm quiet" type="button" data-t="DISTANCE // ZERO" data-s="Vienna // Melbourne // 15,731 km" data-side="vienna">Show</button>
-            </div>
-            <div class="row mt">
-              <select class="in grow" id="ltSide" aria-label="Lower third colour"><option value="vienna">Vienna (amber)</option><option value="melbourne">Melbourne (ice)</option></select>
-              <button class="b primary" type="button" id="ltShow">Show</button>
-              <button class="b" type="button" id="ltHide">Hide</button>
-            </div>
-            <div class="row mt"><button class="b sm quiet" type="button" id="gClear">Clear all graphics</button></div>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="hJingles">
-          <div class="card-h"><h2 id="hJingles">Jingles // media</h2><div class="aside"><span class="badge" id="cartBadge">OBS</span></div></div>
-          <div class="card-b">
-            <div class="cart" id="cart"></div>
-            <p class="hint mt">Plays OBS media sources. A jingle is heard on air only if its source sits in the live scene.</p>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="hMusic">
-          <div class="card-h"><h2 id="hMusic">Music // now playing</h2><div class="aside"><span class="badge manual" title="Not linked to DJ software yet. Typed in here, shown to Georgie.">Manual entry</span></div></div>
-          <div class="card-b">
-            <div class="fields three">
-              <input class="in" id="mArtist" maxlength="120" placeholder="Artist" autocomplete="off" aria-label="Artist">
-              <input class="in" id="mTitle" maxlength="160" placeholder="Title" autocomplete="off" aria-label="Title">
-              <input class="in" id="mLabel" maxlength="120" placeholder="Label" autocomplete="off" aria-label="Label">
-            </div>
-            <div class="row mt"><span class="hint grow" id="mNow">Nothing set</span><button class="b quiet" type="button" id="mClear">Clear</button><button class="b primary" type="button" id="mSet">Set</button></div>
-          </div>
-          <div class="card-b"><span class="label">Played tonight</span><ul class="playlog mt" id="playlog"></ul></div>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="card" aria-labelledby="hAssist">
-          <div class="card-h"><h2 id="hAssist">Help & guidance</h2><div class="aside"><button class="b sm" type="button" id="callBtn2">Call Georgie</button></div></div>
-          <div class="card-b">
-            <ul class="helplist" id="helpList"></ul>
-            <span class="label">Guide Georgie through a fix</span>
-            <div class="row mt">
-              <select class="in grow" id="guideSel" aria-label="Guide">
-                <option value="camera">Camera not working</option><option value="audio">Sound problem</option>
-                <option value="vdo">Rejoin VDO.Ninja</option><option value="network">Slow internet</option>
-                <option value="reload">Reload her dashboard</option><option value="hold">Hold, we're fixing it</option>
-                <option value="custom">Own instructions…</option>
-              </select>
-              <button class="b primary" type="button" id="guideSend">Send guide</button>
-            </div>
-            <input class="in mt" id="guideText" maxlength="600" placeholder="Extra words for Georgie (optional; required for own instructions)" aria-label="Guidance text">
-          </div>
-        </section>
-        <section class="card key chat" aria-labelledby="hChat">
-          <div class="card-h"><h2 id="hChat">Talkback // Georgie</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="hostBadge">Offline</span></div></div>
-          <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
-          <div>
-            <div class="quick">
-              <button type="button" data-say="Stand by, 30 seconds.">30 sec</button>
-              <button type="button" data-say="Wrap up please.">Wrap</button>
-              <button type="button" data-say="Stretch, we have time.">Stretch</button>
-              <button type="button" data-say="You're live.">Live</button>
-              <button type="button" data-say="Can't hear you, check your mic.">No audio</button>
-            </div>
-            <form class="chat-form" id="chatForm" autocomplete="off">
-              <input class="in" id="chatInput" maxlength="1000" placeholder="Message Georgie" aria-label="Message to Georgie">
-              <button class="b primary" type="submit">Send</button>
-            </form>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="hNote">
-          <div class="card-h"><h2 id="hNote">Instruction to Georgie</h2><div class="aside"><span class="saved" id="noteSaved">Sent</span></div></div>
-          <div class="card-b">
-            <textarea class="in" id="note" maxlength="2000" rows="3" placeholder="Shown large on Georgie's screen. e.g. Stretch 2 min, the guest is late."></textarea>
-            <div class="row end mt"><button class="b quiet" type="button" id="noteClear">Clear</button><button class="b primary" type="button" id="noteSend">Send</button></div>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="hRem">
-          <div class="card-h"><h2 id="hRem">Production reminders</h2><div class="aside"><span class="hint">Only you see these</span></div></div>
-          <div class="card-b">
-            <ul class="rem-list" id="remList"></ul>
-            <form class="row mt" id="remForm" autocomplete="off">
-              <input class="in grow" id="remText" maxlength="200" placeholder="e.g. Call the guest" aria-label="Reminder">
-              <input class="in" id="remAt" type="time" aria-label="Reminder time (Vienna)">
-              <button class="b" type="submit">Add</button>
-            </form>
-          </div>
-        </section>
+  <!-- ======================= HOST MODE (Andrej presenting: the host view, same account and rights) ======================= -->
+  <section class="ws" id="ws-host" aria-label="Host mode" hidden>
+    <div class="show3 hostmode">
+      <div class="mon3" id="hmMons" aria-label="Monitors"></div>
+      <div class="show3-body">
+        <div class="col side-l">
+          <section class="card bm" id="hmBreak" aria-label="Break monitors" hidden></section>
+          <section class="card key"><div class="card-h"><h2>Show clock</h2><div class="aside"><span class="badge" id="hmLock"></span></div></div><div class="card-b" id="hmClock"></div></section>
+          <section class="card"><div class="card-b"><p class="hint">HOST MODE: the presenter view. Your Director controls are one click away (DIRECTOR, top left) and keep running in the background.</p></div></section>
+        </div>
+        <div class="col center wide">
+          <section class="card key live-script"><div class="card-h"><h2>Live show script</h2><div class="aside"><span class="hint" id="hmEp"></span></div></div><div class="card-b ls" id="hmScript"></div></section>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- ======================= REHEARSAL ======================= -->
   <section class="ws" id="ws-rehearse" role="tabpanel" aria-labelledby="tab-rehearse" hidden>
+    <nav class="subtabs rh-sub" role="tablist" aria-label="Rehearsal" id="rhTabs">
+      <button type="button" role="tab" data-rp="run" aria-selected="true">Run-through &amp; checks</button>
+      <button type="button" role="tab" data-rp="script" aria-selected="false">Script editor</button>
+      <button type="button" role="tab" data-rp="media" aria-selected="false">Media library</button>
+    </nav>
+    <div class="rhp" data-rp="run">
     <div class="rh-hero card key" id="rhHero">
       <div class="rh-state">
         <span class="label">Private rehearsal</span>
@@ -302,6 +353,74 @@
         <section class="card" aria-labelledby="hReports">
           <div class="card-h"><h2 id="hReports">Reports</h2><div class="aside"><span class="hint">Text only. Nothing is recorded.</span></div></div>
           <ul class="reports" id="rhReports"></ul>
+        </section>
+      </div>
+    </div>
+    </div>
+
+    <div class="rhp" data-rp="script" hidden>
+      <section class="card key se-top">
+        <div class="se-row">
+          <div class="se-ep"><span class="label">Episode</span><strong id="seEpLabel"></strong></div>
+          <span class="badge" id="seLock"></span>
+          <span class="savestate" id="seSave" role="status" aria-live="polite"></span>
+          <span class="grow"></span>
+          <select class="in sm" id="seEpisodes" aria-label="Saved episodes"></select><button class="b sm" type="button" id="seOpen">Open</button>
+        </div>
+        <div class="se-row">
+          <label class="field"><span class="label">Title</span><input class="in" id="seTitle" maxlength="120"></label>
+          <label class="field"><span class="label">Date</span><input class="in" id="seDate" placeholder="YYYY-MM-DD" maxlength="10" inputmode="numeric" pattern="\d{4}-\d{2}-\d{2}"></label>
+          <label class="field"><span class="label">Start (Vienna)</span><input class="in" id="seStart" placeholder="HH:MM" maxlength="5" inputmode="numeric" pattern="\d{1,2}:\d{2}"></label>
+          <span class="hint" id="seMel"></span>
+          <span class="grow"></span>
+          <span class="hint" id="seVersions"></span><button class="b sm" type="button" id="seRestore">Restore last saved version</button>
+        </div>
+        <div class="se-row">
+          <span class="label">New episode from master</span>
+          <select class="in sm" id="seNewFormat" aria-label="Format"><option value="sunday">SUNDAY_MASTER_SCRIPT</option><option value="friday">FRIDAY_MASTER_SCRIPT</option></select>
+          <input class="in sm" id="seNewDate" placeholder="YYYY-MM-DD" maxlength="10" inputmode="numeric" aria-label="Date (YYYY-MM-DD)"><input class="in sm" id="seNewStart" placeholder="HH:MM" maxlength="5" inputmode="numeric" aria-label="Start, Vienna (HH:MM)">
+          <button class="b sm" type="button" id="seNew">Create</button>
+          <span class="grow"></span>
+          <a class="b sm" id="seExport" href="/script/export.pdf" download>Export PDF</a><a class="b sm quiet" id="sePrint" href="/script/print" target="_blank" rel="noopener">Print</a>
+        </div>
+      </section>
+      <div class="se-grid">
+        <section class="card se-side">
+          <div class="card-h"><h2>Segments</h2><div class="aside"><button class="b sm" type="button" id="seAdd">+ Segment</button></div></div>
+          <ol class="se-list" id="seList"></ol>
+          <div class="total"><span id="seTotal"></span></div>
+          <div class="card-b">
+            <span class="label">Import</span>
+            <textarea class="in mt" id="sePaste" rows="4" placeholder="Paste the script here (segment titles as headings). Nothing changes until you review and apply."></textarea>
+            <div class="row mt"><button class="b sm" type="button" id="sePasteGo">Review import</button>
+              <label class="b sm quiet filebtn" id="sePdfBtn">Import PDF…<input type="file" id="sePdf" accept="application/pdf,.pdf" hidden></label></div>
+          </div>
+          <div class="card-b">
+            <span class="label">Templates</span>
+            <div class="row mt"><select class="in sm grow" id="tplPick" aria-label="Saved templates"></select><button class="b sm quiet" type="button" id="tplLoad">Load</button><button class="b sm quiet" type="button" id="tplDel">Delete</button></div>
+            <div class="row mt"><input class="in sm grow" id="tplName" maxlength="80" placeholder="Save this rundown as…" aria-label="Template name"><button class="b sm quiet" type="button" id="tplSave">Save</button></div>
+          </div>
+        </section>
+        <section class="card se-main"><div class="card-b" id="seForm"></div></section>
+      </div>
+      <div class="se-review" id="seReview" hidden role="dialog" aria-modal="true" aria-label="Review import">
+        <div class="card"><div class="card-h"><h2>Review import</h2></div><div class="card-b" id="seReviewBody"></div>
+          <div class="card-b row end"><button class="b" type="button" id="seImportCancel">Cancel</button><button class="b primary" type="button" id="seImportApply">Apply selected</button></div></div>
+      </div>
+    </div>
+
+    <div class="rhp" data-rp="media" hidden>
+      <div class="rh-media">
+        <section class="card">
+          <div class="card-h"><h2>Jingles // audio</h2><div class="aside"><span class="badge off">PREVIEW ONLY — NEVER ON AIR</span></div></div>
+          <div class="card-b"><div class="row"><select class="in sm" id="rmFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="rmStop">STOP PREVIEW</button></div></div>
+          <ul class="lib" id="rmAudio"></ul>
+        </section>
+        <section class="card">
+          <div class="card-h"><h2>Videos // visuals</h2><div class="aside"><span class="badge off">PREVIEW ONLY — NEVER ON AIR</span></div></div>
+          <div class="card-b"><div class="row"><select class="in sm" id="rmCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option></select><span class="grow"></span><button class="b sm" type="button" id="rmVStop">STOP PREVIEW</button></div></div>
+          <ul class="lib" id="rmVideo"></ul>
+          <div class="card-b"><video id="rmPrev" class="vprev" controls playsinline hidden></video></div>
         </section>
       </div>
     </div>

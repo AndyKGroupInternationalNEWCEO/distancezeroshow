@@ -294,5 +294,8 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     get phase() { return phase; },
     onPhase(f) { listeners.add(f); },
     pc: () => pc,
+    // for the BREAK MONITORS: the same pictures, shown a second time (sound stays with the call itself)
+    streams: () => ({ local: localV.srcObject || null, remote: remoteV.srcObject || null }),
+    micOn: () => media.mic,
   };
 }

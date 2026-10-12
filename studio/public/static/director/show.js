@@ -1,36 +1,42 @@
-// SHOW CONTROL — production: on air now, the editable rundown, graphics, jingles, music,
-// talkback with Georgie, instructions and the director's own reminders.
-import { $, $$, h, hms, act, toast, segmentTimes, segmentTimer, clock, zonedToday } from '../common.js';
+// SHOW CONTROL — the broadcast: three monitors (CAMERA 01 ANDY'K · PROGRAM · CAMERA 02 GEORGIE), the SHOW CLOCK
+// with GO (segment + its linked cues in one deliberate action), the break flow with RETURN TO LIVE, the read-only
+// rundown, the LIVE SHOW SCRIPT with teleprompter, and the side panels: audio, video, graphics, talkback, more.
+// The script is edited only in REHEARSAL; nothing here changes it.
+import { $, $$, h, hms, act, toast, segmentTimes, clock, zonedToday } from '../common.js';
+import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow } from '../showpanels.js';
+import { showClock, mmss } from '../clock.js';
+import { createLibrary } from './media.js';
 
-const KINDS = ['TALK', 'MUSIC', 'GUEST', 'VT', 'BREAK', 'AD'];
-const LEAD = { andrej: 'Andrej leads', georgie: 'Georgie leads', both: 'Both' };
-let openRow = -1, editDirty = false;
+let mons, clk, script, brk, lib;
+const two = n => String(n).padStart(2, '0');
 
 export function init(ctx) {
+  mons = createMonitors($('#showMons'));
+  clk = createClock($('#showClock'));
+  script = createScript($('#liveScript'), { me: "ANDY'K", role: 'director', conn: ctx.conn });
+  brk = createBreakMonitors($('#breakMons'), { call: { get phase() { return ctx.call?.phase; }, streams: () => ctx.call?.streams?.(), micOn: () => ctx.call?.micOn?.() }, role: 'director', onReturn: btn => returnToLive(ctx, btn) });
+  lib = createLibrary(ctx, { mode: 'show', audioList: $('#jaList'), videoList: $('#vvList'), filter: $('#jaFilter'), catSel: $('#vvCat'), loopBox: $('#vvLoop'),
+    audioStop: $('#jaStop'), videoStop: $('#vvStop'), videoPreview: $('#vvPrev'), audioBadge: $('#jaAir'), videoBadge: $('#vvAir') });
+
   const rd = (action, extra) => ctx.conn.send({ t: 'rundown', action, ...extra });
+  $('#goBtn').addEventListener('click', e => go(ctx, e.currentTarget));
   $('#advance').addEventListener('click', e => act(e.currentTarget, () => rd('next')));
   $('#prev').addEventListener('click', e => act(e.currentTarget, () => rd('prev')));
+  $('#refire').addEventListener('click', e => act(e.currentTarget, async () => showResult(await ctx.conn.send({ t: 'cue.fire' })), 'Cues fired'));
   $('#resetShow').addEventListener('click', e => { if (confirmTwice(e.currentTarget, 'Reset? Click again')) act(e.currentTarget, () => rd('reset'), 'Show clock reset'); });
-  $('#reload').addEventListener('click', e => act(e.currentTarget, () => rd('reload'), 'Rundown reloaded from file'));
-  $('#roAdd').addEventListener('click', e => act(e.currentTarget, async () => {
-    const r = await rd('add', { index: openRow >= 0 ? openRow : null });
-    openRow = r.index; editDirty = false;
-  }));
-  $('#roTitle').addEventListener('change', e => act(null, () => rd('title', { title: e.target.value }), 'Title saved'));
 
-  // episode templates: save the current rundown under a name, load one back (only while the show clock is stopped)
-  $('#tplSave').addEventListener('click', e => act(e.currentTarget, async () => {
-    const name = $('#tplName').value.trim() || $('#roTitle').value.trim();
-    await rd('saveTemplate', { name }); $('#tplName').value = '';
-  }, 'Template saved'));
-  $('#tplLoad').addEventListener('click', e => {
-    const id = $('#tplPick').value; if (!id) return;
-    if (confirmTwice(e.currentTarget, 'Replace rundown? Click again')) act(e.currentTarget, () => rd('loadTemplate', { template: id }), 'Template loaded');
-  });
-  $('#tplDel').addEventListener('click', e => {
-    const id = $('#tplPick').value; if (!id) return;
-    if (confirmTwice(e.currentTarget, 'Delete? Click again')) act(e.currentTarget, () => rd('deleteTemplate', { template: id }), 'Template deleted');
-  });
+  // side panels: one visible at a time, so the workspace never needs scrolling
+  const tabs = $$('#sideTabs [role=tab]');
+  const pick = p => {
+    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.p === p));
+    for (const el of $$('.sidep')) el.hidden = el.dataset.p !== p;
+    if (p === 'talk') $('#dotTalk').hidden = true;
+    try { localStorage.setItem('dz-side', p); } catch {}
+  };
+  tabs.forEach(t => t.addEventListener('click', () => pick(t.dataset.p)));
+  let first = 'audio'; try { first = localStorage.getItem('dz-side') || 'audio'; } catch {}
+  pick(first);
+  ctx.showSide = pick;
 
   const note = $('#note');
   note.addEventListener('input', () => { note.dataset.dirty = '1'; });
@@ -61,9 +67,30 @@ export function init(ctx) {
   });
 }
 
+function showResult(r) {
+  const res = r?.result || r || {}, ul = $('#cueResult');
+  const rows = [...(res.done || []).map(t => h('li', { class: 'ok', text: t })), ...(res.skipped || []).map(t => h('li', { class: 'warn', text: t }))];
+  ul.hidden = !rows.length; ul.replaceChildren(...rows);
+}
+
+// GO: the next segment with its cues (scene, video, jingle). Into a break: the microphones are muted first.
+// During a break the button is RETURN TO LIVE and needs a second click.
+function go(ctx, btn) {
+  const S = ctx.S; if (!S) return;
+  if (S.brk?.active) return returnToLive(ctx, btn);
+  const r = S.rundown, nx = r.segments[r.index + 1];
+  if (!nx) return toast('This is the last segment', 'warn');
+  act(btn, async () => showResult(await ctx.conn.send({ t: 'cue.go', index: r.index + 1 })));
+}
+function returnToLive(ctx, btn) {
+  if (!confirmTwice(btn, 'CONFIRM: RETURN TO LIVE')) return;
+  act(btn, async () => showResult(await ctx.conn.send({ t: 'break.return', confirm: true })), 'Back on air');
+}
+
 export function step(ctx, dir) {
-  const btn = $(dir > 0 ? '#advance' : '#prev');
-  if (!btn.disabled) act(btn, () => ctx.conn.send({ t: 'rundown', action: dir > 0 ? 'next' : 'prev' }));
+  if (dir > 0) return go(ctx, $('#goBtn'));
+  const btn = $('#prev');
+  if (!btn.disabled) act(btn, () => ctx.conn.send({ t: 'rundown', action: 'prev' }));
 }
 
 function confirmTwice(btn, label) {
@@ -73,33 +100,34 @@ function confirmTwice(btn, label) {
   return false;
 }
 
+export function frame(f) { mons?.frame(f); }
+
 export function render(ctx) {
   const S = ctx.S, r = S.rundown;
+  syncClock(S);
   const badge = $('#roBadge');
   badge.className = 'badge ' + (r.sample ? 'sample' : 'live');
-  badge.textContent = r.sample ? 'Sample rundown' : 'Rundown';
-  const roT = $('#roTitle'); if (document.activeElement !== roT) roT.value = r.title || '';
-  const seg = r.segments[r.index], nxt = r.segments[r.index + 1];
-  $('#ident').classList.toggle('idle', !seg);
-  $('#segTitle').textContent = seg ? seg.title : 'Show not started';
-  $('#segMeta').textContent = seg ? `${String(r.index + 1).padStart(2, '0')} // ${seg.kind} // ${LEAD[seg.lead]} // ${seg.minutes} min` : 'Take the first segment when you go live';
-  $('#segNotes').hidden = !seg?.notes;
-  $('#segNotes').textContent = seg?.notes || '';
-  $('#nextTitle').textContent = nxt ? nxt.title : r.index >= 0 ? 'End of show' : (r.segments[0]?.title || '—');
-  $('#nextMeta').textContent = nxt ? `${nxt.minutes} min // ${LEAD[nxt.lead]}` : '';
-  $('#advance').firstChild.textContent = r.index < 0 ? 'Start show // first segment ' : nxt ? 'Take next segment ' : 'Last segment ';
-  $('#advance').disabled = r.index >= 0 && !nxt;
-  $('#prev').disabled = r.index <= 0;
-  const pick = $('#tplPick'), list = S.templates || [], sig = list.map(t => t.id + t.savedAt).join();
-  if (pick.dataset.sig !== sig && document.activeElement !== pick) {
-    const keep = pick.value;
-    pick.replaceChildren(...(list.length ? list.map(t => h('option', { value: t.id, text: `${t.name} // ${t.segments} segments // ${t.minutes} min` }))
-      : [h('option', { value: '', text: 'No saved templates yet' })]));
-    if (list.some(t => t.id === keep)) pick.value = keep;
-    pick.dataset.sig = sig;
+  badge.textContent = r.episode?.id || (r.sample ? 'Sample rundown' : 'Rundown');
+  const lb = $('#lockBadge');
+  lb.textContent = r.locked ? 'SCRIPT LOCKED — READY FOR BROADCAST' : r.lockAt ? `Script locks ${clock('vie', r.lockAt, false)} Vienna` : 'No start time';
+  lb.className = 'badge ' + (r.locked ? 'lock' : 'off');
+  $('#epLine').textContent = [r.title, r.episode?.date && `${r.episode.date} ${r.episode.start} Vienna`].filter(Boolean).join(' · ');
+  const nx = r.segments[r.index + 1], b = S.brk || {};
+  const goBtn = $('#goBtn');
+  if (!goBtn.dataset.armed) {
+    goBtn.firstChild.textContent = b.active ? 'RETURN TO LIVE ' : r.index < 0 ? `GO — START SHOW: 01 ${r.segments[0]?.title || ''} ` : nx ? `GO — ${two(r.index + 2)} ${nx.title} ` : 'LAST SEGMENT ';
   }
-  $('#tplLoad').disabled = $('#tplDel').disabled = !list.length;
-  $('#tplLoad').title = r.showStartedAt ? 'Reset the show clock first' : '';
+  goBtn.classList.toggle('danger', !!b.active); goBtn.classList.toggle('primary', !b.active);
+  goBtn.disabled = !b.active && r.index >= 0 && !nx;
+  const c = nx?.cues || {};
+  $('#goHint').textContent = b.active ? `Returns to ${b.next || 'the next segment'}: scene, microphones on, return jingle. Only when you confirm.`
+    : nx && (c.scene || c.video || c.jingle || nx.kind === 'BREAK') ? ['Cues:', c.scene && 'scene ' + c.scene, c.video && 'video ' + c.video + (c.mode === 'loop' ? ' (loop)' : ''), c.jingle && 'jingle ' + c.jingle, nx.kind === 'BREAK' && '· microphones muted for the break'].filter(Boolean).join(' ') : '';
+  $('#prev').disabled = r.index <= 0 || !!b.active;
+  $('#advance').disabled = !nx || !!b.active;
+  $('#refire').disabled = r.index < 0;
+  if (ctx.unread && ctx.ws === 'show' && $('.sidep[data-p=talk]').hidden) $('#dotTalk').hidden = false;
+  script.render(S);
+  lib.render();
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);
@@ -107,52 +135,21 @@ export function render(ctx) {
 
 function renderRundown(ctx) {
   const S = ctx.S, r = S.rundown;
-  if ((ctx.focusedIn($('#ro')) || editDirty) || !ctx.differs('ro', [r, openRow])) return;
+  if (!ctx.differs('ro', [r.segments.map(s => [s.id, s.title, s.kind, s.minutes]), r.index, r.showStartedAt, S.brk?.active, Math.floor(Date.now() / 30000)])) return;
   const times = segmentTimes(S);
-  const rd = (action, extra) => ctx.conn.send({ t: 'rundown', action, ...extra });
-  $('#ro').replaceChildren(...r.segments.map((s, i) => {
-    const li = h('li', { class: [i < r.index ? 'done' : i === r.index ? 'cur' : i === r.index + 1 ? 'nxt' : '', openRow === i ? 'open' : ''].join(' ') },
-      h('button', { type: 'button', class: 'r', 'aria-expanded': String(openRow === i), onclick: () => { openRow = openRow === i ? -1 : i; editDirty = false; renderRundown(ctx); } },
-        h('span', { class: 'i', text: String(i + 1).padStart(2, '0') }),
-        h('span', { class: 't vie', text: clock('vie', times[i], false) }),
-        h('span', { class: 't mel alt', text: clock('mel', times[i], false) }),
-        h('span', { class: 'ti', text: s.title }),
-        h('span', { class: 'k', text: s.kind }),
-        h('span', { class: 'm', text: s.minutes + "'" })));
-    if (openRow !== i) return li;
-
-    const f = {
-      title: h('input', { class: 'in', maxlength: '80', 'aria-label': 'Segment title' }),
-      kind: h('select', { class: 'in', 'aria-label': 'Kind' }, ...[...new Set([...KINDS, s.kind])].map(k => h('option', { value: k, text: k }))),
-      minutes: h('input', { class: 'in', type: 'number', min: '0', max: '600', step: '0.5', 'aria-label': 'Minutes' }),
-      lead: h('select', { class: 'in', 'aria-label': 'Lead' }, ...Object.entries(LEAD).map(([v, t]) => h('option', { value: v, text: t }))),
-      notes: h('textarea', { class: 'in', rows: '3', maxlength: '2000', 'aria-label': 'Notes, also shown to Georgie' }),
-    };
-    f.title.value = s.title; f.kind.value = s.kind; f.minutes.value = s.minutes; f.lead.value = s.lead; f.notes.value = s.notes;
-    for (const el of Object.values(f)) el.addEventListener('input', () => { editDirty = true; });
-    const save = () => act(null, async () => {
-      await rd('update', { index: i, fields: { title: f.title.value, kind: f.kind.value, minutes: f.minutes.value, lead: f.lead.value, notes: f.notes.value } });
-      editDirty = false; ctx.differs('ro', null);
-    }, 'Segment saved');
-    const del = h('button', { type: 'button', class: 'b sm danger', text: 'Delete' });
-    del.addEventListener('click', () => { if (confirmTwice(del, 'Delete? Click again')) act(del, async () => { await rd('remove', { index: i }); openRow = -1; editDirty = false; }); });
-    li.append(h('div', { class: 'edit' },
-      h('div', { class: 'fields three' }, h('label', { class: 'field' }, h('span', { class: 'label', text: 'Title' }), f.title),
-        h('label', { class: 'field' }, h('span', { class: 'label', text: 'Kind' }), f.kind),
-        h('label', { class: 'field' }, h('span', { class: 'label', text: 'Minutes' }), f.minutes)),
-      h('label', { class: 'field' }, h('span', { class: 'label', text: 'Lead' }), f.lead),
-      h('label', { class: 'field' }, h('span', { class: 'label', text: 'Notes (Georgie sees these)' }), f.notes),
-      h('div', { class: 'tools' },
-        h('button', { type: 'button', class: 'b sm primary', text: 'Save', onclick: save }),
-        h('button', { type: 'button', class: 'b sm', text: i === r.index ? 'Restart segment' : 'Take now', onclick: e => act(e.currentTarget, () => rd('go', { index: i })) }),
-        h('button', { type: 'button', class: 'b sm quiet', text: '↑', 'aria-label': 'Move up', disabled: i === 0, onclick: e => act(e.currentTarget, async () => { await rd('move', { index: i, to: i - 1 }); openRow = i - 1; editDirty = false; }) }),
-        h('button', { type: 'button', class: 'b sm quiet', text: '↓', 'aria-label': 'Move down', disabled: i === r.segments.length - 1, onclick: e => act(e.currentTarget, async () => { await rd('move', { index: i, to: i + 1 }); openRow = i + 1; editDirty = false; }) }),
-        h('span', { class: 'grow' }), del)));
-    return li;
-  }));
-  const total = r.segments.reduce((a, s) => a + s.minutes, 0), slot = S.show.schedule.minutes;
-  $('#roTotal').replaceChildren(h('span', { text: `${r.segments.length} segments // Vienna and Melbourne times` }),
-    h('span', { class: total > slot ? 'bad' : '', text: `${total} of ${slot} min${total > slot ? ' // over the slot' : ''}` }));
+  $('#ro').replaceChildren(...r.segments.map((s, i) => h('li', { class: i < r.index ? 'done' : i === r.index ? 'cur' : i === r.index + 1 ? 'nxt' : '' },
+    h('span', { class: 'r' },
+      h('span', { class: 'i', text: two(i + 1) }),
+      h('span', { class: 't vie', text: clock('vie', times[i], false) }),
+      h('span', { class: 't mel alt', text: clock('mel', times[i], false) }),
+      h('span', { class: 'ti', text: s.title }),
+      h('span', { class: 'k', text: s.kind }),
+      h('span', { class: 'm', text: s.minutes + "'" }),
+      i !== r.index && !S.brk?.active ? h('button', { type: 'button', class: 'b xs quiet', text: 'GO', title: 'Jump to this segment and fire its cues (click twice)', onclick: e => {
+        if (confirmTwice(e.currentTarget, 'GO?')) act(e.currentTarget, async () => showResult(await ctx.conn.send({ t: 'cue.go', index: i })));
+      } }) : null))));
+  const total = r.segments.reduce((a, s) => a + s.minutes, 0);
+  $('#roTotal').replaceChildren(h('span', { text: `${r.segments.length} segments · Vienna / Melbourne` }), h('span', { text: `${total} min` }));
 }
 
 function renderSide(ctx) {
@@ -213,18 +210,9 @@ function renderSide(ctx) {
   }
 }
 
+
 /* timers: every 250 ms */
 export function tick(ctx) {
-  const S = ctx.S, r = S.rundown, t = segmentTimer(S);
-  const set = (id, text, cls = '') => { const d = $(id); d.className = cls; d.querySelector('strong').textContent = text; };
-  if (!t) { set('#tElapsed', '--:--'); set('#tRemain', '--:--'); set('#tOver', '--:--'); $('#segProgress i').style.width = '0'; return; }
-  set('#tElapsed', hms(t.elapsed));
-  set('#tRemain', hms(t.remaining), t.remaining < 0 ? 'over' : t.remaining < 60000 ? 'near' : '');
-  // planned show time to the end of this segment vs. actual: positive = running late
-  const planned = r.segments.slice(0, r.index + 1).reduce((a, s) => a + s.minutes, 0) * 6e4;
-  const drift = (Date.now() - r.showStartedAt) - planned + Math.max(0, t.remaining);
-  set('#tOver', hms(drift, { sign: true }), drift > 60000 ? 'over' : drift < -60000 ? 'near' : '');
-  const p = $('#segProgress');
-  p.classList.toggle('over', t.remaining < 0);
-  p.firstChild.style.width = (t.ratio * 100).toFixed(2) + '%';
+  const S = ctx.S;
+  clk.tick(S); brk.tick(S); mons.update(S);
 }

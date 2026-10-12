@@ -9,6 +9,7 @@ import * as talk from './talk.js';
 import * as rehearse from './rehearse.js';
 import { notifier } from '../notify.js';
 import { initLayout } from './layout.js';
+import * as hostmode from './hostmode.js';
 
 const WS = ['live', 'show', 'tech', 'rehearse'];
 const memo = {};
@@ -43,7 +44,7 @@ ctx.conn.on('notify', m => {
   ctx.note.show({ ...m, actions });
 });
 ctx.conn.on('meters', ({ m }) => { live.meters(m); tech.meters(m); });
-ctx.conn.on('frame', f => live.frame(f));
+ctx.conn.on('frame', f => { live.frame(f); show.frame(f); hostmode.frame(f); });
 ctx.conn.on('log.history', ({ entries }) => tech.logHistory(entries));
 ctx.conn.on('log', ({ entry }) => tech.logEntry(entry));
 chatPanel(ctx.conn, 'director', { onUnread: n => {
@@ -55,8 +56,8 @@ chatPanel(ctx.conn, 'director', { onUnread: n => {
 } });
 runClocks(() => ctx.S);
 
-live.init(ctx); show.init(ctx); tech.init(ctx); talk.init(ctx); rehearse.init(ctx);
-setInterval(() => { if (ctx.S) { live.tick(ctx); show.tick(ctx); rehearse.tick(ctx); } }, 250);
+live.init(ctx); show.init(ctx); tech.init(ctx); talk.init(ctx); rehearse.init(ctx); hostmode.init(ctx);
+setInterval(() => { if (ctx.S) { live.tick(ctx); show.tick(ctx); rehearse.tick(ctx); hostmode.tick(ctx); } }, 250);
 
 /* ---------- workspaces ---------- */
 
@@ -64,7 +65,7 @@ function setWs(name, { focus = false } = {}) {
   if (!WS.includes(name)) name = 'live';
   ctx.ws = name;
   for (const w of WS) {
-    $('#ws-' + w).hidden = w !== name;
+    $('#ws-' + w).hidden = ctx.hostMode || w !== name;
     const tab = $('#tab-' + w);
     tab.setAttribute('aria-selected', String(w === name));
     tab.tabIndex = w === name ? 0 : -1;
@@ -74,11 +75,26 @@ function setWs(name, { focus = false } = {}) {
   if (name === 'show') $('#dotShow').hidden = true;
   monitors();
 }
-// the program/preview monitors cost OBS a screenshot a few times a second: only while Live Control is visible
+// the monitors cost OBS a screenshot a few times a second: only while a workspace with monitors is visible.
+// Live Control: program + preview. SHOW and HOST mode: CAMERA 01 · PROGRAM · CAMERA 02.
 function monitors() {
   if (!ctx.conn.open) return;
-  ctx.conn.send({ t: 'monitors', on: ctx.ws === 'live' && document.visibilityState === 'visible' }).catch(() => {});
+  const vis = document.visibilityState === 'visible';
+  const on = !vis ? false : ctx.hostMode || ctx.ws === 'show' ? 'show' : ctx.ws === 'live';
+  ctx.conn.send({ t: 'monitors', on }).catch(() => {});
 }
+ctx.monitors = monitors;
+// DIRECTOR / HOST: the same account and the same rights; HOST only changes what this window shows
+ctx.setMode = host => {
+  ctx.hostMode = !!host;
+  $('#modeDirector').setAttribute('aria-pressed', String(!host)); $('#modeHost').setAttribute('aria-pressed', String(!!host));
+  document.body.classList.toggle('host-mode', !!host);
+  $('#ws-host').hidden = !host;
+  try { localStorage.setItem('dz-mode', host ? 'host' : 'director'); } catch {}
+  setWs(ctx.ws);
+};
+$('#modeDirector').addEventListener('click', () => ctx.setMode(false));
+$('#modeHost').addEventListener('click', () => ctx.setMode(true));
 document.addEventListener('visibilitychange', monitors);
 $$('.tab').forEach(t => {
   t.addEventListener('click', () => setWs(t.dataset.ws));
@@ -90,6 +106,7 @@ $$('.tab').forEach(t => {
 });
 window.addEventListener('hashchange', () => setWs(location.hash.slice(1)));
 setWs(location.hash.slice(1) || 'live');
+try { if (localStorage.getItem('dz-mode') === 'host') ctx.setMode(true); } catch {}
 
 initLayout();
 
@@ -145,6 +162,7 @@ function render() {
   tech.render(ctx);
   talk.render(ctx);
   rehearse.render(ctx);
+  hostmode.render(ctx);
 }
 
 /* ---------- keyboard ---------- */
@@ -155,8 +173,8 @@ document.addEventListener('keydown', e => {
   if (e.target.closest('input, textarea, select, [contenteditable]')) return;
   if (e.key === 'Escape') { $('#help').hidden = true; return; }
   if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
-  if (e.key === ']' || e.key === '[') { e.preventDefault(); show.step(ctx, e.key === ']' ? 1 : -1); return; }
-  if (ctx.ws === 'live') live.key(e, ctx); // switching keys only where the monitors are
+  if ((e.key === ']' || e.key === '[') && !ctx.hostMode) { e.preventDefault(); show.step(ctx, e.key === ']' ? 1 : -1); return; }
+  if (ctx.ws === 'live' && !ctx.hostMode) live.key(e, ctx); // switching keys only where the monitors are
 });
 function toggleHelp() { const h = $('#help'); h.hidden = !h.hidden; if (!h.hidden) $('#helpClose').focus(); }
 $('#helpBtn').addEventListener('click', toggleHelp);

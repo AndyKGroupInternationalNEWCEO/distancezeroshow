@@ -3,6 +3,10 @@
 // Starting or ending a rehearsal never touches OBS; the server keeps stream and recording locked meanwhile.
 import { $, h, act, toast, clock, countdown, nextShow, hms } from '../common.js';
 import { testDevices, playTone } from '../checks.js';
+import * as scripted from './scripted.js';
+import { createLibrary, stopPreview } from './media.js';
+
+let rlib = null;
 
 const WORD = { pass: 'PASS', warn: 'WARNING', fail: 'FAILED', untested: 'NOT TESTED', running: 'CHECKING' };
 const CHECKS = [
@@ -14,6 +18,21 @@ const CHECKS = [
 let busyDevices = false, toneAsk = false;
 
 export function init(ctx) {
+  // sub-views: run-through & checks · script editor · media library (preview only, never on air)
+  const tabs = [...document.querySelectorAll('#rhTabs [role=tab]')];
+  const pick = p => {
+    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.rp === p));
+    for (const el of document.querySelectorAll('.rhp')) el.hidden = el.dataset.rp !== p;
+    if (p !== 'media') stopPreview();
+    try { localStorage.setItem('dz-rh', p); } catch {}
+  };
+  tabs.forEach(t => t.addEventListener('click', () => pick(t.dataset.rp)));
+  let first = 'run'; try { first = localStorage.getItem('dz-rh') || 'run'; } catch {}
+  pick(first);
+  ctx.rehearsePick = pick;
+  scripted.init(ctx);
+  rlib = createLibrary(ctx, { mode: 'rehearse', audioList: $('#rmAudio'), videoList: $('#rmVideo'), filter: $('#rmFilter'), catSel: $('#rmCat'),
+    audioStop: $('#rmStop'), videoStop: $('#rmVStop'), videoPreview: $('#rmPrev') });
   const send = (t, extra) => ctx.conn.send({ t, ...extra });
   $('#rhToggle').addEventListener('click', e => {
     const on = ctx.S?.rehearsal?.active;
@@ -61,6 +80,7 @@ async function myTone(ctx) {
 }
 
 export function render(ctx, force = false) {
+  scripted.render(ctx); rlib?.render();
   const S = ctx.S, R = S.rehearsal || { active: false };
   const on = !!R.active;
   $('#dotRehearse').hidden = !on;

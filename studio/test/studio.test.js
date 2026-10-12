@@ -358,7 +358,7 @@ test('transition choice and duration', async () => {
   d.close();
 });
 
-test('program and preview monitors go to the director only, and only on request', async () => {
+test('monitors only on request; the preview bus goes to the director only', async () => {
   const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
   await Promise.all([d.opened, hst.opened]);
   await new Promise(r => setTimeout(r, 400));
@@ -368,9 +368,12 @@ test('program and preview monitors go to the director only, and only on request'
   assert.match(f.img, /^data:image\//);
   assert.equal(f.scene, mock.state.program);
   await d.next(m => m.t === 'frame' && m.which === 'preview');
-  assert.equal((await hst.send({ t: 'monitors', on: true })).ok, false);
-  await new Promise(r => setTimeout(r, 400));
-  assert.ok(!hst.msgs.some(m => m.t === 'frame'));
+  // Georgie's dashboard shows CAMERA 01 · LIVE PROGRAM · CAMERA 02 (watch only), never the preview bus
+  assert.equal((await hst.send({ t: 'monitors', on: true })).ok, true);
+  await new Promise(r => setTimeout(r, 1200));
+  assert.ok(hst.msgs.some(m => m.t === 'frame'));
+  assert.ok(!hst.msgs.some(m => m.t === 'frame' && m.which === 'preview'));
+  await hst.send({ t: 'monitors', on: false });
   await d.send({ t: 'monitors', on: false });
   d.close(); hst.close();
 });
@@ -999,5 +1002,21 @@ test('linked cues and breaks: GO fires scene + video + jingle; a break mutes the
   const after = await d.next(m => m.t === 'state' && !m.s.brk?.active && m.s.rundown.index === 5);
   assert.equal(after.s.rundown.segments[after.s.rundown.index].title, 'MUSIC & STORIES');
   await d.send({ t: 'rundown', action: 'reset' });
+  d.close(); hst.close();
+});
+
+test('host view: spoken script without [DIRECTOR] lines, cue titles by name, monitors are watch-only', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const st = await d.next(m => m.t === 'state');
+  const seg = st.s.rundown.segments[2];
+  assert.equal((await d.send({ t: 'script.update', segmentId: seg.id, fields: { script: "ANDY'K: Hello\n[DIRECTOR] Camera 2 now\nGEORGIE: Hi" } })).ok, true);
+  const hs = await hst.next(m => m.t === 'state' && m.s.rundown.segments[2]?.script?.includes('Hello'));
+  assert.ok(!hs.s.rundown.segments[2].script.includes('[DIRECTOR]'));
+  assert.equal(hs.s.media, undefined, 'no media files for the host');
+  assert.equal((await hst.send({ t: 'monitors', on: 'live' })).ok, true);
+  const frame = await hst.next(m => m.t === 'frame');
+  assert.ok(['program', 'camA', 'camB'].includes(frame.which), 'never the preview bus');
+  await hst.send({ t: 'monitors', on: false });
   d.close(); hst.close();
 });

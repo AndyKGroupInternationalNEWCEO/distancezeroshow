@@ -41,20 +41,7 @@ export function cleanScript(s = {}) {
   };
 }
 
-// spoken lines: "ANDY'K: …" / "GEORGIE: …" mark the speaker; "[DIRECTOR] …" lines are never spoken (kept out of the prompter)
-export function speakerLines(script) {
-  const out = [];
-  let speaker = '';
-  for (const raw of str(script, 20000).split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) { out.push({ speaker, text: '' }); continue; }
-    if (/^\[(DIRECTOR|CUE|TECH)[^\]]*\]/i.test(line)) continue;
-    const m = /^(ANDY'?K|ANDREJ|GEORGIE|BOTH|GUEST)\s*:\s*(.*)$/i.exec(line);
-    if (m) { speaker = m[1].toUpperCase().replace('ANDYK', "ANDY'K").replace('ANDREJ', "ANDY'K"); out.push({ speaker, text: m[2] }); }
-    else out.push({ speaker, text: line });
-  }
-  return out;
-}
+export { speakerLines } from '../public/static/lines.js';
 
 // split a plain-text script (from a PDF or pasted) into the episode's segments by their titles; nothing is applied here
 export function splitBySegments(text, segments) {

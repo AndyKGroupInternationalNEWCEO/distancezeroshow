@@ -17,7 +17,7 @@ const ROLES = ['director', 'host', 'overlay'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
-  'check.echo', 'check.result', 'notes.set']);
+  'check.echo', 'check.result', 'notes.set', 'monitors']);  // monitors: watching the camera/program pictures only
 const OVERLAY_ACTIONS = new Set(['ping']);
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
@@ -242,7 +242,17 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   const scriptState = () => ({ episode: rundown.episode, locked: locked(), lockAt: lockAt(rundown.episode), lockMinutes: LOCK_MINUTES, savedAt: rundown.savedAt || 0 });
   const rundownView = () => ({ title: rundown.title, sample: !!rundown.sample, segments: rundown.segments, ...state.pos, ...scriptState() });
   // Georgie: the script and cues, never the Director's own instructions
-  const hostRundownView = () => ({ ...rundownView(), segments: rundown.segments.map(({ director, ...seg }) => seg) });
+  const spokenOnly = t => String(t || '').split('\n').filter(l => !/^\s*\[(DIRECTOR|CUE|TECH)[^\]]*\]/i.test(l)).join('\n');
+  const hostRundownView = () => ({ ...rundownView(), segments: rundown.segments.map(({ director, ...seg }) => ({ ...seg, script: spokenOnly(seg.script) })) });
+  // titles of the jingles and videos the script refers to (Georgie sees the cues by name, never the files)
+  function cueTitles() {
+    const out = {};
+    for (const seg of rundown.segments) for (const k of ['jingle', 'video', 'returnJingle', 'returnVideo']) {
+      const id = seg.cues?.[k]; const m = id && media?.get(id);
+      if (m) out[id] = { title: m.title, available: m.available };
+    }
+    return out;
+  }
   const showView = () => ({ title: config.show.title, launch: config.show.launch, schedule: config.show.schedule });
 
   function view(role) {
@@ -264,7 +274,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     }
     if (role === 'host') {
       return {
-        show: showView(), rundown: hostRundownView(), now: Date.now(), brk: breakView('host'), myNotes: notesFor('georgie'), note: state.note, music: state.music,
+        show: showView(), rundown: hostRundownView(), now: Date.now(), brk: breakView('host'), cueTitles: cueTitles(), myNotes: notesFor('georgie'), note: state.note, music: state.music,
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
@@ -293,20 +303,39 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     for (const c of clients) if (c.role === 'director') c.send({ t: 'meters', m });
   });
 
-  /* program and preview monitors: OBS screenshots of each scene, a few per second, only while someone watches */
-  const busy = { program: false, preview: false };
+  /* monitors: OBS screenshots, a few per second, only while someone watches.
+     'live' (Live Control): program and preview. 'show' (SHOW and the Host dashboard): CAMERA 01 ANDY'K, PROGRAM,
+     CAMERA 02 GEORGIE — the real camera sources in OBS; a source this show does not have is reported, never faked. */
+  const CAMS = { camA: 'Cam // Andrej', camB: 'VDO // Georgie' };
+  const busy = {};
   let tick = 0;
   const monitorTimer = setInterval(() => {
     const watchers = [...clients].filter(c => c.monitors);
     if (!watchers.length || !obs.state.connected) return;
     tick++;
-    for (const which of tick % 2 ? ['program', 'preview'] : ['program']) {
-      const scene = which === 'program' ? obs.state.program : previewScene();
-      if (!scene || busy[which]) continue;
+    const live = watchers.filter(c => c.monitors === 'live'), show = watchers.filter(c => c.monitors === 'show');
+    const jobs = [];
+    if (live.length) for (const which of tick % 2 ? ['program', 'preview'] : ['program']) jobs.push([which, which === 'program' ? obs.state.program : previewScene(), live, 640]);
+    if (show.length) {
+      if (!live.length) jobs.push(['program', obs.state.program, show, 480]);
+      if (tick % 3 === 0) jobs.push(['camA', CAMS.camA, show, 480]);
+      if (tick % 3 === 1) jobs.push(['camB', CAMS.camB, show, 480]);
+    }
+    for (const [which, source, to, width] of jobs) {
+      if (!source || busy[which]) continue;
       busy[which] = true;
-      obs.screenshot(scene, 640).then(img => {
-        for (const c of watchers) c.send({ t: 'frame', which, scene, img });
-      }).catch(() => {}).finally(() => { busy[which] = false; });
+      // the program picture goes to every watcher; the Live monitors share it with SHOW watchers
+      const targets = which === 'program' ? watchers : to;
+      obs.screenshot(source, width).then(img => {
+        const now = Date.now();
+        for (const c of targets) {
+          // Georgie's pictures travel over her internet link next to her camera: at most about one per second each
+          if (c.role === 'host') { c.lastFrame ||= {}; if (now - (c.lastFrame[which] || 0) < 900) continue; c.lastFrame[which] = now; }
+          c.send({ t: 'frame', which, scene: source, img });
+        }
+      }).catch(e => {
+        for (const c of targets) c.send({ t: 'frame', which, scene: source, img: null, missing: /600|No source|not found/i.test(String(e.message || e)) });
+      }).finally(() => { busy[which] = false; });
     }
   }, 280);
 
@@ -378,7 +407,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         };
         changed(); return;
       }
-      case 'monitors': client.monitors = !!msg.on; return;
+      case 'monitors': client.monitors = msg.on === 'show' || (role === 'host' && msg.on) ? 'show' : msg.on ? 'live' : false; return;
       case 'assist': return talk.handle(client, msg);
       case 'obs': return obsAction(msg);
       case 'rundown': return rundownAction(msg);

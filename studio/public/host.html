@@ -33,8 +33,11 @@
 
 <!-- ======================= SHOW ======================= -->
 <main id="view-show" role="tabpanel" aria-labelledby="tab-show">
-  <div class="host-main">
-    <div class="stack">
+  <div class="show3 hostview">
+    <div class="mon3" id="hMons" aria-label="Monitors"></div>
+    <div class="show3-body">
+      <div class="col side-l">
+      <section class="card bm" id="hBreak" aria-label="Break monitors" hidden></section>
       <section class="card key hero" aria-live="polite">
         <div id="heroWait">
           <span class="label" id="waitLabel">Next show starts in</span>
@@ -54,24 +57,17 @@
         </div>
         <div class="next"><span class="label">Next</span><strong id="nextTitle">—</strong><span class="hint" id="nextMeta"></span></div>
       </section>
-
+      <section class="card key" aria-labelledby="hClockH"><div class="card-h"><h2 id="hClockH">Show clock</h2><div class="aside"><span class="badge" id="hLock"></span></div></div><div class="card-b" id="hClock"></div></section>
       <section class="card helpstate" id="helpState" aria-live="assertive" hidden></section>
-
       <section class="card" id="cuePanel" aria-labelledby="hCue" hidden>
         <div class="card-h"><h2 id="hCue">Instruction from Andrej</h2></div>
         <div class="cue" id="cue" aria-live="assertive"></div>
       </section>
-
-      <section class="card" aria-labelledby="hRo">
-        <details id="roBox">
-          <summary class="card-h"><h2 id="hRo">Full running order</h2><div class="aside"><span class="badge" id="roBadge"></span></div></summary>
-          <ol class="ro" id="ro"></ol>
-          <div class="total" id="roTotal"></div>
-        </details>
-      </section>
-    </div>
-
-    <div class="stack">
+      </div>
+      <div class="col center">
+        <section class="card key live-script" aria-labelledby="hScriptH"><div class="card-h"><h2 id="hScriptH">Live show script</h2><div class="aside"><span class="hint" id="hEp"></span></div></div><div class="card-b ls" id="hScript"></div></section>
+      </div>
+      <div class="col side-r">
       <section class="card key chat" aria-labelledby="hChat">
         <div class="card-h"><h2 id="hChat">Talkback // Andrej</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="andrejBadge">Offline</span></div></div>
         <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
@@ -88,16 +84,22 @@
           </form>
         </div>
       </section>
-
       <section class="card" aria-labelledby="hMusic">
         <div class="card-h"><h2 id="hMusic">Now playing</h2><div class="aside"><span class="badge manual">Set by Andrej</span></div></div>
         <div class="card-b"><p id="music" class="hint">Nothing set</p></div>
       </section>
-
+      <section class="card" aria-labelledby="hRo">
+        <details id="roBox">
+          <summary class="card-h"><h2 id="hRo">Full running order</h2><div class="aside"><span class="badge" id="roBadge"></span></div></summary>
+          <ol class="ro" id="ro"></ol>
+          <div class="total" id="roTotal"></div>
+        </details>
+      </section>
       <section class="card">
         <div class="prerow"><div class="grow"><span class="label">Pre-show check</span><p class="hint" id="checkSummary">Not done yet</p></div>
           <button class="b" type="button" id="goCheck">Open check</button></div>
       </section>
+      </div>
     </div>
   </div>
 </main>

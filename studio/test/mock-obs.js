@@ -138,7 +138,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     },
     SetCurrentSceneTransitionDuration: d => { st.duration = d.transitionDuration; event('CurrentSceneTransitionDurationChanged', { transitionDuration: st.duration }); return {}; },
     GetSourceScreenshot: d => {
-      if (!scenes.includes(d.sourceName)) throw [600, 'No such source'];
+      if (!scenes.includes(d.sourceName) && !inputs.some(i => i.inputName === d.sourceName)) throw [600, 'No such source'];
       return { imageData: frame(d.sourceName) };
     },
     GetInputVolume: d => {

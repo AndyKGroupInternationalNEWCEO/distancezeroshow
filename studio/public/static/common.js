@@ -18,6 +18,9 @@ export function h(tag, attrs = {}, ...kids) {
   return e;
 }
 
+// replaceChildren that skips empty parts (null / false), as h() does
+export const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter(k => k != null && k !== false));
+
 export const pad = n => String(n).padStart(2, '0');
 export function hms(ms, { sign = false } = {}) {
   const neg = ms < 0; ms = Math.abs(ms);

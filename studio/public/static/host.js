@@ -4,6 +4,7 @@ import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segment
 import { createCall } from './call.js';
 import { notifier } from './notify.js';
 import { testDevices, playTone } from './checks.js';
+import { createMonitors, createClock, createScript, createBreakMonitors, syncClock } from './showpanels.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 let downSince = 0, reconnects = 0, slowPings = 0;
@@ -18,7 +19,7 @@ const conn = connect({ onStatus: st => {
       // tell Vienna after the fact: while the link was down nothing could be sent
       if (down > 5000) autoHelp('normal', 'reconnected', `Georgie's dashboard was disconnected for ${Math.round(down / 1000)} s and is back`, { downSeconds: Math.round(down / 1000) });
     }
-    downSince = 0; everOpen = true; report();
+    downSince = 0; everOpen = true; report(); watch();
     slowPings = st.rtt > 1500 ? slowPings + 1 : 0;
     if (slowPings === 3) autoHelp('urgent', 'slow-link', `Georgie's link to Vienna is very slow (${st.rtt} ms)`, { rtt: st.rtt });
   } else {
@@ -28,6 +29,14 @@ const conn = connect({ onStatus: st => {
   renderStatus();
 } });
 conn.on('state', ({ s }) => { S = s; render(); });
+// SHOW: the three monitors, the show clock, the live script with teleprompter, break monitors (all read-only)
+const mons = createMonitors($('#hMons'), { programLabel: 'LIVE PROGRAM' });
+const sclock = createClock($('#hClock'));
+const script = createScript($('#hScript'), { me: 'GEORGIE', role: 'host', conn });
+const bmons = createBreakMonitors($('#hBreak'), { call: { get phase() { return call.phase; }, streams: () => call.streams(), micOn: () => call.micOn() }, role: 'host' });
+conn.on('frame', f => mons.frame(f));
+function watch() { if (conn.open) conn.send({ t: 'monitors', on: document.visibilityState === 'visible' && !$('#view-show').hidden }).catch(() => {}); }
+document.addEventListener('visibilitychange', watch);
 conn.on('alert', ({ text }) => alertBox(text));
 conn.on('help.update', () => {}); // the state update that follows repaints the help card
 conn.on('assist', a => assistCard(a));
@@ -48,6 +57,7 @@ function setView(v) {
     $('#tab-' + name).setAttribute('aria-selected', String(name === v));
   }
   if (v !== 'check') stopCheck();
+  watch();
   try { sessionStorage.setItem('dz-host-view', v); } catch {}
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
@@ -79,6 +89,11 @@ function renderStatus() {
 
 const LEAD = { andrej: 'Andrej leads', georgie: 'You lead', both: 'Both of you' };
 function render() {
+  syncClock(S);
+  script.render(S);
+  const r0 = S.rundown;
+  $('#hEp').textContent = [r0.title, r0.episode?.date && `${r0.episode.date}`].filter(Boolean).join(' · ');
+  const lk = $('#hLock'); lk.textContent = r0.locked ? 'SCRIPT LOCKED — READY FOR BROADCAST' : ''; lk.className = 'badge ' + (r0.locked ? 'lock' : 'off'); lk.hidden = !r0.locked;
   renderHelp();
   $('#callBtn').disabled = !S.presence.director && call.phase === 'idle';
   const b = $('#andrejBadge'); b.className = 'badge ' + (S.presence.director ? 'live' : 'off'); b.textContent = S.presence.director ? 'Andrej online' : 'Offline';
@@ -130,6 +145,7 @@ function renderRundown() {
 }
 
 function tick() {
+  sclock.tick(S); bmons.tick(S); mons.update(S);
   const r = S.rundown, t = segmentTimer(S);
   if (!t) {
     const at = nextShow(S.show), now = Date.now();
