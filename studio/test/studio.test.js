@@ -1179,3 +1179,16 @@ test('three layers stay separate: episodes never change the masters or the OBS c
   assert.match(fresh.segments[2].script, /EPISODE-SPECIFIC/);
   d.close();
 });
+
+test('GO into a segment without its own video stops the previous video, so it never covers the cameras', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  await d.send({ t: 'cue.go', index: 1 });                       // opening video
+  const r = await d.send({ t: 'cue.go', index: 2 });            // WELCOME: jingle only
+  assert.ok(r.result.done.some(x => /VIDEO V01 stopped/.test(x)), JSON.stringify(r.result));
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});

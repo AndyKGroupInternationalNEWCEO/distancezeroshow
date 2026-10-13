@@ -742,6 +742,10 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       state.mediaAir.video = { id: vid.id, title: vid.title, at: Date.now(), loop: c.mode === 'loop', embeddedAudio: !!vid.embeddedAudio };
       done.push(`VIDEO ${vid.id} — ${vid.title}${c.mode === 'loop' ? ' (LOOP)' : ''}`);
     }
+    // a segment without a video of its own: the previous one (an opening, a loop) must not stay over the cameras
+    if (!c.video && state.mediaAir.video && hasInput('Video Player')) {
+      await obs.stopFile('Video Player'); done.push(`VIDEO ${state.mediaAir.video.id} stopped`); state.mediaAir.video = null;
+    }
     if (scene) { await obs.setProgram(scene); done.push(`SCENE ${scene}`); }
     if (wav) {
       const videoSound = playVideo && vid.embeddedAudio;
