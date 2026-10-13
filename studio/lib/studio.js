@@ -1055,7 +1055,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     partners: [
       { name: "Andy'K Group", role: 'Technology partner — virtual show system' },
       { name: "DJ Andy'K Lab", role: 'Music preparation and mastering' },
-      { name: '[RECORDS — exact name to confirm]', role: 'Artwork, logos and visual identity' },
+      { name: "Andy'K Records", role: 'Artwork, logos and visual identity' },
       { name: "DJ Andy'K", role: 'Official track and music for DISTANCE // ZERO' },
     ],
   };
