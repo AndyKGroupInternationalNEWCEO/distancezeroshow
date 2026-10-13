@@ -36,7 +36,9 @@ export function cleanScript(s = {}) {
     cues: { jingle: str(c.jingle, 4), video: str(c.video, 4), scene: str(c.scene, 120), mode: c.mode === 'loop' ? 'loop' : 'once',
       audioMode: ['wav', 'video', 'both'].includes(c.audioMode) ? c.audioMode : 'wav', music: str(c.music, 300),
       // breaks only: what plays when the Director returns to live (WELCOME BACK), instead of the next segment's own jingle/video
-      returnJingle: str(c.returnJingle, 4), returnVideo: str(c.returnVideo, 4) },
+      returnJingle: str(c.returnJingle, 4), returnVideo: str(c.returnVideo, 4),
+      // when the cue's video is missing or fails: this one instead (partner break: the break card)
+      fallbackVideo: str(c.fallbackVideo, 4), fallbackMode: c.fallbackMode === 'once' ? 'once' : 'loop' },
     director: str(s.director, 4000), closing: str(s.closing, 2000),
   };
 }

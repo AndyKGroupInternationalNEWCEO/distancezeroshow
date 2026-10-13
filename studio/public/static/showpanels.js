@@ -26,8 +26,41 @@ export function cueTitle(S, id) {
 export function cueLine(S, seg) {
   const c = seg?.cues || {}, short = id => cueTitle(S, id);
   return [c.jingle && '♪ ' + short(c.jingle), c.video && '▶ ' + short(c.video) + (c.mode === 'loop' ? ' (LOOP)' : ''),
-    c.music && '♫ ' + c.music, c.scene && 'SCENE ' + c.scene,
+    c.fallbackVideo && 'IF MISSING: ▶ ' + short(c.fallbackVideo), c.music && '♫ ' + c.music, c.scene && 'SCENE ' + c.scene,
     (c.returnJingle || c.returnVideo) && 'RETURN: ' + [c.returnJingle && '♪ ' + short(c.returnJingle), c.returnVideo && '▶ ' + short(c.returnVideo)].filter(Boolean).join(' + ')].filter(Boolean).join('  ·  ');
+}
+
+/* ---------- RETURN ALERT: private beeps before the end of a break ----------
+   Played by this browser only (the presenter's own headphones), never through OBS. From 15 s before the return:
+   soft, widely spaced beeps that speed up and grow louder; the last 5 s urgent and fast. Volume and mute are per person.
+   The beeps only warn: they never start the stream, open a microphone or end the break. */
+export const alertCfg = { volume: 70, mute: false, ...store.get('dz-alert', {}) };
+export const saveAlert = () => store.set('dz-alert', alertCfg);
+let actx = null, nextBeep = 0, beepBreak = 0;
+function audio() {
+  try { actx ||= new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+addEventListener('pointerdown', () => { if (actx?.state === 'suspended') actx.resume().catch(() => {}); }, true);
+export const alertSoundBlocked = () => !!actx && actx.state !== 'running';
+function beep(level, high) {
+  const a = audio(); if (!a || a.state !== 'running' || alertCfg.mute || !alertCfg.volume) return;
+  const max = alertCfg.volume / 100, t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine'; o.frequency.value = high ? 1320 : 880;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, max * level * 0.5), t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + (high ? 0.12 : 0.18));
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.2);
+}
+export function returnAlert(b, now) {
+  if (!b?.active) { nextBeep = 0; return; }
+  if (beepBreak !== b.startedAt) { beepBreak = b.startedAt; nextBeep = 0; audio(); }
+  const left = (b.startedAt + b.planned * 1000 - now) / 1000;
+  if (left > 15 || left <= 0) return;
+  if (now < nextBeep) return;
+  const p = 1 - left / 15;                                       // 0 → 1 over the last 15 s
+  if (left > 5) { beep(0.15 + 0.55 * p, false); nextBeep = now + (1600 - 900 * p); }
+  else { beep(1, true); nextBeep = now + 330; }
 }
 
 /* ---------- three monitors ---------- */
@@ -93,10 +126,17 @@ export function createClock(root) {
   const cell = (label, cls = '') => { const v = h('strong', { class: 'num', text: '--:--' }), l = h('span', { class: 'label', text: label }); return { el: h('div', { class: 'sc-cell ' + cls }, l, v), v, l }; };
   const c = { elapsed: cell('SHOW ELAPSED'), status: cell('SCHEDULE STATUS', 'status'), current: cell('CURRENT SEGMENT', 'wide'), remain: cell('SEGMENT REMAINING', 'big'), next: cell('NEXT SEGMENT', 'wide') };
   const planned = h('p', { class: 'sc-plan', text: '' }), banner = h('div', { class: 'sc-banner', hidden: true });
-  fill(root, h('div', { class: 'sc-grid' }, ...Object.values(c).map(x => x.el)), banner, planned);
+  const stream = h('span', { class: 'st-pill' }), you = h('span', { class: 'st-pill' }), status = h('div', { class: 'sc-state' }, stream, you);
+  fill(root, status, h('div', { class: 'sc-grid' }, ...Object.values(c).map(x => x.el)), banner, planned);
   return {
     tick(S) {
       const r = S.rundown, now = serverNow(), k = showClock(r.segments, r, now), b = S.brk || {};
+      // three different things, always spelled out: is the stream live, and are the presenters in the program or backstage
+      const live = S.obs ? S.obs.stream.active : S.tally?.onAir;
+      stream.textContent = live ? '● STREAM ON AIR' : 'STREAM OFF'; stream.className = 'st-pill ' + (live ? 'air' : 'off');
+      you.textContent = b.active ? 'PRESENTERS: BACKSTAGE — NOT IN PROGRAM' : k.running ? 'PRESENTERS: IN PROGRAM' : 'SHOW NOT STARTED';
+      you.className = 'st-pill ' + (b.active ? 'back' : k.running ? 'prog' : 'off');
+      returnAlert(b, now);
       const ep = r.episode;
       if (!k.running) {
         c.elapsed.v.textContent = '00:00';
@@ -256,11 +296,18 @@ export function createBreakMonitors(root, { call, role, onReturn }) {
   const left = h('strong', { class: 'num bm-count', text: '--:--' }), info = h('p', { class: 'bm-info' }), iso = h('ul', { class: 'bm-iso' });
   const mic = h('span', { class: 'mchip' });
   const ret = role === 'director' ? h('button', { type: 'button', class: 'b danger bm-return', text: 'RETURN TO LIVE' }) : null;
+  const warn = h('div', { class: 'bm-warn', hidden: true, role: 'alert' });
+  const vol = h('input', { type: 'range', min: '0', max: '100', step: '5', 'aria-label': 'Alert volume' }), mute = h('input', { type: 'checkbox', 'aria-label': 'Mute alert sound' });
+  vol.value = alertCfg.volume; mute.checked = alertCfg.mute;
+  vol.addEventListener('input', () => { alertCfg.volume = Number(vol.value); saveAlert(); });
+  mute.addEventListener('change', () => { alertCfg.mute = mute.checked; saveAlert(); });
+  const sndNote = h('span', { class: 'hint' });
+  const snd = h('div', { class: 'bm-snd' }, h('span', { class: 'label', text: 'RETURN ALERT (HEADPHONES ONLY)' }), vol, h('label', { class: 'checks' }, mute, ' Mute'), sndNote);
   const names = role === 'director' ? ["ANDY'K (YOU)", 'GEORGIE'] : ['GEORGIE (YOU)', "ANDY'K"];
   fill(root, 
     h('div', { class: 'bm-head' }, h('b', { class: 'bm-tag', text: 'BACKSTAGE — NOT ON AIR' }), mic, h('span', { class: 'grow' }), left),
     h('div', { class: 'bm-cams' }, h('figure', {}, h('figcaption', { text: names[0] }), vMe, lMe), h('figure', {}, h('figcaption', { text: names[1] }), vPeer, lPeer)),
-    info, iso, ret);
+    warn, info, iso, ret, snd);
   if (ret) ret.addEventListener('click', () => onReturn(ret));
   return {
     tick(S) {
@@ -269,7 +316,11 @@ export function createBreakMonitors(root, { call, role, onReturn }) {
       if (!b.active) return;
       const now = serverNow(), l = b.planned - Math.floor((now - b.startedAt) / 1000);
       left.textContent = l >= 0 ? mmss(l) : '+' + mmss(-l);
-      left.className = 'num bm-count' + (l < 0 ? ' over' : '');
+      left.className = 'num bm-count' + (l < 0 ? ' over' : l <= 10 ? ' urgent' : '');
+      // big words, not only colour: 60 s, 10 s, then BREAK COMPLETE
+      const w = l <= 0 ? 'BREAK COMPLETE — READY TO RETURN' : l <= 10 ? `BACK ON AIR IN ${l} S — GET READY` : l <= 60 ? `RETURN IN ${l} S` : '';
+      warn.hidden = !w; warn.textContent = w; warn.className = 'bm-warn' + (l <= 10 ? ' urgent' : '');
+      sndNote.textContent = alertSoundBlocked() ? 'Click anywhere on this page once to allow the alert sound.' : '';
       const st = call?.streams?.() || {};
       if (vMe.srcObject !== (st.local || null)) vMe.srcObject = st.local || null;
       if (vPeer.srcObject !== (st.remote || null)) vPeer.srcObject = st.remote || null;

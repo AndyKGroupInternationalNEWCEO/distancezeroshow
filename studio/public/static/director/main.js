@@ -10,6 +10,7 @@ import * as rehearse from './rehearse.js';
 import { notifier } from '../notify.js';
 import { initLayout } from './layout.js';
 import * as hostmode from './hostmode.js';
+import { initHelpTips } from '../helptips.js';
 
 const WS = ['live', 'show', 'tech', 'rehearse'];
 const memo = {};
@@ -110,6 +111,7 @@ setWs(location.hash.slice(1) || 'live');
 try { if (localStorage.getItem('dz-mode') === 'host') ctx.setMode(true); } catch {}
 
 initLayout();
+initHelpTips('director');
 
 // selecting a show loads its OBS scene collection, rundown, microphones, standby scene, transition and graphics
 $('#showPick').addEventListener('change', e => {
@@ -152,6 +154,10 @@ function header() {
   } else if (o && !o.connected) {
     strip.hidden = false; strip.className = 'strip warn';
     strip.textContent = 'OBS not connected // ' + (o.error || 'connecting…') + ' // Retrying automatically. Controls are locked.';
+  } else if (S?.showCheck && !S.showCheck.ok) {
+    // the show selected here and the collection open in OBS differ: say which, and how to fix it
+    strip.hidden = false; strip.className = 'strip warn';
+    strip.textContent = `SHOW AND OBS DO NOT MATCH // this show needs the OBS collection "${S.showCheck.want}", but OBS has "${S.showCheck.have}" open. Select the show again (top right) or open "${S.showCheck.want}" in OBS.`;
   } else strip.hidden = true;
   $('#dotTech').hidden = !(ctx.link.state !== 'open' || (o && !o.connected));
 }

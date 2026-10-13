@@ -44,7 +44,7 @@ export class Obs extends EventEmitter {
   blank(status, error = '') {
     return {
       connected: false, status, error, version: '', obsVersion: '', since: 0,
-      scenes: [], program: '', preview: '', studioMode: false,
+      scenes: [], program: '', preview: '', studioMode: false, collection: '',
       items: [], audio: [], media: [],
       transitions: [], transition: '', transitionKind: '', transitionDuration: 0, transitioning: false,
       stream: { active: false, reconnecting: false, timecode: '', congestion: 0, skipped: 0, total: 0, bytes: 0 },
@@ -163,6 +163,7 @@ export class Obs extends EventEmitter {
       this.refreshScenes(), this.refreshInputs(), this.refreshTransitions(), this.poll(),
       this.request('GetStudioModeEnabled').then(r => { this.state.studioMode = !!r.studioModeEnabled; }),
       this.request('GetVersion').then(r => { this.state.obsVersion = r.obsVersion || ''; }).catch(() => {}),
+      this.request('GetSceneCollectionList').then(r => { this.state.collection = r.currentSceneCollectionName || ''; }).catch(() => {}),
     ]);
     await this.refreshItems();
     this.changed();
@@ -253,6 +254,7 @@ export class Obs extends EventEmitter {
     switch (type) {
       case 'CurrentProgramSceneChanged': s.program = d.sceneName; await this.refreshItems(); break;
       case 'CurrentPreviewSceneChanged': s.preview = d.sceneName; break;
+      case 'CurrentSceneCollectionChanged': s.collection = d.sceneCollectionName || ''; break;
       case 'StudioModeStateChanged': s.studioMode = !!d.studioModeEnabled; if (!s.studioMode) s.preview = ''; else await this.refreshScenes(); break;
       case 'SceneListChanged': this.setScenes(d.scenes || []); break;
       case 'SceneCreated': case 'SceneRemoved': case 'SceneNameChanged': await this.refreshScenes(); await this.refreshItems(); break;

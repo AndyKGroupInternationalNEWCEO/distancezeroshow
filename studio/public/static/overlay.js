@@ -28,6 +28,19 @@ function paint(s) {
   lower.classList.toggle('mel', lt.side === 'melbourne'); lower.classList.toggle('vie', lt.side !== 'melbourne');
   lower.classList.toggle('on', lt.visible && !!lt.title);
   lower.classList.toggle('stacked', g.ident && !!s.segment);
+  // partner line (10 s, set by the studio) and the end credits roll
+  $('partnerName').textContent = g.partner?.name || ''; $('partnerRole').textContent = g.partner?.role || '';
+  $('partner').classList.toggle('on', !!g.partner);
+  const roll = $('roll'), was = roll.classList.contains('on');
+  if (s.roll && !was) {
+    const el = (t, c, x) => { const e = document.createElement(t); e.className = c; e.textContent = x; return e; };
+    $('rollIn').replaceChildren(el('div', 'r-logo', 'DISTANCE // ZERO'), ...s.roll.flatMap(sec => [el('div', 'r-h', sec.title),
+      ...sec.list.map(p => { const d = el('div', 'r-p', ''); d.append(el('strong', '', p.name), el('span', '', p.role || '')); return d; })]),
+      el('div', 'r-end', 'Vienna // Melbourne // 15,731 km'));
+    const lines = $('rollIn').children.length;
+    $('rollIn').style.setProperty('--dur', Math.max(20, lines * 2.2) + 's');
+  }
+  roll.classList.toggle('on', !!s.roll);
 }
 if (!key) $('nolink').hidden = false;
 start();

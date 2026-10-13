@@ -379,6 +379,19 @@
       "file": "shared-assets/videos/4k/FRIDAY DJ TRANSITION.mp4",
       "embeddedAudio": false,
       "linkedAudio": "02"
+    },
+    {
+      "id": "V21",
+      "title": "PARTNER SPOT — DJ ANDY'K LAB",
+      "category": "BREAKS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": null,
+      "embeddedAudio": true,
+      "linkedAudio": null,
+      "note": "Partner advertising, 1–2 min, in the second (middle) break. Not produced yet."
     }
   ]
 }

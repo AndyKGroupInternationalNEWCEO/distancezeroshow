@@ -915,3 +915,23 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 .ro-ro .ti{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sidep[data-p=plan] .card-h .aside .hint{display:none}
 #sideTabs [role=tab]{padding:10px 4px;font-size:.56rem;letter-spacing:.1em}
+
+/* presenter state + return alert */
+.sc-state{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.st-pill{font-stretch:112%;font-size:.6rem;letter-spacing:.14em;font-weight:700;padding:5px 8px;border:1px solid var(--line-2);color:var(--dim)}
+.st-pill.air{background:var(--red-deep);border-color:var(--red);color:#fff}
+.st-pill.back{background:var(--ice);border-color:var(--ice);color:#050607}
+.st-pill.prog{color:var(--green);border-color:rgba(56,211,159,.45)}
+.bm-warn{font-stretch:118%;font-weight:800;letter-spacing:.08em;font-size:1.25rem;text-align:center;padding:12px;border:2px solid var(--warn);color:var(--warn)}
+.bm-warn.urgent{background:var(--warn);color:#050607;font-size:1.6rem;animation:bmpulse 1s steps(2) infinite}
+.bm-count.urgent{color:var(--warn);font-size:2.4rem}
+@keyframes bmpulse{50%{outline:4px solid #fff}}
+.bm-snd{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.bm-snd input[type=range]{width:110px;accent-color:var(--amber)}
+@media (prefers-reduced-motion:reduce){.bm-warn.urgent{animation:none}}
+/* short help */
+.qwrap{position:relative;display:inline-flex;vertical-align:middle;margin:0 4px}
+.qhelp{width:18px;height:18px;border-radius:50%;border:1px solid var(--line-3);background:none;color:var(--dim);font-size:.66rem;font-weight:700;line-height:1;padding:0;display:grid;place-items:center}
+.qhelp:hover{color:var(--chrome-hi);border-color:var(--chrome)}
+.qpop{position:absolute;z-index:70;top:24px;left:-8px;width:min(320px,70vw);background:var(--raise);border:1px solid var(--line-3);padding:10px 12px;font-size:.8rem;line-height:1.45;color:var(--chrome-hi);text-transform:none;letter-spacing:0;font-weight:400;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.why{color:var(--warn);font-size:.78rem;margin-top:6px}

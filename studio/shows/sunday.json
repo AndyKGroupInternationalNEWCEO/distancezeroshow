@@ -206,17 +206,19 @@
         "presenters": "",
         "script": "",
         "talkingPoints": "",
-        "director": "Break 02: 10:00. Mics muted for backstage. Return only on Director confirmation: jingle 05 — WELCOME BACK.",
+        "director": "PARTNER BREAK (10 min): DJ Andy'K Lab spot (1–2 min, marked as partner advertising) plays once, then the break picture and break music. If the spot is missing or fails, the WE'LL BE RIGHT BACK card loops instead. Backstage stays private. Return only on Director confirmation.",
         "closing": "",
         "cues": {
           "scene": "BREAK",
           "jingle": "04",
-          "video": "V10",
-          "mode": "loop",
+          "video": "V21",
+          "mode": "once",
           "audioMode": "wav",
-          "music": "",
+          "music": "[BREAK MUSIC — rights to be confirmed]",
           "returnJingle": "05",
-          "returnVideo": "V11"
+          "returnVideo": "V11",
+          "fallbackVideo": "V10",
+          "fallbackMode": "loop"
         },
         "guest": {
           "name": "",

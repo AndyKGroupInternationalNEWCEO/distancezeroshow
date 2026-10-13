@@ -93,7 +93,9 @@
           <div class="card-h"><h2 id="hOut">Broadcast</h2></div>
           <div class="card-b outputs">
             <div class="out" id="outStream"><span class="label">YouTube stream</span><span class="tc" id="streamTc">OFF AIR</span>
+              <button class="b sm quiet" type="button" id="armBtn" title="GO LIVE stays locked so testing scenes can never start the stream by accident">Unlock GO LIVE</button>
               <button class="b hold" type="button" id="streamBtn">Go live <small>hold</small></button></div>
+            <p class="hint why" id="streamWhy"></p>
             <div class="out" id="outRec"><span class="label">Recording</span><span class="tc" id="recTc">OFF</span>
               <button class="b" type="button" id="recBtn">Record</button></div>
           </div>
@@ -185,6 +187,8 @@
                   <button class="b" type="button" id="gBug" aria-pressed="false">D//0 bug</button>
                   <button class="b" type="button" id="gClocks" aria-pressed="false">Clocks</button>
                   <button class="b" type="button" id="gIdent" aria-pressed="false">Ident</button>
+              <button class="b" type="button" id="gCredits" aria-pressed="false" title="End credits roll: hosts, guests, creators and partners">End credits</button>
+              <button class="b" type="button" id="gPartner" title="Shows the next partner for 10 seconds, marked PARTNER">Partner line</button>
                 </div>
               </div>
               <div class="card-b">
@@ -404,6 +408,17 @@
             <textarea class="in mt" id="sePaste" rows="4" placeholder="Paste the script here (segment titles as headings). Nothing changes until you review and apply."></textarea>
             <div class="row mt"><button class="b sm" type="button" id="sePasteGo">Review import</button>
               <label class="b sm quiet filebtn" id="sePdfBtn">Import PDF…<input type="file" id="sePdf" accept="application/pdf,.pdf" hidden></label></div>
+          </div>
+          <div class="card-b">
+            <span class="label">Credits — permanent (every show)</span>
+            <p class="hint">One per line: Name — role</p>
+            <textarea class="in mt" id="crHosts" rows="2" aria-label="Hosts"></textarea>
+            <textarea class="in mt" id="crPartners" rows="4" aria-label="Creators and partners"></textarea>
+            <div class="row mt"><span class="hint grow" id="crSaved"></span><button class="b sm" type="button" id="crSaveBase">Save permanent credits</button></div>
+            <span class="label mt">Credits — this episode</span>
+            <textarea class="in mt" id="crGuests" rows="2" placeholder="Guests: Name — role" aria-label="Guests of this episode"></textarea>
+            <textarea class="in mt" id="crExtra" rows="2" placeholder="Thank you: Name — role" aria-label="Extra credits of this episode"></textarea>
+            <div class="row mt"><span class="grow"></span><button class="b sm" type="button" id="crSaveEp">Save episode credits</button></div>
           </div>
           <div class="card-b">
             <span class="label">Templates</span>

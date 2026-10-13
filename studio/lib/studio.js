@@ -51,6 +51,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     guest: saved.guest || null,
     mediaAir: saved.mediaAir || { audio: null, video: null },   // what the studio last put on air through the OBS players         // the selected show preset (Sunday / Friday), kept across restarts
   };
+  state.gfx.partner = null;            // a partner line never survives a restart
   let rundown = loadRundown();
   let chat = store.read('chat.json', []);
   let lastChatId = chat.at(-1)?.id || 0;
@@ -124,6 +125,11 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     try { return fs.readdirSync(SHOWS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(fs.readFileSync(path.join(SHOWS_DIR, f), 'utf8'))).sort((a, b) => a.id.localeCompare(b.id)).reverse(); }
     catch { return []; }
   })();
+  // the show selected here and the scene collection open in OBS must match; a mismatch is shown, never fixed silently
+  function showCheck() {
+    const x = shows.find(s => s.id === state.showId), want = x?.obs?.sceneCollection || '', have = obs.state.collection || '';
+    return { want, have, ok: !want || !obs.state.connected || !have || want === have };
+  }
   const showList = () => shows.map(x => ({ id: x.id, name: x.name, hosts: x.hosts, collection: x.obs?.sceneCollection || '' }));
 
   /* rundown templates: one saved rundown per episode, in data/rundowns/<name>.json */
@@ -264,7 +270,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), guest: guestView('director'), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), showCheck: showCheck(), streamArmedUntil: state.streamArmedUntil || 0, guest: guestView('director'), credits: creditsView(), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -293,7 +299,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         tally: { onAir: obs.state.stream.active } };
     }
     const seg = rundown.segments[state.pos.index];
-    return { show: showView(), gfx: state.gfx, segment: seg ? { title: seg.title, kind: seg.kind } : null };
+    return { show: showView(), roll: state.gfx.credits ? creditRoll() : null, gfx: state.gfx, segment: seg ? { title: seg.title, kind: seg.kind } : null };
   }
 
   /* ---------- fan-out ---------- */
@@ -445,6 +451,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'media.stop': return mediaStop(msg);
       case 'media.rescan': media?.scan(); changed(); return;
       case 'cue.go': return cueGo(msg);
+      case 'credits': return creditsAction(msg);
       case 'guest.invite': return guestInvite(msg);
       case 'guest.admit': return guestAdmit();
       case 'guest.waiting': return guestBack();
@@ -532,10 +539,15 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         await obs.media(str(msg.input, 256), str(msg.media, 10));
         logEvent('ok', `Media ${str(msg.media, 10)}: ${str(msg.input, 256)}`); return;
       }
+      case 'stream.arm':
+        // GO LIVE is locked until it is unlocked on purpose, and locks itself again after 60 seconds
+        state.streamArmedUntil = msg.on ? Date.now() + 60000 : 0; changed(); return { until: state.streamArmedUntil };
       case 'stream':
         if (msg.confirm !== true) throw new Error('Stream start/stop needs confirmation');
         if (msg.on && rehearsal.active) throw new Error('Rehearsal mode: the YouTube stream is locked. End the rehearsal first.');
+        if (msg.on && !(state.streamArmedUntil > Date.now())) throw new Error('GO LIVE is locked. Unlock it first (Live Control → UNLOCK GO LIVE), then hold GO LIVE.');
         await obs.stream(!!msg.on);
+        state.streamArmedUntil = 0;
         logEvent(msg.on ? 'live' : 'ok', msg.on ? 'Stream started' : 'Stream stopped'); return;
       case 'record':
         if (msg.on && rehearsal.active) throw new Error('Rehearsal mode: OBS recording is locked. End the rehearsal first.');
@@ -708,9 +720,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     try { return (await obs.request('GetSceneItemList', { sceneName: scene })).sceneItems.some(i => i.sourceName === src); } catch { return false; }
   }
   async function fireCues(c) {
+    c = { ...c };
     if (!obs.state.connected) throw new Error('OBS is not connected');
     const done = [], skipped = [];
-    const vid = c.video ? media?.get(c.video) : null, wav = c.jingle ? media?.get(c.jingle) : null;
+    let vid = c.video ? media?.get(c.video) : null; const wav = c.jingle ? media?.get(c.jingle) : null;
+    if (c.fallbackVideo && (!vid || !vid.available)) {
+      const fb = media?.get(c.fallbackVideo);
+      if (fb?.available) { skipped.push(`${vid ? vid.id + ' — ' + vid.title : c.video || 'Planned video'} NOT AVAILABLE: fallback ${fb.id} — ${fb.title} plays instead`); vid = fb; c = { ...c, video: fb.id, mode: c.fallbackMode }; }
+    }
     if (c.video && !vid) skipped.push(`${c.video}: not in the media library`);
     if (c.jingle && !wav) skipped.push(`${c.jingle}: not in the media library`);
     let scene = c.scene;
@@ -1030,6 +1047,43 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     return { notes };
   }
 
+  /* ---------- CREDITS AND PARTNERS ----------
+     The permanent base (hosts, creators, partners) is kept in data/credits.json and used for every show; guests and
+     extra names of one episode are kept with that episode. End credits and short partner lines go to the overlay. */
+  const CREDITS_BASE = {
+    hosts: [{ name: "DJ Andy'K — Andrej Kneisl", role: 'Host · Vienna' }, { name: 'Georgie Walker', role: 'Host · Melbourne' }],
+    partners: [
+      { name: "Andy'K Group", role: 'Technology partner — virtual show system' },
+      { name: "DJ Andy'K Lab", role: 'Music preparation and mastering' },
+      { name: '[RECORDS — exact name to confirm]', role: 'Artwork, logos and visual identity' },
+      { name: "DJ Andy'K", role: 'Official track and music for DISTANCE // ZERO' },
+    ],
+  };
+  let credits = store.read('credits.json', null) || CREDITS_BASE;
+  const parseLines = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 60)
+    .map(l => { const m = /^(.*?)\s+[—–]\s+(.*)$/.exec(l) || /^(.*?)\s+-\s+(.*)$/.exec(l); return { name: str(m ? m[1] : l, 100), role: str(m ? m[2] : '', 160) }; });
+  function creditsAction(msg) {
+    if (msg.action === 'base') {
+      credits = { hosts: parseLines(msg.hosts), partners: parseLines(msg.partners) };
+      store.write('credits.json', credits); logEvent('ok', 'Permanent credits and partners saved');
+    } else if (msg.action === 'episode') {
+      assertEditable();
+      rundown.credits = { guests: parseLines(msg.guests), extra: parseLines(msg.extra) };
+      saveRundown();
+    } else throw new Error('Unknown credits action');
+    changed();
+  }
+  const creditsView = () => ({ base: credits, episode: rundown.credits || { guests: [], extra: [] } });
+  // what the end credits show: hosts, guests of this episode, creators and partners, extra names of this episode
+  const creditRoll = () => {
+    const ep = rundown.credits || {};
+    return [['HOSTS', credits.hosts], ['GUESTS', ep.guests || []], ['CREATED WITH', credits.partners], ['THANK YOU', ep.extra || []]]
+      .map(([t, l]) => [t, confirmed(l)]).filter(([, l]) => l?.length).map(([title, list]) => ({ title, list }));
+  };
+  // a name still in [brackets] is a placeholder: never shown on air
+  const confirmed = l => (l || []).filter(p => !/^\[/.test(p.name));
+  let partnerTimer = 0;
+
   function gfxAction(msg) {
     const g = state.gfx;
     switch (msg.action) {
@@ -1039,7 +1093,16 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'lower': g.lowerThird = {
         visible: !!msg.on, title: str(msg.title, 80), subtitle: str(msg.subtitle, 120), side: msg.side === 'melbourne' ? 'melbourne' : 'vienna',
       }; break;
-      case 'clear': g.clocks = false; g.ident = false; g.lowerThird = { ...g.lowerThird, visible: false }; break;
+      case 'credits': g.credits = !!msg.on; break;
+      case 'partner': {
+        // one partner line for 10 seconds; each press shows the next partner
+        const list = confirmed(credits.partners); if (!list.length) throw new Error('No partners saved (Rehearsal → Script editor → Credits)');
+        g.partnerIndex = msg.index != null ? Number(msg.index) % list.length : ((g.partnerIndex ?? -1) + 1) % list.length;
+        g.partner = { ...list[g.partnerIndex], at: Date.now() };
+        clearTimeout(partnerTimer); partnerTimer = setTimeout(() => { g.partner = null; changed(); }, 10000);
+        break;
+      }
+      case 'clear': g.clocks = false; g.ident = false; g.credits = false; g.partner = null; g.lowerThird = { ...g.lowerThird, visible: false }; break;
       default: throw new Error('Unknown graphics action');
     }
     changed();

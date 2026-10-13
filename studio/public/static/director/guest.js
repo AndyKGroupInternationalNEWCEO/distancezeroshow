@@ -56,6 +56,12 @@ export function render(ctx) {
         g.status === 'onair' ? b('TAKE GUEST OFF AIR', 'danger', e => act(e.currentTarget, () => send(ctx, 'guest.offair'), 'Guest off air'))
           : b('TAKE GUEST ON AIR', 'danger', e => { if (confirmTwice(e.currentTarget, 'CONFIRM: GUEST ON AIR')) act(e.currentTarget, () => send(ctx, 'guest.onair', { confirm: true }), 'Guest on air'); },
             { disabled: g.status !== 'backstage' || !!S.brk?.active || !seat, title: g.status !== 'backstage' ? 'Admit the guest first' : '' }))),
+    // why a step is not available, in words
+    (() => { const why = ['invited', 'waiting'].includes(g.status) && !g.online ? `ADMIT waits for ${g.name} to open the link.`
+      : g.status !== 'backstage' && g.status !== 'onair' ? 'TAKE GUEST ON AIR needs ADMIT first.'
+      : S.brk?.active ? 'TAKE GUEST ON AIR is off during a break: return to live first.'
+      : !seat ? 'This OBS show has no GUEST scene.' : muted == null ? 'OBS has no guest seat yet: run obs-setup --players.' : '';
+      return why ? h('p', { class: 'why', text: why }) : null; })(),
     h('p', { class: 'hint mt', text: 'On air shows and unmutes the guest seat in the GUEST scene. Cut to GUEST with GO or Live Control.' }),
     h('div', { class: 'row mt' }, h('span', { class: 'grow' }),
       b('End invitation', 'quiet', e => { if (confirmTwice(e.currentTarget, 'End? Click again')) act(e.currentTarget, async () => { await send(ctx, 'guest.end'); lastLink = null; }, 'Invitation ended'); })));

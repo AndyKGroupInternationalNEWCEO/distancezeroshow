@@ -252,12 +252,13 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (!originHost || (originHost !== req.headers.host && originHost !== req.headers['x-forwarded-host'])) return reject(403);
       let as = null, guestId = '';
       const asGuest = role === 'host' && url.searchParams.get('as') === 'guest';   // the guest page: only the guest session counts
-      if (!asGuest && authed(req)) as = role;
+      const asOverlay = url.searchParams.has('overlay');                              // the overlay: only its key counts, never a cookie
+      if (asOverlay) { if (role === 'director' && sameSecret(url.searchParams.get('overlay'), secrets.overlayKey)) as = 'overlay'; }
+      else if (!asGuest && authed(req)) as = role;
       else if (role === 'host') {
         const v = String(parseCookies(req.headers.cookie).dz_guest || ''), gid = v.split('.')[0];
         if (/^guest-[0-9a-f]{12}$/.test(gid) && checkSession(secrets.cookieSecret, v, gid) && studio.guestValid(gid.slice(6))) { as = 'guest'; guestId = gid.slice(6); }
       }
-      else if (role === 'director' && url.searchParams.has('overlay') && sameSecret(url.searchParams.get('overlay'), secrets.overlayKey)) as = 'overlay';
       if (!as) return reject(401);
       wss.handleUpgrade(req, socket, head, ws => {
         const alive = { ok: true };

@@ -12,6 +12,7 @@ export function init(ctx) {
   $('#rbAdvance').addEventListener('click', e => act(e.currentTarget, () => ctx.conn.send({ t: 'rundown', action: 'next' })));
   holdButton($('#streamBtn'), 1500, () => act($('#streamBtn'), () => ctx.obs('stream', { on: !ctx.S.obs.stream.active, confirm: true }),
     ctx.S.obs.stream.active ? 'Stream stopped' : 'Stream starting'));
+  $('#armBtn').addEventListener('click', e => act(e.currentTarget, () => ctx.obs('stream.arm', { on: !(ctx.S.streamArmedUntil > Date.now()) })));
   $('#recBtn').addEventListener('click', e => act(e.currentTarget, () => ctx.obs('record', { on: !ctx.S.obs.record.active })));
 }
 
@@ -113,7 +114,16 @@ export function render(ctx) {
   const sb = $('#streamBtn');
   sb.firstChild.textContent = o.stream.active ? 'End stream ' : 'Go live ';
   sb.classList.toggle('danger', o.stream.active);
-  sb.disabled = !up;
+  // GO LIVE: locked until UNLOCK (60 s). The reason is always written next to the button, not only a grey button.
+  const armed = S.streamArmedUntil > Date.now(), rh = S.rehearsal?.active;
+  const why = !up ? 'OBS is not connected — start OBS (Technical shows the connection).'
+    : o.stream.active ? '' : rh ? 'Locked: a rehearsal is running. End it in Rehearsal to go live.'
+    : !armed ? 'Locked against accidental starts. Press UNLOCK GO LIVE, then hold GO LIVE within 60 s.' : `Unlocked for ${Math.ceil((S.streamArmedUntil - Date.now()) / 1000)} s — hold GO LIVE to start the stream.`;
+  sb.disabled = !up || (!o.stream.active && (!armed || rh));
+  $('#armBtn').hidden = o.stream.active || !up;
+  $('#armBtn').textContent = armed ? 'Lock again' : 'Unlock GO LIVE';
+  $('#armBtn').classList.toggle('on', armed);
+  $('#streamWhy').textContent = why;
   $('#outRec').classList.toggle('on', o.record.active);
   $('#recTc').textContent = o.record.active ? (o.record.timecode || '').split('.')[0] : 'OFF';
   $('#recBtn').textContent = o.record.active ? 'Stop' : 'Record';

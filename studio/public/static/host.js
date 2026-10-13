@@ -4,6 +4,7 @@ import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segment
 import { createCall } from './call.js';
 import { notifier } from './notify.js';
 import { testDevices, playTone } from './checks.js';
+import { initHelpTips } from './helptips.js';
 import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, cueLine } from './showpanels.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
@@ -35,6 +36,7 @@ const sclock = createClock($('#hClock'));
 const script = createScript($('#hScript'), { me: 'GEORGIE', role: 'host', conn });
 const bmons = createBreakMonitors($('#hBreak'), { call: { get phase() { return call.phase; }, streams: () => call.streams(), micOn: () => call.micOn() }, role: 'host' });
 conn.on('frame', f => mons.frame(f));
+initHelpTips('host');
 function watch() { if (conn.open) conn.send({ t: 'monitors', on: document.visibilityState === 'visible' && !$('#view-show').hidden }).catch(() => {}); }
 document.addEventListener('visibilitychange', watch);
 conn.on('alert', ({ text }) => alertBox(text));

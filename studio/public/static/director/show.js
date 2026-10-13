@@ -51,6 +51,8 @@ export function init(ctx) {
   const gfx = (action, extra) => ctx.conn.send({ t: 'gfx', action, ...extra });
   $('#gBug').addEventListener('click', e => act(e.currentTarget, () => gfx('bug', { on: !ctx.S.gfx.bug })));
   $('#gClocks').addEventListener('click', e => act(e.currentTarget, () => gfx('clocks', { on: !ctx.S.gfx.clocks })));
+  $('#gCredits').addEventListener('click', e => act(e.currentTarget, () => gfx('credits', { on: !ctx.S.gfx.credits })));
+  $('#gPartner').addEventListener('click', e => act(e.currentTarget, () => gfx('partner'), 'Partner line on air for 10 s'));
   $('#gIdent').addEventListener('click', e => act(e.currentTarget, () => gfx('ident', { on: !ctx.S.gfx.ident })));
   const lower = on => gfx('lower', { on, title: $('#ltTitle').value, subtitle: $('#ltSub').value, side: $('#ltSide').value });
   $('#ltShow').addEventListener('click', e => { if (!$('#ltTitle').value.trim()) return toast('Type a name for the lower third first', 'bad'); act(e.currentTarget, () => lower(true)); });
@@ -160,7 +162,7 @@ function renderSide(ctx) {
   const S = ctx.S, o = S.obs;
   /* graphics */
   const g = S.gfx;
-  for (const [id, on] of [['#gBug', g.bug], ['#gClocks', g.clocks], ['#gIdent', g.ident]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', String(on)); }
+  for (const [id, on] of [['#gBug', g.bug], ['#gClocks', g.clocks], ['#gIdent', g.ident], ['#gCredits', !!g.credits], ['#gPartner', !!g.partner]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', String(on)); }
   $('#ltShow').classList.toggle('on', g.lowerThird.visible);
   $('#ltShow').textContent = g.lowerThird.visible ? 'Update' : 'Show';
   const gb = $('#gfxBadge');

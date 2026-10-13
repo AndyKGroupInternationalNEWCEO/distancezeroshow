@@ -21,6 +21,8 @@ function config(obsPort) {
   return c;
 }
 
+// GO LIVE must be unlocked first (it locks itself again after 60 s)
+async function armed(c, m) { await c.send({ t: 'obs', action: 'stream.arm', on: true }); return c.send(m); }
 async function login(base, code) {
   const r = await fetch(base + '/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
   return { status: r.status, cookie: (r.headers.get('set-cookie') || '').split(';')[0], body: await r.json() };
@@ -184,7 +186,7 @@ test('stream start/stop needs explicit confirmation; recording toggles', async (
   const no = await d.send({ t: 'obs', action: 'stream', on: true });
   assert.equal(no.ok, false);
   assert.equal(mock.state.stream, false);
-  assert.equal((await d.send({ t: 'obs', action: 'stream', on: true, confirm: true })).ok, true);
+  assert.equal((await armed(d, { t: 'obs', action: 'stream', on: true, confirm: true })).ok, true);
   assert.equal(mock.state.stream, true);
   await d.next(m => m.t === 'state' && m.s.obs.stream.active);
   assert.equal((await d.send({ t: 'obs', action: 'record', on: true })).ok, true);
@@ -277,7 +279,7 @@ test('emergency: standby scene, mics off (not the DJ mixer), end stream', async 
   assert.equal(muted['DJ Mixer'], false, 'music keeps playing');
   for (const n of ['Mic // Andrej', 'VDO // Georgie']) await d.send({ t: 'obs', action: 'mute', input: n, muted: false });
 
-  if (!mock.state.stream) await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  if (!mock.state.stream) await armed(d, { t: 'obs', action: 'stream', on: true, confirm: true });
   assert.equal((await d.send({ t: 'emergency', action: 'endStream' })).ok, false);
   assert.equal((await d.send({ t: 'emergency', action: 'endStream', confirm: true })).ok, true);
   assert.equal(mock.state.stream, false);
@@ -290,7 +292,7 @@ test('overlay: key required, graphics only', async () => {
   const o = client(D, { query: '?overlay=' + encodeURIComponent(app.secrets.overlayKey) });
   await o.opened;
   const { s } = await o.next(m => m.t === 'state');
-  assert.deepEqual(Object.keys(s).sort(), ['gfx', 'segment', 'show']);
+  assert.deepEqual(Object.keys(s).sort(), ['gfx', 'roll', 'segment', 'show']);
   assert.equal((await o.send({ t: 'chat.send', text: 'hi' })).ok, false);
   const d = client(D, { cookie: directorCookie });
   await d.opened;
@@ -567,7 +569,7 @@ test('automatic requests: repeats fold together; dropping out while live raises 
   assert.equal(rep.item.count, 2); assert.equal(rep.item.level, 'urgent', 'escalates, never downgrades');
   await d.send({ t: 'help.resolve', hid: a.result.hid });
 
-  if (!mock.state.stream) await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  if (!mock.state.stream) await armed(d, { t: 'obs', action: 'stream', on: true, confirm: true });
   await d.next(m => m.t === 'state' && m.s.obs.stream.active);
   hst.close();
   const crit = await d.next(m => m.t === 'help.new' && m.item.kind === 'host-offline');
@@ -606,7 +608,7 @@ test('rehearsal never touches OBS and locks the stream and recording', async () 
   await new Promise(r => setTimeout(r, 300));
   const writes = mock.log.slice(before).map(r => r.requestType).filter(t => /^(Set|Start|Stop|Trigger|Toggle)/.test(t));
   assert.deepEqual(writes, [], 'starting a rehearsal sends no command to OBS');
-  const s1 = await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  const s1 = await armed(d, { t: 'obs', action: 'stream', on: true, confirm: true });
   assert.equal(s1.ok, false); assert.match(s1.error, /Rehearsal mode/);
   assert.equal((await d.send({ t: 'obs', action: 'record', on: true })).ok, false);
   assert.equal(mock.state.stream, false); assert.equal(mock.state.record, false);
@@ -760,7 +762,7 @@ test('a rehearsal and its stream lock survive a studio restart', async () => {
   await d2.opened;
   const { s } = await d2.next(m => m.t === 'state');
   assert.equal(s.rehearsal.active, true, 'still rehearsing after the restart');
-  const r = await d2.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  const r = await armed(d2, { t: 'obs', action: 'stream', on: true, confirm: true });
   assert.equal(r.ok, false); assert.match(r.error, /Rehearsal mode/);
   assert.equal(mock.state.stream, false);
   const end = await d2.send({ t: 'rehearsal.end' });
@@ -1078,4 +1080,69 @@ test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate st
 
 test('the guest page never runs on Georgie\'s session, even in a browser where she is signed in', async () => {
   await assert.rejects(client(G, { cookie: hostCookie, query: '?as=guest' }).opened, /401/);
+});
+
+test('GO LIVE is locked until unlocked on purpose; the selected show and the OBS collection are compared', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  if (mock.state.stream) await d.send({ t: 'obs', action: 'stream', on: false, confirm: true });
+  await d.send({ t: 'obs', action: 'stream.arm', on: false });
+  const no = await d.send({ t: 'obs', action: 'stream', on: true, confirm: true });
+  assert.equal(no.ok, false); assert.match(no.error, /locked/i); assert.equal(mock.state.stream, false);
+  assert.equal((await armed(d, { t: 'obs', action: 'stream', on: true, confirm: true })).ok, true);
+  await d.send({ t: 'obs', action: 'stream', on: false, confirm: true });
+  // after a start the lock is back on
+  assert.equal((await d.send({ t: 'obs', action: 'stream', on: true, confirm: true })).ok, false);
+  await d.send({ t: 'show.select', show: 'sunday' });
+  const ok = await d.next(m => m.t === 'state' && m.s.showCheck?.have === 'DZ — Sunday Show');
+  assert.equal(ok.s.showCheck.ok, true);
+  mock.state.collection = 'Virtual rehearsal';
+  await d.send({ t: 'obs', action: 'refresh' });
+  const bad = await d.next(m => m.t === 'state' && m.s.showCheck?.have === 'Virtual rehearsal');
+  assert.equal(bad.s.showCheck.ok, false);
+  mock.state.collection = 'DZ — Sunday Show'; await d.send({ t: 'obs', action: 'refresh' });
+  d.close();
+});
+
+test('credits: permanent base and episode names; end credits roll and partner line reach the overlay; partner break falls back to the break card', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  const ov = client(D, { query: '?overlay=' + encodeURIComponent(app.secrets.overlayKey) });
+  await Promise.all([d.opened, hst.opened, ov.opened]);
+  const st = await d.next(m => m.t === 'state' && m.s.credits);
+  assert.ok(st.s.credits.base.partners.some(p => p.name === "DJ Andy'K Lab"));
+  assert.equal((await hst.send({ t: 'credits', action: 'base', hosts: 'x', partners: 'y' })).ok, false, 'Georgie cannot change credits');
+  assert.equal((await d.send({ t: 'credits', action: 'base', hosts: "DJ Andy'K — Host · Vienna\nGeorgie Walker — Host · Melbourne", partners: "Andy'K Group — Technology partner\nDJ Andy'K Lab — Mastering" })).ok, true);
+  assert.match(fs.readFileSync(path.join(dataDir, 'credits.json'), 'utf8'), /Andy'K Group/);
+  assert.equal((await d.send({ t: 'credits', action: 'episode', guests: 'Ada Guest — Composer', extra: '' })).ok, true);
+  assert.equal((await d.send({ t: 'gfx', action: 'credits', on: true })).ok, true);
+  const roll = await ov.next(m => m.t === 'state' && m.s.roll);
+  assert.deepEqual(roll.s.roll.map(x => x.title), ['HOSTS', 'GUESTS', 'CREATED WITH']);
+  assert.equal(roll.s.roll[1].list[0].name, 'Ada Guest');
+  await d.send({ t: 'gfx', action: 'credits', on: false });
+  assert.equal((await d.send({ t: 'gfx', action: 'partner' })).ok, true);
+  const pl = await ov.next(m => m.t === 'state' && m.s.gfx.partner);
+  assert.equal(pl.s.gfx.partner.name, "Andy'K Group");
+  await d.send({ t: 'gfx', action: 'clear' });
+  // partner break (BREAK 02): the spot has no file yet, so the break card loops instead, and the director is told
+  await d.send({ t: 'rundown', action: 'reset' });
+  const future = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+  assert.equal((await d.send({ t: 'episode.new', format: 'sunday', date: future, start: '20:00' })).ok, true);
+  const s2 = await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === future);
+  const b2 = s2.s.rundown.segments.findIndex(x => x.title === 'BREAK 02');
+  assert.equal(s2.s.rundown.segments[b2].cues.video, 'V21');
+  const r = await d.send({ t: 'cue.go', index: b2 });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.ok(r.result.skipped.some(x => /V21.*NOT AVAILABLE.*fallback V10/.test(x)), JSON.stringify(r.result));
+  assert.match(mock.inputs.find(i => i.inputName === 'Video Player').settings.local_file, /DZ_02/);
+  assert.equal((await d.send({ t: 'break.return', confirm: true })).ok, true);
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close(); hst.close(); ov.close();
+});
+
+test('the overlay is always the overlay, even in a browser where the Director is signed in', async () => {
+  const o = client(D, { cookie: directorCookie, query: '?overlay=' + encodeURIComponent(app.secrets.overlayKey) });
+  await o.opened;
+  const { s } = await o.next(m => m.t === 'state');
+  assert.deepEqual(Object.keys(s).sort(), ['gfx', 'roll', 'segment', 'show']);
+  await assert.rejects(client(D, { cookie: directorCookie, query: '?overlay=wrong' }).opened, /401/);
+  o.close();
 });

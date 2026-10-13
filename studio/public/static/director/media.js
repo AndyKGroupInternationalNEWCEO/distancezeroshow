@@ -69,8 +69,8 @@ export function createLibrary(ctx, { mode, audioList, videoList, filter, catSel,
     audioList?.replaceChildren(...audio.map(x => row(S, x)));
     videoList?.replaceChildren(...video.map(x => row(S, x)));
     const a = S.mediaAir?.audio, v = S.mediaAir?.video;
-    if (audioBadge) { audioBadge.textContent = air ? (a ? `ON AIR ${a.id}` : 'Nothing on air') : 'PREVIEW ONLY'; audioBadge.className = 'badge ' + (air && a ? 'live' : 'off'); }
-    if (videoBadge) { videoBadge.textContent = air ? (v ? `ON AIR ${v.id}${v.loop ? ' LOOP' : ''}` : 'Nothing on air') : 'PREVIEW ONLY'; videoBadge.className = 'badge ' + (air && v ? 'live' : 'off'); }
+    if (audioBadge) { audioBadge.textContent = air ? (!S.obs.connected ? 'PLAY OFF: OBS NOT CONNECTED' : a ? `ON AIR ${a.id}` : 'Nothing on air') : 'PREVIEW ONLY'; audioBadge.className = 'badge ' + (air && a ? 'live' : 'off'); }
+    if (videoBadge) { videoBadge.textContent = air ? (!S.obs.connected ? 'PLAY OFF: OBS NOT CONNECTED' : v ? `ON AIR ${v.id}${v.loop ? ' LOOP' : ''}` : 'Nothing on air') : 'PREVIEW ONLY'; videoBadge.className = 'badge ' + (air && v ? 'live' : 'off'); }
   }
   return { render };
 }

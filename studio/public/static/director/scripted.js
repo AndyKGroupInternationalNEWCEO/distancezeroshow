@@ -63,6 +63,10 @@ export function init(ctx) {
   $('#tplLoad').addEventListener('click', e => { const id = $('#tplPick').value; if (id && confirmTwice(e.currentTarget, 'Replace? Click again')) act(e.currentTarget, () => rd('loadTemplate', { template: id }), 'Template loaded'); });
   $('#tplDel').addEventListener('click', e => { const id = $('#tplPick').value; if (id && confirmTwice(e.currentTarget, 'Delete? Click again')) act(e.currentTarget, () => rd('deleteTemplate', { template: id }), 'Template deleted'); });
   $('#seForm').addEventListener('focusout', () => setTimeout(() => { if (!dirty && !ctx.focusedIn($('#seForm'))) render(ctx); }, 50));
+  // credits: the permanent base (every show) and this episode's guests and extra names
+  const lines = id => $(id).value;
+  $('#crSaveBase').addEventListener('click', e => act(e.currentTarget, () => send({ t: 'credits', action: 'base', hosts: lines('#crHosts'), partners: lines('#crPartners') }), 'Permanent credits saved'));
+  $('#crSaveEp').addEventListener('click', e => act(e.currentTarget, () => send({ t: 'credits', action: 'episode', guests: lines('#crGuests'), extra: lines('#crExtra') }), 'Episode credits saved'));
   window.addEventListener('beforeunload', e => { if (dirty) { flush(ctx); e.preventDefault(); } });
 }
 
@@ -102,7 +106,7 @@ function fields() {
     script: v('sfScript'), talkingPoints: v('sfPoints'), guest: { name: v('sfGuest'), details: v('sfGuestDetails') },
     questions: v('sfQuestions').split('\n').map(x => x.trim()).filter(Boolean),
     cues: { scene: v('sfScene'), jingle: v('sfJingle'), video: v('sfVideo'), mode: v('sfMode'), audioMode: v('sfAudio'), music: v('sfMusic'),
-      returnJingle: v('sfRetJingle'), returnVideo: v('sfRetVideo') },
+      returnJingle: v('sfRetJingle'), returnVideo: v('sfRetVideo'), fallbackVideo: v('sfFallback'), fallbackMode: v('sfFallbackMode') || 'loop' },
     director: v('sfDirector'), closing: v('sfClosing'), notes: v('sfNotes'),
   };
 }
@@ -136,6 +140,15 @@ export function render(ctx) {
   $('#seExport').href = '/script/export.pdf'; $('#sePrint').href = '/script/print';
   if (!saveState && r.savedAt) setSave('ALL CHANGES SAVED');
 
+  // credits fields: filled from the studio unless being edited
+  if (S.credits) {
+    const txt = l => (l || []).map(p => p.role ? `${p.name} — ${p.role}` : p.name).join('\n');
+    for (const [id, v] of [['#crHosts', S.credits.base.hosts], ['#crPartners', S.credits.base.partners], ['#crGuests', S.credits.episode.guests], ['#crExtra', S.credits.episode.extra]]) {
+      const el = $(id), t = txt(v); if (document.activeElement !== el && el.dataset.v !== t) { el.value = t; el.dataset.v = t; }
+    }
+    $('#crGuests').disabled = $('#crExtra').disabled = $('#crSaveEp').disabled = !!locked;
+    $('#crSaved').textContent = S.credits.base.partners.some(p => /confirm/i.test(p.name)) ? 'Names in [brackets] are placeholders: they stay off air until you replace them.' : '';
+  }
   const sig = JSON.stringify([r.segments, r.title, ep, locked, sel, S.episodes, S.templates, S.obs.scenes?.length, S.media?.scannedAt]);
   if (sig === lastSig) return;
   // never rebuild the form under the cursor while typing: the autosave catches up first
@@ -202,7 +215,10 @@ export function render(ctx) {
         field('Music', inp('sfMusic', c.music, { maxlength: '300', placeholder: 'Track or DJ set' }))),
       seg.kind === 'BREAK' ? h('div', { class: 'fields two' },
         field('Return jingle (RETURN TO LIVE)', select('sfRetJingle', mediaOpts(audio), c.returnJingle)),
-        field('Return video', select('sfRetVideo', mediaOpts(video), c.returnVideo))) : null),
+        field('Return video', select('sfRetVideo', mediaOpts(video), c.returnVideo))) : null,
+      h('div', { class: 'fields two' },
+        field('If the video is missing or fails, play instead', select('sfFallback', mediaOpts(video), c.fallbackVideo)),
+        field('Fallback mode', select('sfFallbackMode', [['loop', 'Loop'], ['once', 'Play once']], c.fallbackMode || 'loop')))),
     field('Director instructions — only you see these', ta('sfDirector', seg.director, 3, { maxlength: '4000' })),
     h('div', { class: 'fields two' }, field('Closing line', inp('sfClosing', seg.closing, { maxlength: '2000' })), field('Notes (Georgie sees these)', inp('sfNotes', seg.notes, { maxlength: '2000' }))));
   for (const el of form.querySelectorAll('input, textarea, select')) {
