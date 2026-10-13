@@ -170,7 +170,7 @@
       "shows": [
         "friday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/FRIDAY LIVE OPENING.mp4",
       "embeddedAudio": false,
       "linkedAudio": "01"
     },
@@ -192,7 +192,7 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/WORLD PREMIERE.mp4",
       "embeddedAudio": false,
       "linkedAudio": "08"
     },
@@ -203,7 +203,7 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/SPECIAL GUEST.mp4",
       "embeddedAudio": false,
       "linkedAudio": "09"
     },
@@ -214,7 +214,7 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/LIVE MUSIC SESSION LOOP.mp4",
       "embeddedAudio": false,
       "linkedAudio": "10"
     },
@@ -237,7 +237,7 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/LIVE CHAT IS OPEN LOOP.mp4",
       "embeddedAudio": false,
       "linkedAudio": "13"
     },
@@ -248,7 +248,7 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/CALLING LINES ARE OPEN LOOP.mp4",
       "embeddedAudio": false,
       "linkedAudio": "14"
     },
@@ -318,7 +318,7 @@
       "shows": [
         "friday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/4k/FRIDAY CLOSING.mp4",
       "embeddedAudio": false,
       "linkedAudio": "19"
     },
@@ -368,6 +368,17 @@
       "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
       "embeddedAudio": true,
       "linkedAudio": null
+    },
+    {
+      "id": "V20",
+      "title": "FRIDAY DJ TRANSITION",
+      "category": "PROGRAM",
+      "shows": [
+        "friday"
+      ],
+      "file": "shared-assets/videos/4k/FRIDAY DJ TRANSITION.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": "02"
     }
   ]
 }
