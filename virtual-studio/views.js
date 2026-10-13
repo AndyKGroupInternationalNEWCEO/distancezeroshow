@@ -14,13 +14,15 @@ export const VIEWS = {
   music: { label: 'Music', long: 'Music station', pos: [-2.5, 1.85, 3.1], target: [-5.4, 1.0, 0.1], fov: 38, drift: 0.12, tally: 1 },
   piano: { label: 'Piano', long: 'Grand piano', pos: [2.2, 2.0, 3.8], target: [5.1, 0.5, -0.1], fov: 40, drift: 0.1, tally: 3 },
   guest: { label: 'Guest', long: 'Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0.07, tally: 5 },
-  // the 4K high-speed camera on its low slider in front of the desk: the studio runs in slow motion (slow = time scale)
+  // the 4K high-speed camera on the motion-control robot: its own moves, the studio in slow motion (slow = time scale)
   // the backstage lounge behind the LED wall (not part of the tour, never "on air")
   backstage: { label: 'Backstage', long: 'Backstage lounge · no entry', pos: [-3.0, 1.75, -7.55], target: [0.7, 0.75, -10.2], fov: 60, drift: 0.05, tally: 0, lounge: true },
   // security cameras: never on air, shown as their own recording (black-and-white CCTV look, see main.js)
   security: { label: 'Security', long: 'Security · studio', pos: [-10.95, 6.4, -3.2], target: [0, 0.8, -1], fov: 72, drift: 0, tally: 0, cctv: 'SEC 1 · STUDIO' },
   securityLounge: { label: 'Security', long: 'Security · backstage', pos: [-3.18, 2.66, -10.9], target: [2.6, 1.0, -8.6], fov: 80, drift: 0, tally: 0, cctv: 'SEC 2 · BACKSTAGE', lounge: true },
-  slowmo: { label: '4K slow-mo', long: '4K high-speed camera · slow motion', pos: [0, 0.47, 2.62], target: [0, 0.95, -1.9], fov: 34, drift: 0.04, tally: 6, slow: 0.2 },
+  // the robot itself at work, seen from the Melbourne side (real time: these robots move fast; H again)
+  robot: { label: '4K slow-mo', long: '4K camera robot · at work', pos: [4.4, 1.85, 5.4], target: [0, 1.0, 2.0], fov: 46, drift: 0.05, tally: 0 },
+  slowmo: { label: '4K slow-mo', long: '4K robot camera · slow motion', pos: [0, 0.45, 2.3], target: [0, 1.05, -1.9], fov: 40, drift: 0.04, tally: 6, slow: 0.2 },
 };
 export const ORDER = Object.keys(VIEWS);
 const TOUR = ['studio', 'desk', 'andy', 'georgie', 'guest', 'crane', 'wall', 'slowmo', 'floor', 'music', 'piano'];

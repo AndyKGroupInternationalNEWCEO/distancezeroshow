@@ -167,6 +167,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
       controls.minAzimuthAngle = cctv ? -Infinity : -1.35; controls.maxAzimuthAngle = cctv ? Infinity : 1.35;
       if (cctv) document.getElementById('cctvName').textContent = cctv;
       for (const b of ui.views) if (b.dataset.view === 'security') b.setAttribute('aria-pressed', String(!!cctv));
+      for (const b of ui.views) if (b.dataset.view === 'slowmo') b.setAttribute('aria-pressed', String(name === 'slowmo' || name === 'robot'));
       air?.shot(name);
       showTally();
     },
@@ -240,7 +241,9 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   // the security button: the camera where you are (studio or backstage); pressed again, the other one
   const security = () => director.current === 'security' ? 'securityLounge' : director.current === 'securityLounge' ? 'security'
     : inLounge(camera.position) ? 'securityLounge' : 'security';
-  for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); director.go(b.dataset.view === 'security' ? security() : b.dataset.view); });
+  // the 4K button: the robot's picture; pressed again, the robot itself at work
+  const slowmo = () => director.current === 'slowmo' ? 'robot' : 'slowmo';
+  for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); const v = b.dataset.view; director.go(v === 'security' ? security() : v === 'slowmo' ? slowmo() : v); });
   // the recording's clock, as burnt into a CCTV picture
   setInterval(() => { if (document.body.classList.contains('cctv')) document.getElementById('cctvTime').textContent = new Date().toLocaleString('en-GB', { timeZone: 'Europe/Vienna', hour12: false }).replace(',', ''); }, 500);
   for (const b of ui.looks) b.addEventListener('click', () => setLook(b.dataset.look));
@@ -256,7 +259,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     const i = Number(e.key);
     if (i >= 1 && i <= 9) { director.setAuto(false); director.go(ORDER[i - 1]); }
     else if (e.key === '0') { director.setAuto(false); director.go('guest'); }
-    else if (e.key === 'h' || e.key === 'H') { director.setAuto(false); director.go('slowmo'); }
+    else if (e.key === 'h' || e.key === 'H') { director.setAuto(false); director.go(slowmo()); }
     else if (e.key === 'b' || e.key === 'B') { director.setAuto(false); director.go('backstage'); }
     else if (e.key === 's' || e.key === 'S') { director.setAuto(false); director.go(security()); }
     else if (e.key === 'o' || e.key === 'O') ui.onair.click();
@@ -382,12 +385,16 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     document.body.classList.toggle('slowmo', slowK < 0.6);
     wallAccum += sdt;
     if (studio.wall.program === 'film' ? studio.wall.fresh() : wallAccum >= wallStep) { studio.wall.draw(setTime, wallAccum); wallAccum = 0; }
+    const robotShot = director.current === 'slowmo';
+    studio.robot.active = robotShot || director.current === 'robot';
     studio.update(setTime, sdt, L, director.tally());
     scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
     bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 
     director.update(dt, now);
     controls.update(dt);
+    // the slow-mo shot is the robot's own camera: the picture follows its lens through the programme of moves
+    if (robotShot) { camera.position.copy(studio.robot.shot.pos); controls.target.copy(studio.robot.shot.target); camera.lookAt(controls.target); }
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 

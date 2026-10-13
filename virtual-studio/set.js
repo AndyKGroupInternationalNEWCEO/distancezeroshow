@@ -471,18 +471,14 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     cams.push(cam);
     cable(root, M, new THREE.Vector3(pos[0], 0.02, pos[2]), new THREE.Vector3(pos[0] * 2.4 + 3, 0.02, 12));
   }
-  // camera 6: the 4K high-speed camera on a low slider in front of the desk, below every other shot's frame
-  {
-    const hs = highSpeedCamera(M);
-    hs.group.userData.focus = 'slowmo';
-    hs.group.userData.equipment = '4K high-speed camera';
-    hs.group.position.set(0, 0, 2.95);
-    hs.group.rotation.y = Math.PI;                        // lens towards the desk
-    add(hs.group);
-    const sh = contactShadow(1.5, 0.5, 0.6); sh.position.set(0, 0.003, 2.95); add(sh);
-    cams.push(hs);
-    cable(root, M, new THREE.Vector3(0.62, 0.02, 2.95), new THREE.Vector3(1.5, 0.02, 12));
-  }
+  // camera 6: the 4K high-speed camera on the motion-control robot, on its track in front of the desk
+  const robot = cineRobot(M);
+  robot.group.userData.focus = 'slowmo';
+  robot.group.userData.equipment = '4K camera robot';
+  add(robot.group);
+  cams.push(robot);
+  cable(root, M, new THREE.Vector3(3.3, 0.02, ROBOT.z), new THREE.Vector3(4.5, 0.02, 12));
+  anim.push((t, dt) => robot.update(dt));
   anim.push((t, dt, L) => {
     jib.arm.rotation.y = 0.12 + Math.sin(t * 0.11) * 0.3;
     jib.arm.rotation.z = -0.3 + Math.sin(t * 0.083 + 1) * 0.1; // negative lifts the camera end
@@ -543,7 +539,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   }
 
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
-  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, liftLogo(on) { liftTo = on ? 1 : 0; } };
+  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; } };
 }
 
 /* ---------- pieces ---------- */
@@ -736,21 +732,11 @@ function tvCamera(M, n, glows) {
 }
 
 // a compact 4K high-speed (slow-motion) camera: box body, cine lens with matte box, top monitor, on a short slider
+// the 4K high-speed camera itself (the robot below carries it): lens along local +z, mounting point at the origin
 function highSpeedCamera(M) {
-  const group = new THREE.Group();
-  const add = (geo, mat, x, y, z, parent = group) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   const ax = geo => geo.rotateX(Math.PI / 2);
-  // slider: two rails between two low stands, with a carriage
-  for (const z of [-0.045, 0.045]) add(new THREE.BoxGeometry(1.24, 0.018, 0.022), M.brushed, 0, 0.3, z);
-  for (const x of [-0.6, 0.6]) {
-    add(new THREE.BoxGeometry(0.06, 0.04, 0.16), M.graphite, x, 0.3, 0);
-    add(new THREE.CylinderGeometry(0.014, 0.014, 0.28, 10), M.graphite, x, 0.15, 0);
-    for (const a of [0.6, 2.7, 4.8]) { const leg = add(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 8), M.brushed, x + Math.cos(a) * 0.07, 0.06, Math.sin(a) * 0.07); leg.rotation.set(Math.sin(a) * 0.6, 0, -Math.cos(a) * 0.6); }
-    add(new THREE.CylinderGeometry(0.11, 0.11, 0.006, 20), M.rubber, x, 0.003, 0);
-  }
-  add(new RoundedBoxGeometry(0.16, 0.03, 0.15, 2, 0.006), M.graphite, -0.15, 0.325, 0);
-  add(new THREE.SphereGeometry(0.028, 16, 12), M.brushed, -0.15, 0.36, 0);
-  const head = new THREE.Group(); head.position.set(-0.15, 0.39, 0); head.rotation.x = -0.06; group.add(head);
+  const head = new THREE.Group();
   // body, cine lens (focus and iris rings, glass), matte box
   add(new RoundedBoxGeometry(0.13, 0.13, 0.21, 3, 0.012), M.camBody, 0, 0.065, 0, head);
   for (const sx of [-1, 1]) { const v = add(new THREE.PlaneGeometry(0.15, 0.07), M.vent, sx * 0.0655, 0.065, -0.01, head); v.rotation.y = sx * Math.PI / 2; }
@@ -768,8 +754,101 @@ function highSpeedCamera(M) {
   for (const sx of [-1, 1]) { const p = add(new THREE.PlaneGeometry(0.12, 0.0225), plate, sx * 0.0662, 0.115, -0.01, head); p.rotation.y = sx * Math.PI / 2; }
   const tallyMat = new THREE.MeshBasicMaterial({ color: 0x220405 });
   add(new THREE.BoxGeometry(0.02, 0.012, 0.012), tallyMat, 0.045, 0.136, 0.09, head);
+  shadows(head);
+  return { head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
+}
+
+/* ---------- motion-control camera robot (like the arms on real sets) carrying the 4K high-speed camera ----------
+   On a floor track in front of the desk: carriage, turning base, shoulder, upper arm, elbow, forearm, wrist. Parked
+   folded and low (below every other shot's frame); on the slow-mo shot it flies its programme of moves, and the
+   picture is taken from its lens. The arm is solved each frame (two-link IK) for where the camera has to be. */
+const ROBOT = { z: 2.6, shoulder: 0.58, L1: 1.15, L2: 1.1 };
+// the programme, in the set's own (slowed) time: track position, where the camera is, what it looks at
+const MOVES = [
+  [0.8, 0, [0, 0.35, 2.0], [0, 1.05, -1.9]],          // on the floor, low on the desk
+  [1.2, 0, [0, 2.3, 1.8], [0, 0.85, -1.9]],            // rise up over it
+  [0.9, -2.4, [-1.9, 1.25, 1.7], [0, 1.0, -1.9]],      // across to the Vienna side
+  [1.4, 2.4, [1.9, 1.25, 1.7], [0, 1.0, -1.9]],        // the arc past the desk to Melbourne
+  [0.8, 1.6, [1.3, 0.45, 1.5], [0.95, 1.2, -1.95]],    // down low on Georgie's chair
+  [1.3, -0.4, [-0.3, 2.35, 1.3], [0, 3.6, -5.5]],      // the swoop up to the logo
+  [0.9, -1.5, [-1.2, 0.45, 1.6], [-0.95, 1.2, -1.95]], // low on Andy'K's chair, then back to the floor
+];
+function cineRobot(M) {
+  const group = new THREE.Group();
+  const add = (geo, mat, x, y, z, parent = group) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  // satin titanium, so it reads against the dark set; thin amber light rings at the joints, in the studio's colours
+  const body = new THREE.MeshPhysicalMaterial({ color: 0x6a6f77, metalness: 0.8, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+  const led = new THREE.MeshBasicMaterial({ color: new THREE.Color(AMBER).multiplyScalar(1.6) });
+  const ring = (r, parent, z = 0, axis = 'z') => { const t = add(new THREE.TorusGeometry(r, 0.006, 6, 40), led, 0, 0, z, parent); if (axis === 'y') t.rotation.x = Math.PI / 2; if (axis === 'x') t.rotation.y = Math.PI / 2; return t; };
+  // track: two rails on sleepers along the front of the set, with end stops
+  for (const z of [-0.13, 0.13]) add(new THREE.BoxGeometry(6.4, 0.035, 0.05), M.brushed, 0, 0.0475, ROBOT.z + z);
+  for (let x = -3.1; x <= 3.11; x += 0.62) add(new THREE.BoxGeometry(0.08, 0.03, 0.42), M.graphite, x, 0.015, ROBOT.z);
+  for (const x of [-3.22, 3.22]) add(new THREE.BoxGeometry(0.06, 0.1, 0.4), M.graphite, x, 0.06, ROBOT.z);
+  // carriage, base and turning column
+  const carriage = new THREE.Group(); carriage.position.set(0, 0, ROBOT.z); group.add(carriage);
+  add(new RoundedBoxGeometry(0.52, 0.08, 0.46, 2, 0.015), M.graphite, 0, 0.105, 0, carriage);
+  add(new THREE.CylinderGeometry(0.2, 0.22, 0.2, 32), body, 0, 0.245, 0, carriage);
+  const column = new THREE.Group(); column.position.y = 0.345; carriage.add(column);
+  add(new THREE.CylinderGeometry(0.17, 0.19, 0.2, 32), body, 0, 0.1, 0, column);
+  ring(0.19, column, 0, 'y').position.y = 0.01;
+  // shoulder, upper arm, elbow, forearm (each arm along its local +z, pitched about x)
+  const shoulder = new THREE.Group(); shoulder.position.y = ROBOT.shoulder - 0.345; column.add(shoulder);
+  const jt = (r, len, parent) => { const c = add(new THREE.CylinderGeometry(r, r, len, 32).rotateZ(Math.PI / 2), body, 0, 0, 0, parent); for (const sx of [-1, 1]) ring(r * 0.8, parent, 0, 'x').position.x = sx * (len / 2 + 0.002); return c; };
+  jt(0.14, 0.32, shoulder);
+  add(new RoundedBoxGeometry(0.17, 0.17, ROBOT.L1, 3, 0.05), body, 0, 0, ROBOT.L1 / 2, shoulder);
+  const elbow = new THREE.Group(); elbow.position.z = ROBOT.L1; shoulder.add(elbow);
+  jt(0.11, 0.26, elbow);
+  add(new RoundedBoxGeometry(0.13, 0.13, ROBOT.L2, 3, 0.04), body, 0, 0, ROBOT.L2 / 2, elbow);
+  const wrist = new THREE.Group(); wrist.position.z = ROBOT.L2; elbow.add(wrist);
+  add(new THREE.SphereGeometry(0.08, 24, 16), body, 0, 0, 0, wrist);
+  // a cable loom along the arm
+  const loom = new THREE.CatmullRomCurve3([new THREE.Vector3(0.1, 0.05, 0.1), new THREE.Vector3(0.11, 0.1, ROBOT.L1 * 0.5), new THREE.Vector3(0.09, 0.06, ROBOT.L1 - 0.1)]);
+  shoulder.add(new THREE.Mesh(new THREE.TubeGeometry(loom, 16, 0.014, 6), M.rubber));
+  // the camera, held at the wrist and aimed separately (the wrist's three axes)
+  const cam = highSpeedCamera(M);
+  const head = cam.head; group.add(head);
   shadows(group);
-  return { group, head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
+
+  const v = new THREE.Vector3(), wp = new THREE.Vector3(), look = new THREE.Vector3(), lens = new THREE.Vector3(), park = new THREE.Vector3(0, 1.0, -1.9);
+  const total = MOVES.reduce((a, m) => a + m[0], 0);
+  let u = 0, active = false;
+  function pose(trackX, wristAt, lookAt) {
+    carriage.position.x = trackX;
+    const sx = trackX, sy = ROBOT.shoulder, sz = ROBOT.z;
+    const dx = wristAt.x - sx, dy = wristAt.y - sy, dz = wristAt.z - sz;
+    column.rotation.y = Math.atan2(dx, dz);
+    const r = Math.hypot(dx, dz), { L1, L2 } = ROBOT;
+    const d = THREE.MathUtils.clamp(Math.hypot(r, dy), Math.abs(L1 - L2) + 0.02, L1 + L2 - 0.02);
+    const a1 = Math.atan2(dy, r) + Math.acos(THREE.MathUtils.clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));   // elbow up
+    const a2 = Math.PI - Math.acos(THREE.MathUtils.clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
+    shoulder.rotation.x = -a1; elbow.rotation.x = a2;
+    group.updateMatrixWorld(true);
+    wrist.getWorldPosition(wp);
+    head.position.copy(wp).y += 0.06; head.lookAt(lookAt);
+  }
+  return {
+    group, head, tally: cam.tally,
+    // the camera's picture: where its lens is and what it looks at (for the slow-mo shot)
+    shot: { pos: lens, target: look },
+    set active(on) { if (on && !active) u = 0; active = on; },
+    update(dt) {
+      if (!active) {
+        // parked: at the Vienna end of the track, folded over itself along the rail, low: outside every other shot
+        carriage.position.x = -2.8; column.rotation.y = -Math.PI / 2; shoulder.rotation.x = -0.18; elbow.rotation.x = 2.75;
+        group.updateMatrixWorld(true); wrist.getWorldPosition(wp); head.position.copy(wp).y += 0.06; head.lookAt(park);
+        return;
+      }
+      u = (u + dt) % total;
+      let i = 0, t = u;
+      while (t > MOVES[i][0]) { t -= MOVES[i][0]; i++; }
+      const [dur, x0, w0, l0] = MOVES[i], [, x1, w1, l1] = MOVES[(i + 1) % MOVES.length];
+      const k = THREE.MathUtils.smoothstep(t / dur, 0, 1);
+      look.set(...l0).lerp(v.set(...l1), k);
+      const w = new THREE.Vector3(...w0).lerp(v.set(...w1), k);
+      pose(THREE.MathUtils.lerp(x0, x1, k), w, look);
+      head.localToWorld(lens.set(0, 0.065, 0.36));
+    },
+  };
 }
 
 function jibCrane(M, glows) {
