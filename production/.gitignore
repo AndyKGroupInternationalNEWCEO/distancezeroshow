@@ -6,3 +6,6 @@ opening/out/
 opening/review/
 # the presenters' face reference photos: personal, kept out of git
 avatars/reference/
+avatars/.venv/
+avatars/models/
+avatars/likeness/
