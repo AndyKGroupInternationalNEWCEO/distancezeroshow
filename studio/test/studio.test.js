@@ -1108,9 +1108,9 @@ test('credits: permanent base and episode names; end credits roll and partner li
   const ov = client(D, { query: '?overlay=' + encodeURIComponent(app.secrets.overlayKey) });
   await Promise.all([d.opened, hst.opened, ov.opened]);
   const st = await d.next(m => m.t === 'state' && m.s.credits);
-  assert.ok(st.s.credits.base.partners.some(p => p.name === "DJ Andy'K Lab"));
+  assert.ok(st.s.credits.base.partners.some(p => p.name === "Andy'K Music Lab"));
   assert.equal((await hst.send({ t: 'credits', action: 'base', hosts: 'x', partners: 'y' })).ok, false, 'Georgie cannot change credits');
-  assert.equal((await d.send({ t: 'credits', action: 'base', hosts: "DJ Andy'K — Host · Vienna\nGeorgie Walker — Host · Melbourne", partners: "Andy'K Group — Technology partner\nDJ Andy'K Lab — Mastering" })).ok, true);
+  assert.equal((await d.send({ t: 'credits', action: 'base', hosts: "DJ Andy'K — Host · Vienna\nGeorgie Walker — Host · Melbourne", partners: "Andy'K Group — Technology partner\nAndy'K Music Lab — Mastering" })).ok, true);
   assert.match(fs.readFileSync(path.join(dataDir, 'credits.json'), 'utf8'), /Andy'K Group/);
   assert.equal((await d.send({ t: 'credits', action: 'episode', guests: 'Ada Guest — Composer', extra: '' })).ok, true);
   assert.equal((await d.send({ t: 'gfx', action: 'credits', on: true })).ok, true);

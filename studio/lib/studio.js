@@ -1058,7 +1058,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     hosts: [{ name: "DJ Andy'K — Andrej Kneisl", role: 'Host · Vienna' }, { name: 'Georgie Walker', role: 'Host · Melbourne' }],
     partners: [
       { name: "Andy'K Group", role: 'Technology partner — virtual show system' },
-      { name: "DJ Andy'K Lab", role: 'Music preparation and mastering' },
+      { name: "Andy'K Music Lab", role: 'Music preparation and mastering' },
       { name: "Andy'K Records", role: 'Artwork, logos and visual identity' },
       { name: "DJ Andy'K", role: 'Official track and music for DISTANCE // ZERO' },
     ],

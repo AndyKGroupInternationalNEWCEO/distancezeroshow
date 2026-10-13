@@ -148,7 +148,8 @@
       "title": "SUNDAY SHOW CLOSING",
       "shows": [
         "sunday"
-      ]
+      ],
+      "note": "AUDIO NOT AVAILABLE — the closing master has not been supplied. The file numbered 21 in DZ-masters is the SUNDAY SHOW OPENING (matched to 17 by title); it is not the closing."
     }
   ],
   "video": [
@@ -307,9 +308,10 @@
       "shows": [
         "sunday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/1080p/SUNDAY SHOW CLOSING.mp4",
       "embeddedAudio": false,
-      "linkedAudio": "21"
+      "linkedAudio": "21",
+      "note": "11.1 s, 1080p24, silent. Waiting for the 21 — SUNDAY SHOW CLOSING master WAV. Sequence: V14 → V22 (end credits) → V17 THANK YOU FOR WATCHING."
     },
     {
       "id": "V15",
@@ -382,16 +384,53 @@
     },
     {
       "id": "V21",
-      "title": "PARTNER SPOT — DJ ANDY'K LAB",
+      "title": "PARTNER SPOT — ANDY'K MUSIC LAB",
       "category": "BREAKS",
       "shows": [
         "sunday",
         "friday"
       ],
       "file": null,
-      "embeddedAudio": true,
+      "embeddedAudio": false,
       "linkedAudio": null,
-      "note": "Partner advertising, 1–2 min, in the second (middle) break. Not produced yet."
+      "note": "DRAFT ready for approval: shared-assets/videos/1080p/ANDY'K MUSIC LAB — PARTNER SPOT.mp4 (60 s, silent, copy taken from lab.djandykofficial.com). Set 'file' to that path once approved; until then BREAK 02 falls back to V10."
+    },
+    {
+      "id": "V22",
+      "title": "END CREDITS — BACKGROUND LOOP",
+      "category": "CLOSING",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/videos/4k/END CREDITS BACKGROUND LOOP.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": null,
+      "note": "48 s seamless loop, 3840×2160 24 fps, silent, no names burned in, darker centre. Play in loop under the overlay's end-credits roll."
+    },
+    {
+      "id": "V23",
+      "title": "OFFICIAL END CREDITS",
+      "category": "CLOSING",
+      "shows": [
+        "sunday"
+      ],
+      "file": "shared-assets/videos/4k/DISTANCE ZERO — OFFICIAL END CREDITS.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": null,
+      "note": "54 s, 3840×2160 24 fps, silent, plays once. Opens and closes on the official D//0 logo (from the logo reveal). Permanent credits only (hosts, partners with their logos, final message). Episode guests: lower third during the SPECIAL GUESTS window 0:17–0:23. Keep the overlay end-credits roll OFF while V23 plays. Sunday sequence: V14 → V23 → V17."
+    },
+    {
+      "id": "V24",
+      "title": "FRIDAY OFFICIAL END CREDITS",
+      "category": "CLOSING",
+      "shows": [
+        "friday"
+      ],
+      "file": "shared-assets/videos/4k/DJ ANDY'K — FRIDAY LIVE — OFFICIAL END CREDITS.mp4",
+      "embeddedAudio": false,
+      "linkedAudio": null,
+      "note": "52 s, 3840×2160 24 fps, silent, plays once. DJ ANDY'K — FRIDAY LIVE: host DJ Andy'K only (no Georgie), partners with their logos, ends on the D//0 logo with THANK YOU FOR LISTENING and the DJ Andy'K logo. Optional special guest: show the episode's guest with the lower third during the music interlude 0:16.5–0:23.5 (no guest = leave it). Keep the overlay end-credits roll OFF while V24 plays. Friday sequence: V15 FRIDAY SHOW CLOSING + jingle 19 → V24."
     }
   ]
 }
