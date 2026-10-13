@@ -277,6 +277,12 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
   font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;padding:11px 18px;border-radius:999px;cursor:pointer;min-height:44px}
 .air-b:focus-visible,.air-exit:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .air-b{white-space:nowrap;flex:none}
+.air-b[aria-expanded="true"]{border-color:var(--champagne);color:var(--chrome-hi)}
+/* the Videos and Jingles lists, above the controls */
+.air-pick{position:absolute;z-index:2;right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 112px);width:min(560px,calc(100% - 2 * var(--gut)));
+  max-height:min(46vh,420px);overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:12px;pointer-events:auto;
+  background:rgba(6,7,9,.9);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.air-pick[hidden]{display:none}
 /* phones, portrait: looks and sound in one row that scrolls sideways, Exit full width below; then ticker, notice, caption */
 @media (orientation:portrait){
   .air-ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
@@ -284,6 +290,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
   .air-srcs::-webkit-scrollbar{display:none}
   .air-vol{display:none}
   .air-exit{grid-column:1/-1;margin-left:0;width:100%}
+  .air-pick{left:var(--gut);right:var(--gut);width:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 160px);max-height:40vh}
   .air-ticker{bottom:calc(env(safe-area-inset-bottom,0px) + 116px);height:28px}
   .air-notice{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 154px);font-size:.6rem;letter-spacing:.12em}
   .air-bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 196px);flex-direction:column-reverse;align-items:stretch;gap:8px}
