@@ -1146,3 +1146,36 @@ test('the overlay is always the overlay, even in a browser where the Director is
   await assert.rejects(client(D, { cookie: directorCookie, query: '?overlay=wrong' }).opened, /401/);
   o.close();
 });
+
+test('three layers stay separate: episodes never change the masters or the OBS configuration', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const masters = ['sunday', 'friday'].map(f => fs.readFileSync(path.join(process.cwd(), 'shows', f + '.json'), 'utf8'));
+  const from = mock.log.length;
+  // a whole episode's life: create from each master, write content, change cues and timing, import, notes, restore
+  for (const format of ['friday', 'sunday']) {
+    const date = new Date(Date.now() + (format === 'friday' ? 50 : 51) * 86400000).toISOString().slice(0, 10);
+    assert.equal((await d.send({ t: 'episode.new', format, date, start: '20:00' })).ok, true);
+    const s = await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+    const seg = s.s.rundown.segments[1];
+    assert.equal((await d.send({ t: 'script.update', segmentId: seg.id, fields: { script: "ANDY'K: Episode words", minutes: seg.minutes + 1, cues: { ...seg.cues, jingle: '06', music: 'Episode track' } } })).ok, true);
+    assert.equal((await d.send({ t: 'episode.meta', title: `Episode ${format}` })).ok, true);
+    assert.equal((await d.send({ t: 'notes.set', segmentId: seg.id, text: 'private' })).ok, true);
+    assert.equal((await d.send({ t: 'credits', action: 'episode', guests: 'A Guest — Singer', extra: '' })).ok, true);
+    const ep = (await d.next(m => m.t === 'state' && m.s.rundown.title === `Episode ${format}`)).s.rundown;
+    assert.equal(ep.segments[1].cues.jingle, '06', 'episode keeps its own cue');
+    assert.equal(ep.segments.length, format === 'sunday' ? 14 : 7);
+  }
+  // the masters on disk are byte for byte the same
+  assert.deepEqual(['sunday', 'friday'].map(f => fs.readFileSync(path.join(process.cwd(), 'shows', f + '.json'), 'utf8')), masters);
+  // OBS received nothing that changes its configuration (no scenes, inputs, collections, settings, transforms)
+  const changes = mock.log.slice(from).map(r => r.requestType).filter(t => /^(Create|Remove|Set(Input(Settings|Name)|SceneItem(Transform|Index)|CurrentSceneCollection|SceneName)|Duplicate)/.test(t));
+  assert.deepEqual(changes, [], 'episode work must not touch the OBS configuration');
+  // a new episode from the same master starts again from the master, not from the edited episode
+  const date = new Date(Date.now() + 52 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  const fresh = (await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date)).s.rundown;
+  assert.notEqual(fresh.segments[1].cues.music, 'Episode track');
+  assert.match(fresh.segments[2].script, /EPISODE-SPECIFIC/);
+  d.close();
+});
