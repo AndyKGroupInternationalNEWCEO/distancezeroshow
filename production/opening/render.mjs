@@ -50,11 +50,36 @@ const evaluate = async expr => { const r = await send('Runtime.evaluate', { expr
 
 await send('Runtime.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url: `http://127.0.0.1:${port}/production/opening/index.html?render${query ? '&' + query : ''}` });
-for (let i = 0; i < 240 && !(await evaluate('!!window.openingReady').catch(() => false)); i++) await sleep(500);
-// one frame as a PNG, straight from the canvas (frame-exact: the page draws exactly time t)
-const grab = async t => Buffer.from((await evaluate(`(async () => { opening.seek(${t}); const b = await new Promise(r => document.querySelector('#c').toBlob(r, 'image/png'));
-  const a = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode(...a.subarray(i, i + 32768)); return btoa(s); })()`)), 'base64');
+async function load() {
+  await send('Page.navigate', { url: `http://127.0.0.1:${port}/production/opening/index.html?render${query ? '&' + query : ''}` });
+  await sleep(500);
+  for (let i = 0; i < 240 && !(await evaluate('!!window.openingReady').catch(() => false)); i++) await sleep(500);
+}
+await load();
+// one frame as a PNG, straight from the canvas (frame-exact: the page draws exactly time t), with its mean brightness
+const shoot = async t => {
+  const r = await evaluate(`(async () => { opening.seek(${t}); const cv = document.querySelector('#c');
+    const m = document.createElement('canvas'); m.width = 96; m.height = 54; const x = m.getContext('2d'); x.drawImage(cv, 0, 0, 96, 54);
+    const d = x.getImageData(0, 0, 96, 54).data; let l = 0; for (let i = 0; i < d.length; i += 4) l += d[i] + d[i + 1] + d[i + 2];
+    const b = await new Promise(r => cv.toBlob(r, 'image/png'));
+    const a = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode(...a.subarray(i, i + 32768));
+    return [btoa(s), l / (d.length / 4 * 3)]; })()`);
+  return { png: Buffer.from(r[0], 'base64'), lum: r[1] };
+};
+// headless Chrome on the Mac now and then stops drawing and hands back black frames from then on. A frame that falls to
+// black from a lit one (outside the opening's own black start) reloads the page, warms up for 2 s and is taken again
+let lastLum = -1;
+async function grab(t) {
+  let f = await shoot(t);
+  for (let tries = 0; t > 2 && lastLum > 3 && f.lum < 0.5 && tries < 3; tries++) {
+    console.log(`black frame at ${t.toFixed(2)} s: reloading`);
+    await load();
+    for (let u = Math.max(0, t - 2); u < t; u += 1 / FPS) await evaluate(`opening.seek(${u})`);
+    f = await shoot(t);
+  }
+  lastLum = f.lum;
+  return f.png;
+}
 
 if (stills) {
   // walk up to each still from 2 s before, so damping and the actors' state are as in the clip
