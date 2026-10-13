@@ -108,7 +108,7 @@
         "closing": "",
         "cues": {
           "scene": "SPLIT // BOTH",
-          "jingle": "",
+          "jingle": "06",
           "video": "",
           "mode": "once",
           "audioMode": "wav",
@@ -138,7 +138,7 @@
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": ""
+          "returnVideo": "V11"
         },
         "guest": {
           "name": "",
@@ -158,8 +158,8 @@
         "closing": "",
         "cues": {
           "scene": "MUSIC",
-          "jingle": "",
-          "video": "",
+          "jingle": "10",
+          "video": "V06",
           "mode": "once",
           "audioMode": "wav",
           "music": ""
@@ -183,7 +183,7 @@
         "cues": {
           "scene": "GUEST",
           "jingle": "09",
-          "video": "",
+          "video": "V05",
           "mode": "once",
           "audioMode": "wav",
           "music": ""
@@ -216,7 +216,7 @@
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": ""
+          "returnVideo": "V11"
         },
         "guest": {
           "name": "",
@@ -261,7 +261,7 @@
         "cues": {
           "scene": "SPLIT // BOTH",
           "jingle": "13",
-          "video": "",
+          "video": "V08",
           "mode": "once",
           "audioMode": "wav",
           "music": ""
@@ -290,7 +290,7 @@
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": ""
+          "returnVideo": "V11"
         },
         "guest": {
           "name": "",
@@ -310,8 +310,8 @@
         "closing": "",
         "cues": {
           "scene": "GUEST",
-          "jingle": "",
-          "video": "",
+          "jingle": "12",
+          "video": "V07",
           "mode": "once",
           "audioMode": "wav",
           "music": ""

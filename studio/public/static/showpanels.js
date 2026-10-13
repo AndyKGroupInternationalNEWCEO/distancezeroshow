@@ -22,6 +22,14 @@ export function cueTitle(S, id) {
   return m ? `${id} — ${m.title}${m.available ? '' : ' (NOT AVAILABLE)'}` : id;
 }
 
+// one line for the plan: what plays in this segment (jingle, video, scene; for a break also the return cue)
+export function cueLine(S, seg) {
+  const c = seg?.cues || {}, short = id => cueTitle(S, id);
+  return [c.jingle && '♪ ' + short(c.jingle), c.video && '▶ ' + short(c.video) + (c.mode === 'loop' ? ' (LOOP)' : ''),
+    c.music && '♫ ' + c.music, c.scene && 'SCENE ' + c.scene,
+    (c.returnJingle || c.returnVideo) && 'RETURN: ' + [c.returnJingle && '♪ ' + short(c.returnJingle), c.returnVideo && '▶ ' + short(c.returnVideo)].filter(Boolean).join(' + ')].filter(Boolean).join('  ·  ');
+}
+
 /* ---------- three monitors ---------- */
 export function createMonitors(root, { programLabel = 'PROGRAM' } = {}) {
   const tiles = {};

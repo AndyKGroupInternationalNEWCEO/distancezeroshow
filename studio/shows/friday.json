@@ -29,7 +29,7 @@
         "presenters": "ANDY'K",
         "script": "ANDY'K: [EPISODE-SPECIFIC — Friday hello]",
         "talkingPoints": "",
-        "director": "FRIDAY LIVE OPENING video: not available yet; jingle 01 over the visuals.",
+        "director": "FRIDAY LIVE OPENING card (V02) with jingle 01. Then cut to the DJ booth.",
         "closing": "",
         "cues": {
           "scene": "OPENING",
@@ -58,7 +58,7 @@
         "cues": {
           "scene": "DJ + VISUALS",
           "jingle": "02",
-          "video": "",
+          "video": "V20",
           "mode": "once",
           "audioMode": "wav",
           "music": ""
@@ -85,7 +85,9 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": "", "returnJingle": "05", "returnVideo": ""
+          "music": "",
+          "returnJingle": "05",
+          "returnVideo": "V11"
         },
         "guest": {
           "name": "",
@@ -106,7 +108,7 @@
         "cues": {
           "scene": "DJ + VISUALS",
           "jingle": "02",
-          "video": "",
+          "video": "V20",
           "mode": "once",
           "audioMode": "wav",
           "music": ""
@@ -133,7 +135,9 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": "", "returnJingle": "05", "returnVideo": ""
+          "music": "",
+          "returnJingle": "05",
+          "returnVideo": "V11"
         },
         "guest": {
           "name": "",
@@ -153,7 +157,7 @@
         "closing": "",
         "cues": {
           "scene": "DJ + VISUALS",
-          "jingle": "",
+          "jingle": "06",
           "video": "",
           "mode": "once",
           "audioMode": "wav",
@@ -178,7 +182,7 @@
         "cues": {
           "scene": "CREDITS",
           "jingle": "19",
-          "video": "",
+          "video": "V15",
           "mode": "once",
           "audioMode": "wav",
           "music": ""

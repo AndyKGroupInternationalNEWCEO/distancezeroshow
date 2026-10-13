@@ -3,7 +3,7 @@
 // rundown, the LIVE SHOW SCRIPT with teleprompter, and the side panels: audio, video, graphics, talkback, more.
 // The script is edited only in REHEARSAL; nothing here changes it.
 import { $, $$, h, hms, act, toast, segmentTimes, clock, zonedToday } from '../common.js';
-import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow } from '../showpanels.js';
+import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow, cueLine } from '../showpanels.js';
 import { showClock, mmss } from '../clock.js';
 import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
@@ -35,7 +35,7 @@ export function init(ctx) {
     try { localStorage.setItem('dz-side', p); } catch {}
   };
   tabs.forEach(t => t.addEventListener('click', () => pick(t.dataset.p)));
-  let first = 'audio'; try { first = localStorage.getItem('dz-side') || 'audio'; } catch {}
+  let first = 'plan'; try { first = localStorage.getItem('dz-side') || 'plan'; } catch {}
   pick(first);
   ctx.showSide = pick;
 
@@ -123,7 +123,7 @@ export function render(ctx) {
   goBtn.disabled = !b.active && r.index >= 0 && !nx;
   const c = nx?.cues || {};
   $('#goHint').textContent = b.active ? `Returns to ${b.next || 'the next segment'}: scene, microphones on, return jingle. Only when you confirm.`
-    : nx && (c.scene || c.video || c.jingle || nx.kind === 'BREAK') ? ['Cues:', c.scene && 'scene ' + c.scene, c.video && 'video ' + c.video + (c.mode === 'loop' ? ' (loop)' : ''), c.jingle && 'jingle ' + c.jingle, nx.kind === 'BREAK' && '· microphones muted for the break'].filter(Boolean).join(' ') : '';
+    : nx ? [cueLine(S, { cues: { ...c, returnJingle: '', returnVideo: '' } }), nx.kind === 'BREAK' && 'Microphones muted for the break.'].filter(Boolean).join('  ·  ') : '';
   $('#prev').disabled = r.index <= 0 || !!b.active;
   $('#advance').disabled = !nx || !!b.active;
   $('#refire').disabled = r.index < 0;
@@ -138,7 +138,7 @@ export function render(ctx) {
 
 function renderRundown(ctx) {
   const S = ctx.S, r = S.rundown;
-  if (!ctx.differs('ro', [r.segments.map(s => [s.id, s.title, s.kind, s.minutes]), r.index, r.showStartedAt, S.brk?.active, Math.floor(Date.now() / 30000)])) return;
+  if (!ctx.differs('ro', [r.segments.map(s => [s.id, s.title, s.kind, s.minutes, s.cues]), r.index, r.showStartedAt, S.brk?.active, Math.floor(Date.now() / 30000)])) return;
   const times = segmentTimes(S);
   $('#ro').replaceChildren(...r.segments.map((s, i) => h('li', { class: i < r.index ? 'done' : i === r.index ? 'cur' : i === r.index + 1 ? 'nxt' : '' },
     h('span', { class: 'r' },
@@ -150,7 +150,8 @@ function renderRundown(ctx) {
       h('span', { class: 'm', text: s.minutes + "'" }),
       i !== r.index && !S.brk?.active ? h('button', { type: 'button', class: 'b xs quiet', text: 'GO', title: 'Jump to this segment and fire its cues (click twice)', onclick: e => {
         if (confirmTwice(e.currentTarget, 'GO?')) act(e.currentTarget, async () => showResult(await ctx.conn.send({ t: 'cue.go', index: i })));
-      } }) : null))));
+      } }) : null),
+    cueLine(S, s) ? h('span', { class: 'cueline', text: cueLine(S, s) }) : null)));
   const total = r.segments.reduce((a, s) => a + s.minutes, 0);
   $('#roTotal').replaceChildren(h('span', { text: `${r.segments.length} segments · Vienna / Melbourne` }), h('span', { text: `${total} min` }));
 }

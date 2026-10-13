@@ -101,7 +101,8 @@ async function addPlayers(show, existing) {
     await req('CreateSceneItem', { sceneName: 'VT', sourceName: 'AUDIO // ALL' });
     done.push('scene VT');
   }
-  for (const sc of ['STANDBY', 'OPENING', 'MUSIC', 'BREAK', 'CREDITS']) if (scenes.has(sc)) await place(sc, false);
+  // every show scene: a cue card (SPECIAL GUEST, COMING UP NEXT…) plays over the shot under the graphics, then clears itself
+  for (const sc of scenes) if (sc !== 'VT' && !sc.startsWith('AUDIO //')) await place(sc, false);
   // THIRD SEAT: the existing GUEST scene gets the guest in the centre — ANDY'K | GUEST | GEORGIE. The guest source starts
   // HIDDEN and MUTED; only TAKE GUEST ON AIR in the studio shows and unmutes it. Its VDO.Ninja address is set per invitation.
   if (scenes.has('GUEST')) {

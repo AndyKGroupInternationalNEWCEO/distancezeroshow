@@ -902,3 +902,16 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 .gs-steps{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .gs-step{border:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:6px;opacity:.6}
 .gs-step.cur{opacity:1;border-color:var(--amber)}.gs-step.done{opacity:.8}
+
+/* the plan: what plays in each segment */
+.cueline{grid-column:1/-1;display:block;font-size:.68rem;color:var(--amber);letter-spacing:.02em;line-height:1.35;padding:0 0 2px}
+.ro .cueline{padding:0 18px 8px calc(2.2em + 30px)}
+.ro-ro .cueline{padding:0 12px 6px 12px}
+.se-list .cueline{grid-column:3/-1}
+.sidep[data-p=plan] .ro{max-height:none}
+.ro-ro .ti{white-space:normal}
+.ro-ro .r{grid-template-columns:1.6em 3.2em 3.2em minmax(0,1fr) 2.2em auto;gap:6px}
+.ro-ro .k{display:none}
+.ro-ro .ti{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidep[data-p=plan] .card-h .aside .hint{display:none}
+#sideTabs [role=tab]{padding:10px 4px;font-size:.56rem;letter-spacing:.1em}

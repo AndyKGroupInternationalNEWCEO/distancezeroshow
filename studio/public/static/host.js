@@ -4,7 +4,7 @@ import { $, $$, h, hms, connect, checkSignedIn, runClocks, segmentTimes, segment
 import { createCall } from './call.js';
 import { notifier } from './notify.js';
 import { testDevices, playTone } from './checks.js';
-import { createMonitors, createClock, createScript, createBreakMonitors, syncClock } from './showpanels.js';
+import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, cueLine } from './showpanels.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 let downSince = 0, reconnects = 0, slowPings = 0;
@@ -139,6 +139,7 @@ function renderRundown() {
       h('span', { class: 'ti', text: s.title }),
       h('span', { class: 'k', text: s.kind }),
       h('span', { class: 'm', text: s.minutes + "'" })),
+    cueLine(S, s) ? h('div', { class: 'cueline', text: cueLine(S, s) }) : null,
     s.notes || s.lead !== 'both' ? h('div', { class: 'read' }, h('span', { class: 'lead ' + s.lead, text: LEAD[s.lead] }), s.notes ? h('p', { text: s.notes }) : null) : null)));
   const total = r.segments.reduce((a, s) => a + s.minutes, 0);
   $('#roTotal').replaceChildren(h('span', { text: 'Times in Melbourne, then Vienna' }), h('span', { text: `${total} min` }));

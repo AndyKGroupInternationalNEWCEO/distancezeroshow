@@ -142,7 +142,7 @@ test('director sees OBS and switches scenes in OBS', async () => {
   const ack = await d.send({ t: 'obs', action: 'program', scene: 'VIENNA' });
   assert.equal(ack.ok, true, ack.error);
   assert.equal(mock.state.program, 'VIENNA');
-  await d.next(m => m.t === 'state' && m.s.obs.program === 'VIENNA' && m.s.obs.items.length === 4);
+  await d.next(m => m.t === 'state' && m.s.obs.program === 'VIENNA' && m.s.obs.items.length === 5);
 
   const bad = await d.send({ t: 'obs', action: 'program', scene: 'NOPE' });
   assert.equal(bad.ok, false);

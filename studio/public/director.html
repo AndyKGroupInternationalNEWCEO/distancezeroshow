@@ -127,11 +127,6 @@
               <ul class="cue-result" id="cueResult" hidden></ul>
             </div>
           </section>
-          <section class="card grow-card" aria-labelledby="hRo">
-            <div class="card-h"><h2 id="hRo">Rundown</h2><div class="aside"><span class="badge" id="roBadge"></span><span class="hint">Edit in Rehearsal</span></div></div>
-            <ol class="ro ro-ro" id="ro"></ol>
-            <div class="total" id="roTotal"></div>
-          </section>
         </div>
 
         <div class="col center">
@@ -143,14 +138,22 @@
 
         <div class="col side-r">
           <nav class="subtabs" role="tablist" aria-label="Side panels" id="sideTabs">
-            <button type="button" role="tab" data-p="audio" aria-selected="true">Audio</button>
+            <button type="button" role="tab" data-p="plan" aria-selected="true">Plan</button>
+            <button type="button" role="tab" data-p="audio" aria-selected="false">Audio</button>
             <button type="button" role="tab" data-p="video" aria-selected="false">Video</button>
             <button type="button" role="tab" data-p="gfx" aria-selected="false">Graphics</button>
             <button type="button" role="tab" data-p="talk" aria-selected="false">Talk <span class="dot" id="dotTalk" hidden></span></button>
             <button type="button" role="tab" data-p="guest" aria-selected="false">Guest <span class="dot" id="dotGuest" hidden></span></button>
             <button type="button" role="tab" data-p="more" aria-selected="false">More</button>
           </nav>
-          <div class="sidep" data-p="audio">
+          <div class="sidep" data-p="plan">
+          <section class="card" aria-labelledby="hRo">
+            <div class="card-h"><h2 id="hRo">Rundown</h2><div class="aside"><span class="badge" id="roBadge"></span><span class="hint">Edit in Rehearsal</span></div></div>
+            <ol class="ro ro-ro" id="ro"></ol>
+            <div class="total" id="roTotal"></div>
+          </section>
+          </div>
+          <div class="sidep" data-p="audio" hidden>
             <section class="card" aria-labelledby="hJA">
               <div class="card-h"><h2 id="hJA">Jingles // audio</h2><div class="aside"><span class="badge" id="jaAir">—</span></div></div>
               <div class="card-b"><div class="row"><select class="in sm" id="jaFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="jaStop">STOP</button></div></div>

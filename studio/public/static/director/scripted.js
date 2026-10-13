@@ -4,7 +4,7 @@
 // and replace nothing until confirmed. 180 minutes before the start the server locks the script for broadcast.
 import { $, h, act, toast, clock, fill } from '../common.js';
 import { plan, mmss } from '../clock.js';
-import { serverNow } from '../showpanels.js';
+import { serverNow, cueLine } from '../showpanels.js';
 
 const KINDS = ['TALK', 'MUSIC', 'GUEST', 'VT', 'BREAK', 'AD'];
 const LEAD = { andrej: 'Andrej leads', georgie: 'Georgie leads', both: 'Both' };
@@ -159,7 +159,8 @@ export function render(ctx) {
     h('button', { type: 'button', onclick: async () => { await flush(ctx); sel = s.id; lastSig = ''; render(ctx); } },
       h('span', { class: 'i num', text: two(i + 1) }), h('span', { class: 't num', text: mmss(times[i].start) }),
       h('span', { class: 'ti', text: s.title }), h('span', { class: 'k', text: s.kind }), h('span', { class: 'm', text: s.minutes + "'" }),
-      s.script ? null : h('span', { class: 'flag', text: 'NO SCRIPT' })))));
+      s.script ? null : h('span', { class: 'flag', text: 'NO SCRIPT' }),
+      cueLine(S, s) ? h('span', { class: 'cueline', text: cueLine(S, s) }) : null))));
   const total = times.at(-1)?.end || 0;
   $('#seTotal').textContent = `${r.segments.length} segments · ${Math.round(total / 60)} min`;
 
