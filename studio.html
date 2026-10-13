@@ -185,11 +185,14 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 .chip:active{border-color:var(--amber)}
 .rel{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .relcard{display:grid;gap:3px;padding:12px;border-radius:10px;border:1px solid var(--line);text-decoration:none;color:var(--chrome);background:rgba(255,255,255,.02)}
-.relcard:hover{border-color:rgba(242,166,80,.5)}
+.relcard:hover,.relcard:has(.cur){border-color:rgba(242,166,80,.5)}
 .relcard b{font-stretch:112%;font-size:.84rem;color:var(--chrome-hi)}
 .relcard .g{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
 .relcard .n{font-size:.74rem;line-height:1.45}
-.relcard .go{font-size:.62rem;letter-spacing:.1em;color:var(--ice)}
+.relcard .go{font-size:.62rem;letter-spacing:.1em;color:var(--ice);text-decoration:none;justify-self:start;padding:4px 0}
+.reltracks{margin:6px 0 2px}
+.reltracks .trk{justify-content:flex-start;gap:10px}
+.reltracks .st{width:1.2em;color:var(--amber);font-size:.7rem}
 .real{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px}
 .real.on{border-color:rgba(255,74,61,.6);background:rgba(255,74,61,.08)}
 .badge{margin:0;font-stretch:112%;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--champagne)}

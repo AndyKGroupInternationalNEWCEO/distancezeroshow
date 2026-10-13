@@ -11,8 +11,38 @@ export const TRACKS = [
   { group: 'Austrian versions', title: 'DISTANCE // ZERO (AT)', len: '1:56', file: 'music-at-distance-zero.mp3' },
   { group: 'Austrian versions', title: 'Jänner', len: '1:52', file: 'music-at-jaenner.mp3' },
   { group: 'Signature', title: 'Three-Note Signature', len: '3:32', file: 'music-three-note-signature.mp3' },
-  { group: 'Signature', title: 'Three-Note Signature (B)', len: '3:25', file: 'music-three-note-signature-b.mp3' },
-];
+  { group: 'Signature', title: 'Three-Note Signature (B)', len: '3:25', file: 'music-three-note-signature-b.mp3' },];
+for (const t of TRACKS) { t.src = SITE + t.file; t.set = 'dz'; }
+
+// DJ Andy'K: his releases, streamed from djandykofficial.com (it sends Access-Control-Allow-Origin: *), not copied.
+// Played through the same player, so the studio lights follow them too. set = the release's page there.
+const ANDYK = 'https://www.djandykofficial.com/audio/';
+export const ANDYK_TRACKS = {
+  '/this-is-trance-hear-the-call': [['Official', 'this-is-trance-hear-the-call-official'], ['Live Rehearsal Room', 'this-is-trance-hear-the-call-live-rehearsal-room'],
+    ['Techno Meets Trance', 'this-is-trance-hear-the-call-techno-meets-trance']],
+  '/opus-no-1-vienna': [['I. Prologue', 'opus-no-1-vienna-i-prologue'], ['II. The Awakening', 'opus-no-1-vienna-ii-the-awakening'],
+    ['III. The Final Movement', 'opus-no-1-vienna-iii-the-final-movement'], ['IV. Coda', 'opus-no-1-vienna-iv-coda']],
+  '/zwischenlandung': [['Official', 'zwischenlandung-official'], ['Progressive Trance', 'zwischenlandung-progressive-trance'],
+    ['Melodic Techno & Afro Beats', 'zwischenlandung-melodic-techno-afro-beats'], ['Piano', 'zwischenlandung-piano']],
+  '/euphoria-needs-no-story': [['Euphoria (Intro)', 'euphoria-intro'], ['Euphoria Needs No Story', 'euphoria-needs-no-story'], ['Alive in the Afterglow', 'alive-in-the-afterglow'],
+    ['Breathe Me Back to Life', 'breathe-me-back-to-life'], ['Even Silence Sounds Like You', 'even-silence-sounds-like-you'], ['I Kept the Storm', 'i-kept-the-storm'],
+    ['Invisible North', 'invisible-north'], ['Temporary Immortals', 'temporary-immortals'], ['The Distance Learned to Dance', 'the-distance-learned-to-dance'],
+    ['We Were Future Once', 'we-were-future-once'], ['After You Left', 'after-you-left']],
+  '/six-trance-ballads': [['A Letter With No Address', 'a-letter-with-no-address'], ['I Arrived as Someone Else', 'i-arrived-as-someone-else'],
+    ['If This Finds You', 'if-this-finds-you'], ['If Tomorrow Lets Me In', 'if-tomorrow-lets-me-in'], ['The Past Still Had My Voice', 'the-past-still-had-my-voice'],
+    ['Whatever You Believe', 'whatever-you-believe']],
+  '/wavelength-traces': [['Best Mistake I Ever Made', 'wt-best-mistake-i-ever-made'], ['Come Closer', 'wt-come-closer'], ['Feed the Crows', 'wt-feed-the-crows'],
+    ['I Never Sent It', 'wt-i-never-sent-it'], ['Leave the Story Where It Stopped', 'wt-leave-the-story-where-it-stopped'], ['Never Took It Off', 'wt-never-took-it-off'],
+    ['One More Song', 'wt-one-more-song'], ['Same Corner, Tuesday', 'wt-same-corner-tuesday'], ['Slow Down', 'wt-slow-down'], ['Something I Can Keep', 'wt-something-i-can-keep'],
+    ['Static Silence', 'wt-static-silence'], ['Stay Right Here', 'wt-stay-right-here'], ['Still Alive', 'wt-still-alive']],
+  '/human-stories': [['Intro', 'hs-intro'], ['Human Stories', 'human-stories-house'], ['Letters Never Sent', 'letters-never-sent'], ['Only Rivers Know', 'only-rivers-know'],
+    ['Parallel Stories', 'parallel-stories'], ['Running From Yesterday', 'running-from-yesterday'], ['Someone I Used to Be', 'someone-i-used-to-be'],
+    ['When Home Is Nowhere', 'when-home-is-nowhere'], ['Human Stories (Piano)', 'human-stories-piano'], ['Letters Never Sent (Piano)', 'letters-never-sent-piano'],
+    ['Only Rivers Know (Piano)', 'only-rivers-know-piano'], ['Running From Yesterday (Piano)', 'running-from-yesterday-piano'], ['Outro', 'hs-outro']],
+  '/until-the-lights-come-on': [['Until the Lights Come On', 'until-the-lights-come-on']],
+};
+for (const [set, list] of Object.entries(ANDYK_TRACKS))
+  for (const [title, file] of list) TRACKS.push({ group: "DJ Andy'K", title, file: file + '.mp3', src: ANDYK + file + '.mp3', set, andyk: true });
 
 // a short, soft room: noise with an exponential tail
 function impulse(ctx, seconds) {
@@ -31,6 +61,8 @@ export function createSound() {
 
   function ensure() {
     if (ctx) { if (ctx.state !== 'running') ctx.resume().catch(() => {}); return ctx; }
+    // iPhone and iPad: count as media playback, so the ring/silent switch does not mute the music (Safari 16.4+)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     master = ctx.createGain(); master.gain.value = 0.9;
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3;
@@ -49,14 +81,17 @@ export function createSound() {
     ensure();
     if (!mediaNode) { mediaNode = ctx.createMediaElementSource(audio); mediaNode.connect(musicGain); }
     index = (i + TRACKS.length) % TRACKS.length; failed = '';
-    audio.src = SITE + TRACKS[index].file;
+    audio.src = TRACKS[index].src;
     musicGain.gain.cancelScheduledValues(ctx.currentTime);
     musicGain.gain.setValueAtTime(0, ctx.currentTime);
     musicGain.gain.linearRampToValueAtTime(musicLevel, ctx.currentTime + 1.2);
     return audio.play().catch(e => { failed = 'Playback was blocked or the track could not load.'; emit(); throw e; });
   }
-  audio.addEventListener('ended', () => afterThis ? (h => { afterThis = null; h(); })(afterThis) : play(only ? only[(only.indexOf(index) + 1) % only.length] : index + 1).catch(() => {}));
-  audio.addEventListener('error', () => { failed = 'This track could not be loaded from distancezeroshow.com.'; emit(); });
+  // the next track within the playlist, or else within the current track's own set (the show's soundtrack, or one release)
+  const step = d => { const list = only || TRACKS.map((t, i) => i).filter(i => TRACKS[i].set === (TRACKS[index] || TRACKS[0]).set);
+    const at = list.indexOf(index); return list[((at < 0 ? (d > 0 ? -1 : 0) : at) + d + list.length) % list.length]; };
+  audio.addEventListener('ended', () => afterThis ? (h => { afterThis = null; h(); })(afterThis) : play(step(1)).catch(() => {}));
+  audio.addEventListener('error', () => { failed = 'This track could not be loaded.'; emit(); });
   for (const ev of ['play', 'pause', 'loadedmetadata', 'durationchange']) audio.addEventListener(ev, emit);
   let lastTick = 0;
   audio.addEventListener('timeupdate', () => { const n = performance.now(); if (n - lastTick > 250) { lastTick = n; emit(); } });
@@ -120,7 +155,7 @@ export function createSound() {
   return {
     tracks: TRACKS, play, noteOn, noteOff, chord, levels, bins,
     toggle() { if (index < 0) return play(0); if (audio.paused) { ensure(); return audio.play(); } audio.pause(); return Promise.resolve(); },
-    next() { return play(index + 1); }, prev() { return play(index - 1); },
+    next() { return play(step(1)); }, prev() { return play(step(-1)); },
     seek(fraction) { if (audio.duration) audio.currentTime = fraction * audio.duration; },
     stop() { audio.pause(); },
     // keep to these tracks (indexes into TRACKS), one after another; null = the whole soundtrack again

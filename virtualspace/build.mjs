@@ -53,7 +53,7 @@ const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\
   .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
 const csp = [
   "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`, "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
-  "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com", // the soundtrack streams from the main site
+  "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com https://www.djandykofficial.com", // the soundtrack streams from the main site, DJ Andy'K's releases from his
   "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 ].join('; ');
 // studio.distancezeroshow.com is only a door: this project's free HTTPS certificate answers for it and sends

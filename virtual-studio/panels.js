@@ -18,7 +18,7 @@ const h = (tag, attrs = {}, ...kids) => {
 const ext = (href, text, cls = 'plink') => h('a', { href, target: '_blank', rel: 'noopener', class: cls, text: text + ' ↗' });
 const mmss = s => (isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '–:––');
 
-/* DJ Andy'K: a curated selection, linked to the official site (no audio copied here) */
+/* DJ Andy'K: a curated selection; the tracks stream from the official site (no audio copied here), see sound.js */
 const ANDYK = 'https://www.djandykofficial.com';
 const RELEASES = [
   { title: 'This Is Trance, Hear the Call', genre: 'Trance · feat. Aria Noir', note: 'A trance anthem built around one unpolished rehearsal take, in three interpretations.', path: '/this-is-trance-hear-the-call' },
@@ -89,6 +89,7 @@ export function createPanels({ sound, el, onMusicStart }) {
     const name = h('b'), time = h('span', { class: 'mono' }), err = h('p', { class: 'perr', role: 'alert' });
     let group = '';
     sound.tracks.forEach((t, i) => {
+      if (t.andyk) return;                                         // his releases are in the DJ Andy'K tab
       if (t.group !== group) { group = t.group; list.append(h('li', { class: 'grp', text: group })); }
       list.append(h('li', {}, h('button', { type: 'button', class: 'trk', 'data-i': i, onclick: () => sound.play(i).then(started).catch(() => {}) },
         h('span', { text: t.title }), h('span', { class: 'mono', text: t.len }))));
@@ -182,12 +183,26 @@ export function createPanels({ sound, el, onMusicStart }) {
 
   /* ---------- DJ Andy'K ---------- */
   function andyk() {
-    return h('div', { class: 'pane' },
+    // each release: its tracks play right here (the same player, so the lights follow), and a link to its page
+    const list = h('ul', { class: 'rel' }, ...RELEASES.map(r => h('li', { class: 'relcard' },
+      h('b', { text: r.title }), h('span', { class: 'g', text: r.genre }), h('span', { class: 'n', text: r.note }),
+      h('ol', { class: 'tracks reltracks' }, ...sound.tracks.map((t, i) => t.set === r.path &&
+        h('li', {}, h('button', { type: 'button', class: 'trk', 'data-i': i,
+          onclick: () => (sound.state.index === i ? sound.toggle() : (sound.playlist(null), sound.play(i))).then(started).catch(() => {}) },
+          h('span', { class: 'st', 'aria-hidden': 'true', text: '▶' }), h('span', { text: t.title })))).filter(Boolean)),
+      h('a', { href: ANDYK + r.path, target: '_blank', rel: 'noopener', class: 'go', text: 'djandykofficial.com ↗' }))));
+    const root = h('div', { class: 'pane' },
       h('p', { class: 'pnote' }, h('b', { text: "DJ Andy'K" }), ' is Andrej Kneisl, producer and DJ from Vienna and co-host of DISTANCE // ZERO with Georgie Walker in Melbourne. A selection of his releases:'),
-      h('ul', { class: 'rel' }, ...RELEASES.map(r => h('li', {},
-        h('a', { href: ANDYK + r.path, target: '_blank', rel: 'noopener', class: 'relcard' },
-          h('b', { text: r.title }), h('span', { class: 'g', text: r.genre }), h('span', { class: 'n', text: r.note }), h('span', { class: 'go', text: 'Listen on djandykofficial.com ↗' }))))),
+      list, h('p', { class: 'perr', role: 'alert' }),
       h('p', { class: 'pnote sm' }, ext(ANDYK, "All music by DJ Andy'K")));
+    const err = root.querySelector('.perr');
+    const update = s => {
+      list.querySelectorAll('.trk').forEach(b => { const on = +b.dataset.i === s.index; b.classList.toggle('cur', on); b.querySelector('.st').textContent = on && s.playing ? '❚❚' : '▶'; });
+      err.textContent = sound.tracks[s.index]?.andyk ? s.failed : '';
+    };
+    const off = sound.onChange(update); update(sound.state);
+    new MutationObserver((_, obs) => { if (!root.isConnected) { off(); obs.disconnect(); } }).observe(body, { childList: true });
+    return root;
   }
 
   /* ---------- the real schedule ---------- */
