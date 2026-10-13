@@ -47,6 +47,8 @@ html = html
   .replace('>distancezeroshow.com</a></p>', '>distancezeroshow.com</a></p>');
 if (/href="\/"/.test(html)) throw new Error('relative home link left');
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
+// the "How it works" page (linked in the footer), a static page of its own
+fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
 
 // Content Security Policy: our own files only; the two inline scripts (import map, boot) allowed by hash
 const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
