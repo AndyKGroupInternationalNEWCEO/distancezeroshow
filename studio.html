@@ -102,6 +102,14 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 .b:hover{color:var(--chrome-hi);border-color:rgba(201,206,214,.4)}
 .b[aria-pressed="true"]{color:#0a0b0e;background:linear-gradient(100deg,#f3f5f8,#c9ced6);border-color:transparent}
 .b kbd{font:inherit;font-size:.58rem;opacity:.55;letter-spacing:0}
+/* security cameras: the picture as a CCTV recording (grey, hard, scan lines) with its name, REC and a running clock */
+.cctv-hud{display:none;position:fixed;inset:0;z-index:3;pointer-events:none;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;letter-spacing:.08em;color:#e9ece6;
+}
+body.cctv .cctv-hud{display:block}
+.cctv-hud b,.cctv-hud span,.cctv-hud time{position:absolute;font-weight:500;text-shadow:0 1px 2px #000}
+.cctv-hud b{left:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}
+.cctv-hud span{right:var(--gut);top:calc(env(safe-area-inset-top,0px) + 76px);color:#ff4a3d;animation:hsblink 1.6s steps(2,start) infinite}
+.cctv-hud time{right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}
 /* the 4K high-speed camera: a recording badge next to the shot name while the studio runs in slow motion */
 body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;animation:hsblink 1.6s steps(2,start) infinite}
 @keyframes hsblink{50%{opacity:.35}}
@@ -338,6 +346,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 
 <canvas id="stage" role="img" tabindex="0" aria-label="Interactive 3D model of the DISTANCE // ZERO television studio: a curved presentation desk with chairs for DJ Andy'K (Andrej Kneisl) from Vienna and Georgie Walker from Melbourne, a large curved LED video wall, an illuminated D//0 logo, studio cameras, a camera crane and a music station."></canvas>
 <div class="vignette"></div>
+<div class="cctv-hud" id="cctv" aria-hidden="true"><b id="cctvName">SEC 1</b><span>● REC</span><time id="cctvTime"></time></div>
 <div class="shot" aria-hidden="true"><span id="cam">CAM —</span><span id="shot">Wide shot</span></div>
 <div class="count" id="count" hidden aria-hidden="true"></div>
 <p class="hint" id="hint">Drag to look around · Pinch or scroll to zoom · Tap the desk, chairs, video wall or music station</p>
@@ -355,6 +364,8 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
     <button class="b" type="button" data-view="piano"><kbd>9</kbd>Piano</button>
     <button class="b" type="button" data-view="guest"><kbd>0</kbd>Guest</button>
     <button class="b" type="button" data-view="slowmo"><kbd>H</kbd>4K slow-mo</button>
+    <button class="b" type="button" data-view="backstage"><kbd>B</kbd>Backstage</button>
+    <button class="b" type="button" data-view="security"><kbd>S</kbd>Security</button>
   </div>
   <div class="row ctrl">
     <button class="b onair" id="onair" type="button" aria-pressed="false" title="Full-screen simulation. Nothing is broadcast or recorded. (O)"><i></i><span>Simulate on air</span></button>

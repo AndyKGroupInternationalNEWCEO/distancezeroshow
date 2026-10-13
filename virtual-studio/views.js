@@ -15,12 +15,19 @@ export const VIEWS = {
   piano: { label: 'Piano', long: 'Grand piano', pos: [2.2, 2.0, 3.8], target: [5.1, 0.5, -0.1], fov: 40, drift: 0.1, tally: 3 },
   guest: { label: 'Guest', long: 'Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0.07, tally: 5 },
   // the 4K high-speed camera on its low slider in front of the desk: the studio runs in slow motion (slow = time scale)
+  // the backstage lounge behind the LED wall (not part of the tour, never "on air")
+  backstage: { label: 'Backstage', long: 'Backstage lounge · no entry', pos: [-3.0, 1.75, -7.55], target: [0.7, 0.75, -10.2], fov: 60, drift: 0.05, tally: 0, lounge: true },
+  // security cameras: never on air, shown as their own recording (black-and-white CCTV look, see main.js)
+  security: { label: 'Security', long: 'Security · studio', pos: [-10.95, 6.4, -3.2], target: [0, 0.8, -1], fov: 72, drift: 0, tally: 0, cctv: 'SEC 1 · STUDIO' },
+  securityLounge: { label: 'Security', long: 'Security · backstage', pos: [-3.18, 2.66, -10.9], target: [2.6, 1.0, -8.6], fov: 80, drift: 0, tally: 0, cctv: 'SEC 2 · BACKSTAGE', lounge: true },
   slowmo: { label: '4K slow-mo', long: '4K high-speed camera · slow motion', pos: [0, 0.47, 2.62], target: [0, 0.95, -1.9], fov: 34, drift: 0.04, tally: 6, slow: 0.2 },
 };
 export const ORDER = Object.keys(VIEWS);
 const TOUR = ['studio', 'desk', 'andy', 'georgie', 'guest', 'crane', 'wall', 'slowmo', 'floor', 'music', 'piano'];
 const HOLD = 8.5;
 
+// the backstage lounge's box (behind the LED wall, see LOUNGE in set.js)
+export const inLounge = p => p.z < -7.35 && Math.abs(p.x) < 3.5 && p.y < 3;
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const ROOM_CENTER = new THREE.Vector3(0, 0, 1), ROOM_R = 11.8;
 
@@ -55,6 +62,8 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
       flight = null; idleSince = performance.now();
       return;
     }
+    // into or out of the lounge: a cut, never a flight through the LED wall
+    if (inLounge(camera.position) !== !!v.lounge) { camera.position.copy(to.pos); controls.target.copy(to.target); lens.fov = to.fov; flight = null; idleSince = performance.now(); return; }
     const from = { pos: camera.position.clone(), target: controls.target.clone(), fov: lens.fov };
     const dist = from.pos.distanceTo(to.pos);
     flight = { from, to, t: 0, dur: THREE.MathUtils.clamp(1.1 + dist * 0.09, 1.3, 2.6), lift: Math.min(1.4, dist * 0.1) };
@@ -88,10 +97,15 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
       tourIndex = (Math.max(0, TOUR.indexOf(current)) + 1) % TOUR.length;
       go(TOUR[tourIndex]);
     }
+    const t = controls.target, p = camera.position;
+    // in the lounge: stay within its walls
+    if (inLounge(p)) {
+      p.x = THREE.MathUtils.clamp(p.x, -3.3, 3.3); p.y = THREE.MathUtils.clamp(p.y, 0.4, 2.7); p.z = THREE.MathUtils.clamp(p.z, -11.0, -7.45);
+      t.x = THREE.MathUtils.clamp(t.x, -3.4, 3.4); t.y = THREE.MathUtils.clamp(t.y, 0.2, 2.8); t.z = THREE.MathUtils.clamp(t.z, -11.15, -7.4);
+      return;
+    }
     // keep the camera inside the room and above the floor, and the target on the set
-    const t = controls.target;
     t.x = THREE.MathUtils.clamp(t.x, -7, 7); t.y = THREE.MathUtils.clamp(t.y, 0.3, 5.2); t.z = THREE.MathUtils.clamp(t.z, -7.5, 4);
-    const p = camera.position;
     if (p.y < 0.35) p.y = 0.35;
     if (p.y > 7.8) p.y = 7.8;
     const flat = new THREE.Vector2(p.x - ROOM_CENTER.x, p.z - ROOM_CENTER.z);

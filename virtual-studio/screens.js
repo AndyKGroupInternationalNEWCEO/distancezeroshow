@@ -456,6 +456,33 @@ export function label(text, { w = 256, h = 128, color = '#f3f5f8', bg = '#000', 
   return texture(c);
 }
 
+// a real door or desk name plate: black anodised metal with a soft sheen, a fine inset border, engraved-looking
+// lettering that glows faintly in the name's colour
+export function namePlate(text, color) {
+  const w = 1024, h = 256, c = canvas(w, h), x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#1b1916'); g.addColorStop(0.45, '#0c0b0a'); g.addColorStop(1, '#060605');
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+  const sheen = x.createLinearGradient(0, 0, w, 0);
+  sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.35, 'rgba(255,255,255,0.05)'); sheen.addColorStop(0.6, 'rgba(255,255,255,0)');
+  x.fillStyle = sheen; x.fillRect(0, 0, w, h);
+  x.strokeStyle = color; x.globalAlpha = 0.45; x.lineWidth = 3; x.strokeRect(14, 14, w - 28, h - 28); x.globalAlpha = 1;
+  x.textBaseline = 'middle'; setFont(x, 600, 104);
+  x.fillStyle = 'rgba(0,0,0,0.8)'; spaced(x, text, w / 2 + 2, h / 2 + 6, 26);        // engraved: a dark edge under the letters
+  x.shadowColor = color; x.shadowBlur = 22; x.fillStyle = color; spaced(x, text, w / 2, h / 2 + 3, 26);
+  return texture(c, { aniso: 16 });
+}
+
+// the label strip a broadcast monitor or multiviewer shows in the picture: a tally lamp and the source's name
+export function umdStrip(text, tally = '#3ad16b') {
+  const w = 1024, h = 80, c = canvas(w, h), x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+  x.fillStyle = tally; x.fillRect(18, 22, 36, 36);
+  x.fillStyle = '#e9ecef'; x.textBaseline = 'middle'; setFont(x, 600, 40, 'normal');
+  spaced(x, text, w / 2, h / 2 + 2, 10);
+  return texture(c, { aniso: 8 });
+}
+
 export function studioSign() {
   const w = 1024, h = 256, c = canvas(w, h), x = c.getContext('2d');
   x.fillStyle = '#000'; x.fillRect(0, 0, w, h);

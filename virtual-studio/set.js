@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX, micGrille } from './details.js';
 import { grandPiano } from './grandpiano.js';
-import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, AMBER, ICE } from './screens.js';
+import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, namePlate, umdStrip, AMBER, ICE } from './screens.js';
 
 export const RISER = 0.16;            // stage riser height
 export const DESK_CENTER = -4.4;      // z of the circle the desk is an arc of
@@ -281,6 +281,19 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   let lift = 0, liftTo = 0;
   anim.push((t, dt, L) => { lift += (liftTo - lift) * Math.min(1, dt * 1.2); logo.position.y = 3.62 + lift * 2.0 + Math.sin(t * 0.45) * 0.015; });
 
+  /* ----- backstage lounge behind the LED wall, and its door at the wall's Vienna end ----- */
+  const lounge = buildLounge(M, quality);
+  add(lounge.group); add(lounge.lights);
+  lounge.light(false);
+  // security cameras, always recording (red lamp never off): one high on the Vienna-side wall over the whole set,
+  // one in the lounge's back corner watching the dressing-room doors
+  const secStudio = securityCam(M, anim); secStudio.position.set(-11.15, 6.5, -3.3); secStudio.lookAt(0, 0.8, -1); add(secStudio);
+  const secLounge = securityCam(M, anim); secLounge.position.set(-3.33, 2.72, -11.03); secLounge.lookAt(2.6, 1.0, -8.6); lounge.group.add(secLounge);
+  const door = backstageDoor(M);
+  door.position.set(-5.95, 0, -6.9);
+  door.lookAt(0, 0, 1);
+  add(door);
+
   /* ----- Vienna and Melbourne light pylons ----- */
   const pylons = [];
   for (const [side, city, tz, coords, col] of [[-1, 'VIENNA', 'Europe/Vienna', '48.21° N · 16.37° E', AMBER], [1, 'MELBOURNE', 'Australia/Melbourne', '37.81° S · 144.96° E', ICE]]) {
@@ -314,6 +327,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   for (let a = A0; a <= A1 + 1e-6; a += 0.075) {
     // keep the fins out from behind the LED wall where they would never be seen
     const behindWall = Math.abs(a - Math.PI) < WALL_SPAN - 0.02;
+    if (behindWall && Math.abs(ROOM_R * Math.sin(a)) < 3.9) continue;   // the backstage lounge sits there (they would poke into it)
     fins.push({ a, h: behindWall ? 1.2 : ROOM_H - 0.2 });
     if (!behindWall) strips.push(a + 0.0375);
   }
@@ -362,11 +376,12 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const fixtureGeo = new THREE.CylinderGeometry(0.13, 0.16, 0.42, 20);
   const lensMat = glow(C.warm);
   glows.white.push({ m: lensMat, k: 1.8 });
-  // fixture hardware (desktop only): yoke, hinge knobs, hanging clamp, a bezel just outside the lens (the glow stays as it was) and rear cooling fins
+  // fixture hardware (desktop only): yoke, hinge knobs, hanging clamp and rear cooling fins (nothing near the lens, so its glow stays as it was)
   const hw = !quality.mobile && {
     plate: new THREE.BoxGeometry(0.014, 0.26, 0.07), bar: new THREE.BoxGeometry(0.37, 0.016, 0.07), knob: new THREE.CylinderGeometry(0.026, 0.026, 0.02, 16).rotateZ(Math.PI / 2),
     stem: new THREE.CylinderGeometry(0.012, 0.012, 0.15, 10), clamp: new THREE.BoxGeometry(0.07, 0.05, 0.09),
-    bezel: new THREE.TorusGeometry(0.136, 0.01, 8, 32), fin: new THREE.TorusGeometry(0.15, 0.008, 6, 28),
+    fin: new THREE.TorusGeometry(0.15, 0.008, 6, 28),
+    parts: { plate: [], knob: [], bar: [], stem: [], clamp: [], fin: [] },
   };
   const lensGeo = new THREE.CircleGeometry(0.12, 20);
   const beamTargets = [];
@@ -380,15 +395,21 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     const lens = new THREE.Mesh(lensGeo, lensMat); lens.position.z = 0.215; f.add(lens);
     if (hw) {
       // the yoke hangs plumb and only turns towards the set; the head tilts inside it
-      const yoke = new THREE.Group(); yoke.position.copy(f.position); fixtures.add(yoke);
+      const yoke = new THREE.Object3D(); yoke.position.copy(f.position); fixtures.add(yoke);
       const wp = yoke.getWorldPosition(new THREE.Vector3()); yoke.lookAt(0, wp.y, -1.9);
-      const at = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
-      for (const sx of [-1, 1]) { at(hw.plate, M.graphite, sx * 0.175, 0.06, 0, yoke); at(hw.knob, M.rubber, sx * 0.192, 0, 0, yoke); }
-      at(hw.bar, M.graphite, 0, 0.19, 0, yoke); at(hw.stem, M.brushed, 0, 0.27, 0, yoke); at(hw.clamp, M.graphite, 0, 0.33, 0, yoke);
-      at(hw.bezel, M.graphite, 0, 0, 0.212, f);
-      for (const z of [-0.08, -0.12, -0.16]) at(hw.fin, M.graphite, 0, 0, z, f);
+      yoke.updateMatrix(); f.updateMatrix(); fixtures.remove(yoke);
+      const at = (part, x, y, z, parent) => hw.parts[part].push(parent.matrix.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z)));
+      for (const sx of [-1, 1]) { at('plate', sx * 0.175, 0.06, 0, yoke); at('knob', sx * 0.192, 0, 0, yoke); }
+      at('bar', 0, 0.19, 0, yoke); at('stem', 0, 0.27, 0, yoke); at('clamp', 0, 0.33, 0, yoke);
+      for (const z of [-0.08, -0.12, -0.16]) at('fin', 0, 0, z, f);
     }
     if (i % 2 === 0) beamTargets.push(f);
+  }
+  // all fixtures' hardware in six instanced draws (one per part) instead of 128 separate meshes
+  if (hw) for (const [part, list] of Object.entries(hw.parts)) {
+    const im = new THREE.InstancedMesh(hw[part], part === 'knob' ? M.rubber : part === 'stem' ? M.brushed : M.graphite, list.length);
+    list.forEach((m, k) => im.setMatrixAt(k, m));
+    fixtures.add(im);
   }
 
   // soft volumetric beams from the truss (very subtle; stronger in the music look)
@@ -522,7 +543,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   }
 
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
-  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, liftLogo(on) { liftTo = on ? 1 : 0; } };
+  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, liftLogo(on) { liftTo = on ? 1 : 0; } };
 }
 
 /* ---------- pieces ---------- */
@@ -674,7 +695,7 @@ function tvCamera(M, n, glows) {
   }
   for (const [x, y] of [[-0.05, 0.12], [0, 0.12], [0.05, 0.12], [-0.03, 0.22]]) add(ax(new THREE.CylinderGeometry(0.011, 0.011, 0.03, 16)), M.brushed, x, y, -0.325, head);
   // side panel screws on the body
-  for (const sx of [-1, 1]) for (const [w, y, z] of [[0.1015, 0.08, -0.29], [0.1015, 0.3, -0.29], [0.1215, 0.1, 0.13], [0.1215, 0.1, 0.51], [0.1215, 0.3, 0.51]]) {
+  for (const sx of [-1, 1]) for (const [w, y, z] of [[0.1215, 0.1, 0.13], [0.1215, 0.1, 0.51], [0.1215, 0.3, 0.51]]) {   // on the front section, where they are seen
     const sc = add(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 10), M.brushed, sx * w, y, z, head); sc.rotation.z = Math.PI / 2;
   }
   // teleprompter in front of the lens
@@ -965,6 +986,241 @@ function buildLogoKV(M, glows) {
   }
   const box = new THREE.Box3().setFromObject(g), cx = (box.min.x + box.max.x) / 2;
   for (const c of g.children) c.position.x -= cx;                          // centred, so it hangs between the cables
+  return g;
+}
+
+/* ---------- backstage lounge: a small D//0 living room behind the LED wall ----------
+   Inside the gap between the wall (z -7) and the studio's back wall: 7 m wide, 3.85 m deep, 3 m high, closed on all
+   sides, so no studio shot sees into it. Four monitors carry live feeds (rendered by main.js while someone is in here),
+   three armchairs (Andrej, the guest, Georgie), a coffee table with coffee and sekt, an arc lamp, warm cove light. */
+export const LOUNGE = { x0: -3.5, x1: 3.5, z0: -11.2, z1: -7.35, h: 3 };
+
+function buildLounge(M, quality) {
+  const g = new THREE.Group(), { x0, x1, z0, z1, h } = LOUNGE, W = x1 - x0, D = z1 - z0, cz = (z0 + z1) / 2;
+  g.userData.focus = 'backstage';
+  const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const physical = o => new THREE.MeshPhysicalMaterial(o);
+  const L = {
+    wall: new THREE.MeshStandardMaterial({ color: 0x1a1612, metalness: 0.1, roughness: 0.8, map: panelJoints(12, 2) }),
+    floor: physical({ color: 0x1c130d, metalness: 0, roughness: 0.42, roughnessMap: roughnessNoise(3), clearcoat: 0.4, clearcoatRoughness: 0.3 }),
+    rug: new THREE.MeshStandardMaterial({ color: 0x14100d, roughness: 0.95 }),
+    cognac: physical({ color: 0x4a2a17, metalness: 0, roughness: 0.5, normalMap: leatherNormal(3), normalScale: new THREE.Vector2(0.4, 0.4), sheen: 0.3, sheenColor: new THREE.Color(0x6b4a33), clearcoat: 0.25, clearcoatRoughness: 0.4 }),
+    walnut: physical({ color: 0x241710, metalness: 0, roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
+    porcelain: physical({ color: 0xf2efe9, metalness: 0, roughness: 0.18, clearcoat: 0.8 }),
+    coffee: new THREE.MeshStandardMaterial({ color: 0x2a160b, roughness: 0.25 }),
+    bottle: physical({ color: 0x0c2414, metalness: 0, roughness: 0.08, clearcoat: 1 }),
+    foil: new THREE.MeshStandardMaterial({ color: 0xc9a671, metalness: 1, roughness: 0.3 }),
+    flute: physical({ color: 0xdfe6ee, metalness: 0, roughness: 0.02, transparent: true, opacity: 0.28, depthWrite: false, clearcoat: 1 }),
+    sekt: new THREE.MeshStandardMaterial({ color: 0xe8c56a, roughness: 0.1, transparent: true, opacity: 0.75, emissive: 0x3a2a08 }),
+    marble: physical({ color: 0xd9d6d0, metalness: 0, roughness: 0.25, clearcoat: 0.6 }),
+  };
+  // room: floor, walls, ceiling (all facing inwards)
+  add(new THREE.PlaneGeometry(W, D).rotateX(-Math.PI / 2), L.floor, 0, 0.004, cz).receiveShadow = true;
+  for (const [w, x, z, ry] of [[W, 0, z0, 0], [W, 0, z1, Math.PI], [D, x0, cz, Math.PI / 2], [D, x1, cz, -Math.PI / 2]])
+    add(new THREE.PlaneGeometry(w, h), L.wall, x, h / 2, z).rotation.y = ry;
+  add(new THREE.PlaneGeometry(W, D).rotateX(Math.PI / 2), M.wallBack, 0, h, cz);
+  // warm cove light along the ceiling and a fine champagne skirting
+  const cove = glow(C.amber); cove.userData.lounge = true;
+  add(new THREE.BoxGeometry(W - 0.2, 0.02, 0.02), cove, 0, h - 0.12, z0 + 0.06);
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.02, 0.02, D - 0.2), cove, sx * (x1 - 0.06), h - 0.12, cz);
+  add(new THREE.BoxGeometry(W, 0.06, 0.012), M.champagne, 0, 0.03, z0 + 0.006);
+  // round rug with a thin amber-to-ice ring, like the studio floor
+  add(new THREE.CircleGeometry(1.55, 64).rotateX(-Math.PI / 2), L.rug, 0, 0.008, -9.45);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.42, 1.44, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(AMBER).multiplyScalar(0.5) }));
+  ring.position.set(0, 0.01, -9.45); g.add(ring);
+
+  // back wall: the D//0 logo between four monitors, over a walnut sideboard
+  const logoTex = new THREE.TextureLoader().load('assets/logo-do-1k.webp'); logoTex.colorSpace = THREE.SRGBColorSpace;
+  add(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, alphaTest: 0.04, toneMapped: false, color: new THREE.Color(0.8, 0.8, 0.8) }), 0, 2.25, z0 + 0.02);
+  const screens = [];
+  // wall-mounted broadcast monitors: slim satin bezel on a wall arm, the live picture under a faintly reflective glass,
+  // the source's name and tally in the picture (as on a multiviewer), a small power lamp
+  const screenGlass = physical({ color: 0x000000, metalness: 0, roughness: 0.3, transparent: true, opacity: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.22, depthWrite: false });   // a soft sheen, not a hot spot
+  const power = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 0.75, 1.4) });
+  for (const [x, view, name] of [[-2.55, 'andy', 'CAM 3 · ANDREJ'], [-1.45, 'guest', 'CAM 5 · GUEST'], [1.45, 'wall', 'VIDEO WALL'], [2.55, 'georgie', 'CAM 1 · GEORGIE']]) {
+    const mon = new THREE.Group(); mon.position.set(x, 2.25, z0 + 0.09); mon.rotation.x = -0.06; g.add(mon);   // tilted down a touch, towards the room
+    add(new THREE.BoxGeometry(0.22, 0.16, 0.06), M.graphite, 0, 0, -0.06, mon);                                   // wall arm
+    add(new RoundedBoxGeometry(0.96, 0.56, 0.035, 2, 0.008), M.camBody, 0, 0, 0, mon);
+    add(new RoundedBoxGeometry(0.965, 0.565, 0.012, 2, 0.004), M.graphite, 0, 0, 0.012, mon);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x0b0d10, toneMapped: true });
+    add(new THREE.PlaneGeometry(0.93, 0.523), mat, 0, 0, 0.0185, mon);
+    add(new THREE.PlaneGeometry(0.93, 0.052), new THREE.MeshBasicMaterial({ map: umdStrip(name, view === 'wall' ? '#3ad16b' : '#5a0d0d'), transparent: true, opacity: 0.88 }), 0, -0.235, 0.019, mon);
+    add(new THREE.PlaneGeometry(0.93, 0.523), screenGlass, 0, 0, 0.02, mon);
+    add(new THREE.CircleGeometry(0.004, 10), power, 0.44, -0.272, 0.019, mon);
+    screens.push({ view, mat });
+  }
+  add(new RoundedBoxGeometry(4.2, 0.5, 0.42, 3, 0.02), L.walnut, 0, 0.27, z0 + 0.23);
+  add(new THREE.BoxGeometry(4.22, 0.012, 0.44), M.champagne, 0, 0.523, z0 + 0.23);
+  // on the sideboard: an espresso machine, cups on its warmer and beside it; next to the sideboard a glass-door fridge
+  const esp = espresso(M, L); esp.position.set(-1.6, 0.53, z0 + 0.24); g.add(esp);
+  for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(0.04, 0.032, 0.06, 20), L.porcelain, -1.15, 0.56 + i * 0.062, z0 + 0.25);
+  const fridge = minibar(M, L); fridge.position.set(-2.5, 0, z0 + 0.28); g.add(fridge);
+
+  // three armchairs, Andrej (Vienna side), the guest, Georgie (Melbourne side), facing the room
+  const seats = [[-1.45, -9.95, 0.3], [0, -10.25, 0], [1.45, -9.95, -0.3]];
+  for (const [x, z, ry] of seats) {
+    const c = armchair(M, L); c.position.set(x, 0, z); c.rotation.y = ry; g.add(c);
+    const sh = contactShadow(1.15, 1.05, 0.7); sh.position.set(x, 0.012, z); sh.rotation.y = ry; g.add(sh);
+  }
+  for (const [w, dd, x, z, k] of [[1.6, 1.6, 0, -9.0, 0.6], [4.5, 0.75, 0, z0 + 0.25, 0.55], [0.6, 0.6, 3.05, -10.75, 0.5], [0.75, 0.7, -2.5, z0 + 0.3, 0.55]]) {
+    const sh = contactShadow(w, dd, k); sh.position.set(x, 0.013, z); g.add(sh);   // table, sideboard, lamp base
+  }
+
+  // coffee table: black glass on a champagne drum; coffee for three, sekt in an ice bucket, three flutes, name cards
+  const table = new THREE.Group(); table.position.set(0, 0, -9.0); g.add(table);
+  add(new THREE.CylinderGeometry(0.62, 0.62, 0.03, 64), M.deskGlass, 0, 0.42, 0, table);
+  add(new THREE.CylinderGeometry(0.3, 0.34, 0.4, 48), M.champagne, 0, 0.2, 0, table);
+  const CARD = { ANDREJ: '#f2a650', GEORGIE: '#a9c8ee', GUEST: '#e3c79a' };
+  for (const [x, z, name] of [[-0.36, -0.28, 'ANDREJ'], [0, -0.42, 'GUEST'], [0.36, -0.28, 'GEORGIE']]) {
+    add(new THREE.CylinderGeometry(0.07, 0.07, 0.006, 24), L.porcelain, x, 0.438, z, table);                       // saucer
+    add(new THREE.CylinderGeometry(0.042, 0.034, 0.06, 24), L.porcelain, x, 0.47, z, table);                      // cup
+    add(new THREE.CircleGeometry(0.038, 24).rotateX(-Math.PI / 2), L.coffee, x, 0.495, z, table);
+    const card = add(new THREE.PlaneGeometry(0.16, 0.05), new THREE.MeshBasicMaterial({ map: namePlate(name, CARD[name]), side: THREE.DoubleSide }), x * 1.3, 0.465, z + 0.17, table);
+    card.rotation.x = -0.3;
+  }
+  add(new THREE.CylinderGeometry(0.11, 0.09, 0.22, 32, 1, true), M.chrome, -0.05, 0.545, 0.12, table).material = M.chrome;   // ice bucket
+  add(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 32), new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.15, metalness: 0 }), -0.05, 0.6, 0.12, table);
+  add(new THREE.CylinderGeometry(0.036, 0.04, 0.24, 24), L.bottle, -0.05, 0.62, 0.12, table);
+  add(new THREE.CylinderGeometry(0.014, 0.034, 0.1, 20), L.bottle, -0.05, 0.79, 0.12, table);
+  add(new THREE.CylinderGeometry(0.016, 0.016, 0.05, 16), L.foil, -0.05, 0.85, 0.12, table);
+  for (const [x, z] of [[0.18, 0.18], [0.27, 0.08], [0.24, 0.26]]) {
+    add(new THREE.CylinderGeometry(0.03, 0.03, 0.004, 20), L.flute, x, 0.437, z, table);
+    add(new THREE.CylinderGeometry(0.003, 0.003, 0.09, 8), L.flute, x, 0.48, z, table);
+    add(new THREE.CylinderGeometry(0.024, 0.012, 0.12, 20, 1, true), L.flute, x, 0.585, z, table);
+    add(new THREE.CylinderGeometry(0.021, 0.012, 0.08, 20), L.sekt, x, 0.565, z, table);
+  }
+
+  // arc floor lamp from the Melbourne corner, its shade low beside Georgie's chair, and its warm light
+  add(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 40), L.marble, 3.05, 0.025, -10.75);
+  const arc = new THREE.CatmullRomCurve3([new THREE.Vector3(3.05, 0.05, -10.75), new THREE.Vector3(3.08, 1.1, -10.7), new THREE.Vector3(2.95, 1.62, -10.5), new THREE.Vector3(2.62, 1.66, -10.25), new THREE.Vector3(2.45, 1.52, -10.15)]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(arc, 48, 0.012, 8), M.chrome));
+  const shade = add(new THREE.SphereGeometry(0.17, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), M.champagne.clone(), 2.45, 1.38, -10.15); shade.material.side = THREE.DoubleSide;
+  const bulb = glow(C.warm); bulb.userData.lounge = true;
+  add(new THREE.SphereGeometry(0.045, 16, 12), bulb, 2.45, 1.37, -10.15);
+  // the three dressing rooms on the Melbourne-side wall: dark doors in champagne frames, gold name plates, a warm
+  // light line over each (the doors' frames and the lines give the dark side its depth)
+  const doorLine = glow(C.warm); doorLine.userData.lounge = true;
+  const NAME = { ANDREJ: '#f2a650', GEORGIE: '#a9c8ee', GUEST: '#e3c79a' };   // as on the desk: Vienna amber, Melbourne ice, the guest champagne
+  for (const [z, name] of [[-7.95, 'GUEST'], [-8.95, 'GEORGIE'], [-9.95, 'ANDREJ']]) {
+    const d = new THREE.Group(); d.position.set(x1, 0, z); d.rotation.y = -Math.PI / 2; g.add(d);
+    add(new THREE.BoxGeometry(0.8, 2.1, 0.04), M.blackGlass, 0, 1.05, 0.02, d);
+    for (const [w, hh, x, y] of [[0.88, 0.035, 0, 2.115], [0.035, 2.12, -0.42, 1.06], [0.035, 2.12, 0.42, 1.06]]) add(new THREE.BoxGeometry(w, hh, 0.05), M.shellGold, x, y, 0.025, d);   // satin: no hot streaks
+    add(new THREE.BoxGeometry(0.012, 0.22, 0.02), M.shellGold, 0.3, 1.02, 0.05, d);                                   // handle
+    add(new RoundedBoxGeometry(0.42, 0.115, 0.01, 2, 0.003), M.shellGold, 0, 1.62, 0.046, d);                         // gold rim
+    const plate = add(new THREE.PlaneGeometry(0.4, 0.1), new THREE.MeshBasicMaterial({ map: namePlate(name, NAME[name]) }), 0, 1.62, 0.0515, d);
+    plate.material.color.setScalar(1.25);
+    add(new THREE.BoxGeometry(0.7, 0.012, 0.03), doorLine, 0, 2.3, 0.05, d);                                        // warm line over the door
+  }
+  // its lights exist only while someone is in here: the studio's shaders then cost what they did before (the first visit
+  // recompiles them once, hidden by the cut into the lounge)
+  const lights = new THREE.Group();
+  const lamp = new THREE.PointLight(0xffd6a0, 0, 5, 2); lamp.position.set(2.45, 1.25, -10.1);
+  const room = new THREE.PointLight(0xffe2bf, 0, 6, 2); room.position.set(-0.6, 2.75, -9.4);
+  // soft indirect wash along the dressing-room wall, high and low in intensity: depth, not a lit wall
+  const wash = new THREE.PointLight(0xffd9b0, 0, 4.5, 2); wash.position.set(1.4, 2.7, -8.9);
+  lights.add(lamp, room, wash);
+  shadows(g, true, true);
+  g.traverse(o => { if (o.isMesh && o.material?.isMeshBasicMaterial) o.castShadow = false; });
+  return {
+    group: g, lights, screens,
+    // drawn and lit only while someone is in the lounge, so the studio costs what it did before
+    light(on) { g.visible = lights.visible = on; lamp.intensity = on ? 5 : 0; room.intensity = on ? 7 : 0; wash.intensity = on ? 1.6 : 0; doorLine.color.copy(C.warm).multiplyScalar(on ? 0.55 : 0.2); cove.color.copy(C.amber).multiplyScalar(on ? 1.6 : 0.4); bulb.color.copy(C.warm).multiplyScalar(on ? 3 : 0.5); },
+  };
+}
+
+// a prosumer espresso machine: chrome body, group head with portafilter, steam wand, pressure gauge, drip tray
+function espresso(M, L) {
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  add(new RoundedBoxGeometry(0.34, 0.36, 0.38, 3, 0.02), M.chrome, 0, 0.2, -0.02);                 // body
+  add(new RoundedBoxGeometry(0.345, 0.02, 0.385, 2, 0.006), M.graphite, 0, 0.385, -0.02);          // cup warmer
+  add(new RoundedBoxGeometry(0.3, 0.025, 0.14, 2, 0.006), M.graphite, 0, 0.02, 0.2);                // drip tray
+  add(new THREE.BoxGeometry(0.26, 0.004, 0.11), M.brushed, 0, 0.034, 0.2);
+  add(new THREE.CylinderGeometry(0.035, 0.04, 0.05, 24), M.chrome, -0.03, 0.2, 0.19);               // group head
+  add(new THREE.CylinderGeometry(0.036, 0.03, 0.03, 24), M.brushed, -0.03, 0.165, 0.19);            // portafilter basket
+  const handle = add(new THREE.CylinderGeometry(0.012, 0.014, 0.13, 12), L.walnut, -0.03, 0.165, 0.27); handle.rotation.x = Math.PI / 2 - 0.15;
+  const wand = add(new THREE.CylinderGeometry(0.005, 0.005, 0.16, 8), M.chrome, 0.13, 0.14, 0.2); wand.rotation.z = 0.15;
+  add(new THREE.CylinderGeometry(0.035, 0.035, 0.012, 24).rotateX(Math.PI / 2), M.chrome, 0.08, 0.3, 0.172);                // gauge
+  add(new THREE.CircleGeometry(0.03, 24), L.porcelain, 0.08, 0.3, 0.179);
+  add(new THREE.BoxGeometry(0.002, 0.024, 0.001), L.coffee, 0.08, 0.305, 0.18).rotation.z = -0.6;
+  for (const x of [-0.08, 0.04]) add(new THREE.CylinderGeometry(0.035, 0.028, 0.05, 20), L.porcelain, x, 0.42, -0.06);   // cups on the warmer
+  add(new THREE.CylinderGeometry(0.028, 0.022, 0.045, 20), L.porcelain, -0.03, 0.06, 0.2);          // a cup under the spout
+  return g;
+}
+
+// a glass-door drinks fridge: black cabinet, lit interior, bottles of sekt and water on two shelves
+function minibar(M, L) {
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  // the cabinet: a solid back half, then an open front compartment (sides, top, floor) behind the glass door
+  add(new RoundedBoxGeometry(0.56, 0.86, 0.25, 2, 0.015), M.camBody, 0, 0.43, -0.125);
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.03, 0.86, 0.25), M.camBody, sx * 0.265, 0.43, 0.125);
+  for (const y of [0.015, 0.845]) add(new THREE.BoxGeometry(0.56, 0.03, 0.25), M.camBody, 0, y, 0.125);
+  const inside = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.32, 0.36, 0.42) });   // the lit interior, a soft cool glow
+  add(new THREE.PlaneGeometry(0.5, 0.8), inside, 0, 0.43, 0.002);
+  for (const y of [0.3, 0.56]) add(new THREE.BoxGeometry(0.46, 0.006, 0.3), M.chrome, 0, y, 0.06);
+  const water = new THREE.MeshStandardMaterial({ color: 0x9fb8c8, roughness: 0.1, transparent: true, opacity: 0.7 });
+  for (let i = 0; i < 4; i++) { add(new THREE.CylinderGeometry(0.03, 0.032, 0.2, 16), L.bottle, -0.15 + i * 0.1, 0.4, 0.1); add(new THREE.CylinderGeometry(0.01, 0.026, 0.05, 12), L.foil, -0.15 + i * 0.1, 0.52, 0.1); }
+  for (let i = 0; i < 5; i++) add(new THREE.CylinderGeometry(0.026, 0.026, 0.17, 16), water, -0.18 + i * 0.09, 0.65, 0.1);
+  add(new THREE.PlaneGeometry(0.5, 0.76), physical({ color: 0x0a0c0f, metalness: 0, roughness: 0.2, transparent: true, opacity: 0.16, clearcoat: 0.6, clearcoatRoughness: 0.2, depthWrite: false }), 0, 0.46, 0.252);
+  for (const [w, h, x, y] of [[0.54, 0.04, 0, 0.84], [0.54, 0.04, 0, 0.07], [0.03, 0.8, -0.265, 0.455], [0.03, 0.8, 0.265, 0.455]]) add(new THREE.BoxGeometry(w, h, 0.02), M.graphite, x, y, 0.255);
+  add(new THREE.BoxGeometry(0.012, 0.4, 0.02), M.shellGold, 0.235, 0.46, 0.272);                    // handle
+  add(new THREE.BoxGeometry(0.4, 0.02, 0.005), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 1.5, 1.6) }), 0, 0.81, 0.24);   // interior light
+  return g;
+}
+const physical = o => new THREE.MeshPhysicalMaterial(o);
+
+// a deep club armchair: cognac leather, low walnut plinth on champagne feet
+function armchair(M, L) {
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  add(new RoundedBoxGeometry(0.9, 0.08, 0.82, 3, 0.02), L.walnut, 0, 0.1, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(0.022, 0.016, 0.06, 12), M.champagne, sx * 0.4, 0.03, sz * 0.36);
+  add(new RoundedBoxGeometry(0.66, 0.2, 0.7, 5, 0.07), L.cognac, 0, 0.27, 0.04);                   // seat cushion
+  add(new RoundedBoxGeometry(0.88, 0.62, 0.2, 5, 0.08), L.cognac, 0, 0.5, -0.32).rotation.x = -0.12; // back
+  for (const sx of [-1, 1]) add(new RoundedBoxGeometry(0.15, 0.46, 0.8, 5, 0.06), L.cognac, sx * 0.38, 0.36, 0);   // arms
+  add(new RoundedBoxGeometry(0.62, 0.06, 0.004, 2, 0.002), M.seam, 0, 0.375, 0.39);                  // piping line on the cushion front
+  return g;
+}
+
+// a small bullet security camera on a wall arm: white housing with a sun hood, dark glass, IR ring and a red
+// recording lamp that pulses but never goes out (security records all the time). Lens along local +z (use lookAt).
+function securityCam(M, anim) {
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const white = new THREE.MeshStandardMaterial({ color: 0xd9dbdd, metalness: 0.1, roughness: 0.45 });
+  const ax = geo => geo.rotateX(Math.PI / 2);
+  add(ax(new THREE.CylinderGeometry(0.045, 0.045, 0.2, 24)), white, 0, 0, 0);                                    // housing
+  const hood = add(ax(new THREE.CylinderGeometry(0.056, 0.056, 0.17, 24, 1, true, -Math.PI * 0.75, Math.PI * 1.5)), white, 0, 0.004, 0.04);
+  hood.material = white.clone(); hood.material.side = THREE.DoubleSide; hood.rotation.z = Math.PI;              // open at the bottom
+  add(new THREE.CircleGeometry(0.04, 24), M.lensGlass, 0, 0, 0.1005);
+  add(new THREE.CircleGeometry(0.014, 16), new THREE.MeshBasicMaterial({ color: 0x050608 }), 0, 0, 0.101);
+  const ir = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.02, 0.02) });
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(new THREE.CircleGeometry(0.004, 8), ir, Math.cos(a) * 0.027, Math.sin(a) * 0.027, 0.1012); }
+  const rec = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+  add(new THREE.SphereGeometry(0.006, 10, 8), rec, 0.03, 0.03, 0.098);
+  // mount: a ball joint and an arm back to the wall plate
+  add(new THREE.SphereGeometry(0.02, 16, 12), M.graphite, 0, -0.02, -0.08);
+  add(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 10).rotateX(Math.PI / 2), white, 0, -0.03, -0.16);
+  add(new THREE.CylinderGeometry(0.05, 0.05, 0.015, 24).rotateX(Math.PI / 2), white, 0, -0.03, -0.24);
+  anim.push(t => rec.color.setRGB(2.2 + 1.6 * (Math.sin(t * 3.2) > 0 ? 1 : 0), 0.08, 0.06));   // pulses between bright and brighter
+  shadows(g, true, false);
+  return g;
+}
+
+// the door from the studio: dark, champagne frame, a lit BACKSTAGE sign and a NO ENTRY plaque
+function backstageDoor(M) {
+  const g = new THREE.Group();
+  g.userData.focus = 'backstage';
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  add(new THREE.BoxGeometry(1.2, 2.45, 0.12), M.dark, 0, 1.225, -0.06);
+  add(new THREE.BoxGeometry(0.98, 2.14, 0.04), M.blackGlass, 0, 1.08, 0.02);
+  for (const [w, hh, x, y] of [[1.06, 0.03, 0, 2.165], [0.03, 2.16, -0.505, 1.08], [0.03, 2.16, 0.505, 1.08]]) add(new THREE.BoxGeometry(w, hh, 0.05), M.champagne, x, y, 0.02);
+  add(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 12), M.champagne, 0.36, 1.05, 0.07);
+  const sign = add(new THREE.PlaneGeometry(0.9, 0.16), new THREE.MeshBasicMaterial({ map: label('BACKSTAGE', { w: 512, h: 96, size: 52, color: '#f2a650', bg: '#070605' }) }), 0, 2.32, 0.005);
+  sign.material.color.setScalar(1.6);
+  add(new THREE.PlaneGeometry(0.46, 0.18), new THREE.MeshBasicMaterial({ map: label('NO ENTRY', { w: 512, h: 200, size: 66, color: '#ff5a4d', bg: '#0b0909' }) }), 0, 1.5, 0.045);
+  shadows(g);
   return g;
 }
 

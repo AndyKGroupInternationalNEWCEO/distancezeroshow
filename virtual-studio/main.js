@@ -7,10 +7,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { buildStudio } from './set.js';
-import { createDirector, VIEWS, ORDER } from './views.js';
+import { createDirector, VIEWS, ORDER, inLounge } from './views.js';
 import { createSound } from './sound.js';
 import { createPanels } from './panels.js';
 import { createOnAir } from './onair.js';
@@ -118,6 +119,24 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.62, 0.55, 0.86);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  // security cameras: the picture as their recording, in the renderer itself: grey, a little hard, sensor noise, a dark
+  // edge from the cheap wide lens. Off (not even run) on every other shot.
+  const cctvPass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        vec3 c = texture2D(tDiffuse, vUv).rgb;
+        float y = dot(c, vec3(0.299, 0.587, 0.114));
+        y = clamp((y - 0.5) * 1.25 + 0.5 + 0.06, 0.0, 1.0);
+        y += (hash(vUv * 900.0 + fract(uTime * 7.0)) - 0.5) * 0.06;
+        vec2 d = vUv - 0.5; y *= 1.0 - dot(d, d) * 1.1;
+        gl_FragColor = vec4(vec3(y) * vec3(0.96, 1.0, 0.97), 1.0);
+      }`,
+  });
+  cctvPass.enabled = false;
+  composer.addPass(cctvPass);
 
   /* ----- controls and direction ----- */
   const controls = new OrbitControls(camera, canvas);
@@ -142,6 +161,12 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     onView: name => {
       for (const b of ui.views) b.setAttribute('aria-pressed', String(b.dataset.view === name));
       ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
+      const cctv = name && VIEWS[name].cctv;
+      document.body.classList.toggle('cctv', !!cctv); cctvPass.enabled = !!cctv;
+      // a security camera looks from where it hangs, often from the side or behind the set: no orbit limits there
+      controls.minAzimuthAngle = cctv ? -Infinity : -1.35; controls.maxAzimuthAngle = cctv ? Infinity : 1.35;
+      if (cctv) document.getElementById('cctvName').textContent = cctv;
+      for (const b of ui.views) if (b.dataset.view === 'security') b.setAttribute('aria-pressed', String(!!cctv));
       air?.shot(name);
       showTally();
     },
@@ -212,7 +237,12 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   const panels = createPanels({ sound, el: ui.panel, onMusicStart: () => { if (look !== 'music') setLook('music'); } });
 
   /* ----- UI wiring ----- */
-  for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); director.go(b.dataset.view); });
+  // the security button: the camera where you are (studio or backstage); pressed again, the other one
+  const security = () => director.current === 'security' ? 'securityLounge' : director.current === 'securityLounge' ? 'security'
+    : inLounge(camera.position) ? 'securityLounge' : 'security';
+  for (const b of ui.views) b.addEventListener('click', () => { director.setAuto(false); director.go(b.dataset.view === 'security' ? security() : b.dataset.view); });
+  // the recording's clock, as burnt into a CCTV picture
+  setInterval(() => { if (document.body.classList.contains('cctv')) document.getElementById('cctvTime').textContent = new Date().toLocaleString('en-GB', { timeZone: 'Europe/Vienna', hour12: false }).replace(',', ''); }, 500);
   for (const b of ui.looks) b.addEventListener('click', () => setLook(b.dataset.look));
   // "Simulate on air": full screen, on-air lighting, the show's video on the LED wall and broadcast graphics on top
   air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion,
@@ -227,6 +257,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (i >= 1 && i <= 9) { director.setAuto(false); director.go(ORDER[i - 1]); }
     else if (e.key === '0') { director.setAuto(false); director.go('guest'); }
     else if (e.key === 'h' || e.key === 'H') { director.setAuto(false); director.go('slowmo'); }
+    else if (e.key === 'b' || e.key === 'B') { director.setAuto(false); director.go('backstage'); }
+    else if (e.key === 's' || e.key === 'S') { director.setAuto(false); director.go(security()); }
     else if (e.key === 'o' || e.key === 'O') ui.onair.click();
     else if (e.key === 'a' || e.key === 'A') ui.auto.click();
     else if (e.key === 'l' || e.key === 'L') { const keys = Object.keys(LOOKS); setLook(keys[(keys.indexOf(look) + 1) % keys.length]); }
@@ -305,6 +337,16 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   /* ----- loop ----- */
   const clock = { elapsed: 0, last: performance.now() };
+  // backstage monitors: live feeds of the studio cameras, rendered small and only while someone is in the lounge
+  const feeds = studio.lounge.screens.map(({ view, mat }) => {
+    const v = VIEWS[view], rt = new THREE.WebGLRenderTarget(384, 216, { type: THREE.HalfFloatType });
+    rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
+    const cam = new THREE.PerspectiveCamera(v.fov * 0.9, 16 / 9, 0.05, 60);
+    cam.position.set(...v.pos); cam.lookAt(...v.target);
+    mat.map = rt.texture; mat.color.setScalar(1.15); mat.needsUpdate = true;
+    return { rt, cam };
+  });
+  let feedAt = 0, loungeOn = null;
   // slow motion: on the high-speed camera's shot the set's own time (lights, wall, logo, beams) eases down to its time scale
   let slowK = 1, setTime = 0;
   let wallAccum = 0;
@@ -349,6 +391,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 
+    const here = inLounge(camera.position);
+    if (here !== loungeOn) { loungeOn = here; studio.lounge.light(here); }
+    if (here && t - feedAt > 0.1) {
+      feedAt = t;
+      for (const f of feeds) { renderer.setRenderTarget(f.rt); renderer.render(scene, f.cam); }
+      renderer.setRenderTarget(null);
+    }
+    cctvPass.uniforms.uTime.value = t;
     composer.render(dt);
     adapt(now);
     raf = requestAnimationFrame(frame);
