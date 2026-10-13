@@ -30,16 +30,21 @@ const HOLD = 8.5;
 
 // the backstage lounge's box (behind the LED wall, see LOUNGE in set.js)
 export const inLounge = p => p.z < -7.35 && Math.abs(p.x) < 3.5 && p.y < 3;
+// the way there, behind the LED wall's Vienna end: the lounge must be drawn from here on
+export const nearLounge = p => p.x < -2.8 && p.x > -8.5 && p.z < -4 && p.z > -12;
+// the walk backstage, at eye height: past the music station, round the wall's end, to the lounge door and in
+const WALK = [[-4.6, 1.65, 1.5], [-5.2, 1.65, -3.2], [-6.3, 1.65, -6.4], [-4.7, 1.65, -8.3], [-3.1, 1.65, -8.3]];
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const ROOM_CENTER = new THREE.Vector3(0, 0, 1), ROOM_R = 11.8;
 
 // `lens.fov` is the framing designed for a 16:9 screen; the page converts it for the actual screen shape
 export function createDirector({ camera, lens, controls, reducedMotion, onView, onAuto }) {
+  let walk = null;
   let current = 'studio', flight = null, auto = !reducedMotion, tourAt = 0, tourIndex = 0;
   let idleSince = performance.now(), drift = null;
 
   controls.addEventListener('start', () => {
-    flight = null; drift = null;
+    flight = null; drift = null; walk = null;
     idleSince = Infinity;
     if (auto) setAuto(false);
     if (current) { current = null; onView(null); }
@@ -64,6 +69,14 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
       flight = null; idleSince = performance.now();
       return;
     }
+    // into the lounge from the studio: walk there, round the wall and through the door, as someone would
+    if (name === 'backstage' && !inLounge(camera.position) && !reducedMotion) {
+      const pts = [camera.position.clone(), ...WALK.map(q => new THREE.Vector3(...q)), to.pos.clone()];
+      const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), len = curve.getLength();
+      walk = { curve, len, t: 0, dur: len / 2.1 + 1.2, to, fov0: lens.fov };
+      flight = null;
+      return;
+    }
     // into or out of the lounge: a cut, never a flight through the LED wall
     if (inLounge(camera.position) !== !!v.lounge) { camera.position.copy(to.pos); controls.target.copy(to.target); lens.fov = to.fov; flight = null; idleSince = performance.now(); return; }
     const from = { pos: camera.position.clone(), target: controls.target.clone(), fov: lens.fov };
@@ -71,7 +84,21 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
     flight = { from, to, t: 0, dur: THREE.MathUtils.clamp(1.1 + dist * 0.09, 1.3, 2.6), lift: Math.min(1.4, dist * 0.1) };
   }
 
+  const ahead = new THREE.Vector3(), tan = new THREE.Vector3();
   function update(dt, now) {
+    if (walk) {
+      walk.t = Math.min(1, walk.t + dt / walk.dur);
+      const k = ease(walk.t), at = walk.curve.getPointAt(k);
+      walk.curve.getTangentAt(Math.min(1, k + 0.06), tan);
+      ahead.copy(at).addScaledVector(tan, 2.5); ahead.y = at.y - 0.12;           // looking where the feet go
+      const s = THREE.MathUtils.smoothstep(walk.t, 0.62, 1);                       // through the door, turn to take in the room
+      controls.target.copy(ahead).lerp(walk.to.target, s);
+      camera.position.copy(at);
+      camera.position.y += Math.sin((k * walk.len / 0.75) * Math.PI) * 0.022 * (1 - s) * Math.min(1, walk.t * 8);   // steps
+      lens.fov = THREE.MathUtils.lerp(walk.fov0, walk.to.fov, s);
+      if (walk.t >= 1) { walk = null; idleSince = performance.now(); }
+      return;
+    }
     if (flight) {
       flight.t = Math.min(1, flight.t + dt / flight.dur);
       const k = ease(flight.t);
@@ -117,6 +144,7 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
   return {
     go, update,
     get current() { return current; },
+    get walking() { return !!walk; },
     get auto() { return auto; },
     setAuto(on) { setAuto(on); if (on && !flight) tourAt = performance.now() / 1000 - HOLD + 2; },
     tally() { return VIEWS[current]?.tally ?? 2; },

@@ -289,10 +289,19 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   // one in the lounge's back corner watching the dressing-room doors
   const secStudio = securityCam(M, anim); secStudio.position.set(-11.15, 6.5, -3.3); secStudio.lookAt(0, 0.8, -1); add(secStudio);
   const secLounge = securityCam(M, anim); secLounge.position.set(-3.33, 2.72, -11.03); secLounge.lookAt(2.6, 1.0, -8.6); lounge.group.add(secLounge);
-  const door = backstageDoor(M);
-  door.position.set(-5.95, 0, -6.9);
-  door.lookAt(0, 0, 1);
-  add(door);
+  const backSign = backstageSign();
+  backSign.position.set(-5.62, 0, -5.05);
+  backSign.lookAt(0, 0, 1.5);
+  add(backSign);
+  // a fine amber guide line on the floor, from the sign round the wall's end to the lounge door (lit, so the way is seen)
+  {
+    const guide = new THREE.MeshBasicMaterial({ color: new THREE.Color(AMBER).multiplyScalar(0.9) });
+    const pts = [[-5.35, -4.5], [-5.95, -6.15], [-5.3, -7.7], [-4.4, -8.3], [-3.56, -8.3]].map(([x, z]) => new THREE.Vector3(x, 0.012, z));
+    const path = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    const strip = new THREE.Mesh(new THREE.TubeGeometry(path, 80, 0.012, 4), guide);
+    strip.scale.y = 0.3; strip.position.y = 0.008;
+    add(strip);
+  }
 
   /* ----- Vienna and Melbourne light pylons ----- */
   const pylons = [];
@@ -1073,6 +1082,7 @@ function buildLogoKV(M, glows) {
    sides, so no studio shot sees into it. Four monitors carry live feeds (rendered by main.js while someone is in here),
    three armchairs (Andrej, the guest, Georgie), a coffee table with coffee and sekt, an arc lamp, warm cove light. */
 export const LOUNGE = { x0: -3.5, x1: 3.5, z0: -11.2, z1: -7.35, h: 3 };
+export const LOUNGE_DOOR = { z: -8.3, w: 0.95, h: 2.2 };   // in the Vienna-side wall (x0), reached around the LED wall's end
 
 function buildLounge(M, quality) {
   const g = new THREE.Group(), { x0, x1, z0, z1, h } = LOUNGE, W = x1 - x0, D = z1 - z0, cz = (z0 + z1) / 2;
@@ -1095,8 +1105,25 @@ function buildLounge(M, quality) {
   };
   // room: floor, walls, ceiling (all facing inwards)
   add(new THREE.PlaneGeometry(W, D).rotateX(-Math.PI / 2), L.floor, 0, 0.004, cz).receiveShadow = true;
-  for (const [w, x, z, ry] of [[W, 0, z0, 0], [W, 0, z1, Math.PI], [D, x0, cz, Math.PI / 2], [D, x1, cz, -Math.PI / 2]])
+  // walls, seen from both sides (the walk from the studio passes outside them); the Vienna-side wall has the doorway
+  L.wall.side = THREE.DoubleSide;
+  const DOOR = LOUNGE_DOOR, dz0 = DOOR.z - DOOR.w / 2, dz1 = DOOR.z + DOOR.w / 2;
+  for (const [w, x, z, ry] of [[W, 0, z0, 0], [W, 0, z1, Math.PI], [D, x1, cz, -Math.PI / 2], [dz0 - z0, x0, (z0 + dz0) / 2, Math.PI / 2], [z1 - dz1, x0, (dz1 + z1) / 2, Math.PI / 2]])
     add(new THREE.PlaneGeometry(w, h), L.wall, x, h / 2, z).rotation.y = ry;
+  add(new THREE.PlaneGeometry(DOOR.w, h - DOOR.h), L.wall, x0, (h + DOOR.h) / 2, DOOR.z).rotation.y = Math.PI / 2;   // over the door
+  // the door: champagne frame, a dark leaf hinged at the front that swings into the room as someone comes
+  const frame = new THREE.Group(); frame.position.set(x0, 0, DOOR.z); frame.rotation.y = -Math.PI / 2; g.add(frame);   // local +z = outside
+  for (const [w, hh, x, y] of [[DOOR.w + 0.08, 0.04, 0, DOOR.h + 0.02], [0.04, DOOR.h, -DOOR.w / 2 - 0.02, DOOR.h / 2], [0.04, DOOR.h, DOOR.w / 2 + 0.02, DOOR.h / 2]])
+    for (const zz of [-0.03, 0.03]) add(new THREE.BoxGeometry(w, hh, 0.03), M.shellGold, x, y, zz, frame);
+  const leafPivot = new THREE.Group(); leafPivot.position.set(-DOOR.w / 2, 0, 0); frame.add(leafPivot);
+  add(new THREE.BoxGeometry(DOOR.w - 0.02, DOOR.h - 0.02, 0.04), M.blackGlass, DOOR.w / 2, DOOR.h / 2, 0, leafPivot);
+  add(new THREE.BoxGeometry(0.012, 0.22, 0.02), M.shellGold, DOOR.w - 0.12, 1.02, 0.035, leafPivot);
+  add(new THREE.BoxGeometry(0.012, 0.22, 0.02), M.shellGold, DOOR.w - 0.12, 1.02, -0.035, leafPivot);
+  add(new THREE.PlaneGeometry(0.42, 0.16), new THREE.MeshBasicMaterial({ map: label('NO ENTRY', { w: 512, h: 200, size: 66, color: '#ff5a4d', bg: '#0b0909' }) }), DOOR.w / 2, 1.5, 0.022, leafPivot);
+  const over = add(new THREE.PlaneGeometry(0.9, 0.16), new THREE.MeshBasicMaterial({ map: label('BACKSTAGE', { w: 512, h: 96, size: 52, color: '#f2a650', bg: '#070605' }) }), 0, DOOR.h + 0.2, 0.02, frame);
+  over.material.color.setScalar(1.6);
+  let doorA = 0;
+  const doorAt = new THREE.Vector3(x0, 1.2, DOOR.z);
   add(new THREE.PlaneGeometry(W, D).rotateX(Math.PI / 2), M.wallBack, 0, h, cz);
   // warm cove light along the ceiling and a fine champagne skirting
   const cove = glow(C.amber); cove.userData.lounge = true;
@@ -1202,6 +1229,9 @@ function buildLounge(M, quality) {
   g.traverse(o => { if (o.isMesh && o.material?.isMeshBasicMaterial) o.castShadow = false; });
   return {
     group: g, lights, screens,
+    // the door opens as someone comes near it (either side), and closes behind them
+    // (it swings into the room)
+    door(camPos, dt) { const want = camPos.distanceTo(doorAt) < 2.4 ? 1.45 : 0; doorA += (want - doorA) * Math.min(1, dt * 2.6); leafPivot.rotation.y = doorA; },
     // drawn and lit only while someone is in the lounge, so the studio costs what it did before
     light(on) { g.visible = lights.visible = on; lamp.intensity = on ? 5 : 0; room.intensity = on ? 7 : 0; wash.intensity = on ? 1.6 : 0; doorLine.color.copy(C.warm).multiplyScalar(on ? 0.55 : 0.2); cove.color.copy(C.amber).multiplyScalar(on ? 1.6 : 0.4); bulb.color.copy(C.warm).multiplyScalar(on ? 3 : 0.5); },
   };
@@ -1287,18 +1317,28 @@ function securityCam(M, anim) {
   return g;
 }
 
-// the door from the studio: dark, champagne frame, a lit BACKSTAGE sign and a NO ENTRY plaque
-function backstageDoor(M) {
+// the way backstage, at the LED wall's Vienna end: a lit BACKSTAGE sign with an arrow round the wall, on a slim post.
+// Tapping it walks there (main.js / views.js).
+function backstageSign() {
   const g = new THREE.Group();
   g.userData.focus = 'backstage';
-  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  add(new THREE.BoxGeometry(1.2, 2.45, 0.12), M.dark, 0, 1.225, -0.06);
-  add(new THREE.BoxGeometry(0.98, 2.14, 0.04), M.blackGlass, 0, 1.08, 0.02);
-  for (const [w, hh, x, y] of [[1.06, 0.03, 0, 2.165], [0.03, 2.16, -0.505, 1.08], [0.03, 2.16, 0.505, 1.08]]) add(new THREE.BoxGeometry(w, hh, 0.05), M.champagne, x, y, 0.02);
-  add(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 12), M.champagne, 0.36, 1.05, 0.07);
-  const sign = add(new THREE.PlaneGeometry(0.9, 0.16), new THREE.MeshBasicMaterial({ map: label('BACKSTAGE', { w: 512, h: 96, size: 52, color: '#f2a650', bg: '#070605' }) }), 0, 2.32, 0.005);
-  sign.material.color.setScalar(1.6);
-  add(new THREE.PlaneGeometry(0.46, 0.18), new THREE.MeshBasicMaterial({ map: label('NO ENTRY', { w: 512, h: 200, size: 66, color: '#ff5a4d', bg: '#0b0909' }) }), 0, 1.5, 0.045);
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#070605'; x.fillRect(0, 0, 1024, 256);
+  x.strokeStyle = 'rgba(242,166,80,.5)'; x.lineWidth = 4; x.strokeRect(10, 10, 1004, 236);
+  x.fillStyle = '#f2a650'; x.textBaseline = 'middle'; x.font = '700 104px Archivo, "Helvetica Neue", Arial, sans-serif';
+  x.fillText('BACKSTAGE', 60, 132);
+  x.beginPath(); x.moveTo(860, 88); x.lineTo(960, 128); x.lineTo(860, 168); x.lineWidth = 16; x.strokeStyle = '#f2a650'; x.stroke();   // arrow: round the wall
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.225), new THREE.MeshBasicMaterial({ map: tex }));
+  panel.material.color.setScalar(1.5); panel.position.y = 2.15; g.add(panel);
+  // a mirror image on the back is not needed: the sign faces the studio
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.26, 0.03), new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.8, roughness: 0.4 }));
+  back.position.set(0, 2.15, -0.02); g.add(back);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 2.05, 12), new THREE.MeshStandardMaterial({ color: 0xc9a671, metalness: 1, roughness: 0.3 }));
+  post.position.y = 1.02; g.add(post);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.03, 32), new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.8, roughness: 0.4 }));
+  foot.position.y = 0.015; g.add(foot);
   shadows(g);
   return g;
 }

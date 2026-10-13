@@ -11,7 +11,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { buildStudio } from './set.js';
-import { createDirector, VIEWS, ORDER, inLounge } from './views.js';
+import { createDirector, VIEWS, ORDER, inLounge, nearLounge } from './views.js';
 import { createSound } from './sound.js';
 import { createPanels } from './panels.js';
 import { createOnAir } from './onair.js';
@@ -392,13 +392,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 
     director.update(dt, now);
-    controls.update(dt);
+    if (director.walking) camera.lookAt(controls.target); else controls.update(dt);   // walking: no orbit limits, just look ahead
     // the slow-mo shot is the robot's own camera: the picture follows its lens through the programme of moves
     if (robotShot) { camera.position.copy(studio.robot.shot.pos); controls.target.copy(studio.robot.shot.target); camera.lookAt(controls.target); }
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 
-    const here = inLounge(camera.position);
+    const here = inLounge(camera.position) || nearLounge(camera.position);
+    if (here) studio.lounge.door(camera.position, dt);
     if (here !== loungeOn) { loungeOn = here; studio.lounge.light(here); }
     if (here && t - feedAt > 0.1) {
       feedAt = t;
