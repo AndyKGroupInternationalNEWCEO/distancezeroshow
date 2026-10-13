@@ -360,15 +360,21 @@
         "presenters": "",
         "script": "",
         "talkingPoints": "",
-        "director": "Closing jingle and END OF BROADCAST card. Stop the stream only after the card.",
+        "director": "Closing sequence in one GO: SUNDAY SHOW CLOSING (11 s) → OFFICIAL END CREDITS (54 s: hosts, partners, thank you) → THANK YOU FOR WATCHING (8 s). Keep the overlay End credits OFF (the video has the names). Guests of this episode: lower third about 0:28–0:34 after GO (the SPECIAL GUESTS window). Jingle 07 until the 21 — SUNDAY SHOW CLOSING master exists. End the stream only after the last video.",
         "closing": "End of show: 21 — SUNDAY SHOW CLOSING jingle when available; until then 07 — END OF SHOW.",
         "cues": {
           "scene": "CREDITS",
           "jingle": "07",
-          "video": "V16",
+          "video": "V14",
           "mode": "once",
           "audioMode": "wav",
-          "music": ""
+          "music": "",
+          "thenVideos": [
+            "V23",
+            "V17"
+          ],
+          "fallbackVideo": "V16",
+          "fallbackMode": "once"
         },
         "guest": {
           "name": "",

@@ -106,7 +106,8 @@ function fields() {
     script: v('sfScript'), talkingPoints: v('sfPoints'), guest: { name: v('sfGuest'), details: v('sfGuestDetails') },
     questions: v('sfQuestions').split('\n').map(x => x.trim()).filter(Boolean),
     cues: { scene: v('sfScene'), jingle: v('sfJingle'), video: v('sfVideo'), mode: v('sfMode'), audioMode: v('sfAudio'), music: v('sfMusic'),
-      returnJingle: v('sfRetJingle'), returnVideo: v('sfRetVideo'), fallbackVideo: v('sfFallback'), fallbackMode: v('sfFallbackMode') || 'loop' },
+      returnJingle: v('sfRetJingle'), returnVideo: v('sfRetVideo'), fallbackVideo: v('sfFallback'), fallbackMode: v('sfFallbackMode') || 'loop',
+      thenVideos: [v('sfThen1'), v('sfThen2'), v('sfThen3')].filter(Boolean) },
     director: v('sfDirector'), closing: v('sfClosing'), notes: v('sfNotes'),
   };
 }
@@ -216,6 +217,10 @@ export function render(ctx) {
       seg.kind === 'BREAK' ? h('div', { class: 'fields two' },
         field('Return jingle (RETURN TO LIVE)', select('sfRetJingle', mediaOpts(audio), c.returnJingle)),
         field('Return video', select('sfRetVideo', mediaOpts(video), c.returnVideo))) : null,
+      h('div', { class: 'fields three' },
+        field('Then play (once, in order)', select('sfThen1', mediaOpts(video), (c.thenVideos || [])[0] || '')),
+        field('Then', select('sfThen2', mediaOpts(video), (c.thenVideos || [])[1] || '')),
+        field('Then', select('sfThen3', mediaOpts(video), (c.thenVideos || [])[2] || ''))),
       h('div', { class: 'fields two' },
         field('If the video is missing or fails, play instead', select('sfFallback', mediaOpts(video), c.fallbackVideo)),
         field('Fallback mode', select('sfFallbackMode', [['loop', 'Loop'], ['once', 'Play once']], c.fallbackMode || 'loop')))),

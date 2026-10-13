@@ -179,7 +179,7 @@
         "presenters": "ANDY'K",
         "script": "ANDY'K: [EPISODE-SPECIFIC — Friday goodbye]",
         "talkingPoints": "",
-        "director": "Closing jingle 19, then end the stream.",
+        "director": "Closing sequence in one GO: FRIDAY CLOSING with jingle 19 → FRIDAY OFFICIAL END CREDITS (52 s: host, partners, thank you for listening). Keep the overlay End credits OFF. A guest, if any: lower third in the music interlude about 0:25–0:32 after GO. End the stream only after the credits.",
         "closing": "",
         "cues": {
           "scene": "CREDITS",
@@ -187,7 +187,10 @@
           "video": "V15",
           "mode": "once",
           "audioMode": "wav",
-          "music": ""
+          "music": "",
+          "thenVideos": [
+            "V24"
+          ]
         },
         "guest": {
           "name": "",

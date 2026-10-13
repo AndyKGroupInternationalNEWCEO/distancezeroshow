@@ -60,3 +60,7 @@ body{font-family:"Archivo",system-ui,sans-serif;color:var(--chrome-hi);-webkit-f
 .r-p strong{display:block;font-stretch:118%;font-weight:800;font-size:calc(38 * var(--u));text-transform:uppercase}
 .r-p span{display:block;font-size:calc(20 * var(--u));color:var(--dim);margin-top:calc(4 * var(--u))}
 .r-end{margin-top:calc(90 * var(--u));font-stretch:112%;font-size:calc(18 * var(--u));letter-spacing:.3em;color:var(--ice)}
+
+.partner{align-items:center}
+.partner img{height:calc(56 * var(--u));width:auto;display:block}
+.r-p img{display:block;margin:0 auto calc(10 * var(--u));height:calc(90 * var(--u));width:auto}

@@ -283,6 +283,7 @@ export class Obs extends EventEmitter {
       case 'SceneTransitionStarted': s.transitioning = true; break;
       case 'SceneTransitionEnded': case 'SceneTransitionVideoEnded': s.transitioning = false; break;
       case 'MediaInputPlaybackStarted': case 'MediaInputPlaybackEnded': case 'MediaInputActionTriggered': {
+        if (type === 'MediaInputPlaybackEnded') this.emit('media.ended', d.inputName);
         const m = s.media.find(x => x.name === d.inputName);
         if (!m) return;
         const x = await this.request('GetMediaInputStatus', { inputName: m.name }).catch(() => null);
@@ -389,9 +390,10 @@ export class Obs extends EventEmitter {
     await this.request('TriggerMediaInputAction', { inputName: name, mediaAction: MEDIA[action] });
   }
   // the library's players: load a file into an OBS media source and play it from the start (or stop it)
-  async playFile(inputName, file, loop = false) {
+  // keep: hold the last frame when the file ends (the next file of a sequence follows), instead of clearing to the shot below
+  async playFile(inputName, file, loop = false, { keep = false } = {}) {
     if (!this.state.media.some(m => m.name === inputName)) throw new Error(`OBS has no "${inputName}" in this show (npm run obs-setup -- sunday friday --players)`);
-    await this.request('SetInputSettings', { inputName, inputSettings: { local_file: file, looping: !!loop, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: !loop }, overlay: true });
+    await this.request('SetInputSettings', { inputName, inputSettings: { local_file: file, looping: !!loop, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: !loop && !keep }, overlay: true });
     await this.request('TriggerMediaInputAction', { inputName, mediaAction: MEDIA.restart || 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART' });
   }
   async stopFile(inputName) {

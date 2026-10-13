@@ -38,7 +38,9 @@ export function cleanScript(s = {}) {
       // breaks only: what plays when the Director returns to live (WELCOME BACK), instead of the next segment's own jingle/video
       returnJingle: str(c.returnJingle, 4), returnVideo: str(c.returnVideo, 4),
       // when the cue's video is missing or fails: this one instead (partner break: the break card)
-      fallbackVideo: str(c.fallbackVideo, 4), fallbackMode: c.fallbackMode === 'once' ? 'once' : 'loop' },
+      fallbackVideo: str(c.fallbackVideo, 4), fallbackMode: c.fallbackMode === 'once' ? 'once' : 'loop',
+      // then play, in order, after the video (e.g. closing → end credits → thank you); each once
+      thenVideos: (Array.isArray(c.thenVideos) ? c.thenVideos : []).map(x => str(x, 4)).filter(Boolean).slice(0, 4) },
     director: str(s.director, 4000), closing: str(s.closing, 2000),
   };
 }
@@ -80,7 +82,7 @@ export function renderHtml(rundown, mediaTitle = id => id) {
   const rows = rundown.segments.map((s, i) => {
     const sc = cleanScript(s), t = tl[i];
     const cue = [sc.cues.scene && `OBS SCENE: ${esc(sc.cues.scene)}`, sc.cues.jingle && `JINGLE: ${esc(mediaTitle(sc.cues.jingle))}`,
-      sc.cues.video && `VIDEO: ${esc(mediaTitle(sc.cues.video))}${sc.cues.mode === 'loop' ? ' (LOOP)' : ''}`, sc.cues.music && `MUSIC: ${esc(sc.cues.music)}`,
+      sc.cues.video && `VIDEO: ${[sc.cues.video, ...sc.cues.thenVideos].map(id => esc(mediaTitle(id))).join(' → ')}${sc.cues.mode === 'loop' ? ' (LOOP)' : ''}`, sc.cues.music && `MUSIC: ${esc(sc.cues.music)}`,
       sc.cues.returnJingle && `RETURN JINGLE: ${esc(mediaTitle(sc.cues.returnJingle))}`, sc.cues.returnVideo && `RETURN VIDEO: ${esc(mediaTitle(sc.cues.returnVideo))}`].filter(Boolean);
     return `<section><h2>SEGMENT ${String(i + 1).padStart(2, '0')} — ${esc(s.title)}</h2>
 <p class="meta">PLANNED ${hms(t.start)}–${hms(t.end)} · ${s.minutes} MIN · ${esc(s.kind)}${sc.presenters ? ' · ' + esc(sc.presenters) : ''}</p>

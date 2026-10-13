@@ -1128,10 +1128,13 @@ test('credits: permanent base and episode names; end credits roll and partner li
   assert.equal((await d.send({ t: 'episode.new', format: 'sunday', date: future, start: '20:00' })).ok, true);
   const s2 = await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === future);
   const b2 = s2.s.rundown.segments.findIndex(x => x.title === 'BREAK 02');
-  assert.equal(s2.s.rundown.segments[b2].cues.video, 'V21');
+  const seg2 = s2.s.rundown.segments[b2];
+  assert.equal(seg2.cues.video, 'V21');
+  // this episode's spot is a file that does not exist (V12 has none): the break card must take over
+  assert.equal((await d.send({ t: 'script.update', segmentId: seg2.id, fields: { cues: { ...seg2.cues, video: 'V12' } } })).ok, true);
   const r = await d.send({ t: 'cue.go', index: b2 });
   assert.equal(r.ok, true, JSON.stringify(r));
-  assert.ok(r.result.skipped.some(x => /V21.*NOT AVAILABLE.*fallback V10/.test(x)), JSON.stringify(r.result));
+  assert.ok(r.result.skipped.some(x => /V12.*NOT AVAILABLE.*fallback V10/.test(x)), JSON.stringify(r.result));
   assert.match(mock.inputs.find(i => i.inputName === 'Video Player').settings.local_file, /DZ_02/);
   assert.equal((await d.send({ t: 'break.return', confirm: true })).ok, true);
   await d.send({ t: 'rundown', action: 'reset' });
@@ -1189,6 +1192,31 @@ test('GO into a segment without its own video stops the previous video, so it ne
   await d.send({ t: 'cue.go', index: 1 });                       // opening video
   const r = await d.send({ t: 'cue.go', index: 2 });            // WELCOME: jingle only
   assert.ok(r.result.done.some(x => /VIDEO V01 stopped/.test(x)), JSON.stringify(r.result));
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('closing sequence: one GO plays V14 → V23 → V17, each following when the previous ends', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 70 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  const s = await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  const last = s.s.rundown.segments.length - 1;
+  assert.deepEqual(s.s.rundown.segments[last].cues.thenVideos, ['V23', 'V17']);
+  const file = () => mock.inputs.find(i => i.inputName === 'Video Player').settings;
+  const r = await d.send({ t: 'cue.go', index: last });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.match(file().local_file, /SUNDAY SHOW CLOSING/); assert.equal(file().clear_on_media_end, false, 'holds the last frame');
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V23');
+  assert.match(file().local_file, /OFFICIAL END CREDITS/); assert.equal(file().clear_on_media_end, false);
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V17');
+  assert.equal(file().clear_on_media_end, true, 'the last one clears');
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await new Promise(r => setTimeout(r, 300));
+  assert.match(file().local_file, /THANK_YOU/, 'nothing after the last');
   await d.send({ t: 'rundown', action: 'reset' });
   d.close();
 });

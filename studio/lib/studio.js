@@ -706,6 +706,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   }
   async function mediaStop(msg) {
     const kinds = msg.kind === 'audio' ? ['audio'] : msg.kind === 'video' ? ['video'] : ['audio', 'video'];
+    if (kinds.includes('video')) videoQueue = [];
     for (const k of kinds) { await obs.stopFile(k === 'audio' ? 'Jingle Player' : 'Video Player'); state.mediaAir[k] = null; }
     logEvent('ok', `Stopped: ${kinds.join(' + ')}`);
     changed();
@@ -716,6 +717,16 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
      jingle. A video with its own sound never gets the WAV on top unless the cue says "both". Nothing advances by
      itself: a break that reaches zero shows BREAK COMPLETE — READY TO RETURN and waits for RETURN TO LIVE. */
   const hasInput = n => obs.state.media.some(m => m.name === n);
+  let videoQueue = [];
+  obs.on('media.ended', async name => {
+    if (name !== 'Video Player' || !videoQueue.length) return;
+    const v = videoQueue.shift();
+    try {
+      await obs.playFile('Video Player', v.file, false, { keep: videoQueue.length > 0 });
+      state.mediaAir.video = { id: v.id, title: v.title, at: Date.now(), loop: false, embeddedAudio: !!v.embeddedAudio };
+      logEvent('ok', `Next in sequence: ${v.id} — ${v.title}`); changed();
+    } catch (e) { videoQueue = []; logEvent('warn', `Sequence stopped: ${e.message}`); }
+  });
   async function sceneHas(scene, src) {
     try { return (await obs.request('GetSceneItemList', { sceneName: scene })).sceneItems.some(i => i.sourceName === src); } catch { return false; }
   }
@@ -737,10 +748,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     else if (vid && !playVideo) skipped.push(`${vid.id}: OBS has no Video Player yet (npm run obs-setup -- --players)`);
     // the picture: the cue's scene if it shows the Video Player, otherwise the VT scene for the video
     if (playVideo && scene && !(await sceneHas(scene, 'Video Player'))) { if (obs.hasScene('VT')) { skipped.push(`SCENE ${scene} has no Video Player: the video plays in VT`); scene = 'VT'; } }
+    // a sequence: the videos that follow this one, each played once when the previous one ends
+    videoQueue = [];
+    const next = (c.thenVideos || []).map(id => media?.get(id)).filter(x => { if (x?.available) return true; skipped.push(`THEN ${x ? x.id + ' — ' + x.title : 'video'}: NOT AVAILABLE, left out`); return false; });
     if (playVideo) {
-      await obs.playFile('Video Player', vid.file, c.mode === 'loop');
+      videoQueue = c.mode === 'loop' ? [] : next;
+      await obs.playFile('Video Player', vid.file, c.mode === 'loop', { keep: videoQueue.length > 0 });
       state.mediaAir.video = { id: vid.id, title: vid.title, at: Date.now(), loop: c.mode === 'loop', embeddedAudio: !!vid.embeddedAudio };
-      done.push(`VIDEO ${vid.id} — ${vid.title}${c.mode === 'loop' ? ' (LOOP)' : ''}`);
+      done.push(`VIDEO ${vid.id} — ${vid.title}${c.mode === 'loop' ? ' (LOOP)' : ''}${videoQueue.length ? ' → ' + videoQueue.map(x => x.id).join(' → ') : ''}`);
     }
     // a segment without a video of its own: the previous one (an opening, a loop) must not stay over the cameras
     if (!c.video && state.mediaAir.video && hasInput('Video Player')) {
@@ -1081,9 +1096,13 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   // what the end credits show: hosts, guests of this episode, creators and partners, extra names of this episode
   const creditRoll = () => {
     const ep = rundown.credits || {};
-    return [['HOSTS', credits.hosts], ['GUESTS', ep.guests || []], ['CREATED WITH', credits.partners], ['THANK YOU', ep.extra || []]]
+    return [['HOSTS', credits.hosts], ['GUESTS', ep.guests || []], ['CREATED WITH', withLogos(credits.partners)], ['THANK YOU', ep.extra || []]]
       .map(([t, l]) => [t, confirmed(l)]).filter(([, l]) => l?.length).map(([title, list]) => ({ title, list }));
   };
+  // partner logos (white versions for the dark picture), matched by name; a partner without one shows its name only
+  const partnerLogo = name => /group/i.test(name) ? '/static/brand/partners/group.png' : /music lab/i.test(name) ? '/static/brand/partners/music-lab.png'
+    : /records/i.test(name) ? '/static/brand/partners/records.png' : '';
+  const withLogos = l => l.map(p => ({ ...p, logo: partnerLogo(p.name) }));
   // a name still in [brackets] is a placeholder: never shown on air
   const confirmed = l => (l || []).filter(p => !/^\[/.test(p.name));
   let partnerTimer = 0;
@@ -1102,7 +1121,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         // one partner line for 10 seconds; each press shows the next partner
         const list = confirmed(credits.partners); if (!list.length) throw new Error('No partners saved (Rehearsal → Script editor → Credits)');
         g.partnerIndex = msg.index != null ? Number(msg.index) % list.length : ((g.partnerIndex ?? -1) + 1) % list.length;
-        g.partner = { ...list[g.partnerIndex], at: Date.now() };
+        g.partner = { ...list[g.partnerIndex], logo: partnerLogo(list[g.partnerIndex].name), at: Date.now() };
         clearTimeout(partnerTimer); partnerTimer = setTimeout(() => { g.partner = null; changed(); }, 10000);
         break;
       }

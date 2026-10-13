@@ -221,7 +221,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
   }, 60) : null;
 
   return {
-    state: st, scenes, items, inputs, transitions, log,
+    state: st, scenes, items, inputs, transitions, log, emit: (type, data) => event(type, data),
     ready: new Promise(r => wss.on('listening', r)),
     get port() { return wss.address().port; },
     close: () => new Promise(r => { clearInterval(meterTimer); for (const c of clients) c.ws.terminate(); wss.close(r); }),

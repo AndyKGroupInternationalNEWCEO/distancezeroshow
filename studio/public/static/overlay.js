@@ -30,6 +30,7 @@ function paint(s) {
   lower.classList.toggle('stacked', g.ident && !!s.segment);
   // partner line (10 s, set by the studio) and the end credits roll
   $('partnerName').textContent = g.partner?.name || ''; $('partnerRole').textContent = g.partner?.role || '';
+  const pl = $('partnerLogo'); if (g.partner?.logo) { if (pl.getAttribute('src') !== g.partner.logo) pl.src = g.partner.logo; pl.hidden = false; } else pl.hidden = true;
   $('partner').classList.toggle('on', !!g.partner);
   const roll = $('roll'), was = roll.classList.contains('on');
   if (s.roll && !was) {
@@ -37,7 +38,7 @@ function paint(s) {
     const logo = el('div', 'r-logo', ''); const img = document.createElement('img'); img.src = '/static/brand/DO_logo_1280.png'; img.alt = 'D//0';
     logo.append(img, el('span', '', 'DISTANCE // ZERO'));
     $('rollIn').replaceChildren(logo, ...s.roll.flatMap(sec => [el('div', 'r-h', sec.title),
-      ...sec.list.map(p => { const d = el('div', 'r-p', ''); d.append(el('strong', '', p.name), el('span', '', p.role || '')); return d; })]),
+      ...sec.list.map(p => { const d = el('div', 'r-p', ''); if (p.logo) { const i = document.createElement('img'); i.src = p.logo; i.alt = ''; d.append(i); } d.append(el('strong', '', p.name), el('span', '', p.role || '')); return d; })]),
       el('div', 'r-end', 'Vienna // Melbourne // 15,731 km'));
     const lines = $('rollIn').children.length;
     $('rollIn').style.setProperty('--dur', Math.max(20, lines * 2.2) + 's');
