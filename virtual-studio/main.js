@@ -86,7 +86,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   camera.position.set(...v0.pos);
 
   /* ----- the set ----- */
-  const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'kv' });
+  const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'image' });
   progress(0.7);
 
   let mirror = null;

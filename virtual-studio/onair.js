@@ -33,15 +33,8 @@ const JINGLES = [
   ['19-friday-show-closing', 'Friday show closing'], ['21-sunday-show-opening', 'Sunday show opening'],
 ].map(([id, title]) => ({ src: `assets/jingles/${id}.m4a`, title }));
 
-// the approved D//0 logo (after the key visual), drawn from the same proportions as the 3D logo
-const BUG = `<svg class="air-bug" viewBox="-8 -8 226 116" role="img" aria-label="D//0">
-<defs><filter id="dzglow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-<g fill="rgba(255,255,255,.08)" stroke-width="2.6" stroke-linejoin="round" fill-rule="evenodd" filter="url(#dzglow)">
-<path stroke="#f2a650" d="M0,100 L42,100 A42,42 0 0 0 84,58 L84,42 A42,42 0 0 0 42,0 L0,0 Z M24,78 L44,78 A20,20 0 0 0 64,58 L64,42 A20,20 0 0 0 44,22 L24,22 Z"/>
-<path stroke="#f2a650" d="M82,100 L93,100 L122,0 L111,0 Z"/>
-<path stroke="#a9c8ee" d="M99,100 L110,100 L139,0 L128,0 Z"/>
-<path stroke="#a9c8ee" d="M172,100 L176,100 A34,34 0 0 0 210,66 L210,34 A34,34 0 0 0 176,0 L172,0 A34,34 0 0 0 138,34 L138,66 A34,34 0 0 0 172,100 Z M174,77 A11,11 0 0 0 185,66 L185,34 A11,11 0 0 0 174,23 A11,11 0 0 0 163,34 L163,66 A11,11 0 0 0 174,77 Z"/>
-</g></svg>`;
+// the official D//0 logo artwork, as on the website and on the hanging logo
+const BUG = '<img class="air-bug" src="assets/logo-do.webp" alt="D//0" width="327" height="160">';
 
 const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km',
   'First show Wednesday 27 January 2027 · 10:00 Vienna · 20:00 Melbourne', 'Then every third Sunday of the month', 'distancezeroshow.com'];

@@ -105,7 +105,7 @@ function roundRectShape(x, y, w, h, r, shape = new THREE.Shape()) {
 /* ---------- build ---------- */
 
 // guest: the third chair, in the middle for the show's guest (the presenters proof of concept was blocked without it)
-export function buildStudio({ scene, quality, logo: logoStyle = 'kv', guest = true }) {
+export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest = true }) {
   const M = materials(quality);
   const root = new THREE.Group();
   scene.add(root);
@@ -267,9 +267,9 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'kv', guest = tr
   add(wallLight);
 
   /* ----- the 3D logo, hanging in front of the wall ----- */
-  const logo = logoStyle === 'kv' ? buildLogoKV(M, glows) : buildLogo(M, glows);
+  const logo = logoStyle === 'image' ? buildLogoImage() : logoStyle === 'kv' ? buildLogoKV(M, glows) : buildLogo(M, glows);
   logo.userData.focus = 'wall';
-  logo.position.set(logoStyle === 'kv' ? 0 : -1.31 * 1.25, 3.62, -5.55);   // the key-visual logo is centred in its own group
+  logo.position.set(logoStyle === 'image' || logoStyle === 'kv' ? 0 : -1.31 * 1.25, 3.62, -5.55);   // the image and key-visual logos are centred in their own group
   logo.scale.setScalar(1.25);
   add(logo);
   for (const x of [-1.2, 1.2]) {
@@ -788,6 +788,25 @@ function buildLogo(M, glows) {
       }
     }
   }
+  return g;
+}
+
+/* ---------- the official logo artwork (assets/logo-do-1k.webp), hung as it is ----------
+   The crystal D//0 picture itself on a card, unlit, so its gold and silver stay exactly as drawn (the set's
+   lights and tone mapping would grey it). Alpha cut-out, so it hangs free in front of the wall and casts its
+   own shape as a shadow. */
+
+function buildLogoImage() {
+  const g = new THREE.Group();
+  const tex = new THREE.TextureLoader().load('assets/logo-do-1k.webp');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  // the picture fills 1024 x 501 of its 1024 x 512 canvas; 2.12 m wide, as the key-visual logo it replaces
+  const w = 2.12, h = w * 512 / 1024;
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.04,
+    toneMapped: false, color: new THREE.Color(0.94, 0.94, 0.94), side: THREE.DoubleSide }));   // a touch under white: only its sparkle blooms
+  card.position.set(0, h / 2 - 0.05, 0.12);
+  g.add(card);
   return g;
 }
 

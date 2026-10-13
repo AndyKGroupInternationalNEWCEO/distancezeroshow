@@ -23,6 +23,7 @@ const FILES = [
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
   'assets/fonts/archivo-latin.woff2', 'assets/fonts/archivo-latin-ext.woff2',
   'assets/andrej.webp', 'assets/georgie.webp', 'assets/studio-still.jpg', 'assets/keyvisual.jpg', 'assets/favicon.svg', 'assets/apple-touch-icon.png',
+  'assets/logo-do.webp', 'assets/logo-do-1k.webp',
   // the show's wall videos and jingles for the on-air simulation (made by virtualspace/show-media.sh): these two folders only
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
 ];

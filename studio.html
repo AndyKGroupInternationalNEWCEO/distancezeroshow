@@ -59,6 +59,8 @@ button{font:inherit;color:inherit}
 .top > *{pointer-events:auto}
 .mark{font-stretch:125%;font-weight:800;text-decoration:none;font-size:1.05rem;letter-spacing:.02em;color:var(--chrome-hi);padding:6px 0;white-space:nowrap}
 .mark .a{color:var(--amber)} .mark .i{color:var(--ice)}
+.mark.logo{display:block;padding:0;line-height:0}
+.mark.logo img{display:block;height:clamp(30px,3vw,40px);width:auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.55))}
 .title{display:flex;flex-direction:column;line-height:1.2;min-width:0}
 .title strong{font-stretch:125%;font-weight:500;letter-spacing:.12em;text-transform:uppercase;font-size:.78rem;color:var(--chrome-hi);white-space:nowrap}
 .spacer{flex:1}
@@ -118,6 +120,7 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 .loader{position:fixed;inset:0;z-index:20;display:grid;place-content:center;justify-items:center;gap:22px;background:var(--black);transition:opacity .9s}
 .loader.done{opacity:0;pointer-events:none}
 .loader .mark{font-size:2.6rem}
+.loader .mark.logo img{height:72px}
 .bar{width:180px;height:2px;background:rgba(201,206,214,.12);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--chrome-hi),var(--ice));transition:width .4s}
 .fallback{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:24px var(--gut);background:var(--black) url(assets/studio-still.jpg) center/cover no-repeat}
@@ -247,7 +250,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 .air-onair i{width:10px;height:10px;border-radius:50%;background:#ff6b5e;box-shadow:0 0 10px #ff4a3d;animation:pulse 1.6s ease-in-out infinite}
 .air-onair b{font-weight:800;font-stretch:115%}
 .air-onair small{font-size:.62rem;letter-spacing:.14em;opacity:.85;text-transform:uppercase;border-left:1px solid rgba(255,255,255,.35);padding-left:10px}
-.air-bug{width:clamp(78px,9vw,132px);height:auto;opacity:.86}
+.air-bug{display:block;width:clamp(78px,9vw,132px);height:auto;opacity:.92;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
 .air-notice{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 24px);transform:translateX(-50%);margin:0;
   padding:7px 14px;border-radius:999px;background:rgba(4,5,7,.72);border:1px solid rgba(227,199,154,.55);color:var(--champagne);
   font-size:.7rem;font-weight:700;letter-spacing:.18em;white-space:nowrap;pointer-events:none}
@@ -320,7 +323,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 <a class="skip" href="#dock">Skip to studio controls</a>
 
 <header class="top">
-  <a class="mark" href="/" aria-label="DISTANCE // ZERO home">D<span class="a">/</span><span class="i">/</span>0</a>
+  <a class="mark logo" href="/" aria-label="DISTANCE // ZERO home"><img src="assets/logo-do.webp" alt="" width="327" height="160"></a>
   <div class="title"><span class="meta">Virtual studio</span><strong>Vienna // Melbourne</strong></div>
   <div class="spacer"></div>
   <div class="clocks" aria-label="Local times"><span class="v">VIE <b id="cv">--:--</b></span><span class="m">MEL <b id="cm">--:--</b></span></div>
@@ -369,7 +372,7 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
   <div class="pbody" id="panelBody"></div>
 </aside>
 
-<div class="loader" id="loader" role="status"><div class="mark">D<span class="a" style="color:var(--amber)">/</span><span style="color:var(--ice)">/</span>0</div><div class="bar"><i id="bar"></i></div><p class="meta" id="loadtext">Building the studio</p></div>
+<div class="loader" id="loader" role="status"><div class="mark logo" role="img" aria-label="D//0"><img src="assets/logo-do.webp" alt="" width="327" height="160"></div><div class="bar"><i id="bar"></i></div><p class="meta" id="loadtext">Building the studio</p></div>
 
 <section class="fallback" id="fallback" hidden>
   <div class="card">
