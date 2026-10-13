@@ -208,7 +208,8 @@
       "kind": "media",
       "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
       "loop": true,
-      "note": "replace with your own DJ visuals any time"
+      "note": "replace with your own DJ visuals any time",
+      "muted": true
     },
     "Opening Video": {
       "kind": "media",

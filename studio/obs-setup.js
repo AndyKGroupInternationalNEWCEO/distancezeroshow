@@ -42,6 +42,7 @@ const media = (rel, o = {}) => ({
   kind: 'ffmpeg_source',
   settings: { is_local_file: true, local_file: rel ? path.join(DZ, rel) : '', looping: !!o.loop, restart_on_activate: !!o.restart,
     close_when_inactive: false, hw_decode: true, clear_on_media_end: !o.loop },
+  muted: !!o.muted,   // picture-only backgrounds: their own sound never reaches the program
 });
 function inputFor(name, src, cam) {
   switch (src.kind) {

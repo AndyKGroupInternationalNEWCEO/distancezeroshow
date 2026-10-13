@@ -391,7 +391,8 @@
     "Studio Loop": {
       "kind": "media",
       "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
-      "loop": true
+      "loop": true,
+      "muted": true
     },
     "Opening Video": {
       "kind": "media",
@@ -401,7 +402,8 @@
     "Logo Reveal": {
       "kind": "media",
       "file": "shared-assets/show DO/ligobidhjvj.mp4",
-      "restart": true
+      "restart": true,
+      "muted": true
     },
     "Mic // Andrej": {
       "kind": "mic"
