@@ -26,8 +26,8 @@
 <link rel="alternate" hreflang="en-AU" href="https://distancezeroshow.com/">
 <link rel="alternate" hreflang="de-AT" href="https://distancezeroshow.com/de">
 <link rel="alternate" hreflang="x-default" href="https://distancezeroshow.com/">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="assets/favicon-do-48.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon-do.png">
 <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"TVSeries","name":"DISTANCE // ZERO","url":"https://distancezeroshow.com/","image":"https://distancezeroshow.com/assets/keyvisual.jpg","inLanguage":["en-AU","de-AT"],"countryOfOrigin":[{"@type":"Country","name":"Austria"},{"@type":"Country","name":"Australia"}],"description":"International live music show connecting Vienna and Melbourne through electronic music, live guests and conversation.","genre":["Electronic music","Trance","Progressive"],"startDate":"2027-01-27","actor":[{"@type":"Person","name":"Andrej Kneisl","homeLocation":"Vienna"},{"@type":"Person","name":"Georgie Walker","homeLocation":"Melbourne"}],"sponsor":[{"@type":"Organization","name":"DJ Andy'K","url":"https://www.djandykofficial.com/","parentOrganization":{"@type":"Organization","name":"Andy'K Group International LTD","url":"https://www.andykgroup.com/"}},{"@type":"Organization","name":"Andy'K Music Lab","url":"https://lab.djandykofficial.com/","parentOrganization":{"@type":"Organization","name":"Andy'K Group International LTD","url":"https://www.andykgroup.com/"}},{"@type":"Organization","name":"Andy'K Records","url":"https://records.djandykofficial.com/","parentOrganization":{"@type":"Organization","name":"Andy'K Group International LTD","url":"https://www.andykgroup.com/"}}]}
@@ -36,7 +36,7 @@
 {"@context":"https://schema.org","@type":"Event","name":"DISTANCE // ZERO — First show","description":"The first live broadcast of DISTANCE // ZERO, the electronic music show connecting Vienna and Melbourne, hosted by Andrej Kneisl and Georgie Walker.","startDate":"2027-01-27T10:00:00+01:00","endDate":"2027-01-27T12:00:00+01:00","eventStatus":"https://schema.org/EventScheduled","eventAttendanceMode":"https://schema.org/OnlineEventAttendanceMode","location":{"@type":"VirtualLocation","url":"https://distancezeroshow.com/#live"},"image":"https://distancezeroshow.com/assets/keyvisual.jpg","isAccessibleForFree":true,"organizer":{"@type":"Organization","name":"DISTANCE // ZERO","url":"https://distancezeroshow.com/"},"performer":[{"@type":"Person","name":"Andrej Kneisl"},{"@type":"Person","name":"Georgie Walker"}],"sponsor":{"@type":"Organization","name":"DJ Andy'K","url":"https://www.djandykofficial.com/","parentOrganization":{"@type":"Organization","name":"Andy'K Group International LTD","url":"https://www.andykgroup.com/"}}}
 </script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Organization","name":"DISTANCE ZERO – International Music & Cultural Association","alternateName":"DISTANCE ZERO","url":"https://distancezeroshow.com/","logo":"https://distancezeroshow.com/assets/apple-touch-icon.png","description":"International music and cultural association in formation (Verein in Gründung), based in Vienna, Austria. Flagship format: DISTANCE // ZERO, connecting Vienna and Melbourne.","address":{"@type":"PostalAddress","addressLocality":"Vienna","addressCountry":"AT"},"founder":[{"@type":"Person","name":"Andrej Kneisl","jobTitle":"Chairman"},{"@type":"Person","name":"Georgie Walker","jobTitle":"Vice Chairwoman"}],"email":"info@distancezeroshow.com"}
+{"@context":"https://schema.org","@type":"Organization","name":"DISTANCE ZERO – International Music & Cultural Association","alternateName":"DISTANCE ZERO","url":"https://distancezeroshow.com/","logo":"https://distancezeroshow.com/assets/logo-do-512.png","description":"International music and cultural association in formation (Verein in Gründung), based in Vienna, Austria. Flagship format: DISTANCE // ZERO, connecting Vienna and Melbourne.","address":{"@type":"PostalAddress","addressLocality":"Vienna","addressCountry":"AT"},"founder":[{"@type":"Person","name":"Andrej Kneisl","jobTitle":"Chairman"},{"@type":"Person","name":"Georgie Walker","jobTitle":"Vice Chairwoman"}],"email":"info@distancezeroshow.com"}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebSite","name":"DISTANCE // ZERO","alternateName":"Distance Zero Show","url":"https://distancezeroshow.com/"}
@@ -87,6 +87,7 @@ main,footer{position:relative;z-index:1}
   padding:14px var(--pad);transition:background .5s,backdrop-filter .5s}
 .nav.solid{background:rgba(7,8,10,.62);backdrop-filter:blur(14px) saturate(120%);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .mark{font-stretch:125%;font-weight:800;text-decoration:none;padding:10px 0;font-size:.95rem;letter-spacing:.02em;color:var(--chrome-hi)}
+.nav .mark{display:block;padding:6px 0;line-height:0}.nav .mark img{display:block;height:34px;width:auto}
 .nav ul{display:flex;gap:clamp(16px,2.4vw,38px);list-style:none;padding:0}
 .nav ul a{text-decoration:none;font-size:.7rem;letter-spacing:.2em;font-stretch:112%;color:var(--dim);padding:8px 0;position:relative;transition:color .3s}
 .nav ul a::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1px;background:linear-gradient(90deg,var(--amber),var(--ice));transform:scaleX(0);transform-origin:left;transition:transform .5s}
@@ -517,6 +518,7 @@ footer .legal b{display:block;font-weight:500;color:var(--chrome);letter-spacing
 .logos span{display:block;margin-top:16px;font-stretch:112%;font-size:.64rem;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
 footer{padding:clamp(70px,10vw,140px) var(--pad) calc(50px + env(safe-area-inset-bottom,0px));text-align:center;border-top:1px solid var(--line)}
 footer .mark{font-size:clamp(1.1rem,2.4vw,1.8rem)}
+footer .flogo{display:block;width:clamp(150px,18vw,230px);height:auto;margin:0 auto 18px;filter:drop-shadow(0 0 28px rgba(242,166,80,.18))}
 footer p{margin-top:.9em;font-stretch:112%;font-size:.74rem;letter-spacing:.26em;color:var(--dim)}
 footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;margin-top:2em}
 
@@ -579,7 +581,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 <canvas id="signal" aria-hidden="true"></canvas>
 
 <header class="nav" id="nav">
-  <a class="mark" href="#home" aria-label="DISTANCE // ZERO home">D<span class="sl">/</span><span class="sl">/</span>0</a>
+  <a class="mark" href="#home" aria-label="DISTANCE // ZERO home"><img src="assets/do-logo.webp" alt="" width="720" height="353"></a>
   <button class="snd" id="snd" aria-pressed="false" aria-label="Sound on or off"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="sndLabel">SOUND</span></button>
   <a class="lang" id="lang" href="/de" hreflang="de-AT" lang="de" aria-label="Deutsch">DE</a>
   <button class="burger" id="burger" aria-expanded="false" aria-controls="menu">MENU</button>
@@ -894,6 +896,7 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
 </section>
 
 <footer>
+  <img class="flogo" src="assets/do-logo.webp" alt="D//0" width="720" height="353" loading="lazy" decoding="async">
   <div class="mark disp">DISTANCE <span class="sl">/</span><span class="sl">/</span> ZERO</div>
   <p>VIENNA // MELBOURNE</p>
   <p>15,731 KM</p>
