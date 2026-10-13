@@ -241,7 +241,7 @@ export async function start({ canvas, width, height, progress = () => {}, realti
   composer.setSize(width, height);
 
   // studio lighting: the approved broadcast look, on air
-  const L = { ...LOOKS.broadcast, ...ON };
+  const L = { ...LOOKS.broadcast, ...ON, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 };   // silent set, no piano solo
   studio.wall.set('cities');
 
   let last = 0;

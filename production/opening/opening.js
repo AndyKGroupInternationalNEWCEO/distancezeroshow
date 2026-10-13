@@ -59,7 +59,7 @@ const LIGHT = {
   bloom: BLOOM,
 };
 function lighting(t) {
-  const L = { ...LOOKS.broadcast, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 }; // the set's sound-to-light inputs: silent
+  const L = { ...LOOKS.broadcast, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 }; // the set's sound-to-light inputs: silent; no piano solo
   for (const [k, keys] of Object.entries(LIGHT)) {
     let v = keys[0][1];
     for (let i = 1; i < keys.length; i++) {
@@ -92,11 +92,12 @@ async function stageActors(scene, texLoader) {
   info.georgie = georgie.walk({ path: [[6.0, 1.0], [4.8, -2.2], [3.3, -3.6], [1.78, -2.4], [1.45, -1.62], markG], arriveAt: 49.8, gait: 'slow', endHeading: 0, yAt: riserY });
   Object.assign(info.georgie, georgie.sit({ at: 49.8, floorY: RISER }));
 
-  // assistant: brings a folder to the desk between the chairs, turns and leaves the way she came
+  // assistant: brings a folder to Georgie's place, round the outside of her chair (the way Georgie comes in later),
+  // so the guest's chair in the middle stays clear; turns and leaves the way she came
   assistant.standAt(5.4, -5.3, -1.0);
-  info.assistant = assistant.walk({ path: [[3.2, -3.6], [1.9, -2.75], [0.55, -2.55], [0.05, -2.0], [0, -1.58]], arriveAt: 22.8, endHeading: 0, yAt: riserY });
+  info.assistant = assistant.walk({ path: [[3.2, -3.6], [2.4, -3.0], [1.78, -2.4], [1.45, -1.62]], arriveAt: 22.8, endHeading: 0, yAt: riserY });
   const turn = assistant.turn180({ at: 25.6 });
-  info.assistant.exit = assistant.walk({ path: [[0.7, -2.7], [2.2, -3.1], [3.7, -4.5], [5.3, -6.3]], at: turn.end - 0.25, startClip: false, yAt: riserY });
+  info.assistant.exit = assistant.walk({ path: [[1.78, -2.4], [2.4, -3.0], [3.7, -4.5], [5.3, -6.3]], at: turn.end - 0.25, startClip: false, yAt: riserY });
 
   // camera operator: stands behind camera 1 (which holds Georgie), takes the pan bars as the studio wakes up
   const cam1 = new V(-4.2, 0, 4.6), aim = new V(SEATS.georgie.x, 0, SEATS.georgie.z);
@@ -135,7 +136,7 @@ async function stageActors(scene, texLoader) {
   // the folder: in her right hand while she walks in, placed on the desk at the reach
   const doc = folder();
   scene.add(doc);
-  const onDesk = { pos: new V(0.02, RISER + 0.81, -1.02), quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.08, 0)) };
+  const onDesk = { pos: new V(1.2, RISER + 0.81, -1.08), quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.22, 0)) };   // in front of Georgie's seat, clear of her microphone and monitor
   const hand = new V(), carryQ = new THREE.Quaternion(), e = new THREE.Euler();
   function placeFolder(t) {
     const placed = ramp(t, 23.85, 24.35);
@@ -179,7 +180,7 @@ const SHOTS = {
   // 0–15: low glide past camera 1 and its operator, rising to the wide shot as the lights come up
   wake: { pos: curve([[-7.0, 0.55, 8.2], [-5.6, 0.85, 7.7], [-3.0, 1.3, 7.9], [-1.0, 2.1, 9.1], [0.2, 3.0, 10.8]]), target: curve([[-4.2, 1.3, 4.4], [-3.6, 1.3, 3.0], [-2.0, 1.3, 0.2], [-0.4, 1.5, -2.2], [0, 1.75, -3.0]]), fov: 38 },
   // 15–30: high, from behind the desk: the assistant's back, the folder, camera operator in the distance
-  crew: { pos: curve([[2.4, 3.05, -4.95], [1.25, 2.9, -4.75]]), target: curve([[0.3, 0.9, -1.45], [0.05, 0.95, -1.2]]), fov: 42 },
+  crew: { pos: curve([[2.4, 3.05, -4.95], [1.25, 2.9, -4.75]]), target: curve([[0.75, 0.9, -1.45], [0.55, 0.95, -1.2]]), fov: 42 },
   // 50–65: reverse angle from behind the desk, towards the studio cameras
   desk: { pos: curve([[0, 1.45, -5.05], [0, 1.62, -4.5]]), target: curve([[0, 1.1, 2.0], [0, 1.1, 2.0]]), fov: 44 },
   // 65–80: rise above and behind the presenters to straight overhead
@@ -207,7 +208,7 @@ function follow(actor, t, dist, height) {
   const back = new V(-Math.sin(h), 0, -Math.cos(h));
   return { pos: new V(p.x, p.y + height, p.z).addScaledVector(back, dist), target: new V(p.x, p.y + 1.15, p.z).addScaledVector(back, -3.0), fov: 42 };
 }
-const CHECK = { assistant: [[1.6, 1.45, 0.4], [0, 0.95, -1.4]], seated: [[0, 1.6, 2.4], [0, 1.0, -1.8]], side: [[4.2, 1.6, -0.6], [0, 0.9, -1.8]] };
+const CHECK = { assistant: [[2.6, 1.45, 0.4], [1.2, 0.95, -1.4]], seated: [[0, 1.6, 2.4], [0, 1.0, -1.8]], side: [[4.2, 1.6, -0.6], [0, 0.9, -1.8]] };
 function cameraAt(t, cast) {
   const check = CHECK[new URLSearchParams(location.search).get('view')];
   if (check) return { pos: new V(...check[0]), target: new V(...check[1]), fov: 40 }; // review only, never in the clip
@@ -245,7 +246,7 @@ export async function start({ canvas, width, height, realtime = true, progress =
   let clockT = 0;
   setClockSource(() => new Date(SHOW_START - (DURATION - clockT) * 1000));
 
-  const studio = buildStudio({ scene, quality, logo: LOGO, guest: false });   // blocked before the guest chair
+  const studio = buildStudio({ scene, quality, logo: LOGO });
   const mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x6a6d73 });
   mirror.rotation.x = -Math.PI / 2; mirror.position.y = -0.002; scene.add(mirror);
   progress(0.25);

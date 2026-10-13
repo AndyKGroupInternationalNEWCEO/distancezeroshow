@@ -100,8 +100,7 @@ function roundRectShape(x, y, w, h, r, shape = new THREE.Shape()) {
 
 /* ---------- build ---------- */
 
-// guest: the third chair, in the middle for the show's guest (the recorded opening and the proof of concept were
-// blocked without it: the assistant walks through that spot)
+// guest: the third chair, in the middle for the show's guest (the presenters proof of concept was blocked without it)
 export function buildStudio({ scene, quality, logo: logoStyle = 'kv', guest = true }) {
   const M = materials(quality);
   const root = new THREE.Group();
