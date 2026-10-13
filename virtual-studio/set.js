@@ -17,6 +17,10 @@ const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), champagne:
 
 function materials(q) {
   const physical = o => new THREE.MeshPhysicalMaterial(o);
+  // phones and tablets: glass without the transmission pass (too heavy there): a clear, tinted, see-through body with
+  // glassy reflections, so the logo reads as on desktops (the metal stand-in it replaces looked gold and brown)
+  const lightGlass = tint => physical({ color: new THREE.Color(tint).multiplyScalar(0.35), metalness: 0, roughness: 0.04, transparent: true,
+    opacity: 0.1, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.03, specularIntensity: 0.7, envMapIntensity: 1.1 });
   const rough = roughnessNoise(2), brush = brushed(1);
   const M = {
     floor: new THREE.MeshStandardMaterial({ color: 0x0b0c0f, metalness: 0.2, roughness: 0.6 }),
@@ -45,10 +49,10 @@ function materials(q) {
     fin: new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.9, roughness: 0.46, roughnessMap: rough }),
     logoWarm: q.glass
       ? physical({ color: 0xffffff, metalness: 0, roughness: 0.06, transmission: 1, thickness: 0.35, ior: 1.5, attenuationColor: new THREE.Color(0xf2b77a), attenuationDistance: 0.7, clearcoat: 1, specularIntensity: 1 })
-      : physical({ color: 0xb59a7c, metalness: 1, roughness: 0.12, clearcoat: 1 }),
+      : lightGlass(0xf2b77a),
     logoCool: q.glass
       ? physical({ color: 0xffffff, metalness: 0, roughness: 0.06, transmission: 1, thickness: 0.35, ior: 1.5, attenuationColor: new THREE.Color(0xbcd4f2), attenuationDistance: 0.7, clearcoat: 1, specularIntensity: 1 })
-      : physical({ color: 0xaab4c2, metalness: 1, roughness: 0.12, clearcoat: 1 }),
+      : lightGlass(0xbcd4f2),
   };
   // large flat dark surfaces: at low camera angles they would mirror the overhead softbox and read as pale slabs
   M.blackGlass.envMapIntensity = 0.25;
