@@ -40,7 +40,7 @@ const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vien
   'First show Wednesday 27 January 2027 · 10:00 Vienna · 20:00 Melbourne', 'Then every third Sunday of the month', 'distancezeroshow.com'];
 
 const LOWER = { andy: ["DJ ANDY'K", 'Andrej Kneisl · Vienna'], georgie: ['GEORGIE WALKER', 'Melbourne'], piano: ['THE GRAND PIANO', 'Melbourne side'],
-  music: ['MUSIC STATION', 'Vienna side'], wall: ['DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km'] };
+  music: ['MUSIC STATION', 'Vienna side'], guest: ['SPECIAL GUEST', 'Live at the DISTANCE // ZERO desk'], wall: ['DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km'] };
 
 const h = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);

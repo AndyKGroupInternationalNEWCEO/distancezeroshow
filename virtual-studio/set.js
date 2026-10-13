@@ -3,7 +3,7 @@
 // (Melbourne) on the right, as seen from the cameras.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX } from './details.js';
+import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX, micGrille } from './details.js';
 import { grandPiano } from './grandpiano.js';
 import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, AMBER, ICE } from './screens.js';
 
@@ -362,6 +362,12 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const fixtureGeo = new THREE.CylinderGeometry(0.13, 0.16, 0.42, 20);
   const lensMat = glow(C.warm);
   glows.white.push({ m: lensMat, k: 1.8 });
+  // fixture hardware (desktop only): yoke, hinge knobs, hanging clamp, a bezel just outside the lens (the glow stays as it was) and rear cooling fins
+  const hw = !quality.mobile && {
+    plate: new THREE.BoxGeometry(0.014, 0.26, 0.07), bar: new THREE.BoxGeometry(0.37, 0.016, 0.07), knob: new THREE.CylinderGeometry(0.026, 0.026, 0.02, 16).rotateZ(Math.PI / 2),
+    stem: new THREE.CylinderGeometry(0.012, 0.012, 0.15, 10), clamp: new THREE.BoxGeometry(0.07, 0.05, 0.09),
+    bezel: new THREE.TorusGeometry(0.136, 0.01, 8, 32), fin: new THREE.TorusGeometry(0.15, 0.008, 6, 28),
+  };
   const lensGeo = new THREE.CircleGeometry(0.12, 20);
   const beamTargets = [];
   for (let i = 0; i < 16; i++) {
@@ -372,6 +378,16 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     f.lookAt(0, 0.8, -1.9); // aim at the set (world coordinates)
     const body = new THREE.Mesh(fixtureGeo, M.graphite); body.rotation.x = Math.PI / 2; f.add(body);
     const lens = new THREE.Mesh(lensGeo, lensMat); lens.position.z = 0.215; f.add(lens);
+    if (hw) {
+      // the yoke hangs plumb and only turns towards the set; the head tilts inside it
+      const yoke = new THREE.Group(); yoke.position.copy(f.position); fixtures.add(yoke);
+      const wp = yoke.getWorldPosition(new THREE.Vector3()); yoke.lookAt(0, wp.y, -1.9);
+      const at = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+      for (const sx of [-1, 1]) { at(hw.plate, M.graphite, sx * 0.175, 0.06, 0, yoke); at(hw.knob, M.rubber, sx * 0.192, 0, 0, yoke); }
+      at(hw.bar, M.graphite, 0, 0.19, 0, yoke); at(hw.stem, M.brushed, 0, 0.27, 0, yoke); at(hw.clamp, M.graphite, 0, 0.33, 0, yoke);
+      at(hw.bezel, M.graphite, 0, 0, 0.212, f);
+      for (const z of [-0.08, -0.12, -0.16]) at(hw.fin, M.graphite, 0, 0, z, f);
+    }
     if (i % 2 === 0) beamTargets.push(f);
   }
 
@@ -421,6 +437,31 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   add(jib.group);
   const js = contactShadow(2.1, 2.1, 0.55); js.position.set(7.6, 0.003, -1.6); add(js);
   cams.push(jib.cam);
+  // camera 5: a pedestal for the guest, at the front right edge (outside the floor shot, below the wide shot's line to the desk)
+  {
+    const pos = [1.3, 0, 6.8], cam = tvCamera(M, 5, glows);
+    cam.group.userData.focus = 'guest';
+    cam.group.userData.equipment = 'camera 5';
+    cam.group.position.set(...pos);
+    cam.group.rotation.y = Math.atan2(SEATS.guest.x - pos[0], SEATS.guest.z - pos[2]);
+    cam.head.rotation.x = -0.06;
+    add(cam.group);
+    const sh = contactShadow(1.3, 1.3, 0.65); sh.position.set(pos[0], 0.003, pos[2]); add(sh);
+    cams.push(cam);
+    cable(root, M, new THREE.Vector3(pos[0], 0.02, pos[2]), new THREE.Vector3(pos[0] * 2.4 + 3, 0.02, 12));
+  }
+  // camera 6: the 4K high-speed camera on a low slider in front of the desk, below every other shot's frame
+  {
+    const hs = highSpeedCamera(M);
+    hs.group.userData.focus = 'slowmo';
+    hs.group.userData.equipment = '4K high-speed camera';
+    hs.group.position.set(0, 0, 2.95);
+    hs.group.rotation.y = Math.PI;                        // lens towards the desk
+    add(hs.group);
+    const sh = contactShadow(1.5, 0.5, 0.6); sh.position.set(0, 0.003, 2.95); add(sh);
+    cams.push(hs);
+    cable(root, M, new THREE.Vector3(0.62, 0.02, 2.95), new THREE.Vector3(1.5, 0.02, 12));
+  }
   anim.push((t, dt, L) => {
     jib.arm.rotation.y = 0.12 + Math.sin(t * 0.11) * 0.3;
     jib.arm.rotation.z = -0.3 + Math.sin(t * 0.083 + 1) * 0.1; // negative lifts the camera end
@@ -539,19 +580,32 @@ function chair(M) {
 
 function microphone(M, color, glows) {
   const g = new THREE.Group();
+  // satin chrome for the arm (a mirror finish read as a white line), a woven mesh head
+  M.micArm ||= new THREE.MeshStandardMaterial({ color: 0xc9cdd3, metalness: 1, roughness: 0.22 });
+  M.grille ||= new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 1, roughness: 0.42, bumpMap: micGrille(), bumpScale: 1.4 });
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.02, 32), M.graphite); base.position.y = 0.01; g.add(base);
-  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.26, 12), M.chrome);
+  // rubber foot under the base, a fine bevel on its top edge, and a collar where the arm goes in
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.004, 32), M.rubber); foot.position.y = 0.001; g.add(foot);
+  const bevel = new THREE.Mesh(new THREE.TorusGeometry(0.0595, 0.0016, 6, 48).rotateX(Math.PI / 2), M.micArm); bevel.position.y = 0.02; g.add(bevel);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.018, 16), M.graphite); collar.position.set(0, 0.028, 0.004); collar.rotation.x = 0.25; g.add(collar);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.26, 12), M.micArm);
   arm.position.set(0, 0.13, 0.03); arm.rotation.x = 0.25; g.add(arm);
   const capsule = new THREE.Group();
   capsule.position.set(0, 0.26, 0.07); capsule.rotation.x = 1.1; g.add(capsule);
   capsule.add(new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.02, 0.16, 24), M.graphite));
-  const grill = new THREE.Mesh(new THREE.SphereGeometry(0.026, 24, 16), M.brushed); grill.position.y = 0.09; capsule.add(grill);
+  const grill = new THREE.Mesh(new THREE.SphereGeometry(0.026, 32, 20), M.grille); grill.position.y = 0.09; capsule.add(grill);
+  // a bright trim ring where the mesh head meets the body
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.0238, 0.0018, 6, 40).rotateX(Math.PI / 2), M.micArm); trim.position.y = 0.079; capsule.add(trim);
   const ringMat = glow(color);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0235, 0.003, 8, 32).rotateX(Math.PI / 2), ringMat); ring.position.y = 0.05; capsule.add(ring);
   // shock mount: a ring around the body held by a small yoke on the arm
   const shock = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.0035, 8, 32).rotateX(Math.PI / 2), M.graphite); shock.position.y = -0.01; capsule.add(shock);
   for (const sx of [-1, 1]) { const y = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.008), M.graphite); y.position.set(sx * 0.036, -0.03, 0); capsule.add(y); }
   const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.012, 16), M.chrome); knob.rotation.z = Math.PI / 2; knob.position.set(0.04, -0.03, 0); capsule.add(knob);
+  // hinge at the top of the arm: a knuckle with two screw caps
+  const knuckle = new THREE.Group(); knuckle.position.set(0, 0.256, 0.062); g.add(knuckle);
+  const kn = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.024, 16), M.graphite); kn.rotation.z = Math.PI / 2; knuckle.add(kn);
+  for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 12), M.micArm); cap.rotation.z = Math.PI / 2; cap.position.x = sx * 0.014; knuckle.add(cap); }
   // cable from the base into a desk grommet
   const grommet = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.003, 8, 20).rotateX(Math.PI / 2), M.brushed); grommet.position.set(0.03, 0.002, -0.1); g.add(grommet);
   const lead = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.012, -0.055), new THREE.Vector3(0.012, 0.01, -0.085), new THREE.Vector3(0.03, -0.01, -0.1)]);
@@ -605,6 +659,8 @@ function tvCamera(M, n, glows) {
   add(ax(new THREE.CylinderGeometry(0.098, 0.1, 0.05, 48)), M.graphite, 0, 0, 0.06, lensGroup);
   add(ax(new THREE.TorusGeometry(0.088, 0.005, 8, 48).rotateX(Math.PI / 2)), M.chrome, 0, 0, 0.083, lensGroup);
   add(new THREE.CircleGeometry(0.087, 48), M.lensGlass, 0, 0, 0.08, lensGroup);
+  // the inner elements: two fine dark retaining rings and a faint bright one, so the glass has depth
+  for (const [r, mat] of [[0.066, M.seam], [0.045, M.edge], [0.03, M.seam]]) add(ax(new THREE.TorusGeometry(r, 0.0016, 6, 48).rotateX(Math.PI / 2)), mat, 0, 0, 0.0812, lensGroup);
   const hoodRing = add(ax(new THREE.CylinderGeometry(0.112, 0.102, 0.04, 48, 1, true)), M.graphite.clone(), 0, 0, 0.105, lensGroup);
   hoodRing.material.side = THREE.DoubleSide;
   // zoom rocker on the side of the lens
@@ -617,6 +673,10 @@ function tvCamera(M, n, glows) {
     v.rotation.y = sx * Math.PI / 2;
   }
   for (const [x, y] of [[-0.05, 0.12], [0, 0.12], [0.05, 0.12], [-0.03, 0.22]]) add(ax(new THREE.CylinderGeometry(0.011, 0.011, 0.03, 16)), M.brushed, x, y, -0.325, head);
+  // side panel screws on the body
+  for (const sx of [-1, 1]) for (const [w, y, z] of [[0.1015, 0.08, -0.29], [0.1015, 0.3, -0.29], [0.1215, 0.1, 0.13], [0.1215, 0.1, 0.51], [0.1215, 0.3, 0.51]]) {
+    const sc = add(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 10), M.brushed, sx * w, y, z, head); sc.rotation.z = Math.PI / 2;
+  }
   // teleprompter in front of the lens
   const hood = new THREE.Group(); hood.position.set(0, 0.2, 0.8); head.add(hood);
   add(new THREE.BoxGeometry(0.5, 0.02, 0.4), M.graphite, 0, 0.21, 0, hood);
@@ -650,6 +710,43 @@ function tvCamera(M, n, glows) {
   const tallyMat = new THREE.MeshBasicMaterial({ color: 0x220405 });
   add(new THREE.BoxGeometry(0.07, 0.025, 0.025), tallyMat, 0, 0.345, 0.5, head);
   add(new THREE.BoxGeometry(0.07, 0.025, 0.025), tallyMat, 0, 0.5, -0.15, head);
+  shadows(group);
+  return { group, head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
+}
+
+// a compact 4K high-speed (slow-motion) camera: box body, cine lens with matte box, top monitor, on a short slider
+function highSpeedCamera(M) {
+  const group = new THREE.Group();
+  const add = (geo, mat, x, y, z, parent = group) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const ax = geo => geo.rotateX(Math.PI / 2);
+  // slider: two rails between two low stands, with a carriage
+  for (const z of [-0.045, 0.045]) add(new THREE.BoxGeometry(1.24, 0.018, 0.022), M.brushed, 0, 0.3, z);
+  for (const x of [-0.6, 0.6]) {
+    add(new THREE.BoxGeometry(0.06, 0.04, 0.16), M.graphite, x, 0.3, 0);
+    add(new THREE.CylinderGeometry(0.014, 0.014, 0.28, 10), M.graphite, x, 0.15, 0);
+    for (const a of [0.6, 2.7, 4.8]) { const leg = add(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 8), M.brushed, x + Math.cos(a) * 0.07, 0.06, Math.sin(a) * 0.07); leg.rotation.set(Math.sin(a) * 0.6, 0, -Math.cos(a) * 0.6); }
+    add(new THREE.CylinderGeometry(0.11, 0.11, 0.006, 20), M.rubber, x, 0.003, 0);
+  }
+  add(new RoundedBoxGeometry(0.16, 0.03, 0.15, 2, 0.006), M.graphite, -0.15, 0.325, 0);
+  add(new THREE.SphereGeometry(0.028, 16, 12), M.brushed, -0.15, 0.36, 0);
+  const head = new THREE.Group(); head.position.set(-0.15, 0.39, 0); head.rotation.x = -0.06; group.add(head);
+  // body, cine lens (focus and iris rings, glass), matte box
+  add(new RoundedBoxGeometry(0.13, 0.13, 0.21, 3, 0.012), M.camBody, 0, 0.065, 0, head);
+  for (const sx of [-1, 1]) { const v = add(new THREE.PlaneGeometry(0.15, 0.07), M.vent, sx * 0.0655, 0.065, -0.01, head); v.rotation.y = sx * Math.PI / 2; }
+  add(ax(new THREE.CylinderGeometry(0.046, 0.046, 0.16, 32)), M.graphite, 0, 0.065, 0.18, head);
+  for (const z of [0.15, 0.2]) add(ax(new THREE.CylinderGeometry(0.05, 0.05, 0.024, 32)), M.rubber, 0, 0.065, z, head);
+  add(ax(new THREE.TorusGeometry(0.038, 0.003, 6, 32).rotateX(Math.PI / 2)), M.chrome, 0, 0.065, 0.261, head);
+  add(new THREE.CircleGeometry(0.037, 32), M.lensGlass, 0, 0.065, 0.26, head);
+  // matte box: open front and back, four thin flags
+  for (const [w, h, x, y] of [[0.15, 0.004, 0, 0.12], [0.15, 0.004, 0, 0.01], [0.004, 0.11, -0.075, 0.065], [0.004, 0.11, 0.075, 0.065]]) add(new THREE.BoxGeometry(w, h, 0.08), M.graphite, x, y, 0.3, head);
+  // top handle, a small monitor facing back, the label, and the record lamp
+  add(new THREE.BoxGeometry(0.02, 0.02, 0.16), M.graphite, 0, 0.15, 0.02, head);
+  const mon = add(new RoundedBoxGeometry(0.12, 0.08, 0.016, 2, 0.004), M.camBody, 0, 0.19, -0.07, head); mon.rotation.x = -0.35;
+  const scr = add(new THREE.PlaneGeometry(0.105, 0.065), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.05, 0.07, 0.1) }), 0, 0.187, -0.0795, head); scr.rotation.set(-0.35, Math.PI, 0);
+  const plate = new THREE.MeshBasicMaterial({ map: label('4K · 1000 FPS', { w: 512, h: 96, size: 54 }) });
+  for (const sx of [-1, 1]) { const p = add(new THREE.PlaneGeometry(0.12, 0.0225), plate, sx * 0.0662, 0.115, -0.01, head); p.rotation.y = sx * Math.PI / 2; }
+  const tallyMat = new THREE.MeshBasicMaterial({ color: 0x220405 });
+  add(new THREE.BoxGeometry(0.02, 0.012, 0.012), tallyMat, 0.045, 0.136, 0.09, head);
   shadows(group);
   return { group, head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
 }

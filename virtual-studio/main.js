@@ -163,7 +163,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   function showTally() {
     const n = director.tally();
-    ui.cam.textContent = onAir ? (n === 4 ? 'JIB' : `CAM ${n}`) : 'CAM —';
+    ui.cam.textContent = onAir ? (n === 4 ? 'JIB' : n === 6 ? '4K HS' : `CAM ${n}`) : 'CAM —';
   }
 
   // the wall's own on-air programme, except while the simulation player has the wall for the show's video
@@ -224,7 +224,9 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (e.metaKey || e.ctrlKey || e.altKey || /input|select|textarea/i.test(e.target.tagName)) return;
     if (document.body.dataset.piano === 'on') return; // the piano owns the keyboard while it is open
     const i = Number(e.key);
-    if (i >= 1 && i <= ORDER.length) { director.setAuto(false); director.go(ORDER[i - 1]); }
+    if (i >= 1 && i <= 9) { director.setAuto(false); director.go(ORDER[i - 1]); }
+    else if (e.key === '0') { director.setAuto(false); director.go('guest'); }
+    else if (e.key === 'h' || e.key === 'H') { director.setAuto(false); director.go('slowmo'); }
     else if (e.key === 'o' || e.key === 'O') ui.onair.click();
     else if (e.key === 'a' || e.key === 'A') ui.auto.click();
     else if (e.key === 'l' || e.key === 'L') { const keys = Object.keys(LOOKS); setLook(keys[(keys.indexOf(look) + 1) % keys.length]); }
@@ -303,6 +305,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   /* ----- loop ----- */
   const clock = { elapsed: 0, last: performance.now() };
+  // slow motion: on the high-speed camera's shot the set's own time (lights, wall, logo, beams) eases down to its time scale
+  let slowK = 1, setTime = 0;
   let wallAccum = 0;
   const wallStep = 1 / quality.wallFps;
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -331,9 +335,12 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (!onAir && playing && studio.wall.program === 'idle') studio.wall.set('wave');      // the wall becomes the visualiser
     if (!onAir && !playing && studio.wall.program === 'wave') studio.wall.set('idle');
 
-    wallAccum += dt;
-    if (studio.wall.program === 'film' ? studio.wall.fresh() : wallAccum >= wallStep) { studio.wall.draw(t, wallAccum); wallAccum = 0; }
-    studio.update(t, dt, L, director.tally());
+    slowK = lerp(slowK, VIEWS[director.current]?.slow ?? 1, 1 - Math.exp(-dt * 2.5));
+    const sdt = dt * slowK; setTime += sdt;
+    document.body.classList.toggle('slowmo', slowK < 0.6);
+    wallAccum += sdt;
+    if (studio.wall.program === 'film' ? studio.wall.fresh() : wallAccum >= wallStep) { studio.wall.draw(setTime, wallAccum); wallAccum = 0; }
+    studio.update(setTime, sdt, L, director.tally());
     scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
     bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 

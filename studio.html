@@ -102,6 +102,9 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 .b:hover{color:var(--chrome-hi);border-color:rgba(201,206,214,.4)}
 .b[aria-pressed="true"]{color:#0a0b0e;background:linear-gradient(100deg,#f3f5f8,#c9ced6);border-color:transparent}
 .b kbd{font:inherit;font-size:.58rem;opacity:.55;letter-spacing:0}
+/* the 4K high-speed camera: a recording badge next to the shot name while the studio runs in slow motion */
+body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;animation:hsblink 1.6s steps(2,start) infinite}
+@keyframes hsblink{50%{opacity:.35}}
 .views .b[aria-pressed="true"]{background:linear-gradient(100deg,var(--champagne),#f3f5f8 60%,var(--ice))}
 .sep{width:1px;align-self:stretch;background:var(--line);flex:none;margin:6px 4px}
 .onair i{width:9px;height:9px;border-radius:50%;background:#59606a}
@@ -350,6 +353,8 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
     <button class="b" type="button" data-view="floor"><kbd>7</kbd>Floor</button>
     <button class="b" type="button" data-view="music"><kbd>8</kbd>Music</button>
     <button class="b" type="button" data-view="piano"><kbd>9</kbd>Piano</button>
+    <button class="b" type="button" data-view="guest"><kbd>0</kbd>Guest</button>
+    <button class="b" type="button" data-view="slowmo"><kbd>H</kbd>4K slow-mo</button>
   </div>
   <div class="row ctrl">
     <button class="b onair" id="onair" type="button" aria-pressed="false" title="Full-screen simulation. Nothing is broadcast or recorded. (O)"><i></i><span>Simulate on air</span></button>

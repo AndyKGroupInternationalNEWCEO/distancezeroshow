@@ -191,3 +191,18 @@ export function bendX(geo, k) {
   geo.computeVertexNormals();
   return geo;
 }
+
+/* microphone grille: a fine woven wire mesh as a bump map, so the head reads as mesh, not as a polished ball */
+export function micGrille() {
+  return once('grille', () => {
+    const [c, x] = canvas(128);
+    x.fillStyle = '#000'; x.fillRect(0, 0, 128, 128);
+    x.strokeStyle = '#fff'; x.lineWidth = 1.6;
+    for (let i = 0; i <= 128; i += 8) {                       // two crossing wire sets
+      x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke();
+      x.beginPath(); x.moveTo(0, i); x.lineTo(128, i); x.stroke();
+    }
+    return tex(c, 6);
+  });
+}
+

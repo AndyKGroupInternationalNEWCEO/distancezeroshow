@@ -13,9 +13,12 @@ export const VIEWS = {
   floor: { label: 'Floor', long: 'Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0.08, tally: 3 },
   music: { label: 'Music', long: 'Music station', pos: [-2.5, 1.85, 3.1], target: [-5.4, 1.0, 0.1], fov: 38, drift: 0.12, tally: 1 },
   piano: { label: 'Piano', long: 'Grand piano', pos: [2.2, 2.0, 3.8], target: [5.1, 0.5, -0.1], fov: 40, drift: 0.1, tally: 3 },
+  guest: { label: 'Guest', long: 'Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0.07, tally: 5 },
+  // the 4K high-speed camera on its low slider in front of the desk: the studio runs in slow motion (slow = time scale)
+  slowmo: { label: '4K slow-mo', long: '4K high-speed camera · slow motion', pos: [0, 0.47, 2.62], target: [0, 0.95, -1.9], fov: 34, drift: 0.04, tally: 6, slow: 0.2 },
 };
 export const ORDER = Object.keys(VIEWS);
-const TOUR = ['studio', 'desk', 'andy', 'georgie', 'crane', 'wall', 'floor', 'music', 'piano'];
+const TOUR = ['studio', 'desk', 'andy', 'georgie', 'guest', 'crane', 'wall', 'slowmo', 'floor', 'music', 'piano'];
 const HOLD = 8.5;
 
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
