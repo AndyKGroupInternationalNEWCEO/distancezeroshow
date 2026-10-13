@@ -16,6 +16,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { sceneItemId: 3, sourceName: 'D//0 Overlay', inputKind: 'browser_source', sceneItemEnabled: true, sceneItemIndex: 2 },
     { sceneItemId: 4, sourceName: 'Studio Loop', inputKind: 'ffmpeg_source', sceneItemEnabled: si < 2, sceneItemIndex: 3 },
   ]]));
+  items.GUEST.push({ sceneItemId: 6, sourceName: 'VDO // Guest', inputKind: 'browser_source', sceneItemEnabled: false, sceneItemIndex: 5 });
   items.STANDBY.push({ sceneItemId: 5, sourceName: 'Video Player', inputKind: 'ffmpeg_source', sceneItemEnabled: true, sceneItemIndex: 4 });
   // the break card and VT scenes: no cameras, only the Video Player under the overlay (like obs-setup --players)
   for (const s of ['BREAK', 'VT']) {
@@ -34,6 +35,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { inputName: 'Jingle // D//0 Sting', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 6200 },
     { inputName: 'Jingle // Ösi vs Aussie', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 9800 },
     { inputName: 'Bed // Talk Underscore', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 182000 },
+    { inputName: 'VDO // Guest', inputKind: 'browser_source', audio: true, muted: true, settings: {} },
     { inputName: 'Jingle Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 5000, settings: {} },
     { inputName: 'Video Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 30000, settings: {} },
   ];

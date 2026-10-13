@@ -31,8 +31,12 @@ export function createMonitors(root, { programLabel = 'PROGRAM' } = {}) {
     tiles[which] = { el, img, chip, msg, at: 0, missing: false };
     return el;
   };
-  fill(root, make('camA', "CAMERA 01 — ANDY'K"), make('program', programLabel), make('camB', 'CAMERA 02 — GEORGIE'));
+  // ANDY'K | GUEST | GEORGIE, then the LIVE PROGRAM (the actual OBS output) on its own
+  fill(root, make('camA', "ANDY'K"), make('guest', 'GUEST'), make('camB', 'GEORGIE'), make('program', programLabel));
+  let snap = null;
   return {
+    // the guest's still preview from the waiting room (Director only), until the guest sends into OBS
+    snapshot(img, at) { snap = { img, at }; },
     frame(f) {
       const t = tiles[f.which]; if (!t) return;
       if (f.img) { t.img.src = f.img; t.at = Date.now(); t.missing = false; } else t.missing = !!f.missing;
@@ -43,7 +47,25 @@ export function createMonitors(root, { programLabel = 'PROGRAM' } = {}) {
       for (const [which, t] of Object.entries(tiles)) {
         const fresh = Date.now() - t.at < 4000;
         let chip = '', msg = '', cls = 'off';
-        if (which === 'camB' && isFriday(S)) { chip = 'NOT USED'; msg = 'FRIDAY DJ SHOW — ONE CAMERA ONLY'; }
+        const g = S.guest;
+        if (which === 'guest') {
+          const sentIn = g && ['backstage', 'onair'].includes(g.status);
+          if (isFriday(S)) { chip = 'NOT USED'; msg = 'FRIDAY DJ SHOW — NO GUEST SEAT'; }
+          else if (!g) { chip = 'NO GUEST'; msg = 'No guest invited'; }
+          else if (!sentIn) {
+            const fresh2 = snap && Date.now() - snap.at < 10000;
+            chip = g.online ? 'WAITING ROOM' : 'INVITED'; cls = 'warn';
+            msg = fresh2 ? '' : g.online ? `${g.name} is in the waiting room${S.media ? ' — no still preview shared' : ''}` : `${g.name} has not joined yet`;
+            if (fresh2) { t.img.src = snap.img; t.img.hidden = false; } else t.img.hidden = true;
+            t.chip.textContent = 'PREVIEW · ' + chip; t.chip.className = 'mchip warn'; t.msg.textContent = msg; t.msg.hidden = !msg;
+            continue;
+          }
+          else if (!obsUp) { chip = 'OBS OFFLINE'; msg = 'No picture: OBS is not connected'; }
+          else if (t.missing) { chip = 'NO SOURCE'; msg = 'No "VDO // Guest" seat in this OBS show'; }
+          else if (!fresh) { chip = 'NO PICTURE'; msg = `Waiting for ${g.name}'s studio camera`; }
+          else { chip = g.status === 'onair' ? 'ON AIR' : 'BACKSTAGE — NOT ON AIR'; cls = g.status === 'onair' ? 'air' : 'ok'; }
+        }
+        else if (which === 'camB' && isFriday(S)) { chip = 'NOT USED'; msg = 'FRIDAY DJ SHOW — ONE CAMERA ONLY'; }
         else if (!obsUp) { chip = 'OBS OFFLINE'; msg = 'No picture: OBS is not connected'; }
         else if (t.missing) { chip = 'NO SOURCE'; msg = which === 'camA' ? 'No "Cam // Andrej" source in this OBS show' : which === 'camB' ? 'No "VDO // Georgie" source in this OBS show' : 'No program picture'; }
         else if (!fresh) { chip = t.at ? 'NO PICTURE' : 'WAITING'; msg = t.at ? 'Picture stopped — check the source in OBS' : 'Waiting for the first picture…'; }
@@ -52,7 +74,7 @@ export function createMonitors(root, { programLabel = 'PROGRAM' } = {}) {
         else { chip = 'LIVE FEED'; cls = 'ok'; }
         t.chip.textContent = chip; t.chip.className = 'mchip ' + cls;
         t.msg.textContent = msg; t.msg.hidden = !msg;
-        t.img.hidden = !(fresh && !(which === 'camB' && isFriday(S)));
+        t.img.hidden = !(fresh && !((which === 'camB' || which === 'guest') && isFriday(S)));
       }
     },
   };

@@ -114,6 +114,22 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       if (req.method === 'GET' && p === '/favicon.svg') return file(req, res, path.join(SITE_ASSETS, 'favicon.svg'));
       if (req.method === 'GET' && p === '/login') return file(req, res, path.join(PUBLIC, 'login.html'));
       if (req.method === 'POST' && p === '/login') return login(req, res);
+      // THIRD SEAT: an invited guest opens /guest#invite=… on the public link; the invitation becomes a session for
+      // this one invitation only (ended or replaced invitations stop working at once)
+      if (role === 'host' && req.method === 'GET' && p === '/guest') return file(req, res, path.join(PUBLIC, 'guest.html'));
+      if (role === 'host' && req.method === 'POST' && p === '/guest/join') {
+        if (!loginLimit(clientIp(req))) return send(req, res, 429, 'application/json', JSON.stringify({ ok: false, error: 'Too many attempts. Wait ten minutes.' }));
+        let body = '';
+        req.on('data', c => { body += c; if (body.length > 1024) req.destroy(); });
+        req.on('end', () => {
+          let t = ''; try { t = String(JSON.parse(body).invite || ''); } catch {}
+          const id = studio.guestJoin(t);
+          if (!id) { log.warn(`[auth] invalid guest invitation from ${clientIp(req)}`); return send(req, res, 401, 'application/json', JSON.stringify({ ok: false, error: 'This invitation is not valid any more. Ask the studio for a new link.' })); }
+          log.log(`[auth] guest joined from ${clientIp(req)}`);
+          send(req, res, 200, 'application/json', JSON.stringify({ ok: true }), { 'Set-Cookie': cookieHeader('dz_guest', makeSession(secrets.cookieSecret, 'guest-' + id), { secure: viaHttps(req) }) });
+        });
+        return;
+      }
       // SCRIPT import from PDF (free local tool: pdftotext) and export to PDF (headless Chrome if present, else a printable page).
       // Director on this Mac only. The import is returned for review; nothing is applied here.
       if (role === 'director' && p.startsWith('/script/') && (proxied(req) || !authed(req))) return send(req, res, 403, 'text/plain', 'No');
@@ -234,8 +250,13 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       let originHost = '';
       try { originHost = new URL(req.headers.origin).host; } catch {}
       if (!originHost || (originHost !== req.headers.host && originHost !== req.headers['x-forwarded-host'])) return reject(403);
-      let as = null;
-      if (authed(req)) as = role;
+      let as = null, guestId = '';
+      const asGuest = role === 'host' && url.searchParams.get('as') === 'guest';   // the guest page: only the guest session counts
+      if (!asGuest && authed(req)) as = role;
+      else if (role === 'host') {
+        const v = String(parseCookies(req.headers.cookie).dz_guest || ''), gid = v.split('.')[0];
+        if (/^guest-[0-9a-f]{12}$/.test(gid) && checkSession(secrets.cookieSecret, v, gid) && studio.guestValid(gid.slice(6))) { as = 'guest'; guestId = gid.slice(6); }
+      }
       else if (role === 'director' && url.searchParams.has('overlay') && sameSecret(url.searchParams.get('overlay'), secrets.overlayKey)) as = 'overlay';
       if (!as) return reject(401);
       wss.handleUpgrade(req, socket, head, ws => {
@@ -243,7 +264,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
         ws.on('pong', () => { alive.ok = true; });
         const hb = setInterval(() => { if (!alive.ok) return ws.terminate(); alive.ok = false; ws.ping(); }, 15000);
         ws.on('close', () => clearInterval(hb));
-        studio.connect(ws, as, { remote: proxied(req) });
+        studio.connect(ws, as, { remote: proxied(req), guestId });
       });
     });
 

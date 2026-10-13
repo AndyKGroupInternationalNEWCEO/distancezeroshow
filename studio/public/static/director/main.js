@@ -45,6 +45,7 @@ ctx.conn.on('notify', m => {
 });
 ctx.conn.on('meters', ({ m }) => { live.meters(m); tech.meters(m); });
 ctx.conn.on('frame', f => { live.frame(f); show.frame(f); hostmode.frame(f); });
+ctx.conn.on('guest.snap', m => show.guestSnap(m));
 ctx.conn.on('log.history', ({ entries }) => tech.logHistory(entries));
 ctx.conn.on('log', ({ entry }) => tech.logEntry(entry));
 chatPanel(ctx.conn, 'director', { onUnread: n => {

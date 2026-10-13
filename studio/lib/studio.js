@@ -13,12 +13,14 @@ import { createRehearsal } from './rehearsal.js';
 import { watchTunnel } from './tunnel.js';
 import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, renderHtml, LOCK_MINUTES } from './script.js';
 
-const ROLES = ['director', 'host', 'overlay'];
+const ROLES = ['director', 'host', 'overlay', 'guest'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
   'check.echo', 'check.result', 'notes.set', 'monitors']);  // monitors: watching the camera/program pictures only
 const OVERLAY_ACTIONS = new Set(['ping']);
+// an invited guest: their own waiting room only. No script, chat, notes, OBS, call or break conversation.
+const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors']);
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
 const LEADS = ['andrej', 'georgie', 'both'];
@@ -45,6 +47,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     showId: saved.showId || '',
     // a running break: when it started, which microphones the studio muted for it (they come back on RETURN TO LIVE only)
     brk: saved.brk || { active: false },
+    // THIRD SEAT: one invited guest at a time. Status: invited → waiting (online) → backstage (ADMIT) → onair (TAKE ON AIR)
+    guest: saved.guest || null,
     mediaAir: saved.mediaAir || { audio: null, video: null },   // what the studio last put on air through the OBS players         // the selected show preset (Sunday / Friday), kept across restarts
   };
   let rundown = loadRundown();
@@ -260,7 +264,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), guest: guestView('director'), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -274,13 +278,19 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     }
     if (role === 'host') {
       return {
-        show: showView(), rundown: hostRundownView(), now: Date.now(), brk: breakView('host'), cueTitles: cueTitles(), myNotes: notesFor('georgie'), note: state.note, music: state.music,
+        show: showView(), rundown: hostRundownView(), now: Date.now(), brk: breakView('host'), guest: guestView('host'), cueTitles: cueTitles(), myNotes: notesFor('georgie'), note: state.note, music: state.music,
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
         vdo: { push: vdo.push },
         ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'),
       };
+    }
+    if (role === 'guest') {
+      const g = state.guest;
+      return { show: { title: config.show.title }, now: Date.now(),
+        guest: g ? { name: g.name, status: g.status, check: g.check || null, push: ['backstage', 'onair'].includes(g.status) ? guestLinks(g).push : '' } : null,
+        tally: { onAir: obs.state.stream.active } };
     }
     const seg = rundown.segments[state.pos.index];
     return { show: showView(), gfx: state.gfx, segment: seg ? { title: seg.title, kind: seg.kind } : null };
@@ -315,11 +325,13 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     tick++;
     const live = watchers.filter(c => c.monitors === 'live'), show = watchers.filter(c => c.monitors === 'show');
     const jobs = [];
+    if (!live.length && !show.length) jobs.push(['program', obs.state.program, watchers, 480]);   // only guests watching
     if (live.length) for (const which of tick % 2 ? ['program', 'preview'] : ['program']) jobs.push([which, which === 'program' ? obs.state.program : previewScene(), live, 640]);
     if (show.length) {
       if (!live.length) jobs.push(['program', obs.state.program, show, 480]);
       if (tick % 3 === 0) jobs.push(['camA', CAMS.camA, show, 480]);
       if (tick % 3 === 1) jobs.push(['camB', CAMS.camB, show, 480]);
+      if (tick % 3 === 2 && ['backstage', 'onair'].includes(state.guest?.status)) jobs.push(['guest', 'VDO // Guest', show, 480]);
     }
     for (const [which, source, to, width] of jobs) {
       if (!source || busy[which]) continue;
@@ -330,7 +342,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         const now = Date.now();
         for (const c of targets) {
           // Georgie's pictures travel over her internet link next to her camera: at most about one per second each
-          if (c.role === 'host') { c.lastFrame ||= {}; if (now - (c.lastFrame[which] || 0) < 900) continue; c.lastFrame[which] = now; }
+          if (c.role === 'guest' && which !== 'program') continue;   // a guest sees the program only
+          if (c.role === 'host' || c.role === 'guest') { c.lastFrame ||= {}; if (now - (c.lastFrame[which] || 0) < 900) continue; c.lastFrame[which] = now; }
           c.send({ t: 'frame', which, scene: source, img });
         }
       }).catch(e => {
@@ -344,16 +357,17 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   /* ---------- connections ---------- */
 
   const count = role => [...clients].filter(c => c.role === role).length;
-  function connect(ws, role, { remote = false } = {}) {
+  function connect(ws, role, { remote = false, guestId = '' } = {}) {
     if (!ROLES.includes(role)) throw new Error('unknown role');
     const client = {
-      ws, role, remote, monitors: false,
+      ws, role, remote, monitors: false, guestId,
       send(msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); },
     };
     clients.add(client);
+    if (role === 'guest') guestPresence(true);
     client.send({ t: 'hello', role });
     client.send({ t: 'state', s: view(role) });
-    if (role !== 'overlay') client.send({ t: 'chat.history', msgs: chat.slice(-200) });
+    if (role === 'director' || role === 'host') client.send({ t: 'chat.history', msgs: chat.slice(-200) });
     if (role === 'director') client.send({ t: 'log.history', entries: events });
     if (role === 'host') {
       if (count('host') === 1) notify('ok', 'host-up', `Georgie connected${remote ? ' (via her public link)' : ' (on this Mac)'}`);
@@ -381,6 +395,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       if (role === 'director' && !count('director')) { logEvent('warn', 'Director Studio disconnected', 'director-down'); notify('warn', 'director-down', 'Andrej\'s studio is reconnecting. Stay where you are.', { to: ['host'] }); }
       talk.onClose(client);
       if (role === 'overlay') logEvent('warn', 'Graphics overlay disconnected');
+      if (role === 'guest') guestPresence(false);
       broadcastState();
     });
   }
@@ -391,6 +406,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     const { role } = client;
     if (role === 'host' && !HOST_ACTIONS.has(msg.t)) throw new Error('Not allowed for the host role');
     if (role === 'overlay' && !OVERLAY_ACTIONS.has(msg.t)) throw new Error('Not allowed for the overlay role');
+    if (role === 'guest' && !GUEST_ACTIONS.has(msg.t)) throw new Error('Not allowed for a guest');
 
     switch (msg.t) {
       case 'ping': client.send({ t: 'pong', ts: msg.ts }); return;
@@ -407,7 +423,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         };
         changed(); return;
       }
-      case 'monitors': client.monitors = msg.on === 'show' || (role === 'host' && msg.on) ? 'show' : msg.on ? 'live' : false; return;
+      case 'monitors': client.monitors = role === 'guest' ? (msg.on ? 'program' : false) : msg.on === 'show' || (role === 'host' && msg.on) ? 'show' : msg.on ? 'live' : false; return;
       case 'assist': return talk.handle(client, msg);
       case 'obs': return obsAction(msg);
       case 'rundown': return rundownAction(msg);
@@ -429,6 +445,23 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'media.stop': return mediaStop(msg);
       case 'media.rescan': media?.scan(); changed(); return;
       case 'cue.go': return cueGo(msg);
+      case 'guest.invite': return guestInvite(msg);
+      case 'guest.admit': return guestAdmit();
+      case 'guest.waiting': return guestBack();
+      case 'guest.onair': return guestOnAir(msg);
+      case 'guest.offair': return guestOffAir();
+      case 'guest.end': return guestEnd();
+      case 'guest.check': {
+        const g = state.guest; if (!g || client.guestId !== g.id) throw new Error('This invitation has ended');
+        g.check = { camera: !!msg.camera, mic: !!msg.mic, at: Date.now() }; changed(); return;
+      }
+      case 'guest.snapshot': {
+        // a still picture from the guest's camera check, for the Director's preview only (kept in memory, never saved)
+        const g = state.guest; if (!g || client.guestId !== g.id) throw new Error('This invitation has ended');
+        const img = String(msg.img || '');
+        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(img) || img.length > 60000) throw new Error('Bad picture');
+        guestSnap = { img, at: Date.now() }; toRole('director', { t: 'guest.snap', img, at: guestSnap.at }); return;
+      }
       case 'cue.fire': return cueFire(msg);
       case 'break.return': return breakReturn(msg);
       case 'emergency': return emergency(msg);
@@ -780,6 +813,104 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     } };
   }
 
+  /* ---------- THIRD SEAT: the invited guest ----------
+     INVITE gives one private link (valid 24 h, one guest at a time). The guest checks camera and microphone in a
+     waiting room and may send a still preview. ADMIT GUEST lets them send their camera through VDO.Ninja into OBS,
+     where "VDO // Guest" stays HIDDEN and MUTED. Only TAKE GUEST ON AIR (a separate, confirmed action) shows and
+     unmutes it. A new invitation gets a new VDO.Ninja stream, so old links stop working. */
+  let guestSnap = null;
+  const GUEST_SRC = 'VDO // Guest';
+  const guestLinks = g => {
+    const base = config.vdoNinja?.base || 'https://vdo.ninja/';
+    const q = p => base + '?' + new URLSearchParams(p).toString().replace(/=(&|$)/g, '$1');
+    return { push: q({ push: g.vdoStream, password: g.vdoPassword, label: g.name || 'Guest', webcam: '', quality: '0' }),
+      view: q({ view: g.vdoStream, password: g.vdoPassword, cleanoutput: '' }) };
+  };
+  const guestActive = () => { const g = state.guest; return g && g.expiresAt > Date.now() ? g : null; };
+  function guestView(role) {
+    const g = guestActive(); if (!g) return null;
+    const v = { name: g.name, status: g.status, online: [...clients].some(c => c.role === 'guest'), check: g.check || null };
+    return role === 'director' ? { ...v, expiresAt: g.expiresAt, snapAt: guestSnap?.at || 0, seat: obs.hasScene('GUEST') } : v;
+  }
+  function guestPresence(on) {
+    const g = state.guest; if (!g) return;
+    if (on && g.status === 'invited') g.status = 'waiting';
+    logEvent(on ? 'ok' : 'warn', `Guest ${g.name || ''} ${on ? 'joined the waiting room' : 'left'}`.replace('  ', ' '));
+    if (on) notify('ok', 'guest-up', `${g.name || 'The guest'} is in the waiting room`, { to: ['director'] });
+    changed();
+  }
+  // the OBS guest source: hidden + muted, unless on air; pointed at this invitation's VDO.Ninja stream
+  async function guestObs({ onAir = false, url = null } = {}) {
+    if (!obs.state.connected) { if (onAir) throw new Error('OBS is not connected'); return false; }
+    let ok = true;
+    if (url != null) await obs.request('SetInputSettings', { inputName: GUEST_SRC, inputSettings: { url } }).catch(() => { ok = false; });
+    await obs.request('SetInputMute', { inputName: GUEST_SRC, inputMuted: !onAir }).catch(() => { ok = false; });
+    const items = await obs.request('GetSceneItemList', { sceneName: 'GUEST' }).then(r => r.sceneItems).catch(() => []);
+    const it = items.find(i => i.sourceName === GUEST_SRC);
+    if (it) await obs.request('SetSceneItemEnabled', { sceneName: 'GUEST', sceneItemId: it.sceneItemId, sceneItemEnabled: !!onAir });
+    else ok = false;
+    if (onAir && !ok) throw new Error('OBS has no "VDO // Guest" seat in the GUEST scene yet (npm run obs-setup -- sunday --players)');
+    return ok;
+  }
+  function closeGuests() { for (const c of clients) if (c.role === 'guest') try { c.ws.close(4001, 'invitation ended'); } catch {} }
+  async function guestInvite(msg) {
+    if (state.guest?.status === 'onair') throw new Error('The current guest is on air. Take them off air first.');
+    closeGuests(); guestSnap = null;
+    const token = crypto.randomBytes(24).toString('base64url');
+    state.guest = { id: crypto.randomBytes(6).toString('hex'), name: str(msg.name, 60) || 'Guest', status: 'invited',
+      tokenHash: crypto.createHash('sha256').update(token).digest('hex'), createdAt: Date.now(), expiresAt: Date.now() + 24 * 3600e3,
+      vdoStream: 'dzg' + crypto.randomBytes(6).toString('hex'), vdoPassword: crypto.randomBytes(9).toString('base64url'), check: null };
+    await guestObs({ url: 'about:blank' }).catch(() => {});
+    logEvent('ok', `Guest invitation created for ${state.guest.name} (valid 24 h)`);
+    changed();
+    const t = await tunnel.check().catch(() => ({}));
+    const path_ = `/guest#invite=${token}`;
+    return { link: t.running ? t.url + path_ : null, path: path_, up: !!t.up, local: `http://${config.guest.host}:${config.guest.port}${path_}` };
+  }
+  function guestJoin(token) {
+    const g = guestActive(); if (!g) return null;
+    const h = crypto.createHash('sha256').update(String(token || '')).digest('hex');
+    return h.length === g.tokenHash.length && crypto.timingSafeEqual(Buffer.from(h), Buffer.from(g.tokenHash)) ? g.id : null;
+  }
+  const guestValid = id => !!id && guestActive()?.id === id;
+  async function guestAdmit() {
+    const g = guestActive(); if (!g) throw new Error('No guest invited');
+    if (g.status === 'onair') throw new Error('The guest is already on air');
+    // the seat in OBS: this invitation's stream, still hidden and muted
+    const ok = await guestObs({ url: guestLinks(g).view });
+    g.status = 'backstage';
+    logEvent('ok', `Guest ${g.name} admitted backstage (not on air)${ok ? '' : ' — OBS guest seat not found, add it with obs-setup --players'}`);
+    changed(); return { obs: ok };
+  }
+  async function guestBack() {
+    const g = guestActive(); if (!g) throw new Error('No guest invited');
+    if (g.status === 'onair') await guestObs({ onAir: false });
+    g.status = 'waiting'; await guestObs({ url: 'about:blank' }).catch(() => {});
+    logEvent('ok', `Guest ${g.name} sent back to the waiting room`); changed();
+  }
+  async function guestOnAir(msg) {
+    if (msg.confirm !== true) throw new Error('Needs confirmation');
+    const g = guestActive(); if (!g) throw new Error('No guest invited');
+    if (g.status !== 'backstage') throw new Error('Admit the guest backstage first');
+    if (state.brk.active) throw new Error('A break is running: return to live first');
+    await guestObs({ onAir: true });
+    g.status = 'onair';
+    if (state.settings.micInputs && !state.settings.micInputs.includes(GUEST_SRC)) { state.settings.micInputs.push(GUEST_SRC); obs.setMicList(state.settings.micInputs); }
+    logEvent('ok', `Guest ${g.name} ON AIR (seat shown, sound on)`); changed();
+  }
+  async function guestOffAir() {
+    const g = guestActive(); if (!g) throw new Error('No guest invited');
+    await guestObs({ onAir: false });
+    if (g.status === 'onair') g.status = 'backstage';
+    logEvent('ok', `Guest ${g.name} off air (seat hidden, sound off)`); changed();
+  }
+  async function guestEnd() {
+    const g = state.guest; if (!g) return;
+    await guestObs({ onAir: false, url: 'about:blank' }).catch(() => {});
+    state.guest = null; guestSnap = null; closeGuests();
+    logEvent('ok', `Guest invitation ended (${g.name})`); changed();
+  }
+
   /* ---------- episodes and their scripts (editing in REHEARSAL; the server enforces the T−180 lock) ---------- */
   function episodeNew(msg) {
     if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first.');
@@ -943,5 +1074,6 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     parseScript: text => splitBySegments(text, rundown.segments),
     scriptHtml: () => renderHtml(rundown, id => { const m = media?.get(id); return m ? `${m.id} — ${m.title}${m.available ? '' : ' (NOT AVAILABLE)'}` : id; }),
     scriptName: () => (rundown.episode?.id || 'DISTANCE-ZERO-script'),
+    guestJoin, guestValid,
   };
 }

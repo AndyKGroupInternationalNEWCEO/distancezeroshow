@@ -17,7 +17,8 @@
   },
   "mics": [
     "Mic // Andrej",
-    "VDO // Georgie"
+    "VDO // Georgie",
+    "VDO // Guest"
   ],
   "rundown": {
     "master": "SUNDAY_MASTER_SCRIPT",
@@ -135,7 +136,9 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": "", "returnJingle": "05", "returnVideo": ""
+          "music": "",
+          "returnJingle": "05",
+          "returnVideo": ""
         },
         "guest": {
           "name": "",
@@ -211,7 +214,9 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": "", "returnJingle": "05", "returnVideo": ""
+          "music": "",
+          "returnJingle": "05",
+          "returnVideo": ""
         },
         "guest": {
           "name": "",
@@ -283,7 +288,9 @@
           "video": "V10",
           "mode": "loop",
           "audioMode": "wav",
-          "music": "", "returnJingle": "05", "returnVideo": ""
+          "music": "",
+          "returnJingle": "05",
+          "returnVideo": ""
         },
         "guest": {
           "name": "",
@@ -428,6 +435,10 @@
       "kind": "audio",
       "file": "shared-assets/show DO/DISTANCE ZERO - Three-Note Signature (B).wav",
       "loop": true
+    },
+    "VDO // Guest": {
+      "kind": "guest",
+      "note": "set by the studio for each guest invitation; hidden and muted until TAKE GUEST ON AIR"
     }
   },
   "scenes": [
@@ -576,19 +587,28 @@
         [
           "Cam // Andrej",
           {
-            "x": 64,
-            "y": 200,
-            "w": 880,
-            "h": 495
+            "x": 40,
+            "y": 300,
+            "w": 592,
+            "h": 333
+          }
+        ],
+        [
+          "VDO // Guest",
+          {
+            "x": 664,
+            "y": 300,
+            "w": 592,
+            "h": 333
           }
         ],
         [
           "VDO // Georgie",
           {
-            "x": 976,
-            "y": 200,
-            "w": 880,
-            "h": 495
+            "x": 1288,
+            "y": 300,
+            "w": 592,
+            "h": 333
           }
         ],
         [

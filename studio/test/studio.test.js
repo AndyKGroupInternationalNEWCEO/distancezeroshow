@@ -1020,3 +1020,62 @@ test('host view: spoken script without [DIRECTOR] lines, cue titles by name, mon
   await hst.send({ t: 'monitors', on: false });
   d.close(); hst.close();
 });
+
+test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate steps; guest audio muted until on air; no access beyond the waiting room', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const seat = () => mock.inputs.find(i => i.inputName === 'VDO // Guest'), item = () => mock.items.GUEST.find(i => i.sourceName === 'VDO // Guest');
+  assert.equal((await hst.send({ t: 'guest.invite', name: 'X' })).ok, false, 'Georgie cannot invite');
+  const inv = await d.send({ t: 'guest.invite', name: 'Ada Guest' });
+  assert.equal(inv.ok, true, JSON.stringify(inv));
+  const token = new URLSearchParams(inv.result.path.split('#')[1]).get('invite');
+  assert.ok(token.length > 20);
+  // the guest page is public; joining needs the invitation
+  assert.equal((await fetch(G + '/guest')).status, 200);
+  assert.equal((await fetch(D + '/guest/join', { method: 'POST', body: JSON.stringify({ invite: token }) })).status, 404, 'not on the director port');
+  assert.equal((await fetch(G + '/guest/join', { method: 'POST', body: JSON.stringify({ invite: 'wrong' }) })).status, 401);
+  const j = await fetch(G + '/guest/join', { method: 'POST', body: JSON.stringify({ invite: token }) });
+  assert.equal(j.status, 200);
+  const gc = (j.headers.get('set-cookie') || '').split(';')[0];
+  assert.match(gc, /^dz_guest=guest-[0-9a-f]{12}\./);
+  assert.equal((await fetch(G + '/', { headers: { Cookie: gc }, redirect: 'manual' })).status, 302, 'a guest cookie does not open the host dashboard');
+  const gu = client(G, { cookie: gc }); await gu.opened;
+  const gs = await gu.next(m => m.t === 'state');
+  assert.equal(gs.s.guest.status, 'waiting'); assert.equal(gs.s.guest.push, '', 'no studio camera link before ADMIT');
+  for (const k of ['rundown', 'obs', 'myNotes', 'media', 'vdo', 'ice', 'brk']) assert.equal(gs.s[k], undefined, 'guest view has no ' + k);
+  assert.ok(!gu.msgs.some(m => m.t === 'chat.history'), 'no talkback history');
+  for (const m of [{ t: 'rundown', action: 'next' }, { t: 'chat.send', text: 'hi' }, { t: 'call.start' }, { t: 'obs', action: 'program', scene: 'GUEST' },
+    { t: 'guest.admit' }, { t: 'guest.onair', confirm: true }, { t: 'notes.set', segmentId: 'x', text: 'x' }, { t: 'emergency', action: 'mics' }])
+    assert.equal((await gu.send(m)).ok, false, 'guest refused: ' + m.t);
+  // still preview: to the Director only
+  const img = 'data:image/jpeg;base64,' + Buffer.from('fakejpeg').toString('base64');
+  assert.equal((await gu.send({ t: 'guest.snapshot', img })).ok, true);
+  await d.next(m => m.t === 'guest.snap' && m.img === img);
+  await new Promise(r => setTimeout(r, 200));
+  assert.ok(!hst.msgs.some(m => m.t === 'guest.snap'), 'Georgie never gets the preview');
+  // ON AIR is refused before ADMIT; ADMIT alone keeps the seat hidden and muted
+  assert.equal((await d.send({ t: 'guest.onair', confirm: true })).ok, false);
+  assert.equal((await d.send({ t: 'guest.admit' })).ok, true);
+  assert.match(seat().settings.url, /vdo\.ninja\/\?view=dzg/);
+  assert.equal(seat().muted, true); assert.equal(item().sceneItemEnabled, false);
+  const gb = await gu.next(m => m.t === 'state' && m.s.guest?.status === 'backstage');
+  assert.match(gb.s.guest.push, /push=dzg/);
+  // TAKE GUEST ON AIR: confirmed only; then shown and unmuted
+  assert.equal((await d.send({ t: 'guest.onair' })).ok, false, 'needs confirmation');
+  assert.equal(seat().muted, true);
+  assert.equal((await d.send({ t: 'guest.onair', confirm: true })).ok, true);
+  assert.equal(seat().muted, false); assert.equal(item().sceneItemEnabled, true);
+  await gu.next(m => m.t === 'state' && m.s.guest?.status === 'onair');
+  assert.equal((await d.send({ t: 'guest.offair' })).ok, true);
+  assert.equal(seat().muted, true); assert.equal(item().sceneItemEnabled, false);
+  // ending the invitation disconnects the guest and the old cookie stops working
+  assert.equal((await d.send({ t: 'guest.end' })).ok, true);
+  await new Promise(r => gu.ws.readyState === 3 ? r() : gu.ws.once('close', r));
+  await assert.rejects(client(G, { cookie: gc }).opened, /401/);
+  assert.ok([401, 429].includes((await fetch(G + '/guest/join', { method: 'POST', body: JSON.stringify({ invite: token }) })).status), 'old link dead (or the sign-in limit stops it)');
+  d.close(); hst.close();
+});
+
+test('the guest page never runs on Georgie\'s session, even in a browser where she is signed in', async () => {
+  await assert.rejects(client(G, { cookie: hostCookie, query: '?as=guest' }).opened, /401/);
+});

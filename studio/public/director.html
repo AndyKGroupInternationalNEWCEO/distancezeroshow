@@ -147,6 +147,7 @@
             <button type="button" role="tab" data-p="video" aria-selected="false">Video</button>
             <button type="button" role="tab" data-p="gfx" aria-selected="false">Graphics</button>
             <button type="button" role="tab" data-p="talk" aria-selected="false">Talk <span class="dot" id="dotTalk" hidden></span></button>
+            <button type="button" role="tab" data-p="guest" aria-selected="false">Guest <span class="dot" id="dotGuest" hidden></span></button>
             <button type="button" role="tab" data-p="more" aria-selected="false">More</button>
           </nav>
           <div class="sidep" data-p="audio">
@@ -244,6 +245,12 @@
                 </div>
                 <input class="in mt" id="guideText" maxlength="600" placeholder="Extra words for Georgie (optional; required for own instructions)" aria-label="Guidance text">
               </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="guest" hidden>
+            <section class="card key" aria-labelledby="hGuest">
+              <div class="card-h"><h2 id="hGuest">Guest // third seat</h2><div class="aside"><span class="badge" id="gsBadge">No guest</span></div></div>
+              <div class="card-b" id="gsBody"></div>
             </section>
           </div>
           <div class="sidep" data-p="more" hidden>

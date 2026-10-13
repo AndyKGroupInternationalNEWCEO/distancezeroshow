@@ -47,6 +47,7 @@ function inputFor(name, src, cam) {
   switch (src.kind) {
     case 'camera': return { kind: cam.kind, settings: cam.settings };
     case 'vdo': return { kind: 'browser_source', settings: { url: vdoView, width: 1920, height: 1080, reroute_audio: true, restart_when_active: false, shutdown: false } };
+    case 'guest': return { kind: 'browser_source', muted: true, settings: { url: 'about:blank', width: 1280, height: 720, reroute_audio: true, restart_when_active: false, shutdown: false } };
     case 'overlay': return { kind: 'browser_source', settings: { url: overlayUrl, width: 1920, height: 1080, shutdown: false } };
     case 'mic': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' } };
     case 'mixer': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' }, muted: true };   // muted until its device is chosen
@@ -101,6 +102,27 @@ async function addPlayers(show, existing) {
     done.push('scene VT');
   }
   for (const sc of ['STANDBY', 'OPENING', 'MUSIC', 'BREAK', 'CREDITS']) if (scenes.has(sc)) await place(sc, false);
+  // THIRD SEAT: the existing GUEST scene gets the guest in the centre — ANDY'K | GUEST | GEORGIE. The guest source starts
+  // HIDDEN and MUTED; only TAKE GUEST ON AIR in the studio shows and unmutes it. Its VDO.Ninja address is set per invitation.
+  if (scenes.has('GUEST')) {
+    const items = (await req('GetSceneItemList', { sceneName: 'GUEST' })).sceneItems;
+    if (!items.some(i => i.sourceName === 'VDO // Guest')) {
+      const box = (x) => ({ positionX: x, positionY: 300, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 592, boundsHeight: 333 });
+      const settings = { url: 'about:blank', width: 1280, height: 720, reroute_audio: true, restart_when_active: false, shutdown: false };
+      const id = inputs.has('VDO // Guest')
+        ? (await req('CreateSceneItem', { sceneName: 'GUEST', sourceName: 'VDO // Guest', sceneItemEnabled: false })).sceneItemId
+        : (await req('CreateInput', { sceneName: 'GUEST', inputName: 'VDO // Guest', inputKind: 'browser_source', inputSettings: settings, sceneItemEnabled: false })).sceneItemId;
+      await req('SetInputMute', { inputName: 'VDO // Guest', inputMuted: true });
+      await req('SetSceneItemTransform', { sceneName: 'GUEST', sceneItemId: id, sceneItemTransform: box(664) });
+      for (const [src, x] of [['Cam // Andrej', 40], ['VDO // Georgie', 1288]]) {
+        const it = items.find(i => i.sourceName === src);
+        if (it) await req('SetSceneItemTransform', { sceneName: 'GUEST', sceneItemId: it.sceneItemId, sceneItemTransform: box(x) });
+      }
+      const ov = (await req('GetSceneItemList', { sceneName: 'GUEST' })).sceneItems.find(i => i.sourceName === 'D//0 Overlay');
+      if (ov) await req('SetSceneItemIndex', { sceneName: 'GUEST', sceneItemId: id, sceneItemIndex: ov.sceneItemIndex });
+      done.push('guest seat in GUEST (ANDY\'K | GUEST | GEORGIE, guest hidden and muted)');
+    }
+  }
   say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": players already there, nothing changed`);
 }
 
@@ -160,7 +182,7 @@ obs.on('link', async up => {
       for (const sc of show.scenes) {
         await req('CreateScene', { sceneName: sc.name });
         for (const [src, box] of sc.items) {
-          const id = await add(sc.name, src);
+          const id = await add(sc.name, src, src !== 'VDO // Guest');   // the guest seat starts hidden
           if (id == null) continue;
           await req('SetSceneItemTransform', { sceneName: sc.name, sceneItemId: id, sceneItemTransform: {
             positionX: box.x, positionY: box.y, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: box.w, boundsHeight: box.h } });

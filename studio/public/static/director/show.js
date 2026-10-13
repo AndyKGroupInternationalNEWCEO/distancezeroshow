@@ -6,6 +6,7 @@ import { $, $$, h, hms, act, toast, segmentTimes, clock, zonedToday } from '../c
 import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow } from '../showpanels.js';
 import { showClock, mmss } from '../clock.js';
 import { createLibrary } from './media.js';
+import * as guestPanel from './guest.js';
 
 let mons, clk, script, brk, lib;
 const two = n => String(n).padStart(2, '0');
@@ -101,6 +102,7 @@ function confirmTwice(btn, label) {
 }
 
 export function frame(f) { mons?.frame(f); }
+export function guestSnap(m) { mons?.snapshot(m.img, m.at); }
 
 export function render(ctx) {
   const S = ctx.S, r = S.rundown;
@@ -128,6 +130,7 @@ export function render(ctx) {
   if (ctx.unread && ctx.ws === 'show' && $('.sidep[data-p=talk]').hidden) $('#dotTalk').hidden = false;
   script.render(S);
   lib.render();
+  guestPanel.render(ctx);
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);
