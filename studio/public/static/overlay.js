@@ -34,7 +34,9 @@ function paint(s) {
   const roll = $('roll'), was = roll.classList.contains('on');
   if (s.roll && !was) {
     const el = (t, c, x) => { const e = document.createElement(t); e.className = c; e.textContent = x; return e; };
-    $('rollIn').replaceChildren(el('div', 'r-logo', 'DISTANCE // ZERO'), ...s.roll.flatMap(sec => [el('div', 'r-h', sec.title),
+    const logo = el('div', 'r-logo', ''); const img = document.createElement('img'); img.src = '/static/brand/DO_logo_1280.png'; img.alt = 'D//0';
+    logo.append(img, el('span', '', 'DISTANCE // ZERO'));
+    $('rollIn').replaceChildren(logo, ...s.roll.flatMap(sec => [el('div', 'r-h', sec.title),
       ...sec.list.map(p => { const d = el('div', 'r-p', ''); d.append(el('strong', '', p.name), el('span', '', p.role || '')); return d; })]),
       el('div', 'r-end', 'Vienna // Melbourne // 15,731 km'));
     const lines = $('rollIn').children.length;
