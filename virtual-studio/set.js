@@ -866,11 +866,13 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   };
   const keyL = spot(C.warm, new THREE.Vector3(-3.2, 6.6, 4.4), new THREE.Vector3(-0.7, 1.2, -1.9), { angle: 0.3, penumbra: 0.8, shadow: true });
   const keyR = spot(C.cool, new THREE.Vector3(3.2, 6.6, 4.4), new THREE.Vector3(0.7, 1.2, -1.9), { angle: 0.3, penumbra: 0.8, shadow: quality.shadows2 });
-  const rimA = spot(C.amber, new THREE.Vector3(-3.2, 6.0, -5.6), new THREE.Vector3(-0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8 });
-  const rimI = spot(C.ice, new THREE.Vector3(3.2, 6.0, -5.6), new THREE.Vector3(0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8 });
-  const djSpot = spot(C.amber, new THREE.Vector3(-4.2, 6.5, 2.4), new THREE.Vector3(-5.4, 0.9, 0.1), { angle: 0.32 });
+  // on desktops every fixture casts a shadow, as in the Cycles renders (phones keep the key light's only)
+  const many = quality.shadows2 && quality.ao;
+  const rimA = spot(C.amber, new THREE.Vector3(-3.2, 6.0, -5.6), new THREE.Vector3(-0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8, shadow: many });
+  const rimI = spot(C.ice, new THREE.Vector3(3.2, 6.0, -5.6), new THREE.Vector3(0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8, shadow: many });
+  const djSpot = spot(C.amber, new THREE.Vector3(-4.2, 6.5, 2.4), new THREE.Vector3(-5.4, 0.9, 0.1), { angle: 0.32, shadow: many });
   // the grand piano opposite: a soft cool top light, so the lacquer shows its curves (Melbourne side)
-  const pianoSpot = spot(C.cool, new THREE.Vector3(3.6, 6.4, 3.2), new THREE.Vector3(5.6, 0.8, 0.1), { angle: 0.34, penumbra: 0.85 });
+  const pianoSpot = spot(C.cool, new THREE.Vector3(3.6, 6.4, 3.2), new THREE.Vector3(5.6, 0.8, 0.1), { angle: 0.34, penumbra: 0.85, shadow: many });
   // the piano shot: everything else goes down and that truss fixture tilts onto the grand with one narrow,
   // warm spot, like a single old bulb over the piano in an empty hall
   const soloAim = new THREE.Vector3(5.65, 0.8, 0.2);
@@ -880,7 +882,7 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   const aimQ = pianoLamp.quaternion.clone();
   pianoLamp.quaternion.copy(restQ);
   const soloFrom = pianoLamp.getWorldPosition(new THREE.Vector3());
-  const soloSpot = spot(C.tungsten, soloFrom, soloAim, { angle: 0.26, penumbra: 0.55 });
+  const soloSpot = spot(C.tungsten, soloFrom, soloAim, { angle: 0.26, penumbra: 0.55, shadow: many });
   const soloLen = soloFrom.distanceTo(soloAim);
   const soloBeam = new THREE.Mesh(new THREE.ConeGeometry(Math.tan(0.26) * soloLen, soloLen, 32, 1, true).translate(0, -soloLen / 2, 0).rotateX(-Math.PI / 2), beamMaterial(C.tungsten));
   soloBeam.position.z = 0.2;

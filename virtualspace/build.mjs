@@ -19,6 +19,7 @@ const FILES = [
   ...['controls/OrbitControls.js', 'geometries/RoundedBoxGeometry.js', 'lights/RectAreaLightUniformsLib.js', 'lights/RectAreaLightTexturesLib.js',
     'objects/Reflector.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
     'postprocessing/Pass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/OutputPass.js', 'shaders/CopyShader.js',
+    'postprocessing/GTAOPass.js', 'shaders/GTAOShader.js', 'shaders/PoissonDenoiseShader.js', 'math/SimplexNoise.js',
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
   'assets/fonts/archivo-latin.woff2', 'assets/fonts/archivo-latin-ext.woff2',
   'assets/andrej.webp', 'assets/georgie.webp', 'assets/studio-still.jpg', 'assets/keyvisual.jpg', 'assets/favicon.svg', 'assets/apple-touch-icon.png',

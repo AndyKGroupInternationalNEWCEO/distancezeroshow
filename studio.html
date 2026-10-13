@@ -408,8 +408,8 @@ function tier() {
   const mobile = q ? q === 'low' : (matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600);
   const dpr = window.devicePixelRatio || 1;
   return mobile
-    ? { mobile: true, dpr: Math.min(dpr, 1.5), shadowSize: 1024, shadows2: false, reflections: false, glass: false, bloomScale: 0.5, wall: { width: 1280, height: 538 }, wallFps: 20 }
-    : { mobile: false, dpr: Math.min(dpr, 1.75), shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };
+    ? { mobile: true, ao: false, dpr: Math.min(dpr, 1.5), shadowSize: 1024, shadows2: false, reflections: false, glass: false, bloomScale: 0.5, wall: { width: 1280, height: 538 }, wallFps: 20 }
+    : { mobile: false, ao: true, dpr: Math.min(dpr, 1.75), shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };
 }
 
 if (!webgl2()) fallback();

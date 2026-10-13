@@ -7,6 +7,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { buildStudio } from './set.js';
 import { createDirector, VIEWS, ORDER } from './views.js';
@@ -61,6 +62,9 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.dpr < 2, powerPreference: 'high-performance', stencil: false });
   let dpr = quality.dpr;
   renderer.setPixelRatio(dpr);
+  // the realism pass (?real=0 shows the previous look for comparison): ambient occlusion and the floor light baked
+  // in Cycles. The tone curve stays ACES: AgX made the black studio grey here
+  const REAL = new URLSearchParams(location.search).get('real') !== '0';
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -97,6 +101,20 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   const composer = new EffectComposer(renderer);
   composer.setPixelRatio(dpr);
   composer.addPass(new RenderPass(scene, camera));
+  let ao = null;
+  if (REAL && quality.ao) {
+    ao = new GTAOPass(scene, camera, 256, 256);
+    ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.6, thickness: 1.2, scale: 1.1, samples: 12 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    ao.blendIntensity = 0.9;
+    // light cones, LED glows and other see-through things are not solid: keep them out of the occlusion
+    const hide = ao.overrideVisibility.bind(ao);
+    ao.overrideVisibility = () => {
+      hide();
+      scene.traverse(o => { if (o.isMesh && (o.material.transparent || o.material.isShaderMaterial || o.material.isMeshBasicMaterial)) o.visible = false; });
+    };
+    composer.addPass(ao);
+  }
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.62, 0.55, 0.86);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -278,6 +296,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (document.hidden || fps >= 40 || downgraded > 4) return;
     downgraded++;
     if (dpr > 1) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
+    else if (ao?.enabled) ao.enabled = false;
     else if (mirror) { scene.remove(mirror); mirror = null; studio.floorOpaque?.(); }
     else bloom.enabled = false;
   }
