@@ -1,0 +1,49 @@
+// OBS Browser source. Read-only: listens for graphics state from the studio server, sends nothing but pings.
+const $ = id => document.getElementById(id);
+const key = new URLSearchParams(location.search).get('key') || '';
+const f = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const vie = f('Europe/Vienna'), mel = f('Australia/Melbourne');
+setInterval(() => { $('oVie').textContent = vie.format(Date.now()); $('oMel').textContent = mel.format(Date.now()); }, 1000);
+$('oVie').textContent = vie.format(Date.now()); $('oMel').textContent = mel.format(Date.now());
+
+let opened = false;
+function start() {
+  const ws = new WebSocket('ws://' + location.host + '/ws?overlay=' + encodeURIComponent(key));
+  ws.onopen = () => { opened = true; $('nolink').hidden = true; };
+  ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === 'state') paint(m.s); };
+  // keep the last graphics on screen through a blip; OBS should never show an error mid-show
+  ws.onclose = () => { if (!opened) $('nolink').hidden = false; setTimeout(start, 2000); };
+}
+function paint(s) {
+  const g = s.gfx;
+  $('bug').classList.toggle('on', g.bug);
+  $('bugTag').textContent = g.tagline || 'Vienna // Melbourne';
+  $('clocks').classList.toggle('on', g.clocks);
+  $('identTitle').textContent = s.segment?.title || '';
+  $('ident').classList.toggle('on', g.ident && !!s.segment);
+  const lt = g.lowerThird;
+  $('lowerTitle').textContent = lt.title; $('lowerSub').textContent = lt.subtitle;
+  $('lowerTab').textContent = lt.side === 'melbourne' ? 'MEL' : 'VIE';
+  const lower = $('lower');
+  lower.classList.toggle('mel', lt.side === 'melbourne'); lower.classList.toggle('vie', lt.side !== 'melbourne');
+  lower.classList.toggle('on', lt.visible && !!lt.title);
+  lower.classList.toggle('stacked', g.ident && !!s.segment);
+  // partner line (10 s, set by the studio) and the end credits roll
+  $('partnerName').textContent = g.partner?.name || ''; $('partnerRole').textContent = g.partner?.role || '';
+  const pl = $('partnerLogo'); if (g.partner?.logo) { if (pl.getAttribute('src') !== g.partner.logo) pl.src = g.partner.logo; pl.hidden = false; } else pl.hidden = true;
+  $('partner').classList.toggle('on', !!g.partner);
+  const roll = $('roll'), was = roll.classList.contains('on');
+  if (s.roll && !was) {
+    const el = (t, c, x) => { const e = document.createElement(t); e.className = c; e.textContent = x; return e; };
+    const logo = el('div', 'r-logo', ''); const img = document.createElement('img'); img.src = '/static/brand/DO_logo_1280.png'; img.alt = 'D//0';
+    logo.append(img, el('span', '', 'DISTANCE // ZERO'));
+    $('rollIn').replaceChildren(logo, ...s.roll.flatMap(sec => [el('div', 'r-h', sec.title),
+      ...sec.list.map(p => { const d = el('div', 'r-p', ''); if (p.logo) { const i = document.createElement('img'); i.src = p.logo; i.alt = ''; d.append(i); } d.append(el('strong', '', p.name), el('span', '', p.role || '')); return d; })]),
+      el('div', 'r-end', 'Vienna // Melbourne // 15,731 km'));
+    const lines = $('rollIn').children.length;
+    $('rollIn').style.setProperty('--dur', Math.max(20, lines * 2.2) + 's');
+  }
+  roll.classList.toggle('on', !!s.roll);
+}
+if (!key) $('nolink').hidden = false;
+start();

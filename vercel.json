@@ -54,6 +54,14 @@
     {
       "source": "/datenschutz",
       "destination": "/privacy"
+    },
+    {
+      "source": "/nutzungsbedingungen",
+      "destination": "/terms"
+    },
+    {
+      "source": "/haftungsausschluss",
+      "destination": "/disclaimer"
     }
   ]
 }
