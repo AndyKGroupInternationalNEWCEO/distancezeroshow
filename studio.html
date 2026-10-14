@@ -18,6 +18,10 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<!-- the import map comes before any module is loaded or preloaded: older Chromium (OBS browser sources) ignores it otherwise -->
+<script type="importmap">
+{ "imports": { "three": "./assets/vendor/three-0.170.0/three.module.min.js", "three/addons/": "./assets/vendor/three-0.170.0/addons/" } }
+</script>
 <link rel="modulepreload" href="assets/vendor/three-0.170.0/three.module.min.js">
 <style>
 /* Archivo (OFL), self-hosted like the rest of the site */
@@ -356,9 +360,6 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
   .air-l3{padding:8px 14px 8px 12px} .air-l3 b{font-size:1rem}
 }
 </style>
-<script type="importmap">
-{ "imports": { "three": "./assets/vendor/three-0.170.0/three.module.min.js", "three/addons/": "./assets/vendor/three-0.170.0/addons/" } }
-</script>
 </head>
 <body>
 <a class="skip" href="#dock">Skip to studio controls</a>
