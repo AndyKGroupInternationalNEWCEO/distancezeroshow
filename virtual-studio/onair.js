@@ -57,10 +57,12 @@ const LOWER = { andy: ["DJ ANDY'K", 'Andrej Kneisl · Vienna'], georgie: ['GEORG
 const h = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) k === 'text' ? (e.textContent = v) : k === 'html' ? (e.innerHTML = v) : e.setAttribute(k, v);
-  e.append(...kids); return e;
+  e.append(...kids.filter(k => k != null)); return e;
 };
 
-export function createOnAir({ studio, director, sound, live, onStart, onEnd, reducedMotion, looks }) {
+// obs: the clean picture for OBS (?obs=1): no controls, no 'simulation' labels, no countdown unless it counts to the
+// show's real start (obs.startAt, ms); with a start time the theme repeats until three seconds before it
+export function createOnAir({ studio, director, sound, live, onStart, onEnd, reducedMotion, looks, obs = null }) {
   let fresh = true, bedOn = false, ownMusic = false, openerOn = false, clip = null;
   const jingle = new Audio(); jingle.preload = 'none';
   let el = null, isOpen = false, music = false, part = 'opening', raf = 0, volume = 0.8, muted = false, autoBefore = true, returnFocus = null;
@@ -82,7 +84,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     ui.l3title = h('b', { text: 'DISTANCE // ZERO' }); ui.l3sub = h('span', { text: 'Opening' });
     ui.cam = h('span', { class: 'air-cam', text: 'CAM 4' });
     const track = h('div', { class: 'air-track' });
-    for (let k = 0; k < 2; k++) for (const t of TICKER) track.append(h('span', { text: t }), h('i', { text: '//' }));
+    for (let k = 0; k < 2; k++) for (const t of TICKER.filter(t => !obs || !/SIMULATION/.test(t))) track.append(h('span', { text: t }), h('i', { text: '//' }));
     ui.replay = h('button', { type: 'button', class: 'air-b', text: 'Skip to opening' });
     ui.replay.addEventListener('click', () => { if (music) looks.set('broadcast'); opening(); });
     ui.restart = h('button', { type: 'button', class: 'air-b', text: 'From the start' });
@@ -123,15 +125,15 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     ui.exit = h('button', { type: 'button', class: 'air-exit', text: 'Exit simulation' });
     ui.exit.addEventListener('click', close);
 
-    el = h('div', { class: 'air', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'On-air simulation. Not a real broadcast.', hidden: '' },
+    el = h('div', { class: obs ? 'air clean' : 'air', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'On-air simulation. Not a real broadcast.', hidden: '' },
       h('div', { class: 'air-gfx', 'aria-hidden': 'true' },
         h('div', { class: 'air-top' },
-          h('div', { class: 'air-onair' }, h('i'), h('b', { text: 'ON AIR' }), h('small', { text: 'Simulation' })),
+          h('div', { class: 'air-onair' }, h('i'), h('b', { text: 'ON AIR' }), obs ? null : h('small', { text: 'Simulation' })),
           h('div', { html: BUG })),
         h('div', { class: 'air-bottom' }, h('div', { class: 'air-l3' }, ui.l3title, ui.l3sub),
           h('div', { class: 'air-meta' }, ui.cam, h('span', { class: 'air-clock' }, 'VIE ', ui.vie, ' · MEL ', ui.mel))),
         h('div', { class: 'air-ticker' }, track)),
-      h('p', { class: 'air-notice', text: 'SIMULATION — NOT A REAL BROADCAST' }),
+      obs ? null : h('p', { class: 'air-notice', text: 'SIMULATION — NOT A REAL BROADCAST' }),
       ui.pick,
       h('div', { class: 'air-ctl' },
         h('div', { class: 'air-srcs', role: 'group', 'aria-label': 'Show controls' }, ...ui.menus, ui.replay, ui.restart),
@@ -196,7 +198,9 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     part = 'theme'; fresh = true; lastT = -1;
     cancelCue(); studio.beacons.standby();                         // the beacons turn while the show is about to start
     studio.wall.set('wave'); director.setAuto(true);
-    sound.playlist(null); sound.after(() => opening()); applySound();
+    // with a real start time the theme repeats until the last three seconds; otherwise the opening follows it
+    const after = () => (obs?.startAt && obs.startAt - Date.now() > 3000 ? (sound.after(after), sound.play(i).catch(() => {})) : opening());
+    sound.playlist(null); sound.after(after); applySound();
     sound.play(i).catch(() => opening());                        // no theme (blocked or offline): straight to the opening
     ui.replay.hidden = false;
     lower('DISTANCE // ZERO', 'The show starts soon');
@@ -282,9 +286,15 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     const dt = Math.min(0.1, lastNow ? (now - lastNow) / 1000 : 1 / 60); lastNow = now;   // real frame time: the dissolve lasts FADE on any machine
     ui.clock();
     watchdog(now);
-    if (part === 'theme' && !music) {                             // countdown to the show while the theme plays
-      const st = sound.state, left = Math.max(0, Math.ceil((st.duration || 94) - st.time));
+    if (part === 'theme' && obs?.startAt) {                       // OBS: the countdown to the show's real start
+      const ms = obs.startAt - Date.now(), left = Math.max(0, Math.ceil(ms / 1000));
       const txt = `The show starts in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      if (ms <= 3000) cue();
+      if (ms <= 0) opening();
+      else if (!music && ui.l3sub.textContent !== txt) ui.l3sub.textContent = txt;
+    } else if (part === 'theme' && !music) {                      // countdown to the show while the theme plays
+      const st = sound.state, left = Math.max(0, Math.ceil((st.duration || 94) - st.time));
+      const txt = obs ? 'The show starts soon' : `The show starts in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
       if (st.duration && st.duration - st.time <= 3) cue();
       if (ui.l3sub.textContent !== txt) ui.l3sub.textContent = txt;
     }
@@ -315,7 +325,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     if (music || part === 'theme') return;
     if (part === 'opening') return lower('DISTANCE // ZERO', 'Opening');
     if (part === 'clip' && clip) return lower('DISTANCE // ZERO', clip.title);
-    lower(...(LOWER[name] || ['DISTANCE // ZERO', 'Live from the virtual studio · simulation']));
+    lower(...(LOWER[name] || ['DISTANCE // ZERO', obs ? 'Vienna // Melbourne · 15,731 km' : 'Live from the virtual studio · simulation']));
   }
 
   function open() {

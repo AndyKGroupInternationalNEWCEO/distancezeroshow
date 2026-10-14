@@ -161,6 +161,25 @@ function photo(src) {
   return img;
 }
 
+/* ---------- the logo card: the official D//0 artwork over DISTANCE // ZERO on black, drawn into a 16:9 box ----------
+   The LED wall shows it as its 'logo' programme; the opening's last frame is this same card, full frame, clean. */
+export function logoCard(x, img, cx, cy, w, h, glow = 1) {
+  const k = w / 1920;
+  const r = x.createRadialGradient(cx, cy - h * 0.06, 10 * k, cx, cy - h * 0.06, w * 0.5);
+  r.addColorStop(0, `rgba(243,245,248,${0.07 * glow})`); r.addColorStop(0.45, `rgba(169,200,238,${0.03 * glow})`); r.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = r; x.fillRect(cx - w / 2, cy - h / 2, w, h);
+  if (img.complete && img.naturalWidth) {
+    const lw = 1000 * k, lh = lw * 512 / 1024;                           // the artwork fills 1024 x 501 of its 1024 x 512 canvas
+    x.drawImage(img, cx - lw / 2, cy - h * 0.06 - lh / 2, lw, lh);
+  }
+  x.fillStyle = '#f3f5f8'; x.textBaseline = 'alphabetic';
+  setFont(x, 500, 54 * k);
+  spaced(x, 'DISTANCE // ZERO', cx, cy + h * 0.33, 26 * k);
+  const g = x.createLinearGradient(cx - 300 * k, 0, cx + 300 * k, 0);
+  g.addColorStop(0, AMBER); g.addColorStop(0.5, '#f3f5f8'); g.addColorStop(1, ICE);
+  x.fillStyle = g; x.fillRect(cx - 300 * k, cy + h * 0.37, 600 * k, 2.5 * k);
+}
+
 /* ---------- the LED video wall ---------- */
 
 // Programmes: 'idle' (studio off air), 'cities', 'presenters', 'wave'. The wall never claims to be live.
@@ -176,6 +195,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
   // relative to this module, so the wall also works from pages in other folders (production tests)
   const andrej = photo(new URL('../assets/andrej.webp', import.meta.url).href);
   const georgie = photo(new URL('../assets/georgie.webp', import.meta.url).href);
+  const logoArt = photo(new URL('../assets/logo-do-1k.webp', import.meta.url).href);
 
   // LED cabinet seams, drawn once
   const seams = canvas(W, H), sx = seams.getContext('2d');
@@ -234,6 +254,13 @@ export function createWall({ width = 2048, height = 860 } = {}) {
   }
 
   const programs = {
+    // the big logo, in a 16:9 box in the middle of the wall (3 m high of its 4.6 m): what a camera filling its frame
+    // with the wall's centre sees; the rest of the wall stays black
+    logo(t) {
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+      const h = H * 3.0 / 4.6, w = h * 16 / 9;
+      logoCard(x, logoArt, W / 2, H / 2, w, h, 0.85 + 0.15 * Math.sin(t * 0.7));
+    },
     // the show's video on the wall: the full picture in the middle, a dimmed, blurred copy filling the sides
     film(t) {
       x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
@@ -363,7 +390,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
     },
     // a rough average colour of the current programme, for the light the wall throws onto the set
     tint() {
-      return { film: [0.6, 0.62, 0.7], idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9] }[state.program];
+      return { logo: [0.5, 0.5, 0.55], film: [0.6, 0.62, 0.7], idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9] }[state.program];
     },
   };
 }

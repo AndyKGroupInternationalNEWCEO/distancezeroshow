@@ -262,6 +262,11 @@ body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;an
   .b{min-height:36px}
   .shot{top:calc(env(safe-area-inset-top,0px) + 56px)}
 }
+/* OBS (?obs=1): the clean pre-show picture, no studio controls, no pointer; the rendered video full frame */
+body.obs .top,body.obs .dock,body.obs .shot,body.obs .hint,body.obs .panel,body.obs .cctv-hud{display:none!important}
+body.obs,body.obs *{cursor:none!important}
+.air.clean .air-ctl{display:none}
+.obs-video{position:fixed;inset:0;z-index:30;width:100%;height:100%;object-fit:cover;background:#000}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 
 /* ---------- on-air simulation: full-screen broadcast player (simulation only, nothing is streamed) ---------- */

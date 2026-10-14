@@ -599,9 +599,9 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   beacons[0].group.position.set(0, LOUNGE_DOOR.h + 0.3, 0.12); lounge.doorFrame.add(beacons[0].group);
   mesh(new THREE.BoxGeometry(0.05, 0.03, 0.12), M.graphite, lounge.doorFrame).position.set(0, LOUNGE_DOOR.h + 0.285, 0.06);    // its wall bracket
   for (const [k, x] of [[1, -2.75], [2, 2.75]]) { beacons[k].group.position.set(x, 0, 0.9); add(beacons[k].group); }
-  let beaconMode = 'off', cueAt = 0;
+  let beaconMode = 'off', cueAt = 0, beaconClock = () => performance.now() / 1000;   // a rendered clip sets its own clock
   anim.push((t, dt) => {
-    const now = performance.now() / 1000;                 // real time: the flashes keep step with the tones, also in slow motion
+    const now = beaconClock();                            // real time: the flashes keep step with the tones, also in slow motion
     if (beaconMode === 'cue' && now - cueAt >= 3) beaconMode = 'air';
     const flash = beaconMode === 'cue' && (now - cueAt) % 1 < 0.4;
     for (const b of beacons) b.update(dt, beaconMode === 'air' ? 1.5 : beaconMode === 'standby' ? 0.7 : 0,
@@ -609,7 +609,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   });
 
   return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; },
-    beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = performance.now() / 1000; }, air() { beaconMode = 'air'; } } };
+    beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = beaconClock(); }, air() { beaconMode = 'air'; }, clock(fn) { beaconClock = fn; } } };
 }
 
 /* ---------- pieces ---------- */

@@ -56,6 +56,17 @@ function screenFov(fov, aspect) {
   return Math.min(THREE.MathUtils.radToDeg(v), fov * 1.55, 64);
 }
 
+// OBS (?obs=1): the clean pre-show picture for an OBS browser source. &play=live (the default) starts the live 3D
+// studio's on-air simulation, &play=video the rendered opening. &start=<ISO time> counts down to the show's real
+// start, otherwise there is no countdown
+export const OBS = (() => {
+  const q = new URLSearchParams(location.search);
+  if (q.get('obs') !== '1') return null;
+  const at = Date.parse(q.get('start') || '');
+  return { play: q.get('play'), startAt: Number.isFinite(at) ? at : null };
+})();
+const PRESHOW = 'assets/video/dz-preshow.mp4';   // the rendered empty-studio opening, with its sound
+
 export async function start({ canvas, ui, quality, progress = () => {} }) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -264,7 +275,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   }
   document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, .mbtn')) closeMenus(); });
   // "Simulate on air": full screen, on-air lighting, the show's video on the LED wall and broadcast graphics on top
-  air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion,
+  air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion, obs: OBS,
     onStart: () => { panels.close(); closeMenus(); sound.dj.stop(); sim = true; setOnAir(true); },
     onEnd: () => { sim = false; setOnAir(false); } });
   ui.onair.addEventListener('click', () => (air.isOpen ? air.close() : air.open()));
@@ -440,8 +451,23 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   let raf = requestAnimationFrame(frame);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) cancelAnimationFrame(raf);
-    else { clock.last = performance.now(); raf = requestAnimationFrame(frame); }
+    else if (!videoOnly) { clock.last = performance.now(); raf = requestAnimationFrame(frame); }
   });
+
+  /* ----- OBS: a clean picture at once, the live 3D studio's on-air simulation or the rendered video. Which one is
+     chosen in the Broadcast Studio, which sets this page's address on its OBS browser source ----- */
+  let videoOnly = false;
+  if (OBS) {
+    document.body.classList.add('obs');
+    if (OBS.play === 'video') {
+      videoOnly = true; cancelAnimationFrame(raf);                          // the 3D studio rests while the video plays
+      const v = document.createElement('video');
+      v.className = 'obs-video'; v.src = PRESHOW; v.playsInline = true; v.preload = 'auto';
+      document.body.append(v);
+      v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });   // a browser that refuses sound still shows it
+      // it ends on its last frame, the clean logo card, for the switch to the live cameras
+    } else air.open();                                                    // play=live, and the default
+  }
 
   // opening move: from the crane down to the wide shot, then the auto tour takes over
   ui.status.textContent = 'Off air · studio preview';
