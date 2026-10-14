@@ -233,7 +233,7 @@ body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;an
   .ctrl .looks{width:auto;order:3;flex:1 1 100%;justify-content:flex-start}
   .fine{font-size:.56rem}
 }
-@media (min-width:761px){ .row{justify-content:center} }
+@media (min-width:761px){ .row{justify-content:center} .views{flex-wrap:wrap;overflow:visible} }   /* centred and overflowing, the first shots could not be reached: wrap instead */
 @media (max-height:500px) and (orientation:landscape){
   .fine,.hint,.title,.clocks,.b kbd{display:none}
   .status small{display:none!important}
