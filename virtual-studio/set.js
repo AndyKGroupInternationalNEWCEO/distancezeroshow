@@ -541,12 +541,14 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const mus = contactShadow(2.9, 1.3, 0.65); music.add(mus);
 
   /* ----- black concert grand, on the Vienna side opposite the DJ booth ----- */
-  // the pianist sits at the outer edge facing the hosts, the open lid towards the cameras; the tail ends well clear
-  // of the walk backstage, which passes on its studio side
+  // the pianist sits nearest the stage, the tail out towards the studio's side, the open lid towards the cameras: the
+  // mirror image of a concert stage seen from the other wing (so the case is mirrored too); the walk backstage
+  // passes in front of the keyboard end
   const piano = grandPiano(M);
   piano.userData.focus = 'piano';
-  piano.position.set(-8.1, 0, 1.0);
-  piano.rotation.y = -Math.PI / 2 + 0.38;
+  piano.position.set(-5.3, 0, 0.3);
+  piano.rotation.y = Math.PI / 2 - 0.38;
+  piano.scale.x = -1;
   add(piano);
   const ps = contactShadow(3.0, 1.9, 0.6); ps.position.set(0, 0.003, -1.25); piano.add(ps);
 
@@ -564,7 +566,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   /* ----- lights ----- */
   // the truss fixture nearest above the grand (Vienna side) is the one that turns to it in the piano shot
   root.updateMatrixWorld(true);
-  const pianoAt = new THREE.Vector3(-6.9, 0, 0.5), at = new THREE.Vector3();
+  const pianoAt = new THREE.Vector3(-6.5, 0, -0.2), at = new THREE.Vector3();
   const pianoLamp = fixtures.children.filter(f => f.isGroup && f.children.length > 1)
     .reduce((best, f) => { const d = f.getWorldPosition(at).setY(0).distanceTo(pianoAt); return d < best.d ? { f, d } : best; }, { f: null, d: Infinity }).f;
   const lights = buildLights(root, quality, wallLight, pianoLamp);
@@ -1038,13 +1040,13 @@ function musicStation(M, glows, anim) {
   for (const z of [-0.18, -0.12]) knobs.push([0.168, z]);
   slots.push([0, TOP + 0.001, 0.19, 0.13, 0.01]);   // crossfader
   caps.push([0, TOP + 0.009, 0.19, 0.016, 0.03]);
-  // the booth's name on the fronts, facing the DJ and the cameras
-  const plate = (text, wd, x, size = 64, color = '#e7c48d') => add(new THREE.PlaneGeometry(wd, wd / 8), new THREE.MeshBasicMaterial({ map: label(text, { w: 1024, h: 128, size, color, bg: '#1b1d22' }) }), x, TOP - 0.05, 0.2265);
+  // the booth's name on the far sides, which face the room and the cameras (the DJ stands behind the booth)
+  const plate = (text, wd, x, size = 64, color = '#e7c48d') => { const m = add(new THREE.PlaneGeometry(wd, wd / 8), new THREE.MeshBasicMaterial({ map: label(text, { w: 1024, h: 128, size, color, bg: '#1b1d22' }) }), x, TOP - 0.05, -0.2265); m.rotation.y = Math.PI; return m; };
   // the mixer's front: the DJ Andy'K logo, lit, and the model name beside it
   const djTex = new THREE.TextureLoader().load('assets/sponsor-djandyk.webp'); djTex.colorSpace = THREE.SRGBColorSpace; djTex.anisotropy = 8;
-  add(new THREE.PlaneGeometry(0.084, 0.084 * 273 / 520), new THREE.MeshBasicMaterial({ map: djTex, transparent: true, alphaTest: 0.04, color: new THREE.Color(1.15, 1.05, 0.92) }), -0.075, TOP - 0.05, 0.2268);
-  plate('AKX 2026', 0.16, 0.095, 72);
-  plate('AKX 2026  ·  DECK 1', 0.26, -0.37, 56, '#c9ced6'); plate('AKX 2026  ·  DECK 2', 0.26, 0.37, 56, '#c9ced6');
+  add(new THREE.PlaneGeometry(0.084, 0.084 * 273 / 520), new THREE.MeshBasicMaterial({ map: djTex, transparent: true, alphaTest: 0.04, color: new THREE.Color(1.15, 1.05, 0.92) }), 0.075, TOP - 0.05, -0.2268).rotation.y = Math.PI;
+  plate('AKX 2026', 0.16, -0.095, 72);
+  plate('AKX 2026  ·  DECK 1', 0.26, -0.37, 56, '#c9ced6'); plate('AKX 2026  ·  DECK 2', 0.26, 0.37, 56, '#c9ced6');   // (seen from the room, deck 1 is on the right)
   const fx = add(new THREE.PlaneGeometry(0.07, 0.035), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.24, 0.34) }), -0.168, TOP + 0.002, -0.15);
   fx.rotation.x = -Math.PI / 2;
   // the small parts as instances: a handful of draw calls for the whole booth
@@ -1067,6 +1069,7 @@ function musicStation(M, glows, anim) {
   // the gear a quarter over life size: on the 2.3 m booth and on camera it read as small; scaled about the table top
   const gear = new THREE.Group(), GEAR = 1.25;
   gear.scale.setScalar(GEAR); gear.position.y = 0.99 * (1 - GEAR);
+  gear.rotation.y = Math.PI;   // the DJ stands behind the booth and faces the room, not the wall
   gear.add(...g.children.slice(gearFrom)); g.add(gear);
   let fadersAt = '';
   const fo = new THREE.Object3D();
@@ -1526,10 +1529,10 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   const rimI = spot(C.ice, new THREE.Vector3(3.2, 6.0, -5.6), new THREE.Vector3(0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8, shadow: many });
   const djSpot = spot(C.ice, new THREE.Vector3(4.2, 6.5, 2.4), new THREE.Vector3(5.4, 0.9, 0.1), { angle: 0.32, shadow: many });   // the DJ booth, Melbourne side
   // the grand piano opposite: a soft warm top light, so the lacquer shows its curves (Vienna side)
-  const pianoSpot = spot(C.warm, new THREE.Vector3(-4.4, 6.4, 3.4), new THREE.Vector3(-6.9, 0.8, 0.5), { angle: 0.36, penumbra: 0.85, shadow: many });
+  const pianoSpot = spot(C.warm, new THREE.Vector3(-4.0, 6.4, 3.0), new THREE.Vector3(-6.5, 0.8, -0.2), { angle: 0.36, penumbra: 0.85, shadow: many });
   // the piano shot: everything else goes down and that truss fixture tilts onto the grand with one narrow,
   // warm spot, like a single old bulb over the piano in an empty hall
-  const soloAim = new THREE.Vector3(-6.95, 0.8, 0.55);
+  const soloAim = new THREE.Vector3(-6.4, 0.8, -0.15);
   pianoLamp.updateWorldMatrix(true, false);
   const restQ = pianoLamp.quaternion.clone();
   pianoLamp.lookAt(soloAim);

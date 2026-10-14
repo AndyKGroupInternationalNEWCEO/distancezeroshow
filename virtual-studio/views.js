@@ -12,7 +12,7 @@ export const VIEWS = {
   crane: { label: 'Crane', long: 'High angle', pos: [7.4, 6.6, 7.6], target: [0, 1.0, -2.2], fov: 40, drift: 0.18, tally: 2 },
   floor: { label: 'Floor', long: 'Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0.08, tally: 3 },
   music: { label: 'Music', long: 'Music station', pos: [2.5, 1.85, 3.1], target: [5.4, 1.0, 0.1], fov: 38, drift: 0.12, tally: 3 },
-  piano: { label: 'Piano', long: 'Grand piano', pos: [-3.2, 2.1, 3.9], target: [-6.8, 0.55, 0.45], fov: 40, drift: 0.1, tally: 1 },
+  piano: { label: 'Piano', long: 'Grand piano', pos: [-2.6, 2.1, 3.7], target: [-6.4, 0.55, -0.2], fov: 40, drift: 0.1, tally: 1 },
   guest: { label: 'Guest', long: 'Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0.07, tally: 5 },
   // the 4K high-speed camera on the motion-control robot: its own moves, the studio in slow motion (slow = time scale)
   // the backstage lounge behind the LED wall (not part of the tour, never "on air")
@@ -32,8 +32,10 @@ const HOLD = 8.5;
 export const inLounge = p => p.z < -7.35 && Math.abs(p.x) < 3.5 && p.y < 3;
 // the way there, behind the LED wall's Vienna end: the lounge must be drawn from here on
 export const nearLounge = p => p.x < -2.8 && p.x > -8.5 && p.z < -4 && p.z > -12;
-// the walk backstage, at eye height: past the piano's tail, round the wall's end, to the lounge door and in
-const WALK = [[-4.6, 1.65, 1.5], [-5.2, 1.65, -3.2], [-6.3, 1.65, -6.4], [-4.7, 1.65, -8.3], [-3.1, 1.65, -8.3]];
+// the walk backstage, at eye height and walking pace: past the piano's keyboard end, round the wall's end, to the lounge
+// door and in; the same way back out to the studio
+const WALK = [[-3.5, 1.65, 0.6], [-4.9, 1.65, -3.2], [-6.3, 1.65, -6.4], [-4.7, 1.65, -8.3], [-3.1, 1.65, -8.3]];
+const PACE = 1.25;   // metres a second: walking, not running
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const ROOM_CENTER = new THREE.Vector3(0, 0, 1), ROOM_R = 11.8;
 
@@ -73,7 +75,15 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
     if (name === 'backstage' && !inLounge(camera.position) && !reducedMotion) {
       const pts = [camera.position.clone(), ...WALK.map(q => new THREE.Vector3(...q)), to.pos.clone()];
       const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), len = curve.getLength();
-      walk = { curve, len, t: 0, dur: len / 2.1 + 1.2, to, fov0: lens.fov };
+      walk = { curve, len, t: 0, dur: len / PACE + 1.5, to, fov0: lens.fov };
+      flight = null;
+      return;
+    }
+    // out of the lounge to the studio: the walk back, out through the door and round the wall, then on to the shot
+    if (inLounge(camera.position) && !v.lounge && !reducedMotion) {
+      const back = [...WALK].reverse().map(q => new THREE.Vector3(...q));
+      const curve = new THREE.CatmullRomCurve3([camera.position.clone(), ...back], false, 'centripetal'), len = curve.getLength();
+      walk = { curve, len, t: 0, dur: len / PACE + 1.5, to: { pos: back.at(-1), target: new THREE.Vector3(0, 1.2, -1.6), fov: 50 }, fov0: lens.fov, then: to };
       flight = null;
       return;
     }
@@ -96,7 +106,10 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
       camera.position.copy(at);
       camera.position.y += Math.sin((k * walk.len / 0.75) * Math.PI) * 0.022 * (1 - s) * Math.min(1, walk.t * 8);   // steps
       lens.fov = THREE.MathUtils.lerp(walk.fov0, walk.to.fov, s);
-      if (walk.t >= 1) { walk = null; idleSince = performance.now(); }
+      if (walk.t >= 1) {
+        const then = walk.then; walk = null; idleSince = performance.now();
+        if (then) flight = { from: { pos: camera.position.clone(), target: controls.target.clone(), fov: lens.fov }, to: then, t: 0, dur: 1.8, lift: 0.3 };   // back in the studio: on to the shot
+      }
       return;
     }
     if (flight) {
