@@ -18,6 +18,7 @@ for (const f of ['.env.local', '.env']) { try { process.loadEnvFile(path.join(RO
 const config = loadConfig();
 const wanted = process.argv.slice(2).filter(a => !a.startsWith('-'));
 const PLAYERS = process.argv.includes('--players');   // add the media players to EXISTING show collections (nothing else changes)
+const KEYING = process.argv.includes('--keying');     // add background removal to EXISTING show collections (nothing else changes)
 if (!wanted.length) { console.log('Usage: npm run obs-setup -- sunday friday'); process.exit(1); }
 const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', id + '.json'), 'utf8')));
 
@@ -128,6 +129,50 @@ async function addPlayers(show, existing) {
   say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": players already there, nothing changed`);
 }
 
+// Background removal (the free OBS Background Removal plugin, royshil/obs-backgroundremoval): each person is cut out of
+// their camera and stands in front of the show's own background video (show.keying.background) instead of their room.
+// Settings from the private virtual-live rehearsal of 13 Oct (MediaPipe on CoreML, mask every 2nd frame, soft edges).
+// The mask keeps running when the camera is not on air: started on a cut, it needs 5–10 s and the person would be missing.
+// A scene that shows a keyed camera without that background gets it at the very bottom, full frame.
+const KEY_FILTER = 'D//0 Background Removal';
+const keySettings = { model_select: 'models/mediapipe.with_runtime_opt.ort', useGPU: 'coreml', numThreads: 1, mask_every_x_frames: 2,
+  enable_threshold: true, threshold: 0.42, contour_filter: 0.05, smooth_contour: 0.5, feather: 0.015, mask_expansion: 0,
+  temporal_smooth_factor: 0.65, enable_image_similarity: true, blur_background: 0, stop_when_source_is_inactive: false };
+async function addKeying(show, existing) {
+  const name = show.obs.sceneCollection;
+  if (!show.keying) { say(`SKIP  "${name}": no keying in shows/${show.id}.json`); return; }
+  if (existing && !existing.includes(name)) { say(`SKIP  "${name}" does not exist (run obs-setup without --keying first)`); return; }
+  if (existing) await switchTo('SetCurrentSceneCollection', name);
+  const kinds = await req('GetSourceFilterKindList').then(r => r.sourceFilterKinds).catch(() => null);
+  if (kinds && !kinds.includes('background_removal')) throw new Error('the OBS Background Removal plugin is not installed: nothing was changed');
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  const bg = show.keying.background, keyed = show.keying.sources.filter(s => inputs.has(s));
+  if (!inputs.has(bg)) throw new Error(`"${name}": background "${bg}" is missing: nothing was changed`);
+  const done = [];
+  for (const src of keyed) {
+    const filters = (await req('GetSourceFilterList', { sourceName: src })).filters;
+    if (filters.some(f => f.filterName === KEY_FILTER)) {
+      const f = filters.find(f => f.filterName === KEY_FILTER);
+      if (Object.entries(keySettings).every(([k, v]) => f.filterSettings[k] === v)) continue;
+      await req('SetSourceFilterSettings', { sourceName: src, filterName: KEY_FILTER, filterSettings: keySettings });
+      done.push(`background removal settings on ${src}`); continue;
+    }
+    await req('CreateSourceFilter', { sourceName: src, filterName: KEY_FILTER, filterKind: 'background_removal', filterSettings: keySettings });
+    done.push(`background removal on ${src}`);
+  }
+  const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
+  for (const { sceneName } of (await req('GetSceneList')).scenes) {
+    if (sceneName === 'VT' || sceneName.startsWith('AUDIO //')) continue;
+    const items = (await req('GetSceneItemList', { sceneName })).sceneItems;
+    if (!items.some(i => keyed.includes(i.sourceName)) || items.some(i => i.sourceName === bg)) continue;
+    const id = (await req('CreateSceneItem', { sceneName, sourceName: bg })).sceneItemId;
+    await req('SetSceneItemTransform', { sceneName, sceneItemId: id, sceneItemTransform: full });
+    await req('SetSceneItemIndex', { sceneName, sceneItemId: id, sceneItemIndex: 0 });
+    done.push(`${bg} behind ${sceneName}`);
+  }
+  say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": background removal already there, nothing changed`);
+}
+
 obs.on('link', async up => {
   if (!up) return;
   clearTimeout(timeout);
@@ -141,8 +186,11 @@ obs.on('link', async up => {
     say(`OK    backup of OBS scene collections: data/obs-backups/${stamp}/`);
     const before = await req('GetSceneCollectionList');
     const cam = existingCamera();
-    if (PLAYERS) {
-      for (const show of shows) await addPlayers(show, before.sceneCollections);
+    if (PLAYERS || KEYING) {
+      for (const show of shows) {
+        if (PLAYERS) await addPlayers(show, before.sceneCollections);
+        if (KEYING) await addKeying(show, before.sceneCollections);
+      }
       await switchTo('SetCurrentSceneCollection', before.currentSceneCollectionName);
       say(`OK    back to the collection that was open before: "${before.currentSceneCollectionName}"`);
       obs.stop(); process.exit(0);
@@ -191,6 +239,7 @@ obs.on('link', async up => {
         }
         await req('CreateSceneItem', { sceneName: sc.name, sourceName: AUDIO, sceneItemEnabled: true });
       }
+      if (show.keying) await addKeying(show);
       await req('SetCurrentProgramScene', { sceneName: show.obs.standbyScene });
       for (const s of defaults) if (!show.scenes.some(x => x.name === s) && s !== AUDIO) await req('RemoveScene', { sceneName: s }).catch(() => {});
       say(`OK    "${name}": ${show.scenes.length} scenes (${show.scenes.map(s => s.name).join(', ')}), ${made.size} sources`);
