@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060709">
+<title>Guest — DISTANCE // ZERO</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/studio.css">
+<script type="module" src="/static/guest.js"></script>
+</head>
+<body class="guest-page">
+<header class="bar">
+  <div class="brand"><b class="chrome">D//0</b><span>Guest</span></div>
+  <div class="bar-right"><div class="tally" id="gTally"><i></i><span>OFF AIR</span></div></div>
+</header>
+<main class="guest-main">
+  <section class="card key g-status" aria-live="polite">
+    <span class="label">Your status</span>
+    <strong id="gState">Connecting…</strong>
+    <p class="hint" id="gLine"></p>
+  </section>
+  <div class="guest-grid">
+    <section class="card" aria-labelledby="hGCam">
+      <div class="card-h"><h2 id="hGCam">Camera &amp; microphone check</h2><div class="aside"><span class="badge off" id="gCheckBadge">Not checked</span></div></div>
+      <div class="card-b">
+        <div class="preview"><video id="gVideo" playsinline muted autoplay></video><p id="gVideoMsg">Your camera stays on this computer during the check.</p></div>
+        <div class="field mt"><span class="label">Microphone level</span><div class="lvl" id="gLvl"><i></i></div></div>
+        <label class="checks mt"><input type="checkbox" id="gShare"> Let the studio see a still preview of my camera (a picture every few seconds, not recorded)</label>
+        <div class="row mt"><span class="grow hint" id="gCamInfo"></span><button class="b primary" type="button" id="gStart">Start check</button></div>
+      </div>
+    </section>
+    <div class="stack">
+      <section class="card" aria-labelledby="hGProg">
+        <div class="card-h"><h2 id="hGProg">Program preview</h2><div class="aside"><span class="hint">What viewers see, picture only</span></div></div>
+        <div class="card-b"><div class="mpic g-prog"><img id="gProg" alt="" hidden><p class="mmsg" id="gProgMsg">Waiting for the picture…</p></div></div>
+      </section>
+      <section class="card" id="gJoin" aria-labelledby="hGJoin" hidden>
+        <div class="card-h"><h2 id="hGJoin">Join the studio camera</h2></div>
+        <div class="card-b">
+          <ol class="steps">
+            <li>Press <b>Open studio camera</b>. VDO.Ninja opens in a new tab (free, peer-to-peer to Vienna).</li>
+            <li>Allow camera and microphone, choose the same devices as in the check, press <b>Start</b>.</li>
+            <li>Keep that tab open. You are <b>not on air</b> until the studio puts you on air; this page tells you.</li>
+          </ol>
+          <div class="row mt"><button class="b primary" type="button" id="gOpen">Open studio camera</button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+</body>
+</html>

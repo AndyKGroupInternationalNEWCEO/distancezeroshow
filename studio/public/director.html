@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060709">
+<title>Director Studio — DISTANCE // ZERO</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/studio.css">
+<script type="module" src="/static/director/main.js"></script>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><b class="chrome">D//0</b><span>Director</span></div>
+  <nav class="tabs" role="tablist" aria-label="Workspaces">
+    <button class="tab" role="tab" id="tab-live" data-ws="live" aria-controls="ws-live" aria-selected="true">Live<span class="long"> Control</span> <kbd>⌥1</kbd></button>
+    <button class="tab" role="tab" id="tab-show" data-ws="show" aria-controls="ws-show" aria-selected="false">Show<span class="long"> Control</span> <span class="dot" id="dotShow" hidden></span><kbd>⌥2</kbd></button>
+    <button class="tab" role="tab" id="tab-tech" data-ws="tech" aria-controls="ws-tech" aria-selected="false">Tech<span class="long">nical</span> <span class="dot bad" id="dotTech" hidden></span><kbd>⌥3</kbd></button>
+    <button class="tab rh-tab" role="tab" id="tab-rehearse" data-ws="rehearse" aria-controls="ws-rehearse" aria-selected="false">Rehearsal <span class="dot" id="dotRehearse" hidden></span><kbd>⌥4</kbd></button>
+  </nav>
+  <div class="modesw" role="group" aria-label="Mode">
+    <button type="button" id="modeDirector" aria-pressed="true">DIRECTOR</button><button type="button" id="modeHost" aria-pressed="false">HOST</button>
+  </div>
+  <div class="bar-right">
+    <label class="showpick"><span>Select show</span><select id="showPick" aria-label="Select show"></select></label>
+    <button class="b callbtn" type="button" id="callBtn" disabled>Call Georgie</button>
+    <div class="clock vie"><span class="label"><i></i>Vienna</span><strong id="cVie">--:--:--</strong></div>
+    <div class="clock mel"><span class="label"><i></i>Melbourne</span><strong id="cMel">--:--:--</strong></div>
+    <div class="clock show" id="showclock"><span class="label" id="showLabel">Next show</span><strong id="showTime">--:--:--</strong></div>
+    <div class="tally" id="tallyAir" role="status" aria-live="polite"><i></i><span>OFF AIR</span></div>
+    <div class="tally rec" id="tallyRec" role="status"><i></i><span>REC</span></div>
+    <button class="iconbtn" type="button" id="layoutBtn" title="Save and restore your window layout (several screens)" aria-label="Window layout">▦</button>
+    <button class="iconbtn" type="button" id="popout" title="Open this workspace in a new window (for a second screen)" aria-label="Open workspace in a new window">⧉</button>
+    <button class="iconbtn" type="button" id="helpBtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
+    <form method="post" action="/logout"><button class="signout" type="submit">Sign out</button></form>
+  </div>
+</header>
+<div class="strip" id="strip" hidden></div>
+<div class="helpbar" id="helpBar" aria-live="assertive"></div>
+
+<main>
+  <!-- ======================= LIVE CONTROL ======================= -->
+  <section class="ws" id="ws-live" role="tabpanel" aria-labelledby="tab-live">
+    <div class="live-grid">
+      <figure class="mon pvw" id="monPvw">
+        <div class="screen"><img id="pvwImg" alt="Preview monitor" hidden><div class="nosig" id="pvwNo"><div><b>NO SIGNAL</b><span>OBS not connected</span></div></div><span class="age" id="pvwAge"></span></div>
+        <figcaption><span class="bus">PVW</span><strong id="pvwName">—</strong><span class="hint" id="pvwHint">Next on air</span></figcaption>
+      </figure>
+      <figure class="mon pgm" id="monPgm">
+        <div class="screen"><img id="pgmImg" alt="Program monitor" hidden><div class="nosig" id="pgmNo"><div><b>NO SIGNAL</b><span>OBS not connected</span></div></div>
+          <span class="onair-flag"><i></i>ON AIR</span><span class="age" id="pgmAge"></span></div>
+        <figcaption><span class="bus">PGM</span><strong id="pgmName">—</strong><span class="hint" id="pgmHint">Live output</span></figcaption>
+      </figure>
+
+      <aside class="trans" aria-label="Transition">
+        <button class="bigbtn cut" type="button" id="cutBtn">CUT<small>hard cut to air</small><kbd>C</kbd></button>
+        <button class="bigbtn take" type="button" id="takeBtn">TAKE<small id="takeSub">with transition</small><kbd>T</kbd></button>
+        <div class="tsettings">
+          <span class="label">Transition</span>
+          <div class="chips mt" id="transList"></div>
+          <div class="dur mt"><span class="label">Duration</span><input class="in" id="transDur" type="number" min="50" max="20000" step="50" aria-label="Transition duration in milliseconds"><span class="hint">ms</span></div>
+        </div>
+      </aside>
+
+      <div class="busrow">
+        <div class="row"><span class="label">Scenes // camera shots</span><span class="hint grow">Click puts a scene on <b>preview</b>. Then CUT or TAKE.</span><span class="badge" id="busBadge">OBS</span></div>
+        <div class="scenebus" id="sceneBus"></div>
+      </div>
+
+      <div class="ribbon" id="ribbon">
+        <span class="label">On air now</span>
+        <div class="now"><strong id="rbNow">Show not started</strong></div>
+        <span class="rem num" id="rbRem">--:--</span>
+        <span class="nx" id="rbNext"></span>
+        <button class="b sm" type="button" id="rbAdvance">Next segment <kbd>]</kbd></button>
+      </div>
+
+      <div class="deck">
+        <section class="card" aria-labelledby="hMics">
+          <div class="card-h"><h2 id="hMics">Microphones</h2><div class="aside"><span class="hint">Tag sources in Technical</span></div></div>
+          <div class="card-b"><div class="mics" id="micTiles"></div></div>
+        </section>
+        <section class="card" aria-labelledby="hLinks">
+          <div class="card-h"><h2 id="hLinks">Vienna // Melbourne</h2></div>
+          <div class="card-b links">
+            <div class="link vie"><span class="city vie">Vienna</span><div class="lights" id="lightsVie"></div><span class="detail" id="detailVie"></span></div>
+            <div class="link mel"><span class="city mel">Melbourne</span><div class="lights" id="lightsMel"></div><span class="detail" id="detailMel"></span></div>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="hOut">
+          <div class="card-h"><h2 id="hOut">Broadcast</h2></div>
+          <div class="card-b outputs">
+            <div class="out" id="outStream"><span class="label">YouTube stream</span><span class="tc" id="streamTc">OFF AIR</span>
+              <button class="b sm quiet" type="button" id="armBtn" title="GO LIVE stays locked so testing scenes can never start the stream by accident">Unlock GO LIVE</button>
+              <button class="b hold" type="button" id="streamBtn">Go live <small>hold</small></button></div>
+            <p class="hint why" id="streamWhy"></p>
+            <div class="out" id="outRec"><span class="label">Recording</span><span class="tc" id="recTc">OFF</span>
+              <button class="b" type="button" id="recBtn">Record</button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= SHOW CONTROL ======================= -->
+  <section class="ws" id="ws-show" role="tabpanel" aria-labelledby="tab-show" hidden>
+    <div class="show3">
+      <div class="mon3" id="showMons" aria-label="Monitors"></div>
+      <div class="show3-body">
+        <div class="col side-l">
+          <section class="card bm" id="breakMons" aria-label="Break monitors" hidden></section>
+          <section class="card key" aria-labelledby="hClock">
+            <div class="card-h"><h2 id="hClock">Show clock</h2><div class="aside"><span class="badge" id="lockBadge"></span></div></div>
+            <div class="card-b" id="showClock"></div>
+            <div class="card-b">
+              <div class="row">
+                <button class="b primary grow go" type="button" id="goBtn">GO <kbd>]</kbd></button>
+              </div>
+              <p class="hint mt" id="goHint"></p>
+              <div class="row mt">
+                <button class="b sm quiet" type="button" id="prev">Back <kbd>[</kbd></button>
+                <button class="b sm quiet" type="button" id="advance" title="Move to the next segment without firing its cues">Next without cues</button>
+                <button class="b sm quiet" type="button" id="refire" title="Fire the cues of the current segment again">Fire cues again</button>
+                <span class="grow"></span>
+                <button class="b sm quiet" type="button" id="resetShow">Reset</button>
+              </div>
+              <ul class="cue-result" id="cueResult" hidden></ul>
+            </div>
+          </section>
+        </div>
+
+        <div class="col center">
+          <section class="card key live-script" aria-labelledby="hScript">
+            <div class="card-h"><h2 id="hScript">Live show script</h2><div class="aside"><span class="hint" id="epLine"></span></div></div>
+            <div class="card-b ls" id="liveScript"></div>
+          </section>
+        </div>
+
+        <div class="col side-r">
+          <nav class="subtabs" role="tablist" aria-label="Side panels" id="sideTabs">
+            <button type="button" role="tab" data-p="plan" aria-selected="true">Plan</button>
+            <button type="button" role="tab" data-p="audio" aria-selected="false">Audio</button>
+            <button type="button" role="tab" data-p="video" aria-selected="false">Video</button>
+            <button type="button" role="tab" data-p="gfx" aria-selected="false">Graphics</button>
+            <button type="button" role="tab" data-p="talk" aria-selected="false">Talk <span class="dot" id="dotTalk" hidden></span></button>
+            <button type="button" role="tab" data-p="guest" aria-selected="false">Guest <span class="dot" id="dotGuest" hidden></span></button>
+            <button type="button" role="tab" data-p="more" aria-selected="false">More</button>
+          </nav>
+          <div class="sidep" data-p="plan">
+          <section class="card" aria-labelledby="hRo">
+            <div class="card-h"><h2 id="hRo">Rundown</h2><div class="aside"><span class="badge" id="roBadge"></span><span class="hint">Edit in Rehearsal</span></div></div>
+            <ol class="ro ro-ro" id="ro"></ol>
+            <div class="total" id="roTotal"></div>
+          </section>
+          </div>
+          <div class="sidep" data-p="audio" hidden>
+            <section class="card" aria-labelledby="hJA">
+              <div class="card-h"><h2 id="hJA">Jingles // audio</h2><div class="aside"><span class="badge" id="jaAir">—</span></div></div>
+              <div class="card-b"><div class="row"><select class="in sm" id="jaFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="jaStop">STOP</button></div></div>
+              <ul class="lib" id="jaList"></ul>
+              <p class="hint card-b">PREVIEW plays only in your headphones. PLAY goes on air through the OBS Jingle Player.</p>
+            </section>
+            <section class="card" aria-labelledby="hJingles">
+              <div class="card-h"><h2 id="hJingles">OBS media sources</h2><div class="aside"><span class="badge" id="cartBadge">OBS</span></div></div>
+              <div class="card-b">
+                <div class="cart" id="cart"></div>
+                <p class="hint mt">Plays OBS media sources. A jingle is heard on air only if its source sits in the live scene.</p>
+              </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="video" hidden>
+            <section class="card" aria-labelledby="hVV">
+              <div class="card-h"><h2 id="hVV">Videos // visuals</h2><div class="aside"><span class="badge" id="vvAir">—</span></div></div>
+              <div class="card-b"><div class="row"><select class="in sm" id="vvCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option></select>
+                <label class="checks"><input type="checkbox" id="vvLoop"> LOOP</label><span class="grow"></span><button class="b sm" type="button" id="vvStop">STOP</button></div></div>
+              <ul class="lib" id="vvList"></ul>
+              <div class="card-b"><video id="vvPrev" class="vprev" controls playsinline hidden></video></div>
+            </section>
+          </div>
+          <div class="sidep" data-p="gfx" hidden>
+            <section class="card" aria-labelledby="hGfx">
+              <div class="card-h"><h2 id="hGfx">Graphics</h2><div class="aside"><span class="badge" id="gfxBadge">No overlay</span></div></div>
+              <div class="card-b">
+                <div class="gfx-toggles">
+                  <button class="b" type="button" id="gBug" aria-pressed="false">D//0 bug</button>
+                  <button class="b" type="button" id="gClocks" aria-pressed="false">Clocks</button>
+                  <button class="b" type="button" id="gIdent" aria-pressed="false">Ident</button>
+              <button class="b" type="button" id="gCredits" aria-pressed="false" title="End credits roll: hosts, guests, creators and partners">End credits</button>
+              <button class="b" type="button" id="gPartner" title="Shows the next partner for 10 seconds, marked PARTNER">Partner line</button>
+                </div>
+              </div>
+              <div class="card-b">
+                <span class="label">Lower third</span>
+                <div class="fields mt">
+                  <input class="in" id="ltTitle" maxlength="80" placeholder="Name" autocomplete="off" aria-label="Lower third name">
+                  <input class="in" id="ltSub" maxlength="120" placeholder="Line two" autocomplete="off" aria-label="Lower third line two">
+                </div>
+                <div class="presets mt" id="presets">
+                  <button class="b sm quiet" type="button" data-t="Andrej Kneisl" data-s="DJ Andy'K // Vienna" data-side="vienna">Andrej</button>
+                  <button class="b sm quiet" type="button" data-t="Georgie Walker" data-s="Melbourne" data-side="melbourne">Georgie</button>
+                  <button class="b sm quiet" type="button" data-t="DISTANCE // ZERO" data-s="Vienna // Melbourne // 15,731 km" data-side="vienna">Show</button>
+                </div>
+                <div class="row mt">
+                  <select class="in grow" id="ltSide" aria-label="Lower third colour"><option value="vienna">Vienna (amber)</option><option value="melbourne">Melbourne (ice)</option></select>
+                  <button class="b primary" type="button" id="ltShow">Show</button>
+                  <button class="b" type="button" id="ltHide">Hide</button>
+                </div>
+                <div class="row mt"><button class="b sm quiet" type="button" id="gClear">Clear all graphics</button></div>
+              </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="talk" hidden>
+            <section class="card key chat" aria-labelledby="hChat">
+              <div class="card-h"><h2 id="hChat">Talkback // Georgie</h2><div class="aside"><span class="unread" id="unread" hidden></span><span class="badge" id="hostBadge">Offline</span></div></div>
+              <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
+              <div>
+                <div class="quick">
+                  <button type="button" data-say="Stand by, 30 seconds.">30 sec</button>
+                  <button type="button" data-say="Wrap up please.">Wrap</button>
+                  <button type="button" data-say="Stretch, we have time.">Stretch</button>
+                  <button type="button" data-say="You're live.">Live</button>
+                  <button type="button" data-say="Can't hear you, check your mic.">No audio</button>
+                </div>
+                <form class="chat-form" id="chatForm" autocomplete="off">
+                  <input class="in" id="chatInput" maxlength="1000" placeholder="Message Georgie" aria-label="Message to Georgie">
+                  <button class="b primary" type="submit">Send</button>
+                </form>
+              </div>
+            </section>
+            <section class="card" aria-labelledby="hNote">
+              <div class="card-h"><h2 id="hNote">Instruction to Georgie</h2><div class="aside"><span class="saved" id="noteSaved">Sent</span></div></div>
+              <div class="card-b">
+                <textarea class="in" id="note" maxlength="2000" rows="3" placeholder="Shown large on Georgie's screen. e.g. Stretch 2 min, the guest is late."></textarea>
+                <div class="row end mt"><button class="b quiet" type="button" id="noteClear">Clear</button><button class="b primary" type="button" id="noteSend">Send</button></div>
+              </div>
+            </section>
+            <section class="card" aria-labelledby="hAssist">
+              <div class="card-h"><h2 id="hAssist">Help & guidance</h2><div class="aside"><button class="b sm" type="button" id="callBtn2">Call Georgie</button></div></div>
+              <div class="card-b">
+                <ul class="helplist" id="helpList"></ul>
+                <span class="label">Guide Georgie through a fix</span>
+                <div class="row mt">
+                  <select class="in grow" id="guideSel" aria-label="Guide">
+                    <option value="camera">Camera not working</option><option value="audio">Sound problem</option>
+                    <option value="vdo">Rejoin VDO.Ninja</option><option value="network">Slow internet</option>
+                    <option value="reload">Reload her dashboard</option><option value="hold">Hold, we're fixing it</option>
+                    <option value="custom">Own instructions…</option>
+                  </select>
+                  <button class="b primary" type="button" id="guideSend">Send guide</button>
+                </div>
+                <input class="in mt" id="guideText" maxlength="600" placeholder="Extra words for Georgie (optional; required for own instructions)" aria-label="Guidance text">
+              </div>
+            </section>
+          </div>
+          <div class="sidep" data-p="guest" hidden>
+            <section class="card key" aria-labelledby="hGuest">
+              <div class="card-h"><h2 id="hGuest">Guest // third seat</h2><div class="aside"><span class="badge" id="gsBadge">No guest</span></div></div>
+              <div class="card-b" id="gsBody"></div>
+            </section>
+          </div>
+          <div class="sidep" data-p="more" hidden>
+            <section class="card" aria-labelledby="hMusic">
+              <div class="card-h"><h2 id="hMusic">Music // now playing</h2><div class="aside"><span class="badge manual" title="Not linked to DJ software yet. Typed in here, shown to Georgie.">Manual entry</span></div></div>
+              <div class="card-b">
+                <div class="fields three">
+                  <input class="in" id="mArtist" maxlength="120" placeholder="Artist" autocomplete="off" aria-label="Artist">
+                  <input class="in" id="mTitle" maxlength="160" placeholder="Title" autocomplete="off" aria-label="Title">
+                  <input class="in" id="mLabel" maxlength="120" placeholder="Label" autocomplete="off" aria-label="Label">
+                </div>
+                <div class="row mt"><span class="hint grow" id="mNow">Nothing set</span><button class="b quiet" type="button" id="mClear">Clear</button><button class="b primary" type="button" id="mSet">Set</button></div>
+              </div>
+              <div class="card-b"><span class="label">Played tonight</span><ul class="playlog mt" id="playlog"></ul></div>
+            </section>
+            <section class="card" aria-labelledby="hRem">
+              <div class="card-h"><h2 id="hRem">Production reminders</h2><div class="aside"><span class="hint">Only you see these</span></div></div>
+              <div class="card-b">
+                <ul class="rem-list" id="remList"></ul>
+                <form class="row mt" id="remForm" autocomplete="off">
+                  <input class="in grow" id="remText" maxlength="200" placeholder="e.g. Call the guest" aria-label="Reminder">
+                  <input class="in" id="remAt" type="time" aria-label="Reminder time (Vienna)">
+                  <button class="b" type="submit">Add</button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= HOST MODE (Andrej presenting: the host view, same account and rights) ======================= -->
+  <section class="ws" id="ws-host" aria-label="Host mode" hidden>
+    <div class="show3 hostmode">
+      <div class="mon3" id="hmMons" aria-label="Monitors"></div>
+      <div class="show3-body">
+        <div class="col side-l">
+          <section class="card bm" id="hmBreak" aria-label="Break monitors" hidden></section>
+          <section class="card key"><div class="card-h"><h2>Show clock</h2><div class="aside"><span class="badge" id="hmLock"></span></div></div><div class="card-b" id="hmClock"></div></section>
+          <section class="card"><div class="card-b"><p class="hint">HOST MODE: the presenter view. Your Director controls are one click away (DIRECTOR, top left) and keep running in the background.</p></div></section>
+        </div>
+        <div class="col center wide">
+          <section class="card key live-script"><div class="card-h"><h2>Live show script</h2><div class="aside"><span class="hint" id="hmEp"></span></div></div><div class="card-b ls" id="hmScript"></div></section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= REHEARSAL ======================= -->
+  <section class="ws" id="ws-rehearse" role="tabpanel" aria-labelledby="tab-rehearse" hidden>
+    <nav class="subtabs rh-sub" role="tablist" aria-label="Rehearsal" id="rhTabs">
+      <button type="button" role="tab" data-rp="run" aria-selected="true">Run-through &amp; checks</button>
+      <button type="button" role="tab" data-rp="script" aria-selected="false">Script editor</button>
+      <button type="button" role="tab" data-rp="media" aria-selected="false">Media library</button>
+    </nav>
+    <div class="rhp" data-rp="run">
+    <div class="rh-hero card key" id="rhHero">
+      <div class="rh-state">
+        <span class="label">Private rehearsal</span>
+        <strong id="rhTitle">Ready when you are</strong>
+        <span class="hint" id="rhSub">Nothing goes on air. While the rehearsal runs, the YouTube stream and OBS recording are locked.</span>
+      </div>
+      <div class="rh-clock"><span class="label" id="rhClockLabel">Rehearsal time</span><strong id="rhTimer" class="num">--:--</strong></div>
+      <div class="rh-clock"><span class="label" id="rhShowLabel">Show starts in</span><strong id="rhCountdown" class="num">--</strong></div>
+      <button class="rh-go" type="button" id="rhToggle">Start rehearsal</button>
+    </div>
+
+    <div class="board" id="rhBoard" aria-live="polite"></div>
+
+    <div class="rh-grid">
+      <section class="card" aria-labelledby="hChecks">
+        <div class="card-h"><h2 id="hChecks">Pre-show check</h2>
+          <div class="aside"><span class="hint" id="rhScore"></span><button class="b sm" type="button" id="rhAuto">Run automatic checks</button><button class="b sm primary" type="button" id="rhAsk">Ask Georgie to run hers</button></div></div>
+        <ol class="checklist" id="rhChecks"></ol>
+        <p class="hint card-b">A check only shows <b>PASS</b> after it was really verified: measured by the studio, or confirmed by the person at that end. Everything else stays <b>NOT TESTED</b>.</p>
+      </section>
+
+      <div class="stack">
+        <section class="card key" aria-labelledby="hRhCall">
+          <div class="card-h"><h2 id="hRhCall">Talk to Georgie</h2><div class="aside"><span class="badge" id="rhCallBadge">Idle</span></div></div>
+          <div class="card-b">
+            <div class="row"><span class="grow hint" id="rhCallLine">Private video call, browser to browser. Nothing goes into OBS.</span><button class="b primary" type="button" id="rhCall">Call Georgie</button></div>
+            <div class="headphones mt" id="rhPhones">
+              <strong>Headphones on, both sides.</strong>
+              <span class="hint">Call audio on speakers feeds back into the microphones.</span>
+              <label class="checks"><input type="checkbox" id="rhMyPhones"> Mine are on (Vienna)</label>
+              <span class="light" id="rhHerPhones">Georgie: not confirmed</span>
+            </div>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="hRhLink">
+          <div class="card-h"><h2 id="hRhLink">Georgie's public link</h2><div class="aside"><span class="badge" id="rhLinkBadge">—</span></div></div>
+          <div class="card-b">
+            <p class="hint" id="rhLinkLine"></p>
+            <div class="row mt"><button class="b" type="button" id="rhCopy">Copy Georgie's link</button><span class="hint grow" id="rhCopied"></span></div>
+          </div>
+        </section>
+        <section class="card recover" id="rhRecover" aria-labelledby="hRec" hidden>
+          <div class="card-h"><h2 id="hRec">What to do now</h2></div>
+          <div class="card-b" id="rhRecoverBody"></div>
+        </section>
+        <section class="card" aria-labelledby="hTl">
+          <div class="card-h"><h2 id="hTl">Rehearsal timeline</h2></div>
+          <ol class="log" id="rhTimeline"></ol>
+        </section>
+        <section class="card" aria-labelledby="hReports">
+          <div class="card-h"><h2 id="hReports">Reports</h2><div class="aside"><span class="hint">Text only. Nothing is recorded.</span></div></div>
+          <ul class="reports" id="rhReports"></ul>
+        </section>
+      </div>
+    </div>
+    </div>
+
+    <div class="rhp" data-rp="script" hidden>
+      <section class="card key se-top">
+        <div class="se-row">
+          <div class="se-ep"><span class="label">Episode</span><strong id="seEpLabel"></strong></div>
+          <span class="badge" id="seLock"></span>
+          <span class="savestate" id="seSave" role="status" aria-live="polite"></span>
+          <span class="grow"></span>
+          <select class="in sm" id="seEpisodes" aria-label="Saved episodes"></select><button class="b sm" type="button" id="seOpen">Open</button>
+        </div>
+        <div class="se-row">
+          <label class="field"><span class="label">Title</span><input class="in" id="seTitle" maxlength="120"></label>
+          <label class="field"><span class="label">Date</span><input class="in" id="seDate" placeholder="YYYY-MM-DD" maxlength="10" inputmode="numeric" pattern="\d{4}-\d{2}-\d{2}"></label>
+          <label class="field"><span class="label">Start (Vienna)</span><input class="in" id="seStart" placeholder="HH:MM" maxlength="5" inputmode="numeric" pattern="\d{1,2}:\d{2}"></label>
+          <span class="hint" id="seMel"></span>
+          <span class="grow"></span>
+          <span class="hint" id="seVersions"></span><button class="b sm" type="button" id="seRestore">Restore last saved version</button>
+        </div>
+        <div class="se-row">
+          <span class="label">New episode from master</span>
+          <select class="in sm" id="seNewFormat" aria-label="Format"><option value="sunday">SUNDAY_MASTER_SCRIPT</option><option value="friday">FRIDAY_MASTER_SCRIPT</option></select>
+          <input class="in sm" id="seNewDate" placeholder="YYYY-MM-DD" maxlength="10" inputmode="numeric" aria-label="Date (YYYY-MM-DD)"><input class="in sm" id="seNewStart" placeholder="HH:MM" maxlength="5" inputmode="numeric" aria-label="Start, Vienna (HH:MM)">
+          <button class="b sm" type="button" id="seNew">Create</button>
+          <span class="grow"></span>
+          <a class="b sm" id="seExport" href="/script/export.pdf" download>Export PDF</a><a class="b sm quiet" id="sePrint" href="/script/print" target="_blank" rel="noopener">Print</a>
+        </div>
+      </section>
+      <div class="se-grid">
+        <section class="card se-side">
+          <div class="card-h"><h2>Segments</h2><div class="aside"><button class="b sm" type="button" id="seAdd">+ Segment</button></div></div>
+          <ol class="se-list" id="seList"></ol>
+          <div class="total"><span id="seTotal"></span></div>
+          <div class="card-b">
+            <span class="label">Import</span>
+            <textarea class="in mt" id="sePaste" rows="4" placeholder="Paste the script here (segment titles as headings). Nothing changes until you review and apply."></textarea>
+            <div class="row mt"><button class="b sm" type="button" id="sePasteGo">Review import</button>
+              <label class="b sm quiet filebtn" id="sePdfBtn">Import PDF…<input type="file" id="sePdf" accept="application/pdf,.pdf" hidden></label></div>
+          </div>
+          <div class="card-b">
+            <span class="label">Credits — permanent (every show)</span>
+            <p class="hint">One per line: Name — role</p>
+            <textarea class="in mt" id="crHosts" rows="2" aria-label="Hosts"></textarea>
+            <textarea class="in mt" id="crPartners" rows="4" aria-label="Creators and partners"></textarea>
+            <div class="row mt"><span class="hint grow" id="crSaved"></span><button class="b sm" type="button" id="crSaveBase">Save permanent credits</button></div>
+            <span class="label mt">Credits — this episode</span>
+            <textarea class="in mt" id="crGuests" rows="2" placeholder="Guests: Name — role" aria-label="Guests of this episode"></textarea>
+            <textarea class="in mt" id="crExtra" rows="2" placeholder="Thank you: Name — role" aria-label="Extra credits of this episode"></textarea>
+            <div class="row mt"><span class="grow"></span><button class="b sm" type="button" id="crSaveEp">Save episode credits</button></div>
+          </div>
+          <div class="card-b">
+            <span class="label">Templates</span>
+            <div class="row mt"><select class="in sm grow" id="tplPick" aria-label="Saved templates"></select><button class="b sm quiet" type="button" id="tplLoad">Load</button><button class="b sm quiet" type="button" id="tplDel">Delete</button></div>
+            <div class="row mt"><input class="in sm grow" id="tplName" maxlength="80" placeholder="Save this rundown as…" aria-label="Template name"><button class="b sm quiet" type="button" id="tplSave">Save</button></div>
+          </div>
+        </section>
+        <section class="card se-main"><div class="card-b" id="seForm"></div></section>
+      </div>
+      <div class="se-review" id="seReview" hidden role="dialog" aria-modal="true" aria-label="Review import">
+        <div class="card"><div class="card-h"><h2>Review import</h2></div><div class="card-b" id="seReviewBody"></div>
+          <div class="card-b row end"><button class="b" type="button" id="seImportCancel">Cancel</button><button class="b primary" type="button" id="seImportApply">Apply selected</button></div></div>
+      </div>
+    </div>
+
+    <div class="rhp" data-rp="media" hidden>
+      <div class="rh-media">
+        <section class="card">
+          <div class="card-h"><h2>Jingles // audio</h2><div class="aside"><span class="badge off">PREVIEW ONLY — NEVER ON AIR</span></div></div>
+          <div class="card-b"><div class="row"><select class="in sm" id="rmFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="rmStop">STOP PREVIEW</button></div></div>
+          <ul class="lib" id="rmAudio"></ul>
+        </section>
+        <section class="card">
+          <div class="card-h"><h2>Videos // visuals</h2><div class="aside"><span class="badge off">PREVIEW ONLY — NEVER ON AIR</span></div></div>
+          <div class="card-b"><div class="row"><select class="in sm" id="rmCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option></select><span class="grow"></span><button class="b sm" type="button" id="rmVStop">STOP PREVIEW</button></div></div>
+          <ul class="lib" id="rmVideo"></ul>
+          <div class="card-b"><video id="rmPrev" class="vprev" controls playsinline hidden></video></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= TECHNICAL CONTROL ======================= -->
+  <section class="ws" id="ws-tech" role="tabpanel" aria-labelledby="tab-tech" hidden>
+    <div class="tech-grid">
+      <div class="stack">
+        <section class="card key" aria-labelledby="hObs">
+          <div class="card-h"><h2 id="hObs">OBS connection</h2><div class="aside"><span class="badge" id="obsBadge">—</span></div></div>
+          <dl class="diag" id="diag"></dl>
+          <div class="card-b mt"><div class="row"><span class="hint grow" id="obsErr"></span><button class="b sm" type="button" id="obsRefresh">Re-read</button><button class="b sm" type="button" id="obsReconnect">Reconnect</button></div></div>
+        </section>
+        <section class="card" aria-labelledby="hConn">
+          <div class="card-h"><h2 id="hConn">Connections</h2></div>
+          <dl class="diag" id="connDiag"></dl>
+          <div class="card-b mt"><span class="label">Georgie's pre-show check</span><div class="hoststat mt" id="hostStat"></div></div>
+        </section>
+        <section class="card" aria-labelledby="hLog">
+          <div class="card-h"><h2 id="hLog">Event log</h2></div>
+          <ol class="log" id="log" aria-live="off"></ol>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="card" aria-labelledby="hMix">
+          <div class="card-h"><h2 id="hMix">Audio mixer</h2><div class="aside"><span class="badge" id="mixBadge">OBS</span></div></div>
+          <div class="mixer" id="mixer"></div>
+          <div class="scale" aria-hidden="true"><span>−60</span><span>−45</span><span>−30</span><span>−15</span><span>0 dB</span></div>
+          <div class="card-b"><p class="hint" id="micModeNote"></p></div>
+        </section>
+        <section class="card" aria-labelledby="hSrc">
+          <div class="card-h"><h2 id="hSrc">Sources in program</h2><div class="aside"><span class="label" id="srcScene"></span></div></div>
+          <ul class="srclist" id="sources"></ul>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="card emerg" aria-labelledby="hEm">
+          <div class="card-h"><h2 id="hEm">Emergency</h2></div>
+          <div class="card-b emerg-grid">
+            <button class="b danger" type="button" id="emStandby">Cut to standby<small class="label" id="emStandbyName"></small></button>
+            <button class="b danger" type="button" id="emMics">Mics off<small class="label">tagged microphones</small></button>
+            <button class="b danger hold wide" type="button" id="emEnd">End stream now <small>hold 2 s</small></button>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="hSet">
+          <div class="card-h"><h2 id="hSet">Settings</h2></div>
+          <div class="card-b fields">
+            <label class="field"><span class="label">Standby scene (emergency cut)</span><select class="in" id="setStandby"></select></label>
+            <div class="field"><span class="label">OBS graphics overlay // Browser source 1920 × 1080</span>
+              <div class="copyrow"><input class="in grow" id="overlayUrl" readonly aria-label="Overlay URL"><button class="b sm" type="button" id="copyOverlay">Copy</button></div></div>
+            <div class="field"><span class="label">Georgie's camera in OBS // VDO.Ninja view link <span class="badge untested">test separately</span></span>
+              <div class="copyrow"><input class="in grow" id="vdoView" readonly aria-label="VDO.Ninja view link"><button class="b sm" type="button" id="copyVdo">Copy</button></div></div>
+          </div>
+          <dl class="diag" id="sysDiag"></dl>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="help" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div>
+    <div class="row"><h2 class="label grow" id="helpTitle">Keyboard</h2><button class="b sm quiet" type="button" id="helpClose">Close</button></div>
+    <dl>
+      <dt><kbd>⌥1</kbd> <kbd>⌥2</kbd> <kbd>⌥3</kbd> <kbd>⌥4</kbd></dt><dd>Live / Show / Technical / Rehearsal</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Put scene on preview</dd>
+      <dt><kbd>C</kbd></dt><dd>CUT preview to air</dd>
+      <dt><kbd>T</kbd></dt><dd>TAKE preview to air with the transition</dd>
+      <dt><kbd>]</kbd> <kbd>[</kbd></dt><dd>Next / previous segment</dd>
+      <dt><kbd>?</kbd></dt><dd>This help</dd>
+    </dl>
+    <p class="hint mt">Shortcuts are off while you type in a field. Go live and End stream always need a 1.5–2 s hold.</p>
+  </div>
+</div>
+</body>
+</html>
