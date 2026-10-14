@@ -31,6 +31,9 @@
   "vdoNinja": {
     "base": "https://vdo.ninja/"
   },
+  "virtualSpace": {
+    "url": "https://virtualspace.distancezeroshow.com/"
+  },
   "call": {
     "iceServers": []
   }

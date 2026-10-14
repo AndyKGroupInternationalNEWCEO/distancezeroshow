@@ -7,6 +7,7 @@ import { createMonitors, createClock, createScript, createBreakMonitors, syncClo
 import { showClock, mmss } from '../clock.js';
 import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
+import * as preshowPanel from './preshow.js';
 
 let mons, clk, script, brk, lib;
 const two = n => String(n).padStart(2, '0');
@@ -133,6 +134,7 @@ export function render(ctx) {
   script.render(S);
   lib.render();
   guestPanel.render(ctx);
+  preshowPanel.render(ctx);
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);

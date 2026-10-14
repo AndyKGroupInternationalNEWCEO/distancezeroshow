@@ -458,6 +458,10 @@
     "VDO // Guest": {
       "kind": "guest",
       "note": "set by the studio for each guest invitation; hidden and muted until TAKE GUEST ON AIR"
+    },
+    "Virtual Space": {
+      "kind": "virtualspace",
+      "note": "the Virtual Space page in ?obs=1: the PRE-SHOW buttons in the studio set its address"
     }
   },
   "scenes": [
@@ -475,6 +479,22 @@
           }
         ]
       ]
+    },
+    {
+      "name": "PRE-SHOW",
+      "role": "preshow",
+      "items": [
+        [
+          "Virtual Space",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ],
+      "note": "live 3D studio or the 90 s opening video from the Virtual Space; cut to the cameras with the stinger through the logo"
     },
     {
       "name": "OPENING",

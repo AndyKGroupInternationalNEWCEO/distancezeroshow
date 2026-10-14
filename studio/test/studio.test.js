@@ -1220,3 +1220,30 @@ test('closing sequence: one GO plays V14 → V23 → V17, each following when th
   await d.send({ t: 'rundown', action: 'reset' });
   d.close();
 });
+
+test('PRE-SHOW: live 3D counts down to the episode start, video plays the opening; each reloads the page and goes to program', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const r0 = await d.send({ t: 'preshow', mode: 'video', confirm: true });
+  assert.equal(r0.ok, false, 'no PRE-SHOW scene yet');
+  mock.scenes.push('PRE-SHOW'); mock.items['PRE-SHOW'] = [{ sceneItemId: 1, sourceName: 'Virtual Space', inputKind: 'browser_source', sceneItemEnabled: true, sceneItemIndex: 0 }];
+  mock.inputs.push({ inputName: 'Virtual Space', inputKind: 'browser_source', audio: true, muted: false, volumeDb: 0, settings: {} });
+  mock.emit('SceneCreated', { sceneName: 'PRE-SHOW', isGroup: false });
+  await d.next(m => m.t === 'state' && m.s.obs.scenes.some(x => (x.name || x) === 'PRE-SHOW'));
+  const date = new Date(Date.now() + 80 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '10:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  assert.equal((await d.send({ t: 'preshow', mode: 'live' })).ok, false, 'needs confirmation');
+  const url = () => new URL(mock.inputs.find(i => i.inputName === 'Virtual Space').settings.url);
+  const r = await d.send({ t: 'preshow', mode: 'live', confirm: true });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(url().searchParams.get('obs'), '1'); assert.equal(url().searchParams.get('play'), 'live');
+  assert.match(url().searchParams.get('start'), new RegExp(`^${date}T10:00:00\\+0[12]:00$`), 'Vienna time with its offset');
+  assert.equal(mock.state.program, 'PRE-SHOW');
+  assert.ok(mock.log.some(x => x.requestType === 'PressInputPropertiesButton' && x.requestData.inputName === 'Virtual Space'), 'page reloaded');
+  await d.send({ t: 'preshow', mode: 'video', confirm: true });
+  assert.equal(url().searchParams.get('play'), 'video'); assert.equal(url().searchParams.get('start'), null);
+  await d.send({ t: 'obs', action: 'program', scene: 'STANDBY' });
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});

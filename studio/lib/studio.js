@@ -452,6 +452,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'media.rescan': media?.scan(); changed(); return;
       case 'cue.go': return cueGo(msg);
       case 'credits': return creditsAction(msg);
+      case 'preshow': return preshow(msg);
       case 'guest.invite': return guestInvite(msg);
       case 'guest.admit': return guestAdmit();
       case 'guest.waiting': return guestBack();
@@ -847,6 +848,37 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       camsOnAir: (obs.state.items || []).filter(x => x.enabled && /^(Cam|VDO) \/\//.test(x.name)).map(x => x.name),
       otherLive: a.filter(x => !x.mic && !x.muted && /mixer|aux|input_capture/i.test(x.name + ' ' + x.kind)).map(x => x.name),
     } };
+  }
+
+  /* ---------- PRE-SHOW: the Virtual Space page as a clean OBS picture ----------
+     LIVE 3D plays the real-time studio (with a countdown to the episode's start, if it has one: the opening song loops
+     until 3 s before, the beacons flash three times and the opening starts on time). VIDEO plays the finished 90 s
+     opening, which ends on a clean D//0 logo at 88.5–90 s: cut to the cameras there (stinger through the logo). */
+  const PRESHOW_SCENE = 'PRE-SHOW', PRESHOW_SRC = 'Virtual Space';
+  const viennaIso = ms => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'longOffset' }).formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${p.timeZoneName.replace('GMT', '') || '+00:00'}`;
+  };
+  function preshowUrl(mode) {
+    const u = new URL(config.virtualSpace?.url || 'https://virtualspace.distancezeroshow.com/');
+    u.searchParams.set('obs', '1'); u.searchParams.set('play', mode);
+    const at = rundown.episode?.startAt;
+    if (mode === 'live' && at > Date.now()) u.searchParams.set('start', viennaIso(at));
+    return u.toString();
+  }
+  async function preshow(msg) {
+    const mode = msg.mode === 'video' ? 'video' : msg.mode === 'live' ? 'live' : null;
+    if (!mode) throw new Error('Choose LIVE 3D or VIDEO');
+    if (msg.confirm !== true) throw new Error('PRE-SHOW goes to program: it needs confirmation');
+    if (state.brk?.active) throw new Error('A break is running: return to live first');
+    obs.requireScene(PRESHOW_SCENE);
+    const url = preshowUrl(mode);
+    await obs.request('SetInputSettings', { inputName: PRESHOW_SRC, inputSettings: { url } });
+    await obs.request('PressInputPropertiesButton', { inputName: PRESHOW_SRC, propertyName: 'refreshnocache' });
+    await obs.setProgram(PRESHOW_SCENE);
+    logEvent('ok', `PRE-SHOW on program: ${mode === 'live' ? 'live 3D studio' : 'opening video'}`);
+    return { url };
   }
 
   /* ---------- THIRD SEAT: the invited guest ----------

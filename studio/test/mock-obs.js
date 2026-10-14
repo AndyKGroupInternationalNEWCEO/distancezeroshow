@@ -160,6 +160,10 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
       if (!i) throw [604, 'Not a media input'];
       return mediaStatus(i);
     },
+    PressInputPropertiesButton: d => {
+      if (!inputs.some(x => x.inputName === d.inputName)) throw [600, 'No such input'];
+      return {};
+    },
     SetInputSettings: d => {
       const i = inputs.find(x => x.inputName === d.inputName);
       if (!i) throw [600, 'No such input'];

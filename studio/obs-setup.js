@@ -19,6 +19,7 @@ const config = loadConfig();
 const wanted = process.argv.slice(2).filter(a => !a.startsWith('-'));
 const PLAYERS = process.argv.includes('--players');   // add the media players to EXISTING show collections (nothing else changes)
 const KEYING = process.argv.includes('--keying');     // add background removal to EXISTING show collections (nothing else changes)
+const PRESHOW = process.argv.includes('--preshow');   // add the PRE-SHOW scene to EXISTING show collections (nothing else changes)
 if (!wanted.length) { console.log('Usage: npm run obs-setup -- sunday friday'); process.exit(1); }
 const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', id + '.json'), 'utf8')));
 
@@ -50,6 +51,8 @@ function inputFor(name, src, cam) {
     case 'camera': return { kind: cam.kind, settings: cam.settings };
     case 'vdo': return { kind: 'browser_source', settings: { url: vdoView, width: 1920, height: 1080, reroute_audio: true, restart_when_active: false, shutdown: false } };
     case 'guest': return { kind: 'browser_source', muted: true, settings: { url: 'about:blank', width: 1280, height: 720, reroute_audio: true, restart_when_active: false, shutdown: false } };
+    case 'virtualspace': return { kind: 'browser_source', settings: { url: 'https://virtualspace.distancezeroshow.com/?obs=1&play=video', width: 1920, height: 1080,
+      fps_custom: true, fps: 30, reroute_audio: true, restart_when_active: true, shutdown: false } };   // sound through the OBS mixer, reloaded on every cut to it
     case 'overlay': return { kind: 'browser_source', settings: { url: overlayUrl, width: 1920, height: 1080, shutdown: false } };
     case 'mic': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' } };
     case 'mixer': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' }, muted: true };   // muted until its device is chosen
@@ -173,6 +176,31 @@ async function addKeying(show, existing) {
   say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": background removal already there, nothing changed`);
 }
 
+// PRE-SHOW: the Virtual Space page (live 3D studio or the opening video) in its own scene, from shows/<show>.json.
+// The studio's PRE-SHOW buttons set the page's address, reload it and put the scene on program.
+async function addPreshow(show, existing, cam) {
+  const name = show.obs.sceneCollection, sc = show.scenes.find(s => s.name === 'PRE-SHOW');
+  if (!sc) { say(`SKIP  "${name}": no PRE-SHOW scene in shows/${show.id}.json`); return; }
+  if (!existing.includes(name)) { say(`SKIP  "${name}" does not exist (run obs-setup without --preshow first)`); return; }
+  await switchTo('SetCurrentSceneCollection', name);
+  if ((await req('GetSceneList')).scenes.some(s => s.sceneName === sc.name)) { say(`OK    "${name}": PRE-SHOW already there, nothing changed`); return; }
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  await req('CreateScene', { sceneName: sc.name });
+  for (const [src, box] of sc.items) {
+    let id;
+    if (inputs.has(src)) id = (await req('CreateSceneItem', { sceneName: sc.name, sourceName: src })).sceneItemId;
+    else {
+      const def = inputFor(src, show.sources[src], cam);
+      id = (await req('CreateInput', { sceneName: sc.name, inputName: src, inputKind: def.kind, inputSettings: def.settings })).sceneItemId;
+      if (def.muted) await req('SetInputMute', { inputName: src, inputMuted: true });
+    }
+    await req('SetSceneItemTransform', { sceneName: sc.name, sceneItemId: id, sceneItemTransform: {
+      positionX: box.x, positionY: box.y, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: box.w, boundsHeight: box.h } });
+  }
+  await req('CreateSceneItem', { sceneName: sc.name, sourceName: 'AUDIO // ALL', sceneItemEnabled: true }).catch(() => {});
+  say(`OK    "${name}": added scene PRE-SHOW (${sc.items.map(i => i[0]).join(', ')})`);
+}
+
 obs.on('link', async up => {
   if (!up) return;
   clearTimeout(timeout);
@@ -186,9 +214,10 @@ obs.on('link', async up => {
     say(`OK    backup of OBS scene collections: data/obs-backups/${stamp}/`);
     const before = await req('GetSceneCollectionList');
     const cam = existingCamera();
-    if (PLAYERS || KEYING) {
+    if (PLAYERS || KEYING || PRESHOW) {
       for (const show of shows) {
         if (PLAYERS) await addPlayers(show, before.sceneCollections);
+        if (PRESHOW) await addPreshow(show, before.sceneCollections, cam);
         if (KEYING) await addKeying(show, before.sceneCollections);
       }
       await switchTo('SetCurrentSceneCollection', before.currentSceneCollectionName);
