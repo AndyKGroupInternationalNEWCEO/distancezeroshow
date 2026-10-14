@@ -1,3 +1,5 @@
 .vercel
 .env*
 virtualspace/dist/
+.DS_Store
+virtualspace/.vercel-old-*/
