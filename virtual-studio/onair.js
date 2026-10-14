@@ -51,8 +51,8 @@ const BUG = '<img class="air-bug" src="assets/logo-do.webp" alt="D//0" width="32
 const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km',
   'First show Wednesday 27 January 2027 · 10:00 Vienna · 20:00 Melbourne', 'Then every third Sunday of the month', 'distancezeroshow.com'];
 
-const LOWER = { andy: ["DJ ANDY'K", 'Andrej Kneisl · Vienna'], georgie: ['GEORGIE WALKER', 'Melbourne'], piano: ['THE GRAND PIANO', 'Melbourne side'],
-  music: ['MUSIC STATION', 'Vienna side'], guest: ['SPECIAL GUEST', 'Live at the DISTANCE // ZERO desk'], wall: ['DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km'] };
+const LOWER = { andy: ["DJ ANDY'K", 'Andrej Kneisl · Vienna'], georgie: ['GEORGIE WALKER', 'Melbourne'], piano: ['THE GRAND PIANO', 'Vienna side'],
+  music: ['MUSIC STATION', 'Melbourne side'], guest: ['SPECIAL GUEST', 'Live at the DISTANCE // ZERO desk'], wall: ['DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km'] };
 
 const h = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -64,7 +64,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
   let fresh = true, bedOn = false, ownMusic = false, openerOn = false, clip = null;
   const jingle = new Audio(); jingle.preload = 'none';
   let el = null, isOpen = false, music = false, part = 'opening', raf = 0, volume = 0.8, muted = false, autoBefore = true, returnFocus = null;
-  let queue = [];                                  // the videos still to come in a closing sequence
+  let queue = [], cued = false, cueTimers = [];      // cued: the beacons' three flashes and tones have run for this start                                  // the videos still to come in a closing sequence
   let a, b, cur, prev = null, fadeT = 1;          // two video players: the dissolve between repeats needs both
   const ui = {};
 
@@ -194,6 +194,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     const i = tracks(THEME);
     if (i < 0) return opening();
     part = 'theme'; fresh = true; lastT = -1;
+    cancelCue(); studio.beacons.standby();                         // the beacons turn while the show is about to start
     studio.wall.set('wave'); director.setAuto(true);
     sound.playlist(null); sound.after(() => opening()); applySound();
     sound.play(i).catch(() => opening());                        // no theme (blocked or offline): straight to the opening
@@ -201,7 +202,15 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     lower('DISTANCE // ZERO', 'The show starts soon');
   }
   // 2. the opening video on the wall, with its own sound
+  // the last three seconds before air: flash and tone, three times; then the beacons are on air
+  function cue() {
+    if (cued) return;
+    cued = true; studio.beacons.cue();
+    cueTimers = [0, 1000, 2000].map(ms => setTimeout(() => { if (isOpen && !muted) sound.beep(0.22 * Math.min(1, volume / 0.8)); }, ms));
+  }
+  function cancelCue() { cueTimers.forEach(clearTimeout); cueTimers = []; cued = false; }
   function opening() {
+    cue();                                                          // skipped or no theme: the cue runs over the opening's first seconds
     sound.after(null); if (part === 'theme') sound.stop();
     prev?.pause(); prev = null; fadeT = 1; cur?.pause(); cur = null;
     ui.replay.hidden = true;
@@ -276,6 +285,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     if (part === 'theme' && !music) {                             // countdown to the show while the theme plays
       const st = sound.state, left = Math.max(0, Math.ceil((st.duration || 94) - st.time));
       const txt = `The show starts in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      if (st.duration && st.duration - st.time <= 3) cue();
       if (ui.l3sub.textContent !== txt) ui.l3sub.textContent = txt;
     }
     if (prev) {                                                   // dissolve between two players, sound included
@@ -345,6 +355,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     ui.src.hidden = true;
     stopBed(); stopJingle();
     closePick();
+    cancelCue(); studio.beacons.off();
     cur = prev = null;
     el.hidden = true; document.body.classList.remove('air-on');
     try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch {}

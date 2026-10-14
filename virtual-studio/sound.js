@@ -174,6 +174,15 @@ export function createSound() {
     stop() { for (const k of decks) k.audio.pause(); },
   };
 
+  /* ---------- the on-air cue tone: a short 1 kHz beep, as in a studio's last seconds before air ---------- */
+  function beep(level = 0.22) {
+    ensure();
+    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 1000;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.01); g.gain.setValueAtTime(level, t + 0.22); g.gain.linearRampToValueAtTime(0, t + 0.26);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 0.3);
+  }
+
   /* ---------- levels for the lights ---------- */
   const bins = new Uint8Array(128), lv = { on: 0, bass: 0, mid: 0, high: 0, level: 0 };
   const band = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += bins[i]; return s / ((b - a) * 255); };
@@ -186,7 +195,7 @@ export function createSound() {
   }
 
   return {
-    tracks: TRACKS, play, noteOn, noteOff, chord, levels, bins, dj,
+    tracks: TRACKS, play, noteOn, noteOff, chord, levels, bins, dj, beep,
     toggle() { if (index < 0) return play(0); if (audio.paused) { ensure(); for (const k of decks) k.audio.pause(); return audio.play(); } audio.pause(); return Promise.resolve(); },
     next() { return play(step(1)); }, prev() { return play(step(-1)); },
     seek(fraction) { if (audio.duration) audio.currentTime = fraction * audio.duration; },

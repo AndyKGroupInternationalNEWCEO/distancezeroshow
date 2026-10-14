@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DJ Andy'K AKX 2026 — Manual — DISTANCE // ZERO</title>
+<meta name="description" content="Manual for the DJ Andy'K AKX 2026, the playable two-deck DJ booth of the DISTANCE // ZERO Virtual Studio. Software by Andy'K Music Lab.">
+<link rel="canonical" href="https://virtualspace.distancezeroshow.com/dj-manual">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="DISTANCE // ZERO">
+<meta property="og:title" content="DJ Andy'K AKX 2026 — Manual">
+<meta property="og:description" content="How to play the two-deck DJ booth of the DISTANCE // ZERO Virtual Studio. Software by Andy'K Music Lab.">
+<meta property="og:url" content="https://virtualspace.distancezeroshow.com/dj-manual">
+<meta property="og:image" content="https://distancezeroshow.com/assets/keyvisual.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#07080a">
+<style>
+@font-face{font-family:"Archivo";font-style:normal;font-weight:300 900;font-stretch:62% 125%;font-display:swap;
+  src:url(assets/fonts/archivo-latin-ext.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Archivo";font-style:normal;font-weight:300 900;font-stretch:62% 125%;font-display:swap;
+  src:url(assets/fonts/archivo-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--bg:#07080a;--line:rgba(201,206,214,.14);--dim:#8a9099;--chrome:#c9ced6;--hi:#f3f5f8;--amber:#f2a650;--ice:#a9c8ee;--champagne:#e3c79a;--gut:max(16px,env(safe-area-inset-left))}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--chrome);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.65}
+a{color:var(--hi);text-underline-offset:3px;text-decoration-color:rgba(243,245,248,.35)}
+a:hover{text-decoration-color:var(--amber)}
+.wrap{max-width:760px;margin:0 auto;padding:clamp(28px,6vw,72px) var(--gut) 64px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:clamp(36px,7vw,72px)}
+.top img{display:block;height:40px;width:auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.55))}
+.top a.back{font-stretch:112%;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:9px 16px;color:var(--chrome)}
+.top a.back:hover{border-color:rgba(242,166,80,.5);color:var(--hi)}
+.kicker{margin:0 0 10px;font-stretch:112%;font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--amber)}
+h1{margin:0 0 18px;font-stretch:118%;font-weight:700;font-size:clamp(1.9rem,5.4vw,2.9rem);line-height:1.12;color:var(--hi);letter-spacing:.01em}
+.lead{margin:0 0 8px;font-size:1.08rem;color:var(--chrome)}
+h2{margin:48px 0 12px;font-stretch:115%;font-weight:650;font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;color:var(--hi);padding-top:22px;border-top:1px solid var(--line)}
+p{margin:0 0 14px}
+ul{margin:0 0 14px;padding-left:1.1em}
+li{margin:0 0 6px}
+li::marker{color:var(--dim)}
+table{width:100%;border-collapse:collapse;margin:6px 0 16px;font-size:.92rem}
+th,td{text-align:left;vertical-align:top;padding:9px 10px 9px 0;border-bottom:1px solid var(--line)}
+th{font-stretch:112%;font-weight:600;font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+td:first-child{white-space:nowrap;color:var(--hi)}
+kbd{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:var(--hi)}
+.a{color:var(--amber)} .i{color:var(--ice)}
+.note{font-size:.88rem;color:var(--dim)}
+.credit{margin-top:56px;padding:22px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.credit b{display:block;font-stretch:112%;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--champagne);margin-bottom:6px;font-weight:600}
+.credit p{margin:0;color:var(--hi)}
+footer{margin-top:40px;font-size:.78rem;color:var(--dim);line-height:1.8}
+footer a{color:var(--dim)}
+@media (max-width:560px){table,thead,tbody,tr,th,td{display:block}thead{display:none}td{border:0;padding:2px 0}tr{padding:10px 0;border-bottom:1px solid var(--line)}td:first-child{white-space:normal}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="./" aria-label="Back to the Virtual Studio"><img src="assets/logo-do.webp" alt="D//0" width="327" height="160"></a>
+    <a class="back" href="./">Open the studio</a>
+  </div>
+
+  <p class="kicker">Virtual Studio · DJ booth · Manual</p>
+  <h1>DJ Andy'K AKX 2026</h1>
+  <p class="lead">The DJ booth of the DISTANCE // ZERO Virtual Studio: two media players with large jog wheels and tilted touch screens either side of a four-channel mixer. Software by <a href="https://lab.djandykofficial.com/">Andy'K Music Lab</a>.</p>
+  <p>It stands on the Melbourne side of the set, in cool white and ice-blue light, with the DJ Andy'K logo on the mixer. It really plays: you load two tracks, start them and blend one into the other, and the booth in the studio plays along.</p>
+
+  <h2>Getting started</h2>
+  <ul>
+    <li>Open <b>♪ Music station</b> in the bar at the bottom, then the <b>DJ booth</b> tab.</li>
+    <li>Each deck already has a track: Deck 1 <i>DISTANCE // ZERO</i>, Deck 2 <i>Three-Note Signature</i>. Choose any other from the <b>Track</b> list.</li>
+    <li>Press <b>▶</b> on a deck. The music starts, the camera goes to the booth and the studio lights switch to the Music look.</li>
+  </ul>
+
+  <h2>The decks</h2>
+  <table>
+    <thead><tr><th>Control</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Track</td><td>The soundtrack of DISTANCE // ZERO, the Austrian versions, the signature tracks and every DJ Andy'K release. Choosing a track loads it and stops the deck</td></tr>
+      <tr><td>▶ / ❚❚</td><td>Start or pause the deck</td></tr>
+      <tr><td>CUE</td><td>As on a club player. While the deck plays: back to the cue point and stop. While it is stopped: the cue point is set where the deck is. A new track's cue point is its start</td></tr>
+      <tr><td>Position</td><td>The bar under the track: drag to move through the track; the time shows where you are and how long the track is</td></tr>
+      <tr><td>Channel</td><td>The deck's channel fader, its level in the mix</td></tr>
+    </tbody>
+  </table>
+  <p class="note">At the end of a track the deck goes back to its cue point and stops, ready to be started again.</p>
+
+  <h2>The mixer</h2>
+  <ul>
+    <li><b>Channel faders:</b> Deck 1 plays through channel 2, Deck 2 through channel 3. In the studio those two faders move with yours; up, away from the DJ, is louder.</li>
+    <li><b>Crossfader</b> (between the decks in the panel): left plays Deck 1 only, right Deck 2 only. In the middle both play at full level, so a blend never dips in volume.</li>
+    <li>The level meters show the mix as it is heard.</li>
+  </ul>
+
+  <h2>A first transition</h2>
+  <ol>
+    <li>Crossfader to the left. Start Deck 1.</li>
+    <li>On Deck 2, choose the next track, move to where it should come in, and press <b>CUE</b> to set the point.</li>
+    <li>At the right moment start Deck 2 and slide the crossfader to the middle: both tracks play together.</li>
+    <li>Slide on to the right. Deck 1 is out of the mix; pause it or press <b>CUE</b> to send it back to its cue point.</li>
+  </ol>
+
+  <h2>The booth in the studio</h2>
+  <ul>
+    <li>The platter of a deck that plays turns at about 33 rpm; a stopped deck stands still.</li>
+    <li>The channel 2 and 3 faders and the crossfader sit where you put them.</li>
+    <li>The lights, the LED strips and the LED wall follow the music.</li>
+    <li>The touch screens show each deck's waveform, BPM, time and key. The fronts carry the DJ Andy'K logo and AKX 2026.</li>
+  </ul>
+
+  <h2>One source at a time</h2>
+  <ul>
+    <li>Starting a deck pauses the soundtrack player; starting the soundtrack stops the decks.</li>
+    <li><b>Simulate on air</b> stops the decks: the simulation plays its own show.</li>
+    <li>The piano can be played over the decks.</li>
+  </ul>
+
+  <h2>Where the music comes from</h2>
+  <p>Nothing is copied into the Virtual Studio. The soundtrack streams from <a href="https://distancezeroshow.com/">distancezeroshow.com</a>, DJ Andy'K's releases from <a href="https://www.djandykofficial.com/">djandykofficial.com</a>, only while a deck plays. Nothing is recorded, and nothing you play is sent anywhere.</p>
+
+  <h2>If something does not work</h2>
+  <ul>
+    <li><b>No sound:</b> browsers start sound only after a click on the page; press ▶ again. Check the volume of your computer.</li>
+    <li><b>“This track could not be loaded”:</b> the track's site could not be reached; choose another track or try again later.</li>
+    <li><b>The decks stopped:</b> the soundtrack or the on-air simulation was started; press ▶ on the deck again.</li>
+  </ul>
+
+  <p style="margin-top:28px"><a href="how-it-works">How the whole Virtual Studio works</a></p>
+
+  <div class="credit">
+    <b>DJ Andy'K AKX 2026</b>
+    <p>Software by Andy'K Music Lab · Developed by Andy'K Group International LTD</p>
+    <p class="note" style="margin-top:6px">for DISTANCE ZERO – International Music &amp; Cultural Association, Vienna</p>
+  </div>
+
+  <footer>
+    <a href="./">Virtual Studio</a> · <a href="how-it-works">How it works</a> · <a href="https://distancezeroshow.com/">distancezeroshow.com</a><br>
+    <a href="https://distancezeroshow.com/impressum#en">Impressum</a> · <a href="https://distancezeroshow.com/privacy#en">Privacy</a> · <a href="https://distancezeroshow.com/cookies#en">Cookies</a> · <a href="https://distancezeroshow.com/terms#en">Terms of use</a> · <a href="https://distancezeroshow.com/disclaimer#en">Disclaimer</a>
+  </footer>
+</div>
+</body>
+</html>

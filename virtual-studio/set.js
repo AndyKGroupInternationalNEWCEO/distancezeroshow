@@ -239,7 +239,30 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   /* ----- LED video wall ----- */
   const wall = createWall(quality.wall);
   const WALL_R = 10, WALL_Z = 3, WALL_SPAN = 0.56, WALL_H = 4.6, WALL_Y = 3.1;
-  const wallMat = new THREE.MeshBasicMaterial({ map: wall.texture, side: THREE.BackSide, toneMapped: true });
+  // a real LED wall: the picture is the light (emissive), the surface is glossy black and catches the studio's lights
+  // and the room, with the module's pixel structure in its gloss (2.5 cm pitch, only in reflections, so no moiré)
+  const ledPix = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
+    x.fillStyle = '#9a9a9a'; x.fillRect(0, 0, 32, 32);                                        // the black mask between the LEDs: matt
+    const r = x.createRadialGradient(16, 16, 1, 16, 16, 10); r.addColorStop(0, '#202020'); r.addColorStop(1, '#9a9a9a');
+    x.fillStyle = r; x.beginPath(); x.arc(16, 16, 10, 0, Math.PI * 2); x.fill();               // each LED's lens: glossy
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(448, 184); t.anisotropy = 8;
+    return t;
+  })();
+  // the 22 x 9 cabinets: each with softly bevelled edges, so the lights run along the panel joints in the gloss
+  const cabinet = (() => {
+    const n = 128, c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), img = x.createImageData(n, n), e = 7;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const dx = i < e ? -(e - i) / e : i >= n - e ? (i - (n - e - 1)) / e : 0, dy = j < e ? (e - j) / e : j >= n - e ? -(j - (n - e - 1)) / e : 0;
+      const k = 4 * (j * n + i), nx = dx * 0.55, ny = dy * 0.55, nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+      img.data[k] = 128 + 127 * nx; img.data[k + 1] = 128 + 127 * ny; img.data[k + 2] = 128 + 127 * nz; img.data[k + 3] = 255;
+    }
+    x.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(22, 9); t.anisotropy = 8;
+    return t;
+  })();
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x020203, roughness: 1, roughnessMap: ledPix, metalness: 0, envMapIntensity: 0.55,
+    normalMap: cabinet, normalScale: new THREE.Vector2(0.6, 0.6), emissive: 0xffffff, emissiveMap: wall.texture, side: THREE.BackSide });
   const wallMesh = mesh(new THREE.CylinderGeometry(WALL_R, WALL_R, WALL_H, 160, 1, true, Math.PI - WALL_SPAN, WALL_SPAN * 2), wallMat);
   wallMesh.position.set(0, WALL_Y, WALL_Z);
   wallMesh.userData.focus = 'wall';
@@ -250,6 +273,20 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     const b = mesh(new THREE.CylinderGeometry(WALL_R - 0.02, WALL_R - 0.02, 0.05, 160, 1, true, Math.PI - WALL_SPAN - 0.02, WALL_SPAN * 2 + 0.04), M.champagne);
     b.material = M.champagne.clone(); b.material.side = THREE.DoubleSide;
     b.position.set(0, y, WALL_Z);
+  }
+  // light round the wall: a line along the top and the bottom (ice on the Melbourne end, amber on the Vienna end) and
+  // an upright at each end, in front of the frame; they follow the looks and the music like the set's other LED lines
+  const rim = glow(new THREE.Color(1, 1, 1), gradientTexture([[0, ICE], [0.5, '#f3f5f8'], [1, AMBER]]));
+  glows.gradient.push({ m: rim, k: 1.8 });
+  for (const y of [WALL_Y - WALL_H / 2 - 0.04, WALL_Y + WALL_H / 2 + 0.04]) {
+    const l = mesh(new THREE.CylinderGeometry(WALL_R - 0.05, WALL_R - 0.05, 0.016, 160, 1, true, Math.PI - WALL_SPAN - 0.02, WALL_SPAN * 2 + 0.04), rim);
+    l.material = rim; l.position.set(0, y, WALL_Z); l.castShadow = l.receiveShadow = false;
+  }
+  for (const sgn of [-1, 1]) {
+    const m = glow(new THREE.Color(sgn < 0 ? ICE : AMBER)); (sgn < 0 ? glows.ice : glows.amber).push({ m, k: 1.8 });
+    const a = Math.PI + sgn * (WALL_SPAN + 0.012), r = WALL_R - 0.05;
+    const up = mesh(new THREE.BoxGeometry(0.016, WALL_H + 0.1, 0.016), m);
+    up.position.set(r * Math.sin(a), WALL_Y, WALL_Z + r * Math.cos(a)); up.castShadow = up.receiveShadow = false;
   }
   // LED cabinet edges: dark end caps with a champagne reveal, like the frame of a real LED wall
   for (const sgn of [-1, 1]) {
@@ -495,20 +532,20 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     jib.cam.head.rotation.z = 0.35 - jib.arm.rotation.z;   // keep the lens pitched down at the desk
   });
 
-  /* ----- music station (the 30 % electronic part) ----- */
+  /* ----- music station (the 30 % electronic part): the DJ booth, on the Melbourne side ----- */
   const music = musicStation(M, glows, anim);
   music.userData.focus = 'music';
-  music.position.set(-5.4, 0, 0.1);
-  music.rotation.y = 0.95;
+  music.position.set(5.4, 0, 0.1);
+  music.rotation.y = -0.95;
   add(music);
   const mus = contactShadow(2.9, 1.3, 0.65); music.add(mus);
 
-  /* ----- black concert grand, on the Melbourne side opposite the DJ booth ----- */
-  // the pianist faces out of the set with the open lid towards the cameras, as on a concert stage;
-  // placed by ray tests so that it stays clear of every camera view of the desk and of the walkways
+  /* ----- black concert grand, on the Vienna side opposite the DJ booth ----- */
+  // the pianist sits at the outer edge facing the hosts, the open lid towards the cameras; the tail ends well clear
+  // of the walk backstage, which passes on its studio side
   const piano = grandPiano(M);
   piano.userData.focus = 'piano';
-  piano.position.set(4.75, 0, 0.55);
+  piano.position.set(-8.1, 0, 1.0);
   piano.rotation.y = -Math.PI / 2 + 0.38;
   add(piano);
   const ps = contactShadow(3.0, 1.9, 0.6); ps.position.set(0, 0.003, -1.25); piano.add(ps);
@@ -525,8 +562,12 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   add(sign);
 
   /* ----- lights ----- */
-  // the truss fixture right above the grand (Melbourne side) is the one that turns to it in the piano shot
-  const lights = buildLights(root, quality, wallLight, fixtures.children[1]);
+  // the truss fixture nearest above the grand (Vienna side) is the one that turns to it in the piano shot
+  root.updateMatrixWorld(true);
+  const pianoAt = new THREE.Vector3(-6.9, 0, 0.5), at = new THREE.Vector3();
+  const pianoLamp = fixtures.children.filter(f => f.isGroup && f.children.length > 1)
+    .reduce((best, f) => { const d = f.getWorldPosition(at).setY(0).distanceTo(pianoAt); return d < best.d ? { f, d } : best; }, { f: null, d: Infinity }).f;
+  const lights = buildLights(root, quality, wallLight, pianoLamp);
 
   /* ----- per-frame: lighting levels, LED colours, wall, tallies ----- */
   function update(t, dt, L, tally) {
@@ -538,7 +579,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
       m.color.setScalar(k * L.accent * (0.85 + 0.15 * Math.sin(t * 1.2)) * (1 + L.aOn * L.aBass * 1.3));
     }
     gradTex.offset.x = Math.sin(t * 0.2) * 0.04 * (1 + 3 * L.music);
-    wallMat.color.setScalar(L.wall);
+    wallMat.emissiveIntensity = L.wall;
     const tint = wall.tint();
     wallLight.color.setRGB(tint[0], tint[1], tint[2]);
     wallLight.intensity = 0.7 * L.wall;
@@ -549,10 +590,60 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   }
 
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
-  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; } };
+  /* ----- the on-air beacons: a small one over the backstage door, two larger ones on the floor either side of the stage
+     front. Off the rest of the time; turning slowly while the show is about to start; three flashes, each with a tone
+     from the simulation, in the last three seconds; then on air: bright and turning ----- */
+  const beacons = [beacon(0.65), beacon(1.6), beacon(1.6)];
+  beacons[0].group.position.set(0, LOUNGE_DOOR.h + 0.3, 0.12); lounge.doorFrame.add(beacons[0].group);
+  mesh(new THREE.BoxGeometry(0.05, 0.03, 0.12), M.graphite, lounge.doorFrame).position.set(0, LOUNGE_DOOR.h + 0.285, 0.06);    // its wall bracket
+  for (const [k, x] of [[1, -2.75], [2, 2.75]]) { beacons[k].group.position.set(x, 0, 0.9); add(beacons[k].group); }
+  let beaconMode = 'off', cueAt = 0;
+  anim.push((t, dt) => {
+    const now = performance.now() / 1000;                 // real time: the flashes keep step with the tones, also in slow motion
+    if (beaconMode === 'cue' && now - cueAt >= 3) beaconMode = 'air';
+    const flash = beaconMode === 'cue' && (now - cueAt) % 1 < 0.4;
+    for (const b of beacons) b.update(dt, beaconMode === 'air' ? 1.5 : beaconMode === 'standby' ? 0.7 : 0,
+      beaconMode === 'air' ? 1 : beaconMode === 'standby' ? 0.45 : flash ? 1.3 : 0);
+  });
+
+  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; },
+    beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = performance.now() / 1000; }, air() { beaconMode = 'air'; } } };
 }
 
 /* ---------- pieces ---------- */
+
+/* ---------- a rotating red beacon (scale 1: a 14 cm dome on its base) ---------- */
+function beacon(s) {
+  const g = new THREE.Group();
+  const base = new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.6, roughness: 0.45 });
+  const dome = new THREE.MeshBasicMaterial({ color: 0x2a0503, transparent: true, opacity: 0.85, depthWrite: false });
+  const add = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; g.add(m); return m; };
+  add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.05 * s, 32), base, 0.025 * s);
+  add(new THREE.CylinderGeometry(0.06 * s, 0.062 * s, 0.07 * s, 32, 1, true), dome, 0.085 * s);
+  add(new THREE.SphereGeometry(0.06 * s, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), dome, 0.12 * s);
+  // inside: the lamp and a mirror that turn, throwing two beams round the room
+  const rot = new THREE.Group(); rot.position.y = 0.1 * s; g.add(rot);
+  const mirror = new THREE.Mesh(new THREE.CylinderGeometry(0.035 * s, 0.035 * s, 0.06 * s, 16, 1, true, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1, roughness: 0.15, side: THREE.DoubleSide }));
+  rot.add(mirror);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.014 * s, 12, 8), new THREE.MeshBasicMaterial({ color: 0x220302 }));
+  rot.add(bulb);
+  const len = 1.1 * s, beamMat = beamMaterial(new THREE.Color(1, 0.08, 0.04));
+  for (const a of [0, Math.PI]) {
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(0.35 * len, len, 24, 1, true).translate(0, -len / 2, 0).rotateZ(Math.PI / 2), beamMat);
+    beam.rotation.y = a; rot.add(beam);
+  }
+  g.traverse(m => { if (m.isMesh) m.castShadow = false; });
+  return {
+    group: g,
+    // spin in turns per second, light 0..1+
+    update(dt, spin, light) {
+      rot.rotation.y += dt * spin * Math.PI * 2;
+      dome.color.setRGB(0.16 + 2.6 * light, 0.02 + 0.12 * light, 0.015 + 0.08 * light);
+      bulb.material.color.setRGB(0.15 + 6 * light, 0.02 + 0.9 * light, 0.01 + 0.4 * light);
+      beamMat.uniforms.uOpacity.value = spin > 0 ? 0.5 * light : 0;
+    },
+  };
+}
 
 function beamMaterial(color) {
   return new THREE.ShaderMaterial({
@@ -1297,7 +1388,7 @@ function buildLounge(M, quality) {
   shadows(g, true, true);
   g.traverse(o => { if (o.isMesh && o.material?.isMeshBasicMaterial) o.castShadow = false; });
   return {
-    group: g, lights, screens,
+    group: g, lights, screens, doorFrame: frame,
     // the door opens as someone comes near it (either side), and closes behind them
     // (it swings into the room)
     door(camPos, dt) { const want = camPos.distanceTo(doorAt) < 2.4 ? 1.45 : 0; doorA += (want - doorA) * Math.min(1, dt * 2.6); leafPivot.rotation.y = doorA; },
@@ -1433,12 +1524,12 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   const many = quality.shadows2 && quality.ao;
   const rimA = spot(C.amber, new THREE.Vector3(-3.2, 6.0, -5.6), new THREE.Vector3(-0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8, shadow: many });
   const rimI = spot(C.ice, new THREE.Vector3(3.2, 6.0, -5.6), new THREE.Vector3(0.95, 1.5, -1.9), { angle: 0.22, penumbra: 0.8, shadow: many });
-  const djSpot = spot(C.amber, new THREE.Vector3(-4.2, 6.5, 2.4), new THREE.Vector3(-5.4, 0.9, 0.1), { angle: 0.32, shadow: many });
-  // the grand piano opposite: a soft cool top light, so the lacquer shows its curves (Melbourne side)
-  const pianoSpot = spot(C.cool, new THREE.Vector3(3.6, 6.4, 3.2), new THREE.Vector3(5.6, 0.8, 0.1), { angle: 0.34, penumbra: 0.85, shadow: many });
+  const djSpot = spot(C.ice, new THREE.Vector3(4.2, 6.5, 2.4), new THREE.Vector3(5.4, 0.9, 0.1), { angle: 0.32, shadow: many });   // the DJ booth, Melbourne side
+  // the grand piano opposite: a soft warm top light, so the lacquer shows its curves (Vienna side)
+  const pianoSpot = spot(C.warm, new THREE.Vector3(-4.4, 6.4, 3.4), new THREE.Vector3(-6.9, 0.8, 0.5), { angle: 0.36, penumbra: 0.85, shadow: many });
   // the piano shot: everything else goes down and that truss fixture tilts onto the grand with one narrow,
   // warm spot, like a single old bulb over the piano in an empty hall
-  const soloAim = new THREE.Vector3(5.65, 0.8, 0.2);
+  const soloAim = new THREE.Vector3(-6.95, 0.8, 0.55);
   pianoLamp.updateWorldMatrix(true, false);
   const restQ = pianoLamp.quaternion.clone();
   pianoLamp.lookAt(soloAim);

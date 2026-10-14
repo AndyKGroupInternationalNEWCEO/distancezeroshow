@@ -56,6 +56,7 @@ html = html.replace('</head>', `<script type="application/ld+json">${JSON.string
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 // the "How it works" page (linked in the footer), a static page of its own
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
+fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT, 'dj-manual.html'));   // the DJ booth's own manual
 
 // Content Security Policy: our own files only; the two inline scripts (import map, boot) allowed by hash
 const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
@@ -94,7 +95,7 @@ fs.writeFileSync(path.join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitem
 // the two public pages, for search engines
 const today = new Date().toISOString().slice(0, 10);
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
-  + [['', '1.0'], ['how-it-works', '0.6']].map(([p, pr]) => `  <url><loc>${HOST}${p}</loc><lastmod>${today}</lastmod><priority>${pr}</priority></url>\n`).join('') + '</urlset>\n');
+  + [['', '1.0'], ['how-it-works', '0.6'], ['dj-manual', '0.5']].map(([p, pr]) => `  <url><loc>${HOST}${p}</loc><lastmod>${today}</lastmod><priority>${pr}</priority></url>\n`).join('') + '</urlset>\n');
 // never upload env files or link metadata (the Vercel CLI may create them next to the build)
 fs.writeFileSync(path.join(OUT, '.vercelignore'), '.env*\n.gitignore\n.vercel\n');
 for (const f of ['.env.local', '.gitignore']) fs.rmSync(path.join(OUT, f), { force: true });

@@ -149,7 +149,7 @@ export function createPanels({ sound, el, onMusicStart }) {
     const update = () => deckUi.forEach(u => u.update());
     const off = sound.onChange(update); update();
     const root = h('div', { class: 'pane' },
-      h('p', { class: 'pnote' }, h('b', { text: "DJ Andy'K AKX 2026" }), ' · software by ', ext('https://lab.djandykofficial.com/', "Andy'K Music Lab")),
+      h('p', { class: 'pnote' }, h('b', { text: "DJ Andy'K AKX 2026" }), ' · software by ', ext('https://lab.djandykofficial.com/', "Andy'K Music Lab"), ' · ', ext('dj-manual', 'Manual')),
       h('p', { class: 'pnote', text: 'Two decks and a mixer: pick a track for each deck, start them and blend with the crossfader. The booth in the studio plays along.' }),
       deckUi[0].root,
       h('label', { class: 'fld' }, h('span', { text: 'Crossfader · Deck 1 ⟷ Deck 2' }), xf),

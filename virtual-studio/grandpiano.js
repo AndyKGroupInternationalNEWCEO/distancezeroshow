@@ -1,5 +1,6 @@
-// A black concert grand piano for the Virtual Space, on the Melbourne side opposite the DJ booth.
-// Built from real proportions (about 2.74 m long, 1.58 m wide, 88 keys), in piano lacquer with an open lid.
+// A black concert grand piano for the Virtual Space, on the Vienna side opposite the DJ booth.
+// Built from real proportions (about 2.74 m long, 1.58 m wide, 88 keys), in piano lacquer with an open lid: 230 strings
+// (copper-wound bass), tuning pins, dampers, brass hinges.
 // Clicking it opens the Virtual Space's existing piano (the music station's Piano tab); there is no second piano.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -21,7 +22,7 @@ function casePlan(inset = 0, shape = new THREE.Shape()) {
   return shape;
 }
 // extrude a plan upwards: shape y becomes depth (-z, away from the keyboard), extrusion becomes height
-const lift = (shape, height, opts = {}) => new THREE.ExtrudeGeometry(shape, { depth: height, curveSegments: 40, bevelEnabled: false, ...opts }).rotateX(-Math.PI / 2);
+const lift = (shape, height, opts = {}) => new THREE.ExtrudeGeometry(shape, { depth: height, curveSegments: 72, bevelEnabled: false, ...opts }).rotateX(-Math.PI / 2);
 
 export function grandPiano(M) {
   const g = new THREE.Group();
@@ -34,6 +35,8 @@ export function grandPiano(M) {
   const ivory = new THREE.MeshPhysicalMaterial({ color: 0xf1ede4, roughness: 0.32, clearcoat: 0.35, clearcoatRoughness: 0.25 });
   const ebony = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0b, roughness: 0.28, clearcoat: 0.6, clearcoatRoughness: 0.12 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xd8dade, metalness: 1, roughness: 0.25 });
+  const copper = new THREE.MeshStandardMaterial({ color: 0xb8733f, metalness: 1, roughness: 0.3 });             // the wound bass strings
+  const blackFelt = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.9 });
   const add = (geo, mat, x = 0, y = 0, z = 0, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
 
   /* case: the rim (outer shell with the inside hollow), bottom, soundboard, iron plate, strings */
@@ -46,17 +49,27 @@ export function grandPiano(M) {
     const h = new THREE.Path(); h.absarc(x, y, r, 0, Math.PI * 2, true); plate.holes.push(h);      // the plate's round openings
   }
   add(lift(plate, 0.02), plateGold, 0, RIM_LOW + 0.2, 0);
-  // strings: steel and copper-wound, fanning from the pin block to the tail
-  const strings = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0012, 0.0012, 1, 4).rotateX(Math.PI / 2), steel, 120);
-  const o = new THREE.Object3D();
-  for (let i = 0; i < 120; i++) {
-    const u = i / 119, x0 = -0.6 + u * 1.22, len = 2.2 - u * 1.25, x1 = x0 * 0.7 - 0.12 + u * 0.12;
-    const a = new THREE.Vector3(x0, RIM_LOW + 0.235, -0.3), b = new THREE.Vector3(x1, RIM_LOW + 0.235, -0.3 - len);
+  // strings: 230, copper-wound in the bass, steel above, fanning from the pin block to the tail
+  const N = 230, BASS = 46, o = new THREE.Object3D();
+  const strings = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0011, 0.0011, 1, 4).rotateX(Math.PI / 2), steel, N - BASS);
+  const bass = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0024, 0.0024, 1, 5).rotateX(Math.PI / 2), copper, BASS);
+  const pins = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.028, 6), steel, N);
+  for (let i = 0; i < N; i++) {
+    const u = i / (N - 1), x0 = -0.6 + u * 1.22, len = 2.2 - u * 1.25, x1 = x0 * 0.7 - 0.12 + u * 0.12;
+    const lowY = RIM_LOW + 0.235 + (i < BASS ? 0.012 : 0);                              // the bass strings cross over the rest
+    const a = new THREE.Vector3(x0, lowY, -0.3), b = new THREE.Vector3(x1, lowY, -0.3 - len);
     o.position.copy(a).lerp(b, 0.5); o.lookAt(b); o.scale.set(1, 1, a.distanceTo(b)); o.updateMatrix();
-    strings.setMatrixAt(i, o.matrix);
+    i < BASS ? bass.setMatrixAt(i, o.matrix) : strings.setMatrixAt(i - BASS, o.matrix);
+    // its tuning pin in the pin block, three staggered rows
+    o.position.set(-0.62 + u * 1.24, RIM_LOW + 0.28, -0.11 - (i % 3) * 0.022); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1); o.updateMatrix();
+    pins.setMatrixAt(i, o.matrix);
   }
-  g.add(strings);
-  add(new THREE.BoxGeometry(1.32, 0.02, 0.06), felt, 0, RIM_LOW + 0.245, -0.28);            // damper felt line
+  g.add(strings, bass, pins);
+  // dampers over the strings: black blocks with felt, one per note up to the treble
+  const dampers = new THREE.InstancedMesh(new RoundedBoxGeometry(0.018, 0.03, 0.05, 1, 0.003), blackFelt, 68);
+  for (let i = 0; i < 68; i++) { o.position.set(-0.6 + (i / 67) * 1.0, RIM_LOW + 0.262, -0.33); o.updateMatrix(); dampers.setMatrixAt(i, o.matrix); }
+  g.add(dampers);
+  add(new THREE.BoxGeometry(1.32, 0.012, 0.03), felt, 0, RIM_LOW + 0.244, -0.36);            // damper felt line
   add(new THREE.BoxGeometry(1.36, 0.05, 0.14), plateGold, -0.02, RIM_LOW + 0.24, -0.16);    // pin block cover
 
   /* lid: hinged on the bass side, propped open towards the cameras; the front flap folded back on top */
@@ -64,6 +77,7 @@ export function grandPiano(M) {
   const lidShape = casePlan(0); const lid = add(lift(lidShape, 0.026, { bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2 }), lacquer, HALF, 0, -0.42, hinge);
   lid.scale.z = (LEN - 0.42) / LEN;
   hinge.rotation.z = 0.58;                                                                  // about 33 degrees, the full stick
+  for (const z of [-0.6, -1.35, -2.05]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.09, 12).rotateX(Math.PI / 2), brass, -HALF - 0.004, RIM_TOP + 0.006, z);   // brass lid hinges
   const flap = add(new RoundedBoxGeometry(W - 0.02, 0.022, 0.4, 2, 0.008), lacquer, 0, RIM_TOP + 0.03, -0.21);
   flap.rotation.x = 0.02;
   // prop stick from the treble rim to the lid
@@ -117,6 +131,6 @@ export function grandPiano(M) {
   for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16).rotateZ(Math.PI / 2), brass, sx * 0.42, 0.44, 0, bench);  // height knobs
 
   g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  strings.castShadow = false;
+  for (const m of [strings, bass, pins, dampers]) m.castShadow = false;
   return g;
 }
