@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Virtual Studio — DISTANCE // ZERO</title>
-<meta name="description" content="Step inside the DISTANCE // ZERO virtual television studio: the curved desk of DJ Andy'K (Andrej Kneisl, Vienna) and Georgie Walker (Melbourne), the LED video wall, the music station with the show's soundtrack and a playable piano, in interactive 3D.">
+<meta name="description" content="Step inside the DISTANCE // ZERO virtual television studio: the curved desk of DJ Andy'K (Andrej Kneisl, Vienna) and Georgie Walker (Melbourne), the LED video wall, the DJ Andy'K AKX 2026 booth with the show's soundtrack, a playable piano and an on-air simulation, in interactive 3D.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#040507">
 <meta property="og:type" content="website">
@@ -171,6 +171,14 @@ body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;an
 .mono{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:.72rem;color:var(--dim)}
 .now{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
 .now b{font-stretch:112%;font-weight:600;font-size:.82rem;color:var(--chrome-hi)}
+/* the DJ booth tab: two decks, the crossfader between them */
+.deck .dh{display:flex;justify-content:space-between;align-items:baseline}
+.deck.a .dh b{color:var(--amber)}
+.deck.b .dh b{color:var(--ice)}
+.deck.b .seek{accent-color:var(--ice)}
+.deck .ctl{align-items:end}
+.fld.grow{flex:1;min-width:120px}
+.seek.xf{accent-color:var(--chrome-hi)}
 .seek{width:100%;accent-color:var(--amber)}
 .ctl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .ctl.left{justify-content:flex-start}
@@ -454,7 +462,7 @@ function tier() {
   const dpr = window.devicePixelRatio || 1;
   return mobile
     ? { mobile: true, ao: false, dpr: Math.min(dpr, 1.5), shadowSize: 1024, shadows2: false, reflections: false, glass: false, bloomScale: 0.5, wall: { width: 1280, height: 538 }, wallFps: 20 }
-    : { mobile: false, ao: true, dpr: Math.min(dpr, 1.75), shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };
+    : { mobile: false, ao: true, dpr: Math.min(dpr, 1.75), shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2572, height: 1080 }, wallFps: 30 };
 }
 
 if (!webgl2()) fallback();

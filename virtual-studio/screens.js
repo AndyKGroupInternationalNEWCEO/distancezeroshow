@@ -493,3 +493,31 @@ export function studioSign() {
   spaced(x, 'SIMULATION', w / 2, h * 0.8, 20);
   return texture(c);
 }
+
+/* ---------- the DJ players' touch screens: waveforms, BPM and time, no maker's name ---------- */
+export function deckScreen(n, color) {
+  const w = 512, h = 300, c = canvas(w, h), x = c.getContext('2d');
+  x.fillStyle = '#05070a'; x.fillRect(0, 0, w, h);
+  x.fillStyle = color; x.font = `700 26px ${FONT}`; x.fillText(`DECK ${n}`, 18, 36);
+  x.fillStyle = '#f3f5f8'; x.font = `500 22px ${FONT}`; x.fillText(n === 1 ? 'DISTANCE // ZERO' : 'Three-Note Signature', 120, 36);
+  x.textAlign = 'right'; x.font = `700 40px ${FONT}`; x.fillText(n === 1 ? '124.0' : '123.8', w - 18, 44);
+  x.font = `500 16px ${FONT}`; x.fillStyle = '#8c939e'; x.fillText('BPM', w - 18, 64); x.textAlign = 'left';
+  // the zoomed waveform, centred on the playhead, then the whole track below it
+  let seed = n * 97;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const wave = (top, hh, step, beat) => {
+    for (let i = 0; i < w - 36; i += step) {
+      const a = (0.25 + 0.75 * rnd()) * (i % beat < step * 2 ? 1 : 0.7) * hh / 2;
+      x.fillStyle = i / (w - 36) < 0.42 ? '#3a3f48' : color;
+      x.fillRect(18 + i, top + hh / 2 - a, step - 1, a * 2);
+    }
+  };
+  wave(84, 110, 4, 32);
+  x.fillStyle = '#f3f5f8'; x.fillRect(18 + (w - 36) * 0.42, 80, 2, 118);
+  wave(214, 40, 2, 64);
+  x.fillStyle = '#ff4a3d'; x.fillRect(18 + (w - 36) * 0.42, 210, 2, 48);
+  x.fillStyle = '#c9ced6'; x.font = `500 20px ${FONT}`; x.fillText(n === 1 ? '-02:41.6' : '-04:12.3', 18, 286);
+  x.textAlign = 'right'; x.fillStyle = color; x.fillText(n === 1 ? '8A' : '9A', w - 18, 286);
+  x.textAlign = 'center'; x.fillStyle = '#6b727c'; x.font = `500 14px ${FONT}`; x.fillText("AKX 2026 · ANDY'K MUSIC LAB", w / 2, 284);
+  return texture(c);
+}

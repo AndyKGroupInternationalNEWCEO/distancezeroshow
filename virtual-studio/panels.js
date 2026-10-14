@@ -68,9 +68,9 @@ export function createPanels({ sound, el, onMusicStart }) {
     if (current === 'station') {
       title.textContent = 'Music station';
       tabs.hidden = false;
-      tabs.replaceChildren(...[['soundtrack', 'Soundtrack'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]].map(([id, label]) =>
+      tabs.replaceChildren(...[['soundtrack', 'Soundtrack'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]].map(([id, label]) =>
         h('button', { type: 'button', role: 'tab', class: 'tab', 'aria-selected': String(tab === id), text: label, onclick: () => { tab = id; render(); } })));
-      body.replaceChildren(tab === 'soundtrack' ? soundtrack() : tab === 'piano' ? piano() : andyk());
+      body.replaceChildren(tab === 'soundtrack' ? soundtrack() : tab === 'dj' ? booth() : tab === 'piano' ? piano() : andyk());
     } else {
       title.textContent = 'Broadcast schedule';
       tabs.hidden = true;
@@ -112,6 +112,51 @@ export function createPanels({ sound, el, onMusicStart }) {
     return root;
   }
   function started() { onMusicStart?.(); }
+
+  /* ---------- the DJ booth (DJ Andy'K AKX 2026, software by Andy'K Music Lab): two decks, channel faders and a crossfader;
+     the booth in the studio moves with them ---------- */
+  const DECK_START = [sound.tracks.findIndex(t => t.title === 'DISTANCE // ZERO'), sound.tracks.findIndex(t => t.title === 'Three-Note Signature')];
+  function booth() {
+    const dj = sound.dj;
+    const deckUi = [0, 1].map(d => {
+      if (dj.deck(d).index < 0) dj.load(d, Math.max(0, DECK_START[d]));
+      const select = h('select', { 'aria-label': `Deck ${d + 1} track`, onchange: e => dj.load(d, +e.target.value) });
+      let group = null;
+      sound.tracks.forEach((t, i) => {
+        if (!group || group.label !== t.group) { group = h('optgroup', { label: t.group }); select.append(group); }
+        group.append(h('option', { value: i, text: t.title }));
+      });
+      const time = h('span', { class: 'mono' }), err = h('p', { class: 'perr', role: 'alert' });
+      const bar = h('input', { type: 'range', min: 0, max: 1000, value: 0, class: 'seek', 'aria-label': `Deck ${d + 1} position`, oninput: e => dj.seek(d, e.target.value / 1000) });
+      const play = h('button', { type: 'button', class: 'pbtn main', onclick: () => dj.toggle(d).then(started).catch(() => {}) });
+      const cue = h('button', { type: 'button', class: 'pbtn', text: 'CUE', title: 'Playing: back to the cue point. Stopped: set the cue point here.', onclick: () => dj.cue(d) });
+      const vol = h('input', { type: 'range', min: 0, max: 100, value: Math.round(dj.deck(d).vol * 100), class: 'seek', 'aria-label': `Deck ${d + 1} channel fader`, oninput: e => dj.volume(d, e.target.value / 100) });
+      const root = h('div', { class: 'now deck' + (d ? ' b' : ' a') },
+        h('div', { class: 'dh' }, h('b', { text: `Deck ${d + 1}` }), time),
+        h('label', { class: 'fld' }, h('span', { text: 'Track' }), select), bar,
+        h('div', { class: 'ctl left' }, cue, play, h('label', { class: 'fld grow' }, h('span', { text: 'Channel' }), vol)), err);
+      const update = () => {
+        const s = dj.deck(d);
+        select.value = String(s.index);
+        time.textContent = `${mmss(s.time)} / ${mmss(s.duration)}`;
+        bar.value = s.duration ? Math.round((s.time / s.duration) * 1000) : 0;
+        play.textContent = s.playing ? '❚❚' : '▶'; play.setAttribute('aria-label', s.playing ? `Pause deck ${d + 1}` : `Play deck ${d + 1}`);
+        err.textContent = s.failed;
+      };
+      return { root, update };
+    });
+    const xf = h('input', { type: 'range', min: 0, max: 1000, value: Math.round(dj.xf * 1000), class: 'seek xf', 'aria-label': 'Crossfader: deck 1 to deck 2', oninput: e => dj.crossfade(e.target.value / 1000) });
+    const update = () => deckUi.forEach(u => u.update());
+    const off = sound.onChange(update); update();
+    const root = h('div', { class: 'pane' },
+      h('p', { class: 'pnote' }, h('b', { text: "DJ Andy'K AKX 2026" }), ' · software by ', ext('https://lab.djandykofficial.com/', "Andy'K Music Lab")),
+      h('p', { class: 'pnote', text: 'Two decks and a mixer: pick a track for each deck, start them and blend with the crossfader. The booth in the studio plays along.' }),
+      deckUi[0].root,
+      h('label', { class: 'fld' }, h('span', { text: 'Crossfader · Deck 1 ⟷ Deck 2' }), xf),
+      deckUi[1].root);
+    new MutationObserver((_, obs) => { if (!root.isConnected) { off(); obs.disconnect(); } }).observe(body, { childList: true });
+    return root;
+  }
 
   /* ---------- piano ---------- */
   function piano() {

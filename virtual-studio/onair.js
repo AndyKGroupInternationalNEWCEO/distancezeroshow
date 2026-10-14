@@ -267,8 +267,10 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     else if (part === 'studio') cur?.play().catch(() => studio.wall.set('wave'));   // still stuck: the wall shows the visualiser
   }
 
+  let lastNow = 0;
   function tick(now) {
     raf = requestAnimationFrame(tick);
+    const dt = Math.min(0.1, lastNow ? (now - lastNow) / 1000 : 1 / 60); lastNow = now;   // real frame time: the dissolve lasts FADE on any machine
     ui.clock();
     watchdog(now);
     if (part === 'theme' && !music) {                             // countdown to the show while the theme plays
@@ -277,7 +279,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
       if (ui.l3sub.textContent !== txt) ui.l3sub.textContent = txt;
     }
     if (prev) {                                                   // dissolve between two players, sound included
-      fadeT = Math.min(1, fadeT + 1 / 60 / FADE);
+      fadeT = Math.min(1, fadeT + dt / FADE);
       if (filmSound()) { cur.volume = volume * fadeT; prev.volume = volume * (1 - fadeT); }
       if (fadeT >= 1) { prev.pause(); prev.currentTime = 0; prev = null; }   // parked at the start, ready for the next repeat
     }

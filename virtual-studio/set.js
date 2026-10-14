@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { roughnessNoise, leatherNormal, brushed, ventTexture, panelJoints, floorMaps, contactShadow, arcShadow, bendX, micGrille } from './details.js';
 import { grandPiano } from './grandpiano.js';
-import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, namePlate, umdStrip, AMBER, ICE } from './screens.js';
+import { createWall, createPylon, createDeskFascia, createFloorInlay, gradientTexture, label, studioSign, namePlate, umdStrip, deckScreen, AMBER, ICE } from './screens.js';
 
 export const RISER = 0.16;            // stage riser height
 export const DESK_CENTER = -4.4;      // z of the circle the desk is an arc of
@@ -905,30 +905,90 @@ function musicStation(M, glows, anim) {
   const front = glow(new THREE.Color(1, 1, 1), gradientTexture());
   add(new THREE.PlaneGeometry(2.2, 0.018), front, 0, 0.88, 0.402);
   glows.gradient.push({ m: front, k: 2 });
-  // two media players and a mixer
-  const jogs = [];
-  for (const s of [-1, 1]) {
-    add(new RoundedBoxGeometry(0.34, 0.06, 0.44, 2, 0.015), M.graphite, s * 0.55, 1.02, 0);
-    add(new THREE.CylinderGeometry(0.12, 0.12, 0.012, 48), M.brushed, s * 0.55, 1.056, 0.04);
-    const ringMat = glow(s < 0 ? new THREE.Color(AMBER) : new THREE.Color(ICE));
-    const ring = add(new THREE.TorusGeometry(0.128, 0.004, 8, 64).rotateX(Math.PI / 2), ringMat, s * 0.55, 1.058, 0.04);
+  // DJ Andy'K AKX 2026 (software by Andy'K Music Lab), a club-standard booth with no other maker's name: two media players with large jog wheels and tilted touch screens either side
+  // of a four-channel mixer (EQ, channel faders, crossfader), the players' top plates level with the mixer's
+  const TOP = 1.09, jogs = [], pads = [], gearFrom = g.children.length;
+  const knobs = [], slots = [], caps = [];
+  const btnMat = c => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(1.6) });
+  for (const [s, n, colr] of [[-1, 1, AMBER], [1, 2, ICE]]) {
+    const px = s * 0.37;
+    add(new RoundedBoxGeometry(0.33, 0.1, 0.45, 3, 0.012), M.graphite, px, TOP - 0.05, 0);
+    add(new THREE.BoxGeometry(0.31, 0.003, 0.43), M.blackGlass, px, TOP + 0.0015, 0);
+    // the touch screen, tilted towards the DJ
+    const scr = new THREE.Group(); scr.position.set(px, TOP + 0.03, -0.14); scr.rotation.x = 0.38; g.add(scr);
+    add(new RoundedBoxGeometry(0.27, 0.03, 0.16, 2, 0.008), M.dark, 0, 0, 0, scr);
+    add(new THREE.PlaneGeometry(0.24, 0.14), new THREE.MeshBasicMaterial({ map: deckScreen(n, colr) }), 0, 0.0155, 0, scr).rotation.x = -Math.PI / 2;
+    // the jog wheel: rubber rim, brushed platter with its centre display, a lit ring; the platter turns
+    add(new THREE.CylinderGeometry(0.112, 0.112, 0.012, 64), M.rubber, px, TOP + 0.006, 0.07);
+    const jog = new THREE.Group(); jog.position.set(px, TOP + 0.013, 0.07); g.add(jog);
+    add(new THREE.CylinderGeometry(0.1, 0.1, 0.01, 64), M.brushed, 0, 0, 0, jog);
+    for (let k = 0; k < 3; k++) add(new THREE.BoxGeometry(0.004, 0.002, 0.03), M.chrome, Math.cos(k * 2.09) * 0.075, 0.006, Math.sin(k * 2.09) * 0.075, jog).rotation.y = -k * 2.09;
+    add(new THREE.CylinderGeometry(0.036, 0.036, 0.003, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(colr).multiplyScalar(0.55) }), 0, 0.0065, 0, jog);
+    const ringMat = glow(new THREE.Color(colr));
+    add(new THREE.TorusGeometry(0.106, 0.003, 8, 96).rotateX(Math.PI / 2), ringMat, px, TOP + 0.013, 0.07);
     (s < 0 ? glows.amber : glows.ice).push({ m: ringMat, k: 2.4 });
-    const screen = add(new THREE.PlaneGeometry(0.2, 0.08), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.32, 0.45) }), s * 0.55, 1.052, -0.15);
-    screen.rotation.x = -Math.PI / 2;
-    jogs.push(ring);
+    jogs.push(jog);
+    // CUE and PLAY, bottom left; eight performance pads under the screen; the tempo fader on the right
+    add(new THREE.CylinderGeometry(0.018, 0.018, 0.008, 32), btnMat(0xffa23a), px - 0.125, TOP + 0.004, 0.13);
+    add(new THREE.CylinderGeometry(0.018, 0.018, 0.008, 32), btnMat(0x3ad16b), px - 0.125, TOP + 0.004, 0.185);
+    for (let k = 0; k < 8; k++) pads.push([px - 0.105 + k * 0.03, TOP + 0.003, -0.045, k]);
+    slots.push([px + 0.135, TOP + 0.001, 0.08, 0.012, 0.17]);
+    caps.push([px + 0.135, TOP + 0.009, 0.06, 0.03, 0.016]);
   }
-  add(new RoundedBoxGeometry(0.34, 0.07, 0.42, 2, 0.015), M.graphite, 0, 1.025, 0);
-  // mixer level meters
-  const meters = new THREE.InstancedMesh(new THREE.BoxGeometry(0.012, 0.004, 0.008), new THREE.MeshBasicMaterial(), 4 * 12);
+  // the mixer
+  add(new RoundedBoxGeometry(0.38, 0.1, 0.45, 3, 0.012), M.graphite, 0, TOP - 0.05, 0);
+  add(new THREE.BoxGeometry(0.36, 0.003, 0.43), M.blackGlass, 0, TOP + 0.0015, 0);
+  const CH = [-0.12, -0.04, 0.04, 0.12];
+  CH.forEach((cx, ch) => {
+    for (const z of [-0.18, -0.13, -0.09, -0.05]) knobs.push([cx, z]);
+    slots.push([cx, TOP + 0.001, 0.1, 0.008, 0.11]);
+    caps.push([cx, TOP + 0.009, 0.07 + ch * 0.012, 0.022, 0.014]);
+  });
+  for (const z of [-0.18, -0.12]) knobs.push([0.168, z]);
+  slots.push([0, TOP + 0.001, 0.19, 0.13, 0.01]);   // crossfader
+  caps.push([0, TOP + 0.009, 0.19, 0.016, 0.03]);
+  // the booth's name on the fronts, facing the DJ and the cameras
+  const plate = (text, wd, x, size = 64, color = '#e7c48d') => add(new THREE.PlaneGeometry(wd, wd / 8), new THREE.MeshBasicMaterial({ map: label(text, { w: 1024, h: 128, size, color, bg: '#1b1d22' }) }), x, TOP - 0.05, 0.2265);
+  // the mixer's front: the DJ Andy'K logo, lit, and the model name beside it
+  const djTex = new THREE.TextureLoader().load('assets/sponsor-djandyk.webp'); djTex.colorSpace = THREE.SRGBColorSpace; djTex.anisotropy = 8;
+  add(new THREE.PlaneGeometry(0.084, 0.084 * 273 / 520), new THREE.MeshBasicMaterial({ map: djTex, transparent: true, alphaTest: 0.04, color: new THREE.Color(1.15, 1.05, 0.92) }), -0.075, TOP - 0.05, 0.2268);
+  plate('AKX 2026', 0.16, 0.095, 72);
+  plate('AKX 2026  ·  DECK 1', 0.26, -0.37, 56, '#c9ced6'); plate('AKX 2026  ·  DECK 2', 0.26, 0.37, 56, '#c9ced6');
+  const fx = add(new THREE.PlaneGeometry(0.07, 0.035), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.18, 0.24, 0.34) }), -0.168, TOP + 0.002, -0.15);
+  fx.rotation.x = -Math.PI / 2;
+  // the small parts as instances: a handful of draw calls for the whole booth
+  const inst = (geo, mat, list, place) => { const im = new THREE.InstancedMesh(geo, mat, list.length); const o = new THREE.Object3D(); list.forEach((v, k) => { place(o, v); o.updateMatrix(); im.setMatrixAt(k, o.matrix); }); g.add(im); return im; };
+  inst(new THREE.CylinderGeometry(0.011, 0.012, 0.018, 20), M.rubber, knobs, (o, [x, z]) => { o.position.set(x, TOP + 0.009, z); o.scale.set(1, 1, 1); });
+  inst(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x020203 }), slots, (o, [x, y, z, sx, sz]) => { o.position.set(x, y, z); o.scale.set(sx, 0.002, sz); });
+  const capMesh = inst(new THREE.BoxGeometry(1, 1, 1), M.brushed, caps, (o, [x, y, z, sx, sy]) => { o.position.set(x, y, z); o.scale.set(sx, sy, sx === 0.016 ? 0.03 : 0.018); });
+  const padMesh = inst(new THREE.BoxGeometry(0.024, 0.006, 0.02), new THREE.MeshBasicMaterial(), pads, (o, [x, y, z]) => o.position.set(x, y, z));
+  const PAD = [0xff4a3d, 0xffa23a, 0xf3d36b, 0x3ad16b, 0x3ad1c9, 0x4a8cff, 0x9a6bff, 0xff6bd1];
+  pads.forEach(([, , , k], i) => padMesh.setColorAt(i, new THREE.Color(PAD[k]).multiplyScalar(0.9)));
+  // channel level meters, beside each fader
+  const meters = new THREE.InstancedMesh(new THREE.BoxGeometry(0.008, 0.003, 0.006), new THREE.MeshBasicMaterial(), 4 * 12);
   const o = new THREE.Object3D(), col = new THREE.Color();
   for (let ch = 0; ch < 4; ch++) for (let i = 0; i < 12; i++) {
-    o.position.set(-0.09 + ch * 0.06, 1.062, 0.12 - i * 0.012); o.updateMatrix();
+    o.position.set(CH[ch] + 0.02, TOP + 0.002, 0.15 - i * 0.009); o.updateMatrix();
     meters.setMatrixAt(ch * 12 + i, o.matrix);
     meters.setColorAt(ch * 12 + i, col.set(0x111111));
   }
   g.add(meters);
+  // the gear a quarter over life size: on the 2.3 m booth and on camera it read as small; scaled about the table top
+  const gear = new THREE.Group(), GEAR = 1.25;
+  gear.scale.setScalar(GEAR); gear.position.y = 0.99 * (1 - GEAR);
+  gear.add(...g.children.slice(gearFrom)); g.add(gear);
+  let fadersAt = '';
+  const fo = new THREE.Object3D();
   anim.push((t, dt, L) => {
-    for (const r of jogs) r.rotation.y += dt * (0.4 + 2.6 * L.music + 5 * L.aOn * L.aLevel);
+    jogs.forEach((r, k) => { r.rotation.y -= dt * (L.djOn ? ([L.djA, L.djB][k] ? 3.5 : 0) : 0.4 + 2.6 * L.music + 5 * L.aOn * L.aLevel); });   // a playing deck: about 33 rpm
+    // channel 2 and 3 faders follow decks 1 and 2 (up, away from the DJ, is louder); the crossfader follows its slider
+    const key = `${L.djVA}|${L.djVB}|${L.djX}`;
+    if (key !== fadersAt) {
+      fadersAt = key;
+      for (const [k, v] of [[3, L.djVA], [4, L.djVB]]) { fo.position.set(CH[k - 2], TOP + 0.009, 0.15 - v * 0.1); fo.scale.set(0.022, 0.014, 0.018); fo.updateMatrix(); capMesh.setMatrixAt(k, fo.matrix); }
+      fo.position.set(-0.06 + L.djX * 0.12, TOP + 0.009, 0.19); fo.scale.set(0.016, 0.016, 0.03); fo.updateMatrix(); capMesh.setMatrixAt(6, fo.matrix);
+      capMesh.instanceMatrix.needsUpdate = true;
+    }
     for (let ch = 0; ch < 4; ch++) {
       const heard = [L.aBass, L.aMid, L.aHigh, L.aLevel][ch] * 1.5;                 // real levels while something plays
       const lvl = THREE.MathUtils.lerp(L.accent * (0.45 + 0.4 * Math.abs(Math.sin(t * (2.3 + ch * 0.7) + ch)) * (0.4 + 0.6 * L.music)), heard, L.aOn);

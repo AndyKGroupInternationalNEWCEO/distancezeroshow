@@ -178,7 +178,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   /* ----- state: look, on/off air (simulation only) ----- */
   let look = 'broadcast', onAir = false, sim = false, countdownTimer = 0, programmeAt = 0, programmeIndex = 0;
   // a* = what the studio "hears" (soundtrack and piano), 0 when silent
-  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0 };
+  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0, djOn: 0, djA: 0, djB: 0, djVA: 0.85, djVB: 0.85, djX: 0.5 };
   const target = () => {
     const base = { ...LOOKS[look] };
     const goal = onAir ? { ...base, ...ON }
@@ -237,7 +237,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   /* ----- sound: the music station's soundtrack and piano (nothing plays until the visitor clicks) ----- */
   const sound = createSound();
-  const panels = createPanels({ sound, el: ui.panel, onMusicStart: () => { if (look !== 'music') setLook('music'); } });
+  const panels = createPanels({ sound, el: ui.panel, onMusicStart: () => { if (look !== 'music') setLook('music'); if (!sim) { director.setAuto(false); director.go('music'); } } });
 
   /* ----- UI wiring ----- */
   // the security button: the camera where you are (studio or backstage); pressed again, the other one
@@ -265,7 +265,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, .mbtn')) closeMenus(); });
   // "Simulate on air": full screen, on-air lighting, the show's video on the LED wall and broadcast graphics on top
   air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion,
-    onStart: () => { panels.close(); closeMenus(); sim = true; setOnAir(true); },
+    onStart: () => { panels.close(); closeMenus(); sound.dj.stop(); sim = true; setOnAir(true); },
     onEnd: () => { sim = false; setOnAir(false); } });
   ui.onair.addEventListener('click', () => (air.isOpen ? air.close() : air.open()));
   ui.auto.addEventListener('click', () => director.setAuto(!director.auto));
@@ -389,7 +389,9 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (onAir && look === 'music' && studio.wall.program !== 'wave') setWall('wave');
 
     // the studio listens: fast attack, slower release, like a light desk's sound-to-light
-    const a = sound.levels(), playing = sound.state.playing;
+    const a = sound.levels(), d0 = sound.dj.deck(0), d1 = sound.dj.deck(1), playing = sound.state.playing || d0.playing || d1.playing;
+    // the booth plays along with its two decks: the playing deck's platter turns, the faders sit where the visitor put them
+    L.djA = d0.playing ? 1 : 0; L.djB = d1.playing ? 1 : 0; L.djOn = L.djA || L.djB; L.djVA = d0.vol; L.djVB = d1.vol; L.djX = sound.dj.xf;
     L.aOn = lerp(L.aOn, a.on, 1 - Math.exp(-dt * 2.5));
     for (const [k, v] of [['aBass', a.bass], ['aMid', a.mid], ['aHigh', a.high], ['aLevel', a.level]]) L[k] = v > L[k] ? lerp(L[k], v, 0.65) : lerp(L[k], v, 1 - Math.exp(-dt * 7));
     studio.wall.spectrum(a.on ? sound.bins : null);

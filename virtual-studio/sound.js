@@ -79,6 +79,7 @@ export function createSound() {
   /* ---------- soundtrack ---------- */
   function play(i) {
     ensure();
+    for (const k of decks) k.audio.pause();                         // one source at a time: the soundtrack or the booth
     if (!mediaNode) { mediaNode = ctx.createMediaElementSource(audio); mediaNode.connect(musicGain); }
     index = (i + TRACKS.length) % TRACKS.length; failed = '';
     audio.src = TRACKS[index].src;
@@ -141,11 +142,43 @@ export function createSound() {
     setTimeout(() => midis.forEach(m => noteOff(m, 0.6)), ms);
   }
 
+  /* ---------- the DJ booth: two decks into the mix, a channel fader each and a crossfader (both full in the middle) ---------- */
+  const decks = [0, 1].map(() => { const a = new Audio(); a.crossOrigin = 'anonymous'; a.preload = 'none'; return { audio: a, index: -1, node: null, gain: null, vol: 0.85, cue: 0, failed: '' }; });
+  let xf = 0.5;
+  const side = d => (d === 0 ? Math.cos(xf * Math.PI / 2) : Math.sin(xf * Math.PI / 2)) * Math.SQRT2;   // both at full level in the middle
+  const deckGain = d => { const k = decks[d]; if (k.gain) k.gain.gain.setTargetAtTime(k.vol * Math.min(1, side(d)), ctx.currentTime, 0.03); };
+  const wire = d => { ensure(); const k = decks[d]; if (k.node) return; k.node = ctx.createMediaElementSource(k.audio); k.gain = ctx.createGain(); k.gain.gain.value = 0; k.node.connect(k.gain).connect(musicGain); deckGain(d); };
+  decks.forEach(k => {
+    for (const ev of ['play', 'pause', 'loadedmetadata', 'durationchange']) k.audio.addEventListener(ev, emit);
+    k.audio.addEventListener('timeupdate', () => { const n = performance.now(); if (n - lastTick > 250) { lastTick = n; emit(); } });
+    k.audio.addEventListener('ended', () => { k.audio.currentTime = k.cue; emit(); });   // back to its cue point, like a player at the end of a track
+    k.audio.addEventListener('error', () => { k.failed = 'This track could not be loaded.'; emit(); });
+  });
+  const dj = {
+    load(d, i) { const k = decks[d]; k.audio.pause(); k.index = i; k.cue = 0; k.failed = ''; k.audio.src = TRACKS[i].src; emit(); },
+    play(d) {
+      const k = decks[d]; if (k.index < 0) return Promise.resolve();
+      wire(d); audio.pause();                                       // the soundtrack makes way for the booth
+      musicGain.gain.cancelScheduledValues(ctx.currentTime); musicGain.gain.setTargetAtTime(musicLevel, ctx.currentTime, 0.05);
+      return k.audio.play().catch(e => { k.failed = 'Playback was blocked or the track could not load.'; emit(); throw e; });
+    },
+    pause(d) { decks[d].audio.pause(); },
+    toggle(d) { return decks[d].audio.paused ? dj.play(d) : (dj.pause(d), Promise.resolve()); },
+    // CUE as on a club player: while playing, back to the cue point and stop; while stopped, the cue point is set here
+    cue(d) { const k = decks[d]; if (!k.audio.paused) { k.audio.pause(); k.audio.currentTime = k.cue; } else k.cue = k.audio.currentTime || 0; emit(); },
+    seek(d, f) { const a = decks[d].audio; if (a.duration) a.currentTime = f * a.duration; },
+    volume(d, v) { decks[d].vol = v; if (ctx) deckGain(d); emit(); },
+    crossfade(v) { xf = v; if (ctx) { deckGain(0); deckGain(1); } emit(); },
+    deck(d) { const k = decks[d]; return { index: k.index, playing: !k.audio.paused, time: k.audio.currentTime || 0, duration: k.audio.duration || 0, vol: k.vol, failed: k.failed }; },
+    get xf() { return xf; },
+    stop() { for (const k of decks) k.audio.pause(); },
+  };
+
   /* ---------- levels for the lights ---------- */
   const bins = new Uint8Array(128), lv = { on: 0, bass: 0, mid: 0, high: 0, level: 0 };
   const band = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += bins[i]; return s / ((b - a) * 255); };
   function levels() {
-    const active = !!ctx && ctx.state === 'running' && (state().playing || voices.size > 0);
+    const active = !!ctx && ctx.state === 'running' && (state().playing || voices.size > 0 || decks.some(k => !k.audio.paused));
     if (!active) { lv.on = 0; lv.bass = lv.mid = lv.high = lv.level = 0; return lv; }
     analyser.getByteFrequencyData(bins);
     lv.on = 1; lv.bass = band(1, 6); lv.mid = band(6, 28); lv.high = band(28, 90); lv.level = band(1, 90);
@@ -153,11 +186,11 @@ export function createSound() {
   }
 
   return {
-    tracks: TRACKS, play, noteOn, noteOff, chord, levels, bins,
-    toggle() { if (index < 0) return play(0); if (audio.paused) { ensure(); return audio.play(); } audio.pause(); return Promise.resolve(); },
+    tracks: TRACKS, play, noteOn, noteOff, chord, levels, bins, dj,
+    toggle() { if (index < 0) return play(0); if (audio.paused) { ensure(); for (const k of decks) k.audio.pause(); return audio.play(); } audio.pause(); return Promise.resolve(); },
     next() { return play(step(1)); }, prev() { return play(step(-1)); },
     seek(fraction) { if (audio.duration) audio.currentTime = fraction * audio.duration; },
-    stop() { audio.pause(); },
+    stop() { audio.pause(); dj.stop(); },
     // keep to these tracks (indexes into TRACKS), one after another; null = the whole soundtrack again
     playlist(list) { only = list; },
     // when the current track ends, do this instead of playing the next one (null = back to normal)

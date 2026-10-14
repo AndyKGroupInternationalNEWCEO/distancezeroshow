@@ -23,7 +23,7 @@ const FILES = [
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
   'assets/fonts/archivo-latin.woff2', 'assets/fonts/archivo-latin-ext.woff2',
   'assets/andrej.webp', 'assets/georgie.webp', 'assets/studio-still.jpg', 'assets/keyvisual.jpg', 'assets/favicon.svg', 'assets/apple-touch-icon.png',
-  'assets/logo-do.webp', 'assets/logo-do-1k.webp',
+  'assets/logo-do.webp', 'assets/logo-do-1k.webp', 'assets/sponsor-djandyk.webp',
   // the show's wall videos and jingles for the on-air simulation (made by virtualspace/show-media.sh): these two folders only
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
 ];
@@ -46,6 +46,13 @@ html = html
   .replace(/href="\/"/g, `href="${SITE}"`)
   .replace('>distancezeroshow.com</a></p>', '>distancezeroshow.com</a></p>');
 if (/href="\/"/.test(html)) throw new Error('relative home link left');
+// structured data for search engines (not a script that runs, so the Content Security Policy is not involved)
+const ld = { '@context': 'https://schema.org', '@type': 'WebApplication', name: 'DISTANCE // ZERO — Virtual Studio', url: HOST, applicationCategory: 'EntertainmentApplication',
+  operatingSystem: 'Any (web browser with WebGL 2)', offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' }, inLanguage: 'en',
+  description: html.match(/<meta name="description" content="([^"]*)"/)[1].replace(/&#39;/g, "'"),
+  image: 'https://distancezeroshow.com/assets/keyvisual.jpg', isPartOf: { '@type': 'WebSite', name: 'DISTANCE // ZERO', url: SITE },
+  creator: { '@type': 'Organization', name: "Andy'K Group International LTD" } };
+html = html.replace('</head>', `<script type="application/ld+json">${JSON.stringify(ld)}</script>\n</head>`);
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 // the "How it works" page (linked in the footer), a static page of its own
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
@@ -83,7 +90,11 @@ const vercel = {
   ],
 };
 fs.writeFileSync(path.join(OUT, 'vercel.json'), JSON.stringify(vercel, null, 2) + '\n');
-fs.writeFileSync(path.join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\n`);
+fs.writeFileSync(path.join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${HOST}sitemap.xml\n`);
+// the two public pages, for search engines
+const today = new Date().toISOString().slice(0, 10);
+fs.writeFileSync(path.join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+  + [['', '1.0'], ['how-it-works', '0.6']].map(([p, pr]) => `  <url><loc>${HOST}${p}</loc><lastmod>${today}</lastmod><priority>${pr}</priority></url>\n`).join('') + '</urlset>\n');
 // never upload env files or link metadata (the Vercel CLI may create them next to the build)
 fs.writeFileSync(path.join(OUT, '.vercelignore'), '.env*\n.gitignore\n.vercel\n');
 for (const f of ['.env.local', '.gitignore']) fs.rmSync(path.join(OUT, f), { force: true });
