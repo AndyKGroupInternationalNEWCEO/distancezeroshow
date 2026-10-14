@@ -595,7 +595,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   /* ----- the on-air beacons: a small one over the backstage door, two larger ones on the floor either side of the stage
      front. Off the rest of the time; turning slowly while the show is about to start; three flashes, each with a tone
      from the simulation, in the last three seconds; then on air: bright and turning ----- */
-  const beacons = [beacon(0.65), beacon(1.6), beacon(1.6)];
+  const beacons = [beacon(0.65), beacon(1.6, { light: true }), beacon(1.6, { light: true })];
   beacons[0].group.position.set(0, LOUNGE_DOOR.h + 0.3, 0.12); lounge.doorFrame.add(beacons[0].group);
   mesh(new THREE.BoxGeometry(0.05, 0.03, 0.12), M.graphite, lounge.doorFrame).position.set(0, LOUNGE_DOOR.h + 0.285, 0.06);    // its wall bracket
   for (const [k, x] of [[1, -2.75], [2, 2.75]]) { beacons[k].group.position.set(x, 0, 0.9); add(beacons[k].group); }
@@ -614,35 +614,59 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
 
 /* ---------- pieces ---------- */
 
-/* ---------- a rotating red beacon (scale 1: a 14 cm dome on its base) ---------- */
-function beacon(s) {
+/* ---------- a rotating red beacon (scale 1: a 14 cm dome on its base) ----------
+   As a real one: a ribbed (Fresnel) red dome that catches the studio's lights, inside it a lamp and a parabolic mirror
+   that turn, so a hot spot runs round the dome; two beams sweep the room, and the larger ones throw real red light. */
+const ribTexture = (() => {
+  let t = null;
+  return () => {
+    if (t) return t;
+    const c = document.createElement('canvas'); c.width = 128; c.height = 8; const x = c.getContext('2d');
+    for (let i = 0; i < 128; i++) { const v = 0.55 + 0.45 * Math.pow(Math.abs(Math.sin((i / 128) * Math.PI * 24)), 0.6); x.fillStyle = `rgb(${v * 255 | 0},${v * 255 | 0},${v * 255 | 0})`; x.fillRect(i, 0, 1, 8); }
+    t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
+  };
+})();
+function beacon(s, { light = false } = {}) {
   const g = new THREE.Group();
-  const base = new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.6, roughness: 0.45 });
-  const dome = new THREE.MeshBasicMaterial({ color: 0x2a0503, transparent: true, opacity: 0.85, depthWrite: false });
-  const add = (geo, mat, y) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; g.add(m); return m; };
-  add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.05 * s, 32), base, 0.025 * s);
-  add(new THREE.CylinderGeometry(0.06 * s, 0.062 * s, 0.07 * s, 32, 1, true), dome, 0.085 * s);
-  add(new THREE.SphereGeometry(0.06 * s, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), dome, 0.12 * s);
-  // inside: the lamp and a mirror that turn, throwing two beams round the room
+  const base = new THREE.MeshStandardMaterial({ color: 0x111214, metalness: 0.5, roughness: 0.5 });
+  const ring = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 1, roughness: 0.25 });
+  // the dome: lit like a real lens (gloss from the studio lights), its ribs in both the colour and the glow
+  const dome = new THREE.MeshStandardMaterial({ color: 0x5a0807, roughness: 0.18, metalness: 0, transparent: true, opacity: 0.62, depthWrite: false,
+    map: ribTexture(), emissive: 0xff1a10, emissiveMap: ribTexture(), emissiveIntensity: 0.05, envMapIntensity: 1.2 });
+  const add = (geo, mat, y, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; parent.add(m); return m; };
+  add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.045 * s, 40), base, 0.0225 * s);
+  add(new THREE.TorusGeometry(0.064 * s, 0.004 * s, 8, 48).rotateX(Math.PI / 2), ring, 0.047 * s);
+  add(new THREE.CylinderGeometry(0.06 * s, 0.062 * s, 0.075 * s, 48, 1, true), dome, 0.087 * s);
+  add(new THREE.SphereGeometry(0.06 * s, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), dome, 0.124 * s);
+  // inside: the lamp, its parabolic mirror and the hot spot it throws on the dome, all turning
   const rot = new THREE.Group(); rot.position.y = 0.1 * s; g.add(rot);
-  const mirror = new THREE.Mesh(new THREE.CylinderGeometry(0.035 * s, 0.035 * s, 0.06 * s, 16, 1, true, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1, roughness: 0.15, side: THREE.DoubleSide }));
-  rot.add(mirror);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.014 * s, 12, 8), new THREE.MeshBasicMaterial({ color: 0x220302 }));
-  rot.add(bulb);
+  const mirror = new THREE.Mesh(new THREE.SphereGeometry(0.04 * s, 24, 12, Math.PI * 0.5, Math.PI, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xe8ecf0, metalness: 1, roughness: 0.08, side: THREE.DoubleSide }));
+  mirror.scale.set(1, 0.9, 0.55); rot.add(mirror);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.012 * s, 12, 8), new THREE.MeshBasicMaterial({ color: 0x220302 })); rot.add(bulb);
+  const spotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const r = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,235,225,1)'); r.addColorStop(0.25, 'rgba(255,70,50,0.9)'); r.addColorStop(1, 'rgba(255,0,0,0)'); x.fillStyle = r; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const hotMat = new THREE.MeshBasicMaterial({ map: spotTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: 0x000000 });
+  const hot = new THREE.Mesh(new THREE.PlaneGeometry(0.075 * s, 0.075 * s), hotMat); hot.position.x = 0.059 * s; hot.rotation.y = Math.PI / 2; rot.add(hot);
   const len = 1.1 * s, beamMat = beamMaterial(new THREE.Color(1, 0.08, 0.04));
-  for (const a of [0, Math.PI]) {
-    const beam = new THREE.Mesh(new THREE.ConeGeometry(0.35 * len, len, 24, 1, true).translate(0, -len / 2, 0).rotateZ(Math.PI / 2), beamMat);
-    beam.rotation.y = a; rot.add(beam);
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(0.32 * len, len, 24, 1, true).translate(0, -len / 2, 0).rotateZ(Math.PI / 2), beamMat);
+  rot.add(beam);
+  // the larger beacons light the room: one red spot turning with the mirror (no shadow, so it costs little)
+  let spot = null;
+  if (light) {
+    spot = new THREE.SpotLight(0xff2a18, 0, 9 * s, 0.42, 0.7, 2);
+    spot.position.set(0, 0, 0); spot.target.position.set(1, -0.05, 0); rot.add(spot, spot.target);
   }
   g.traverse(m => { if (m.isMesh) m.castShadow = false; });
   return {
     group: g,
     // spin in turns per second, light 0..1+
-    update(dt, spin, light) {
+    update(dt, spin, lit) {
       rot.rotation.y += dt * spin * Math.PI * 2;
-      dome.color.setRGB(0.16 + 2.6 * light, 0.02 + 0.12 * light, 0.015 + 0.08 * light);
-      bulb.material.color.setRGB(0.15 + 6 * light, 0.02 + 0.9 * light, 0.01 + 0.4 * light);
-      beamMat.uniforms.uOpacity.value = spin > 0 ? 0.5 * light : 0;
+      dome.emissiveIntensity = 0.05 + 1.6 * lit;
+      bulb.material.color.setRGB(0.15 + 7 * lit, 0.02 + 1.2 * lit, 0.01 + 0.6 * lit);
+      hotMat.color.setScalar(1.6 * lit);
+      beamMat.uniforms.uOpacity.value = spin > 0 ? 0.45 * lit : 0;
+      if (spot) spot.intensity = 26 * lit * s;
     },
   };
 }

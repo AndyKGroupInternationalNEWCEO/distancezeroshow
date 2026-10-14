@@ -93,7 +93,10 @@ const SHOTS = {
 };
 function shot(name, u) { const s = SHOTS[name]; return { pos: s.pos.getPoint(u), target: s.target.getPoint(u), fov: s.fov }; }
 const easeInOut = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+// review only, never in the clip: ?view=beacon looks at the large beacon on the Melbourne side of the stage, close
+const VIEW = new URLSearchParams(location.search).get('view');
 function cameraAt(t) {
+  if (VIEW === 'beacon') return { pos: new V(2.05, 0.62, 2.15), target: new V(2.75, 0.2, 0.9), fov: 32 };
   if (t < 15) return shot('wake', smooth(t / 15));
   if (t < 28) return shot('desk', smooth((t - 15) / 13));
   if (t < 40) return shot('booth', smooth((t - 28) / 12));

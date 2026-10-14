@@ -174,13 +174,25 @@ export function createSound() {
     stop() { for (const k of decks) k.audio.pause(); },
   };
 
-  /* ---------- the on-air cue tone: a short 1 kHz beep, as in a studio's last seconds before air ---------- */
-  function beep(level = 0.22) {
+  /* ---------- the on-air cue: a deep electronic whoop (300 -> 760 Hz in 0.42 s, with its 2nd and 3rd harmonics, softly
+     saturated), one with each flash of the beacons in the last three seconds before air ---------- */
+  const WHOOP = { f0: 300, f1: 760, T: 0.42 };
+  let shaper = null;
+  function beep(level = 0.55) {
     ensure();
-    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = 'sine'; o.frequency.value = 1000;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.01); g.gain.setValueAtTime(level, t + 0.22); g.gain.linearRampToValueAtTime(0, t + 0.26);
-    o.connect(g).connect(master); o.start(t); o.stop(t + 0.3);
+    if (!shaper) {
+      shaper = ctx.createWaveShaper(); const n = 1024, c = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(1.6 * x); }
+      shaper.curve = c; shaper.connect(master);
+    }
+    const t = ctx.currentTime, { f0, f1, T } = WHOOP, g = ctx.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.012); g.gain.setValueAtTime(level, t + T - 0.08); g.gain.linearRampToValueAtTime(0, t + T);
+    g.connect(shaper);
+    for (const [h, a] of [[1, 1], [2, 0.5], [3, 0.28]]) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.frequency.setValueAtTime(f0 * h, t); o.frequency.linearRampToValueAtTime(f1 * h, t + T);
+      og.gain.value = a * 0.45; o.connect(og).connect(g); o.start(t); o.stop(t + T + 0.02);
+    }
   }
 
   /* ---------- levels for the lights ---------- */

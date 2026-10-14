@@ -210,7 +210,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
   function cue() {
     if (cued) return;
     cued = true; studio.beacons.cue();
-    cueTimers = [0, 1000, 2000].map(ms => setTimeout(() => { if (isOpen && !muted) sound.beep(0.22 * Math.min(1, volume / 0.8)); }, ms));
+    cueTimers = [0, 1000, 2000].map(ms => setTimeout(() => { if (isOpen && !muted) sound.beep(0.55 * Math.min(1, volume / 0.8)); }, ms));
   }
   function cancelCue() { cueTimers.forEach(clearTimeout); cueTimers = []; cued = false; }
   function opening() {
