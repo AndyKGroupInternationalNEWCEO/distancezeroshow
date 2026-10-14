@@ -160,6 +160,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     camera, lens, controls, reducedMotion,
     onView: name => {
       for (const b of ui.views) b.setAttribute('aria-pressed', String(b.dataset.view === name));
+      document.getElementById('viewLabel').textContent = name ? VIEWS[name].label : 'Free';
       ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
       const cctv = name && VIEWS[name].cctv;
       document.body.classList.toggle('cctv', !!cctv); cctvPass.enabled = !!cctv;
@@ -198,6 +199,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   function setLook(name) {
     look = name;
     for (const b of ui.looks) b.setAttribute('aria-pressed', String(b.dataset.look === name));
+    document.getElementById('lookLabel').textContent = ui.looks.find(x => x.dataset.look === name)?.textContent || name;
     air?.look(name);
     if (onAir) setWall(name === 'music' ? 'wave' : PROGRAMME[programmeIndex][0]);
   }
@@ -247,9 +249,23 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   // the recording's clock, as burnt into a CCTV picture
   setInterval(() => { if (document.body.classList.contains('cctv')) document.getElementById('cctvTime').textContent = new Date().toLocaleString('en-GB', { timeZone: 'Europe/Vienna', hour12: false }).replace(',', ''); }, 500);
   for (const b of ui.looks) b.addEventListener('click', () => setLook(b.dataset.look));
+  // the camera and light menus: one open at a time; a choice, Escape or a click elsewhere closes it
+  const menus = ['view', 'look'].map(k => [document.getElementById(k + 'Menu'), document.getElementById(k + 'MenuBtn')]);
+  const closeMenus = () => { for (const [m, btn] of menus) { m.hidden = true; btn.setAttribute('aria-expanded', 'false'); } };
+  for (const [m, btn] of menus) {
+    btn.addEventListener('click', () => {
+      const open = m.hidden; closeMenus();
+      if (!open) return;
+      m.hidden = false; btn.setAttribute('aria-expanded', 'true');
+      (m.querySelector('[aria-pressed="true"]') || m.querySelector('button')).focus({ preventScroll: true });
+    });
+    m.addEventListener('click', e => { if (e.target.closest('button')) { closeMenus(); btn.focus({ preventScroll: true }); } });
+    m.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenus(); btn.focus({ preventScroll: true }); } });
+  }
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, .mbtn')) closeMenus(); });
   // "Simulate on air": full screen, on-air lighting, the show's video on the LED wall and broadcast graphics on top
   air = createOnAir({ studio, director, sound, looks: { get: () => look, set: name => setLook(name) }, live: ui.live, reducedMotion,
-    onStart: () => { panels.close(); sim = true; setOnAir(true); },
+    onStart: () => { panels.close(); closeMenus(); sim = true; setOnAir(true); },
     onEnd: () => { sim = false; setOnAir(false); } });
   ui.onair.addEventListener('click', () => (air.isOpen ? air.close() : air.open()));
   ui.auto.addEventListener('click', () => director.setAuto(!director.auto));

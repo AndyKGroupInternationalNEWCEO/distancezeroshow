@@ -277,6 +277,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     cable.position.set(x, 3.62 + 1.25 + 1.55, -5.5);
   }
   shadows(logo, true, false);
+  logo.traverse(c => { if (c.userData.noShadow) c.castShadow = false; });
   // during the on-air simulation the logo is flown up above the wall, so the video on the wall is not covered
   let lift = 0, liftTo = 0;
   anim.push((t, dt, L) => { lift += (liftTo - lift) * Math.min(1, dt * 1.2); logo.position.y = 3.62 + lift * 2.0 + Math.sin(t * 0.45) * 0.015; });
@@ -1000,7 +1001,8 @@ function buildLogo(M, glows) {
 /* ---------- the official logo artwork (assets/logo-do-1k.webp), hung as it is ----------
    The crystal D//0 picture itself on a card, unlit, so its gold and silver stay exactly as drawn (the set's
    lights and tone mapping would grey it). Alpha cut-out, so it hangs free in front of the wall and casts its
-   own shape as a shadow. */
+   own shape as a shadow. A single card is paper-thin from the jib and crane, so the letters get a body: the same
+   cut-out stacked through 10 cm, darker inside, reads as a solid edge from the side (the face stays as drawn). */
 
 function buildLogoImage() {
   const g = new THREE.Group();
@@ -1008,11 +1010,18 @@ function buildLogoImage() {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   // the picture fills 1024 x 501 of its 1024 x 512 canvas; 2.12 m wide, as the key-visual logo it replaces
-  const w = 2.12, h = w * 512 / 1024;
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.04,
-    toneMapped: false, color: new THREE.Color(0.94, 0.94, 0.94), side: THREE.DoubleSide }));   // a touch under white: only its sparkle blooms
-  card.position.set(0, h / 2 - 0.05, 0.12);
-  g.add(card);
+  const w = 2.12, h = w * 512 / 1024, depth = 0.1, layers = 28;
+  const geo = new THREE.PlaneGeometry(w, h);
+  const face = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, toneMapped: false, color: new THREE.Color(0.94, 0.94, 0.94), side: THREE.DoubleSide });   // a touch under white: only its sparkle blooms
+  // the front as before: soft edges blended over the solid body behind it
+  const front = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.04, toneMapped: false, color: face.color, side: THREE.DoubleSide });
+  const edge = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, toneMapped: false, color: new THREE.Color(0.32, 0.31, 0.3), side: THREE.DoubleSide });   // the sides: the metal in shade
+  for (let i = 0; i <= layers; i++) {
+    const card = new THREE.Mesh(geo, i === layers ? front : i === 0 ? face : edge);
+    card.position.set(0, h / 2 - 0.05, 0.12 - depth + depth * i / layers);
+    card.userData.noShadow = i !== layers;   // one shadow is enough
+    g.add(card);
+  }
   return g;
 }
 

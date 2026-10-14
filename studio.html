@@ -107,13 +107,23 @@ body.sim .shot #cam{border-color:var(--red);color:#fff;background:rgba(255,74,61
 }
 body.cctv .cctv-hud{display:block}
 .cctv-hud b,.cctv-hud span,.cctv-hud time{position:absolute;font-weight:500;text-shadow:0 1px 2px #000}
-.cctv-hud b{left:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}
+.cctv-hud b{left:var(--gut);bottom:calc(var(--dock-h,150px) + 14px)}
 .cctv-hud span{right:var(--gut);top:calc(env(safe-area-inset-top,0px) + 76px);color:#ff4a3d;animation:hsblink 1.6s steps(2,start) infinite}
-.cctv-hud time{right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}
+.cctv-hud time{right:var(--gut);bottom:calc(var(--dock-h,150px) + 14px)}
 /* the 4K high-speed camera: a recording badge next to the shot name while the studio runs in slow motion */
 body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;animation:hsblink 1.6s steps(2,start) infinite}
 @keyframes hsblink{50%{opacity:.35}}
 .views .b[aria-pressed="true"]{background:linear-gradient(100deg,var(--champagne),#f3f5f8 60%,var(--ice))}
+/* the camera and light menus: a button showing the current choice, its list above the bar */
+.mbtn small{font-size:.56rem;letter-spacing:.16em;color:var(--dim)}
+.mbtn b{font-weight:500;color:var(--chrome-hi)}
+.mbtn .chev{width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(2px) rotate(-135deg);transition:transform .25s;opacity:.7}
+.mbtn[aria-expanded="false"] .chev{transform:translateY(-2px) rotate(45deg)}
+.mbtn[aria-expanded="true"]{border-color:var(--champagne)}
+.pop{position:absolute;left:50%;bottom:calc(100% - 4px);transform:translateX(-50%);display:grid;grid-template-columns:repeat(4,auto);gap:8px;padding:12px;
+  max-width:calc(100vw - 2 * var(--gut));background:rgba(6,7,9,.92);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.pop[hidden]{display:none}
+.pop .b{justify-content:flex-start}
 .sep{width:1px;align-self:stretch;background:var(--line);flex:none;margin:6px 4px}
 .onair i{width:9px;height:9px;border-radius:50%;background:#59606a}
 .onair[aria-pressed="true"]{background:rgba(255,74,61,.16);border-color:rgba(255,74,61,.6);color:#fff}
@@ -230,17 +240,16 @@ body.slowmo #shot::after{content:"\00a0\00a0● 4K · 1000 FPS";color:#ff5a4d;an
   .row{justify-content:flex-start;width:100%}
   .ctrl{flex-wrap:wrap;justify-content:center;overflow:visible}
   .ctrl .sep{display:none}
-  .ctrl .looks{width:auto;order:3;flex:1 1 100%;justify-content:flex-start}
+  .pop{grid-template-columns:repeat(3,auto)}
   .fine{font-size:.56rem}
 }
-@media (min-width:761px){ .row{justify-content:center} .views{flex-wrap:wrap;overflow:visible} }   /* centred and overflowing, the first shots could not be reached: wrap instead */
+@media (min-width:761px){ .row{justify-content:center} }
 @media (max-height:500px) and (orientation:landscape){
   .fine,.hint,.title,.clocks,.b kbd{display:none}
   .status small{display:none!important}
   body.sim .status::after{content:"Simulation";font-size:.56rem;color:var(--champagne)}
   .top{padding-top:calc(env(safe-area-inset-top,0px) + 8px)}
   .b{font-size:.58rem;padding:0 11px}
-  .ctrl .looks{width:auto}
   .dock{flex-direction:row;flex-wrap:wrap;justify-content:center;padding-top:6px}
   .b{min-height:36px}
   .shot{top:calc(env(safe-area-inset-top,0px) + 56px)}
@@ -295,8 +304,13 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 .air-b:focus-visible,.air-exit:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .air-b{white-space:nowrap;flex:none}
 .air-b[aria-expanded="true"]{border-color:var(--champagne);color:var(--chrome-hi)}
-/* the Videos and Jingles lists, above the controls */
-.air-pick{position:absolute;z-index:2;right:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 112px);width:min(560px,calc(100% - 2 * var(--gut)));
+.air-menu{display:inline-flex;align-items:center;gap:8px}
+.air-menu small{font-size:.58rem;letter-spacing:.16em;color:var(--dim)}
+.air-menu b{font-weight:500;max-width:16ch;overflow:hidden;text-overflow:ellipsis}
+.air-menu .chev{width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.7}
+.air-menu[aria-expanded="true"] .chev{transform:translateY(2px) rotate(-135deg)}
+/* the Camera, Light, Videos and Jingles lists, above the controls */
+.air-pick{position:absolute;z-index:2;left:var(--gut);bottom:calc(env(safe-area-inset-bottom,0px) + 112px);width:min(820px,calc(100% - 2 * var(--gut)));
   max-height:min(46vh,420px);overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:12px;pointer-events:auto;
   background:rgba(6,7,9,.9);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .air-pick[hidden]{display:none}
@@ -352,7 +366,8 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
 <p class="hint" id="hint">Drag to look around · Pinch or scroll to zoom · Tap the desk, chairs, video wall or music station</p>
 
 <nav class="dock" id="dock" aria-label="Studio controls">
-  <div class="row views" role="group" aria-label="Camera viewpoints">
+  <!-- the camera and light menus open above the bar, one at a time -->
+  <div class="pop views" id="viewMenu" role="group" aria-label="Camera viewpoints" hidden>
     <button class="b" type="button" data-view="studio"><kbd>1</kbd>Studio</button>
     <button class="b" type="button" data-view="desk"><kbd>2</kbd>Desk</button>
     <button class="b" type="button" data-view="andy"><kbd>3</kbd>Andy'K</button>
@@ -367,16 +382,17 @@ body.air-on .top,body.air-on .dock,body.air-on .shot,body.air-on .hint,body.air-
     <button class="b" type="button" data-view="backstage"><kbd>B</kbd>Backstage</button>
     <button class="b" type="button" data-view="security"><kbd>S</kbd>Security</button>
   </div>
+  <div class="pop looks" id="lookMenu" role="group" aria-label="Lighting look" hidden>
+    <button class="b" type="button" data-look="broadcast" aria-pressed="true">Broadcast</button>
+    <button class="b" type="button" data-look="vienna">Vienna</button>
+    <button class="b" type="button" data-look="melbourne">Melbourne</button>
+    <button class="b" type="button" data-look="music">Music</button>
+  </div>
   <div class="row ctrl">
     <button class="b onair" id="onair" type="button" aria-pressed="false" title="Full-screen simulation. Nothing is broadcast or recorded. (O)"><i></i><span>Simulate on air</span></button>
     <span class="sep"></span>
-    <div class="row looks" role="group" aria-label="Lighting look" style="padding:0">
-      <button class="b" type="button" data-look="broadcast" aria-pressed="true">Broadcast</button>
-      <button class="b" type="button" data-look="vienna">Vienna</button>
-      <button class="b" type="button" data-look="melbourne">Melbourne</button>
-      <button class="b" type="button" data-look="music">Music</button>
-    </div>
-    <span class="sep"></span>
+    <button class="b mbtn" id="viewMenuBtn" type="button" aria-expanded="false" aria-controls="viewMenu" title="Camera viewpoints (keys 1–9, 0, H, B, S)"><small>Camera</small><b id="viewLabel">Studio</b><i class="chev" aria-hidden="true"></i></button>
+    <button class="b mbtn" id="lookMenuBtn" type="button" aria-expanded="false" aria-controls="lookMenu" title="Lighting look (L)"><small>Light</small><b id="lookLabel">Broadcast</b><i class="chev" aria-hidden="true"></i></button>
     <button class="b" id="auto" type="button" aria-pressed="true" title="Cinematic camera tour (A)"><span>Auto camera on</span></button>
     <span class="sep"></span>
     <button class="b" id="musicBtn" type="button" aria-expanded="false" aria-controls="panel" title="Soundtrack, piano and DJ Andy'K">♪ Music station</button>
