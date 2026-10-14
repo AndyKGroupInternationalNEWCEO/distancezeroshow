@@ -65,7 +65,7 @@ export const OBS = (() => {
   const at = Date.parse(q.get('start') || '');
   return { play: q.get('play'), startAt: Number.isFinite(at) ? at : null };
 })();
-const PRESHOW = 'assets/video/dz-preshow.mp4';   // the rendered empty-studio opening, with its sound
+const PRESHOW = 'assets/video/dz-preshow-2026-10-14b.mp4';   // the rendered empty-studio opening, with its sound (a new name for each new render: assets are cached for a year)
 
 export async function start({ canvas, ui, quality, progress = () => {} }) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
