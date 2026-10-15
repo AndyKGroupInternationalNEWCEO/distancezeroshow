@@ -164,7 +164,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY LIVE OPENING.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY LIVE OPENING_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "01"
     },
@@ -186,7 +186,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/WORLD PREMIERE.mp4",
+      "file": "shared-assets/videos/1080p/WORLD PREMIERE_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "08"
     },
@@ -197,7 +197,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/SPECIAL GUEST.mp4",
+      "file": "shared-assets/videos/1080p/SPECIAL GUEST_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "09"
     },
@@ -208,7 +208,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/LIVE MUSIC SESSION LOOP.mp4",
+      "file": "shared-assets/videos/1080p/LIVE MUSIC SESSION LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "10"
     },
@@ -231,7 +231,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/LIVE CHAT IS OPEN LOOP.mp4",
+      "file": "shared-assets/videos/1080p/LIVE CHAT IS OPEN LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "13"
     },
@@ -242,7 +242,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/CALLING LINES ARE OPEN LOOP.mp4",
+      "file": "shared-assets/videos/1080p/CALLING LINES ARE OPEN LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "14"
     },
@@ -314,7 +314,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY CLOSING.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY CLOSING_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "19"
     },
@@ -372,7 +372,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY DJ TRANSITION.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY DJ TRANSITION_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "02"
     },
@@ -397,7 +397,7 @@
         "sunday",
         "friday"
       ],
-      "file": "shared-assets/videos/4k/END CREDITS BACKGROUND LOOP.mp4",
+      "file": "shared-assets/videos/1080p/END CREDITS BACKGROUND LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "48 s seamless loop, 3840×2160 24 fps, silent, no names burned in, darker centre. Play in loop under the overlay's end-credits roll."
@@ -409,7 +409,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/DISTANCE ZERO — OFFICIAL END CREDITS.mp4",
+      "file": "shared-assets/videos/1080p/DISTANCE ZERO — OFFICIAL END CREDITS_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "54 s, 3840×2160 24 fps, silent, plays once. Opens and closes on the official D//0 logo (from the logo reveal). Permanent credits only (hosts, partners with their logos, final message). Episode guests: lower third during the SPECIAL GUESTS window 0:17–0:23. Keep the overlay end-credits roll OFF while V23 plays. Sunday sequence: V14 → V23 → V17."
@@ -421,7 +421,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/DJ ANDY'K — FRIDAY LIVE — OFFICIAL END CREDITS.mp4",
+      "file": "shared-assets/videos/1080p/DJ ANDY'K — FRIDAY LIVE — OFFICIAL END CREDITS_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "52 s, 3840×2160 24 fps, silent, plays once. DJ ANDY'K — FRIDAY LIVE: host DJ Andy'K only (no Georgie), partners with their logos, ends on the D//0 logo with THANK YOU FOR LISTENING and the DJ Andy'K logo. Optional special guest: show the episode's guest with the lower third during the music interlude 0:16.5–0:23.5 (no guest = leave it). Keep the overlay end-credits roll OFF while V24 plays. Friday sequence: V15 FRIDAY SHOW CLOSING + jingle 19 → V24."
