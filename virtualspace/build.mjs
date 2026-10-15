@@ -22,7 +22,9 @@ const FILES = [
     'postprocessing/GTAOPass.js', 'shaders/GTAOShader.js', 'shaders/PoissonDenoiseShader.js', 'math/SimplexNoise.js',
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
   'assets/fonts/archivo-latin.woff2', 'assets/fonts/archivo-latin-ext.woff2',
-  'assets/andrej.webp', 'assets/georgie.webp', 'assets/studio-still.jpg', 'assets/keyvisual.jpg', 'assets/favicon.svg', 'assets/apple-touch-icon.png',
+  'assets/andrej.webp', 'assets/georgie.webp', 'assets/studio-still.jpg', 'assets/keyvisual.jpg', 
+  // the page icons: the D//0 crystal logo, under a dated folder (assets are cached for a year: a new name is what reloads them)
+  ...['favicon-32.png', 'favicon-48.png', 'apple-touch-icon-180.png', 'icon-192.png', 'icon-512.png', 'site.webmanifest'].map(f => 'assets/icons/2026-10-15/' + f),
   'assets/logo-do.webp', 'assets/logo-do-1k.webp', 'assets/sponsor-djandyk.webp',
   // the show's wall videos and jingles for the on-air simulation (made by virtualspace/show-media.sh): these two folders only
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
@@ -56,7 +58,9 @@ html = html.replace('</head>', `<script type="application/ld+json">${JSON.string
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 // the "How it works" page (linked in the footer), a static page of its own
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
-fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT, 'dj-manual.html'));   // the DJ booth's own manual
+fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT, 'dj-manual.html'));
+// /favicon.ico, which browsers also ask for on their own (Safari keeps the old one otherwise); not under /assets, so not cached for a year
+fs.copyFileSync(path.join(ROOT, 'virtualspace', 'favicon.ico'), path.join(OUT, 'favicon.ico'));   // the DJ booth's own manual
 
 // Content Security Policy: our own files only; the two inline scripts (import map, boot) allowed by hash
 const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
