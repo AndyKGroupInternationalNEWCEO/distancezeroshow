@@ -25,7 +25,7 @@ Still to do once in OBS: choose the **DJ Mixer** audio device; add files for **J
 
 ## Every rehearsal or show: one icon
 
-Click **DISTANCE ZERO** on the Desktop (drag it into the Dock if you like). It opens OBS if it is not open yet, starts the
+Click **Director Broadcast Studio** on the Desktop (D//0 logo) (drag it into the Dock if you like). It opens OBS if it is not open yet, starts the
 studio in the background (or uses it if it already runs), opens the Director Studio signed in, and after a few seconds says
 **READY**, or **CHECK** with the reason and the next step. Clicking it again never starts a second OBS or studio.
 It never streams, records or starts the virtual camera. No Terminal needed. Georgie's permanent link stays the same;
