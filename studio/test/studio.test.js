@@ -1130,11 +1130,12 @@ test('credits: permanent base and episode names; end credits roll and partner li
   const b2 = s2.s.rundown.segments.findIndex(x => x.title === 'BREAK 02');
   const seg2 = s2.s.rundown.segments[b2];
   assert.equal(seg2.cues.video, 'V21');
-  // this episode's spot is a file that does not exist (V12 has none): the break card must take over
-  assert.equal((await d.send({ t: 'script.update', segmentId: seg2.id, fields: { cues: { ...seg2.cues, video: 'V12' } } })).ok, true);
+  // this episode's spot is not playable (no file / not in the library): the break card must take over
+  const missing = s2.s.media.video.find(v => !v.available)?.id || 'V99';
+  assert.equal((await d.send({ t: 'script.update', segmentId: seg2.id, fields: { cues: { ...seg2.cues, video: missing } } })).ok, true);
   const r = await d.send({ t: 'cue.go', index: b2 });
   assert.equal(r.ok, true, JSON.stringify(r));
-  assert.ok(r.result.skipped.some(x => /V12.*NOT AVAILABLE.*fallback V10/.test(x)), JSON.stringify(r.result));
+  assert.ok(r.result.skipped.some(x => new RegExp(missing + '.*NOT AVAILABLE.*fallback V10').test(x)), JSON.stringify(r.result));
   assert.match(mock.inputs.find(i => i.inputName === 'Video Player').settings.local_file, /DZ_02/);
   assert.equal((await d.send({ t: 'break.return', confirm: true })).ok, true);
   await d.send({ t: 'rundown', action: 'reset' });

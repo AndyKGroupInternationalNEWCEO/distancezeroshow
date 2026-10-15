@@ -278,9 +278,10 @@
         "sunday",
         "friday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/1080p/DZ_16_TECHNICAL_BREAK_1080p.mp4",
       "embeddedAudio": false,
-      "linkedAudio": "11"
+      "linkedAudio": "11",
+      "note": "8.1 s, 1080p24, silent, same style as the other break cards; play in loop for a longer technical break. Linked jingle 11 TECHNICAL BREAK."
     },
     {
       "id": "V13",
