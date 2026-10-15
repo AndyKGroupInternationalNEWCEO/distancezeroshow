@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Studio export for Blender</title>
+<!-- the studio loads some pictures by site-relative paths (assets/…), as on the live page at the site root -->
+<base href="/">
+<script type="importmap">
+{ "imports": { "three": "/assets/vendor/three-0.170.0/three.module.min.js", "three/addons/": "/assets/vendor/three-0.170.0/addons/" } }
+</script></head>
+<body><script type="module">
+import { start } from '/production/blender/export.js';
+window.studioExport = await start({ shot: new URLSearchParams(location.search).get('shot') || 'wide' });
+window.exportReady = true;
+</script></body></html>

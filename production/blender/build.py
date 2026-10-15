@@ -6,7 +6,9 @@ import bpy, json, math, os, struct
 from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CACHE = os.path.join(HERE, 'cache')
+# DZ_CACHE: another export (export.mjs, e.g. cache-wide for a background loop); DZ_NAME: the .blend and render folder
+CACHE = os.path.join(HERE, os.environ.get('DZ_CACHE', 'cache'))
+NAME = os.environ.get('DZ_NAME', 'opening-45-50')
 AV = os.path.join(HERE, '..', 'avatars')
 meta = json.load(open(os.path.join(CACHE, 'scene.json')))
 FRAMES = meta['frames']['count']
@@ -15,7 +17,7 @@ K_LIGHT = float(os.environ.get('DZ_K', '2.0'))            # global light calibra
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
-scene.name = 'DZ opening 45-50s'
+scene.name = 'DZ ' + NAME
 scene.frame_start, scene.frame_end = 1, FRAMES
 scene.render.fps = meta['frames']['fps']
 
@@ -109,12 +111,17 @@ for i, L in enumerate(meta['lights']):
         ld = bpy.data.lights.new(f'Softbox {i}', 'AREA')
         ld.shape = 'RECTANGLE'; ld.size, ld.size_y = L['width'], L['height']
         ld.energy = L['intensity'] * L['width'] * L['height'] * math.pi * K_LIGHT   # nits -> W
+    elif t == 'PointLight':
+        ld = bpy.data.lights.new(f'Point {i}', 'POINT')
+        ld.energy = 4 * math.pi * L['intensity'] * K_LIGHT
+        ld.shadow_soft_size = 0.08
     else:
         continue                                                    # hemisphere/ambient: replaced by real bounce light
     ld.color = L['color']
     ob = bpy.data.objects.new(ld.name, ld); c_light.objects.link(ob)
     ob.location = L['pos']
     if t == 'SpotLight': look(ob, L['target'])
+    elif t == 'PointLight': pass
     else:
         d, u = Vector(L['quat']['dir']), Vector(L['quat']['up'])
         x = u.cross(-d).normalized()                                   # Blender area lights emit along local -Z
@@ -234,23 +241,25 @@ for fr, c in enumerate(meta['camera']):
     cd.keyframe_insert('lens', frame=fr + 1)
 cd.clip_start, cd.clip_end = 0.05, 200
 cd.dof.use_dof = True; cd.dof.aperture_fstop = 4.0                  # gentle depth of field, focused on the walking presenter
-cd.dof.focus_distance = 5.5
+cd.dof.focus_distance = meta.get('focus', 5.5)
 
 # ---------------------------------------------------------------- render: 4K UHD, 30 fps, Cycles on the Apple GPU
 r = scene.render
 r.engine = 'CYCLES'
-r.resolution_x, r.resolution_y, r.resolution_percentage = 3840, 2160, 100
-r.image_settings.file_format = 'PNG'; r.image_settings.color_depth = '16'
-r.filepath = os.path.join(HERE, 'renders', 'test-4k', 'f####')
+RES = [int(v) for v in os.environ.get('DZ_RES', '3840x2160').split('x')]
+r.resolution_x, r.resolution_y, r.resolution_percentage = RES[0], RES[1], 100
+r.image_settings.file_format = 'PNG'; r.image_settings.color_depth = os.environ.get('DZ_DEPTH', '16')
+r.filepath = os.path.join(HERE, 'renders', os.environ.get('DZ_OUT', 'test-4k'), 'f####')
 r.use_motion_blur = True; r.motion_blur_shutter = 0.5               # 180° shutter, like a film camera
 cy = scene.cycles
 prefs = bpy.context.preferences.addons['cycles'].preferences
-prefs.compute_device_type = 'METAL'; prefs.refresh_devices()
+prefs.compute_device_type = os.environ.get('DZ_DEVICE', 'METAL'); prefs.refresh_devices()   # OPTIX on an NVIDIA GPU (RunPod)
 for d in prefs.devices: d.use = True
 cy.device = 'GPU'
 cy.samples = int(os.environ.get('DZ_SAMPLES', '256')); cy.use_adaptive_sampling = True; cy.adaptive_threshold = 0.02
 cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'
 cy.max_bounces = 8; cy.diffuse_bounces = 2; cy.glossy_bounces = 4; cy.transmission_bounces = 6; cy.volume_bounces = 1
+cy.transparent_max_bounces = 64                                   # the hanging logo is 29 cut-out layers deep
 cy.sample_clamp_indirect = 8
 cy.use_auto_tile = True; cy.tile_size = 1024                          # keeps memory in check on 8 GB
 scene.view_settings.view_transform = 'AgX'; scene.view_settings.look = 'AgX - Medium High Contrast'
@@ -269,5 +278,26 @@ tree.links.new(rl.outputs['Image'], gl.inputs['Image']); tree.links.new(gl.outpu
 scene.compositing_node_group = tree
 
 os.makedirs(os.path.join(HERE, 'renders'), exist_ok=True)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'opening-45-50.blend'), relative_remap=True)
+# ---------------------------------------------------------------- the LED wall: its picture per frame (export.mjs)
+wall_dir = os.path.join(CACHE, 'wall')
+if meta.get('wall') and os.path.isdir(wall_dir):
+    seq = sorted(f for f in os.listdir(wall_dir) if f.endswith('.jpg'))
+    img = bpy.data.images.load(os.path.join(wall_dir, seq[0])); img.source = 'SEQUENCE'
+    for mat in bpy.data.materials:
+        if not mat.name.startswith(meta['wall']['name']) or not mat.use_nodes: continue
+        p = principled(mat)
+        if not p: continue
+        # the texture feeding the emission is the picture (the other one is the cabinets' normal map)
+        em_in = p.inputs['Emission Color']
+        tex = em_in.links[0].from_node if em_in.is_linked else None
+        while tex is not None and tex.type != 'TEX_IMAGE':
+            tex = next((l.from_node for i in tex.inputs for l in i.links), None)
+        if tex is None: continue
+        tex.image = img; tex.image_user.frame_duration = len(seq); tex.image_user.frame_start = 1; tex.image_user.use_cyclic = True; tex.image_user.use_auto_refresh = True
+        if True:   # an LED wall is a light source: its picture as emission, a dark, slightly glossy face
+            p.inputs['Emission Strength'].default_value = float(os.environ.get('DZ_WALL', '1.6'))
+            p.inputs['Base Color'].default_value = (0.005, 0.005, 0.005, 1); p.inputs['Roughness'].default_value = 0.35
+    print('wall: image sequence of', len(seq), 'frames')
+
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, NAME + '.blend'), relative_remap=True)
 print('BUILD OK', len(scene.objects), 'objects,', FRAMES, 'frames')
