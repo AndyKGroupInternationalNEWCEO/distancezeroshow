@@ -1310,3 +1310,14 @@ test('PRE-SHOW: live 3D counts down to the episode start, video plays the openin
   await d.send({ t: 'rundown', action: 'reset' });
   d.close();
 });
+
+test('launcher status: Director code on the director port only; reports OBS without changing anything', async () => {
+  assert.equal((await fetch(D + '/launcher/status')).status, 403);
+  assert.equal((await fetch(D + '/launcher/status', { headers: { 'x-dz-code': app.secrets.hostCode } })).status, 403);
+  assert.notEqual((await fetch(G + '/launcher/status', { headers: { 'x-dz-code': app.secrets.directorCode } })).status, 200, 'never on Georgie\'s port');
+  const r = await fetch(D + '/launcher/status', { headers: { 'x-dz-code': app.secrets.directorCode } });
+  assert.equal(r.status, 200);
+  const j = await r.json();
+  assert.equal(j.obs.connected, true); assert.equal(j.obs.streaming, false); assert.equal(j.obs.recording, false);
+  assert.ok(!JSON.stringify(j).includes(app.secrets.directorCode), 'no secrets in the answer');
+});

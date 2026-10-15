@@ -106,6 +106,13 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       const url = new URL(req.url, 'http://x');
       const p = url.pathname;
       if (req.method === 'GET' && p === '/healthz') return send(req, res, 200, 'text/plain; charset=utf-8', 'ok');
+      // the DISTANCE // ZERO launcher (this Mac only, with the Director code): is everything ready? Reads only, changes nothing.
+      if (role === 'director' && req.method === 'GET' && p === '/launcher/status') {
+        if (!sameSecret(req.headers['x-dz-code'], secrets.directorCode)) return send(req, res, 403, 'text/plain', 'No');
+        const o = obs.state;
+        return send(req, res, 200, 'application/json', JSON.stringify({ obs: { connected: o.connected, status: o.status, error: o.error || '',
+          streaming: !!o.stream?.active, recording: !!o.record?.active, collection: o.collection || '' } }));
+      }
       if (req.method === 'GET' && p.startsWith('/static/')) {
         const abs = within(path.join(PUBLIC, 'static'), p.slice(8));
         return abs ? file(req, res, abs) : send(req, res, 404, 'text/plain', 'Not found');

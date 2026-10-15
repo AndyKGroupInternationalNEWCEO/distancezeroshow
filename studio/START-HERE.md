@@ -23,7 +23,17 @@ show clock running (press Reset first). Presets: `studio/shows/*.json`. Build th
 Still to do once in OBS: choose the **DJ Mixer** audio device; add files for **Jingle // slot 2, slot 3** (Sunday) and
 **Opening Video** (Friday) when you have them.
 
-## Every rehearsal or show
+## Every rehearsal or show: one icon
+
+Click **DISTANCE ZERO** on the Desktop (drag it into the Dock if you like). It opens OBS if it is not open yet, starts the
+studio in the background (or uses it if it already runs), opens the Director Studio signed in, and after a few seconds says
+**READY**, or **CHECK** with the reason and the next step. Clicking it again never starts a second OBS or studio.
+It never streams, records or starts the virtual camera. No Terminal needed. Georgie's permanent link stays the same;
+copy it in Rehearsal → Copy Georgie's link if needed. If the icon is missing: `npm run make-launcher` builds it again.
+
+The studio started by the icon keeps running in the background until you log out or restart the Mac.
+
+## The older way (Terminal window)
 
 1. **Open OBS** (optional for a rehearsal). The studio never streams, records or switches scenes by itself.
 2. **Double-click `Start DISTANCE ZERO Studio`** in the `studio` folder (or run `npm run studio` in Terminal).
