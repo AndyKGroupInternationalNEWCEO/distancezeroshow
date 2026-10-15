@@ -466,6 +466,10 @@ function webgl2() {
 // quality tier: phones and tablets get a lighter set (no mirror floor, no glass logo, smaller textures)
 function tier() {
   const q = new URLSearchParams(location.search).get('quality');
+  // OBS browser source (?obs=1) or ?quality=broadcast: a fixed 1920 × 1080 picture at the highest settings, the same in
+  // every OBS source size; it never trades quality for frame rate
+  if (q === 'broadcast' || new URLSearchParams(location.search).get('obs') === '1')
+    return { mobile: false, broadcast: true, ao: true, dpr: 1, shadowSize: 4096, shadows2: true, reflections: true, mirrorSize: 2048, glass: true, bloomScale: 1, msaa: 4, wall: { width: 2048, height: 860 }, wallFps: 30 };
   const mobile = q ? q === 'low' : (matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600);
   const dpr = window.devicePixelRatio || 1;
   return mobile

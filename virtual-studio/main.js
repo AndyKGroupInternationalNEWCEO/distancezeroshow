@@ -103,14 +103,19 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   let mirror = null;
   if (quality.reflections) {
-    mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x6a6d73 });
+    const ms = quality.mirrorSize || 1024;
+    mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: ms, textureHeight: ms, color: 0x6a6d73 });
     mirror.rotation.x = -Math.PI / 2;
     mirror.position.y = -0.002;
     scene.add(mirror);
   }
 
   /* ----- post ----- */
-  const composer = new EffectComposer(renderer);
+  // broadcast: the post chain renders into a multisampled target, so edges stay clean at 1080p (the canvas's own
+  // antialiasing does not reach the composer's targets)
+  const composer = quality.msaa
+    ? new EffectComposer(renderer, new THREE.WebGLRenderTarget(1920, 1080, { type: THREE.HalfFloatType, samples: quality.msaa }))
+    : new EffectComposer(renderer);
   composer.setPixelRatio(dpr);
   composer.addPass(new RenderPass(scene, camera));
   let ao = null;
@@ -337,6 +342,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   /* ----- sizing and adaptive quality ----- */
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
+    // broadcast: the drawing buffer is 1080 lines high whatever the source size (1920 × 1080 in a 16:9 source)
+    if (quality.broadcast && h) { dpr = 1080 / h; renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); }
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
     bloom.resolution.set(w * quality.bloomScale, h * quality.bloomScale);
@@ -357,7 +364,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (now - sampleAt < 2500) return;
     const fps = (frames * 1000) / (now - sampleAt);
     frames = 0; sampleAt = now;
-    if (document.hidden || fps >= 40 || downgraded > 4) return;
+    if (document.hidden || fps >= 40 || downgraded > 4 || quality.broadcast) return;
     downgraded++;
     if (dpr > 1) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
     else if (ao?.enabled) ao.enabled = false;
