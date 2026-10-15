@@ -74,7 +74,8 @@
           "video": "V01",
           "mode": "once",
           "audioMode": "video",
-          "music": ""
+          "music": "",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -94,7 +95,7 @@
         "closing": "",
         "cues": {
           "scene": "SPLIT // BOTH",
-          "jingle": "17",
+          "jingle": "",
           "video": "",
           "mode": "once",
           "audioMode": "wav",
