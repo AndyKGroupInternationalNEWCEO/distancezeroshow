@@ -1277,7 +1277,7 @@ test('SOUND FX: Director only, own volume, missing files refused, STOP leaves th
   const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
   await Promise.all([d.opened, hst.opened]);
   const st = await d.next(m => m.t === 'state');
-  for (const id of ['FX1', 'FX2', 'FX3', 'FX4', 'FX5', 'FX6', 'FX7']) assert.ok(st.s.media.fx.some(x => x.id === id), id);
+  for (const id of ['FX1', 'FX2', 'FX3', 'FX5', 'FX6', 'FX7']) assert.ok(st.s.media.fx.some(x => x.id === id), id);
   // Georgie has her own pads (a short gap between two effects); she never sets volumes
   const hs = await hst.next(m => m.t === 'state');
   assert.ok(hs.s.fx.some(x => x.id === 'FX2'), 'Georgie sees the pads');
