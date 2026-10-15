@@ -935,3 +935,29 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 .qhelp:hover{color:var(--chrome-hi);border-color:var(--chrome)}
 .qpop{position:absolute;z-index:70;top:24px;left:-8px;width:min(320px,70vw);background:var(--raise);border:1px solid var(--line-3);padding:10px 12px;font-size:.8rem;line-height:1.45;color:var(--chrome-hi);text-transform:none;letter-spacing:0;font-weight:400;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .why{color:var(--warn);font-size:.78rem;margin-top:6px}
+
+/* NEXT STEPS 1 · 2 · 3 (Director, Georgie, guest) and the one button to press now, blinking */
+.nsteps{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:6px}
+.nsteps li{display:flex;align-items:baseline;gap:10px;padding:7px 10px;border:1px solid var(--line);color:var(--dim);font-size:.82rem;line-height:1.35}
+.nsteps li b{flex:none;width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--line-3);font-family:var(--mono);font-size:.72rem;color:var(--chrome)}
+.nsteps li.now{color:var(--chrome-hi);border-color:var(--line-3)}
+.nsteps li.due{color:var(--chrome-hi);border-color:var(--amber);animation:stepdue 1s steps(2) infinite}
+.nsteps li.due b{border-color:var(--amber);color:var(--amber)}
+.hero .nsteps{margin-bottom:16px}
+.g-status .nsteps{margin:14px 0 0}
+.b.due,[role=tab].due{animation:btndue 1s ease-in-out infinite;border-color:var(--amber)}
+@keyframes stepdue{50%{background:rgba(242,166,80,.14)}}
+@keyframes btndue{50%{box-shadow:0 0 0 4px rgba(242,166,80,.55);filter:brightness(1.35)}}
+@media (prefers-reduced-motion:reduce){.nsteps li.due,.b.due,[role=tab].due{animation:none;box-shadow:0 0 0 3px rgba(242,166,80,.7)}}
+
+/* SOUND FX pads */
+.fxpads{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.fxpad{display:grid;gap:6px;padding:8px;border:1px solid var(--line)}
+.fxpad.air{border-color:var(--red)}
+.fxpad.other{opacity:.55}
+.fxbtn{flex-direction:column;align-items:flex-start;gap:2px;min-height:52px;padding:8px 10px;text-align:left}
+.fxbtn b{font-size:.74rem;letter-spacing:.08em}
+.fxbtn small{font-size:.62rem;color:var(--dim);letter-spacing:.06em}
+.fxvol{display:flex;align-items:center;gap:8px}
+.fxvol input{flex:1;min-width:0;accent-color:var(--amber)}
+.fxv{font-size:.66rem;color:var(--dim);width:38px;text-align:right}

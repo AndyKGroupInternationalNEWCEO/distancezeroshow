@@ -19,6 +19,8 @@ const config = loadConfig();
 const wanted = process.argv.slice(2).filter(a => !a.startsWith('-'));
 const PLAYERS = process.argv.includes('--players');   // add the media players to EXISTING show collections (nothing else changes)
 const KEYING = process.argv.includes('--keying');     // add background removal to EXISTING show collections (nothing else changes)
+const PRESHOW = process.argv.includes('--preshow');   // add the PRE-SHOW scene to EXISTING show collections (nothing else changes)
+const MEDIA = process.argv.includes('--media');       // point EXISTING media sources at the files the preset names now (nothing else changes)
 if (!wanted.length) { console.log('Usage: npm run obs-setup -- sunday friday'); process.exit(1); }
 const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', id + '.json'), 'utf8')));
 
@@ -50,6 +52,8 @@ function inputFor(name, src, cam) {
     case 'camera': return { kind: cam.kind, settings: cam.settings };
     case 'vdo': return { kind: 'browser_source', settings: { url: vdoView, width: 1920, height: 1080, reroute_audio: true, restart_when_active: false, shutdown: false } };
     case 'guest': return { kind: 'browser_source', muted: true, settings: { url: 'about:blank', width: 1280, height: 720, reroute_audio: true, restart_when_active: false, shutdown: false } };
+    case 'virtualspace': return { kind: 'browser_source', settings: { url: 'https://virtualspace.distancezeroshow.com/?obs=1&play=video', width: 1920, height: 1080,
+      fps_custom: true, fps: 30, reroute_audio: true, restart_when_active: true, shutdown: false } };   // sound through the OBS mixer, reloaded on every cut to it
     case 'overlay': return { kind: 'browser_source', settings: { url: overlayUrl, width: 1920, height: 1080, shutdown: false } };
     case 'mic': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' } };
     case 'mixer': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' }, muted: true };   // muted until its device is chosen
@@ -85,6 +89,8 @@ async function addPlayers(show, existing) {
   const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
   const done = [];
   if (!inputs.has('Jingle Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'Jingle Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('Jingle Player'); }
+  // SOUND FX pads: a separate player, so an effect never cuts the jingle
+  if (!inputs.has('FX Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'FX Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('FX Player'); }
   const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
   const place = async (scene, created) => {
     const items = (await req('GetSceneItemList', { sceneName: scene })).sceneItems;
@@ -131,13 +137,18 @@ async function addPlayers(show, existing) {
 
 // Background removal (the free OBS Background Removal plugin, royshil/obs-backgroundremoval): each person is cut out of
 // their camera and stands in front of the show's own background video (show.keying.background) instead of their room.
-// Settings from the private virtual-live rehearsal of 13 Oct (MediaPipe on CoreML, mask every 2nd frame, soft edges).
+// Settings from the rehearsals of 13 and 15 Oct: Robust Video Matting on CoreML (cleaner hair and edges than MediaPipe),
+// mask every 2nd frame with temporal smoothing (three keyed people on an 8 GB M2), edges pulled in by 1 px against halos.
 // The mask keeps running when the camera is not on air: started on a cut, it needs 5–10 s and the person would be missing.
 // A scene that shows a keyed camera without that background gets it at the very bottom, full frame.
 const KEY_FILTER = 'D//0 Background Removal';
-const keySettings = { model_select: 'models/mediapipe.with_runtime_opt.ort', useGPU: 'coreml', numThreads: 1, mask_every_x_frames: 2,
-  enable_threshold: true, threshold: 0.42, contour_filter: 0.05, smooth_contour: 0.5, feather: 0.015, mask_expansion: 0,
-  temporal_smooth_factor: 0.65, enable_image_similarity: true, blur_background: 0, stop_when_source_is_inactive: false };
+const keySettings = { model_select: 'models/rvm_mobilenetv3_fp32.with_runtime_opt.ort', useGPU: 'coreml', numThreads: 1, mask_every_x_frames: 2,
+  enable_threshold: true, threshold: 0.5, contour_filter: 0.05, smooth_contour: 0.5, feather: 0.02, mask_expansion: -1,
+  temporal_smooth_factor: 0.55, enable_image_similarity: true, blur_background: 0, stop_when_source_is_inactive: false };
+// Andrej's own camera (the Mac's camera): full 1080p, and a grade towards the studio's dark, cool look with a little sharpening
+const CAM = 'Cam // Andrej';
+const camFilters = [['D//0 Studio Look', 'color_filter_v2', { contrast: 0.08, saturation: -0.12, gamma: -0.05, brightness: -0.02 }],
+  ['D//0 Sharpen', 'sharpness_filter', { sharpness: 0.12 }]];
 async function addKeying(show, existing) {
   const name = show.obs.sceneCollection;
   if (!show.keying) { say(`SKIP  "${name}": no keying in shows/${show.id}.json`); return; }
@@ -160,6 +171,18 @@ async function addKeying(show, existing) {
     await req('CreateSourceFilter', { sourceName: src, filterName: KEY_FILTER, filterKind: 'background_removal', filterSettings: keySettings });
     done.push(`background removal on ${src}`);
   }
+  if (keyed.includes(CAM)) {
+    const cur = (await req('GetInputSettings', { inputName: CAM })).inputSettings;
+    if (cur.preset !== 'AVCaptureSessionPreset1920x1080') {
+      await req('SetInputSettings', { inputName: CAM, inputSettings: { use_preset: true, preset: 'AVCaptureSessionPreset1920x1080' } });
+      done.push(`${CAM} at 1920x1080`);
+    }
+    const have = new Set((await req('GetSourceFilterList', { sourceName: CAM })).filters.map(f => f.filterName));
+    for (const [fname, kind, settings] of camFilters) {
+      if (have.has(fname)) await req('SetSourceFilterSettings', { sourceName: CAM, filterName: fname, filterSettings: settings });
+      else { await req('CreateSourceFilter', { sourceName: CAM, filterName: fname, filterKind: kind, filterSettings: settings }); done.push(`${fname} on ${CAM}`); }
+    }
+  }
   const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
   for (const { sceneName } of (await req('GetSceneList')).scenes) {
     if (sceneName === 'VT' || sceneName.startsWith('AUDIO //')) continue;
@@ -171,6 +194,51 @@ async function addKeying(show, existing) {
     done.push(`${bg} behind ${sceneName}`);
   }
   say(done.length ? `OK    "${name}": added ${done.join(', ')}` : `OK    "${name}": background removal already there, nothing changed`);
+}
+
+// PRE-SHOW: the Virtual Space page (live 3D studio or the opening video) in its own scene, from shows/<show>.json.
+// The studio's PRE-SHOW buttons set the page's address, reload it and put the scene on program.
+async function addPreshow(show, existing, cam) {
+  const name = show.obs.sceneCollection, sc = show.scenes.find(s => s.name === 'PRE-SHOW');
+  if (!sc) { say(`SKIP  "${name}": no PRE-SHOW scene in shows/${show.id}.json`); return; }
+  if (!existing.includes(name)) { say(`SKIP  "${name}" does not exist (run obs-setup without --preshow first)`); return; }
+  await switchTo('SetCurrentSceneCollection', name);
+  if ((await req('GetSceneList')).scenes.some(s => s.sceneName === sc.name)) { say(`OK    "${name}": PRE-SHOW already there, nothing changed`); return; }
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  await req('CreateScene', { sceneName: sc.name });
+  for (const [src, box] of sc.items) {
+    let id;
+    if (inputs.has(src)) id = (await req('CreateSceneItem', { sceneName: sc.name, sourceName: src })).sceneItemId;
+    else {
+      const def = inputFor(src, show.sources[src], cam);
+      id = (await req('CreateInput', { sceneName: sc.name, inputName: src, inputKind: def.kind, inputSettings: def.settings })).sceneItemId;
+      if (def.muted) await req('SetInputMute', { inputName: src, inputMuted: true });
+    }
+    await req('SetSceneItemTransform', { sceneName: sc.name, sceneItemId: id, sceneItemTransform: {
+      positionX: box.x, positionY: box.y, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: box.w, boundsHeight: box.h } });
+  }
+  await req('CreateSceneItem', { sceneName: sc.name, sourceName: 'AUDIO // ALL', sceneItemEnabled: true }).catch(() => {});
+  say(`OK    "${name}": added scene PRE-SHOW (${sc.items.map(i => i[0]).join(', ')})`);
+}
+
+// a preset's media file changed (a new background render, a sharper loop): only the file of each EXISTING media source
+// is updated, with the preset's loop setting and hardware decoding; scenes, layout and filters stay as they are
+async function syncMedia(show, existing) {
+  const name = show.obs.sceneCollection;
+  if (!existing.includes(name)) { say(`SKIP  "${name}" does not exist`); return; }
+  await switchTo('SetCurrentSceneCollection', name);
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  const done = [];
+  for (const [src, o] of Object.entries(show.sources)) {
+    if (o.kind !== 'media' || !o.file || !inputs.has(src)) continue;
+    const file = path.join(DZ, o.file);
+    if (!fs.existsSync(file)) { say(`WARN  "${src}": ${o.file} not found, left as it is`); continue; }
+    const cur = (await req('GetInputSettings', { inputName: src })).inputSettings;
+    if (cur.local_file === file) continue;
+    await req('SetInputSettings', { inputName: src, inputSettings: { is_local_file: true, local_file: file, looping: !!o.loop, hw_decode: true }, overlay: true });
+    done.push(`${src} → ${path.basename(file)}`);
+  }
+  say(done.length ? `OK    "${name}": ${done.join(', ')}` : `OK    "${name}": media files already up to date`);
 }
 
 obs.on('link', async up => {
@@ -186,9 +254,11 @@ obs.on('link', async up => {
     say(`OK    backup of OBS scene collections: data/obs-backups/${stamp}/`);
     const before = await req('GetSceneCollectionList');
     const cam = existingCamera();
-    if (PLAYERS || KEYING) {
+    if (PLAYERS || KEYING || PRESHOW || MEDIA) {
       for (const show of shows) {
+        if (MEDIA) await syncMedia(show, before.sceneCollections);
         if (PLAYERS) await addPlayers(show, before.sceneCollections);
+        if (PRESHOW) await addPreshow(show, before.sceneCollections, cam);
         if (KEYING) await addKeying(show, before.sceneCollections);
       }
       await switchTo('SetCurrentSceneCollection', before.currentSceneCollectionName);

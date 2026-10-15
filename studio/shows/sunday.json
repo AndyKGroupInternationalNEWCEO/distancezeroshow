@@ -47,9 +47,10 @@
           "scene": "STANDBY",
           "jingle": "18",
           "video": "V03",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
-          "music": ""
+          "music": "",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -73,7 +74,8 @@
           "video": "V01",
           "mode": "once",
           "audioMode": "video",
-          "music": ""
+          "music": "",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -93,7 +95,7 @@
         "closing": "",
         "cues": {
           "scene": "SPLIT // BOTH",
-          "jingle": "17",
+          "jingle": "",
           "video": "",
           "mode": "once",
           "audioMode": "wav",
@@ -143,11 +145,12 @@
           "scene": "BREAK",
           "jingle": "04",
           "video": "V10",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": "V11"
+          "returnVideo": "V11",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -227,7 +230,8 @@
           "returnJingle": "05",
           "returnVideo": "V11",
           "fallbackVideo": "V10",
-          "fallbackMode": "loop"
+          "fallbackMode": "once",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -297,11 +301,12 @@
           "scene": "BREAK",
           "jingle": "04",
           "video": "V10",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": "V11"
+          "returnVideo": "V11",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -383,7 +388,8 @@
             "V17"
           ],
           "fallbackVideo": "V16",
-          "fallbackMode": "once"
+          "fallbackMode": "once",
+          "loopAfter": "V22"
         },
         "guest": {
           "name": "",
@@ -405,7 +411,7 @@
     },
     "Studio Loop": {
       "kind": "media",
-      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
+      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-two.mp4",
       "loop": true,
       "muted": true
     },
@@ -458,6 +464,10 @@
     "VDO // Guest": {
       "kind": "guest",
       "note": "set by the studio for each guest invitation; hidden and muted until TAKE GUEST ON AIR"
+    },
+    "Virtual Space": {
+      "kind": "virtualspace",
+      "note": "the Virtual Space page in ?obs=1: the PRE-SHOW buttons in the studio set its address"
     }
   },
   "scenes": [
@@ -475,6 +485,22 @@
           }
         ]
       ]
+    },
+    {
+      "name": "PRE-SHOW",
+      "role": "preshow",
+      "items": [
+        [
+          "Virtual Space",
+          {
+            "x": 0,
+            "y": 0,
+            "w": 1920,
+            "h": 1080
+          }
+        ]
+      ],
+      "note": "live 3D studio or the 90 s opening video from the Virtual Space; cut to the cameras with the stinger through the logo"
     },
     {
       "name": "OPENING",

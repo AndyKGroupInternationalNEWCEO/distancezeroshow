@@ -5,8 +5,11 @@
 import { $, $$, h, hms, act, toast, segmentTimes, clock, zonedToday } from '../common.js';
 import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow, cueLine } from '../showpanels.js';
 import { showClock, mmss } from '../clock.js';
+import { nextSteps, renderSteps } from '../steps.js';
 import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
+import * as preshowPanel from './preshow.js';
+import * as fxPanel from './fx.js';
 
 let mons, clk, script, brk, lib;
 const two = n => String(n).padStart(2, '0');
@@ -19,6 +22,7 @@ export function init(ctx) {
   lib = createLibrary(ctx, { mode: 'show', audioList: $('#jaList'), videoList: $('#vvList'), filter: $('#jaFilter'), catSel: $('#vvCat'), loopBox: $('#vvLoop'),
     audioStop: $('#jaStop'), videoStop: $('#vvStop'), videoPreview: $('#vvPrev'), audioBadge: $('#jaAir'), videoBadge: $('#vvAir') });
 
+  fxPanel.init(ctx);
   const rd = (action, extra) => ctx.conn.send({ t: 'rundown', action, ...extra });
   $('#goBtn').addEventListener('click', e => go(ctx, e.currentTarget));
   $('#advance').addEventListener('click', e => act(e.currentTarget, () => rd('next')));
@@ -133,6 +137,8 @@ export function render(ctx) {
   script.render(S);
   lib.render();
   guestPanel.render(ctx);
+  preshowPanel.render(ctx);
+  fxPanel.render(ctx);
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);
@@ -221,4 +227,10 @@ function renderSide(ctx) {
 export function tick(ctx) {
   const S = ctx.S;
   clk.tick(S); brk.tick(S); mons.update(S);
+  // 1 · 2 · 3 and the one button to press now blinks (GO, RETURN TO LIVE, ADMIT GUEST or TAKE GUEST ON AIR)
+  const st = nextSteps(S, 'director', serverNow());
+  renderSteps($('#dSteps'), st);
+  $('#goBtn').classList.toggle('due', st.due === 'go' || st.due === 'return');
+  for (const b of $$('#gsBody [data-step]')) b.classList.toggle('due', b.dataset.step === st.due);
+  $('#sideTabs [data-p=guest]').classList.toggle('due', st.due === 'admit' || st.due === 'onair');
 }

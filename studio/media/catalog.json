@@ -1,6 +1,7 @@
 {
-  "_about": "Media catalog of the Broadcast Studio. Audio = the master WAV jingles (matched by title in audioDir). Video = the show's MP4 cards. Entries without a file show NOT AVAILABLE. IDs follow the official catalog; 03 is not identified yet and is deliberately absent.",
+  "_about": "Media catalog of the Broadcast Studio. Audio = the master WAV jingles (matched by title in audioDir). Video = the show's MP4 cards. Entries without a file show NOT AVAILABLE. IDs follow the official catalog; 03 is not identified yet and is deliberately absent. Sound FX = short effects for the SOUND FX pads (files in fxDir, matched by title or by a name starting with the FX number, e.g. \"FX2 laugh.wav\"); played only by hand through the OBS FX Player.",
   "audioDir": "shared-assets/jingles/DZ-masters",
+  "fxDir": "shared-assets/jingles/FX",
   "audio": [
     {
       "id": "01",
@@ -136,14 +137,6 @@
       ]
     },
     {
-      "id": "20",
-      "title": "PLEASE STAND BY",
-      "shows": [
-        "sunday",
-        "friday"
-      ]
-    },
-    {
       "id": "21",
       "title": "SUNDAY SHOW CLOSING",
       "shows": [
@@ -171,7 +164,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY LIVE OPENING.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY LIVE OPENING_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "01"
     },
@@ -193,7 +186,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/WORLD PREMIERE.mp4",
+      "file": "shared-assets/videos/1080p/WORLD PREMIERE_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "08"
     },
@@ -204,7 +197,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/SPECIAL GUEST.mp4",
+      "file": "shared-assets/videos/1080p/SPECIAL GUEST_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "09"
     },
@@ -215,7 +208,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/LIVE MUSIC SESSION LOOP.mp4",
+      "file": "shared-assets/videos/1080p/LIVE MUSIC SESSION LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "10"
     },
@@ -238,7 +231,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/LIVE CHAT IS OPEN LOOP.mp4",
+      "file": "shared-assets/videos/1080p/LIVE CHAT IS OPEN LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "13"
     },
@@ -249,7 +242,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/CALLING LINES ARE OPEN LOOP.mp4",
+      "file": "shared-assets/videos/1080p/CALLING LINES ARE OPEN LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "14"
     },
@@ -285,9 +278,10 @@
         "sunday",
         "friday"
       ],
-      "file": null,
+      "file": "shared-assets/videos/1080p/DZ_16_TECHNICAL_BREAK_1080p.mp4",
       "embeddedAudio": false,
-      "linkedAudio": "11"
+      "linkedAudio": "11",
+      "note": "8.1 s, 1080p24, silent, same style as the other break cards; play in loop for a longer technical break. Linked jingle 11 TECHNICAL BREAK."
     },
     {
       "id": "V13",
@@ -299,7 +293,7 @@
       ],
       "file": "shared-assets/videos/1080p/DZ_05_PLEASE_STAND_BY_1080p.mp4",
       "embeddedAudio": false,
-      "linkedAudio": "20"
+      "linkedAudio": "11"
     },
     {
       "id": "V14",
@@ -320,7 +314,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY CLOSING.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY CLOSING_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "19"
     },
@@ -378,7 +372,7 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/FRIDAY DJ TRANSITION.mp4",
+      "file": "shared-assets/videos/1080p/FRIDAY DJ TRANSITION_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": "02"
     },
@@ -403,7 +397,7 @@
         "sunday",
         "friday"
       ],
-      "file": "shared-assets/videos/4k/END CREDITS BACKGROUND LOOP.mp4",
+      "file": "shared-assets/videos/1080p/END CREDITS BACKGROUND LOOP_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "48 s seamless loop, 3840×2160 24 fps, silent, no names burned in, darker centre. Play in loop under the overlay's end-credits roll."
@@ -415,7 +409,7 @@
       "shows": [
         "sunday"
       ],
-      "file": "shared-assets/videos/4k/DISTANCE ZERO — OFFICIAL END CREDITS.mp4",
+      "file": "shared-assets/videos/1080p/DISTANCE ZERO — OFFICIAL END CREDITS_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "54 s, 3840×2160 24 fps, silent, plays once. Opens and closes on the official D//0 logo (from the logo reveal). Permanent credits only (hosts, partners with their logos, final message). Episode guests: lower third during the SPECIAL GUESTS window 0:17–0:23. Keep the overlay end-credits roll OFF while V23 plays. Sunday sequence: V14 → V23 → V17."
@@ -427,10 +421,243 @@
       "shows": [
         "friday"
       ],
-      "file": "shared-assets/videos/4k/DJ ANDY'K — FRIDAY LIVE — OFFICIAL END CREDITS.mp4",
+      "file": "shared-assets/videos/1080p/DJ ANDY'K — FRIDAY LIVE — OFFICIAL END CREDITS_1080p.mp4",
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "52 s, 3840×2160 24 fps, silent, plays once. DJ ANDY'K — FRIDAY LIVE: host DJ Andy'K only (no Georgie), partners with their logos, ends on the D//0 logo with THANK YOU FOR LISTENING and the DJ Andy'K logo. Optional special guest: show the episode's guest with the lower third during the music interlude 0:16.5–0:23.5 (no guest = leave it). Keep the overlay end-credits roll OFF while V24 plays. Friday sequence: V15 FRIDAY SHOW CLOSING + jingle 19 → V24."
+    },
+    {
+      "id": "V25",
+      "title": "PRE-SHOW — THE STUDIO WAKES UP (90 S)",
+      "category": "OPENING",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/02-predshow/predshow-90s-studio.mp4",
+      "embeddedAudio": true,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V26",
+      "title": "STUDIO BACKGROUND — DESK AND LED WALL",
+      "category": "VISUALS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-two.mp4",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V27",
+      "title": "LOWER THIRD — ANDY'K",
+      "category": "GRAPHICS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/03-menovky/lower-third-andy.webm",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V28",
+      "title": "LOWER THIRD — GEORGIE",
+      "category": "GRAPHICS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/03-menovky/lower-third-georgie.webm",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V29",
+      "title": "LOWER THIRD — GUEST",
+      "category": "GRAPHICS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/03-menovky/lower-third-guest.webm",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V30",
+      "title": "TRANSITION — THROUGH THE LOGO",
+      "category": "GRAPHICS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/04-prechody/stinger-through-logo.webm",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V31",
+      "title": "STUDIO BACKGROUND — WIDE",
+      "category": "VISUALS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-wide.mp4",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V32",
+      "title": "STUDIO BACKGROUND — VIENNA, PIANO",
+      "category": "VISUALS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-vienna.mp4",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V33",
+      "title": "STUDIO BACKGROUND — MELBOURNE, DJ DESK",
+      "category": "VISUALS",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-melbourne.mp4",
+      "embeddedAudio": false,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    },
+    {
+      "id": "V34",
+      "title": "PRE-SHOW — ARRIVAL (2:10)",
+      "category": "OPENING",
+      "shows": [
+        "sunday",
+        "friday"
+      ],
+      "file": "shared-assets/virtual-studio/02-predshow/predshow-prichod.mp4",
+      "embeddedAudio": true,
+      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+    }
+  ],
+  "fx": [
+    {
+      "id": "FX1",
+      "title": "INCOMING CALL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX2",
+      "title": "LAUGH",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX3",
+      "title": "APPLAUSE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX5",
+      "title": "DRUM ROLL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX6",
+      "title": "WHOOSH",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX7",
+      "title": "DJ SCRATCH REWIND",
+      "shows": [
+        "friday"
+      ]
+    },
+    {
+      "id": "FX9",
+      "title": "TYPING",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX10",
+      "title": "CALL DISCONNECT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX11",
+      "title": "CORRECT ANSWER",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX13",
+      "title": "PRIZE REVEAL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX14",
+      "title": "AUDIENCE SURPRISE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX15",
+      "title": "COMEDY RIMSHOT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX16",
+      "title": "APPLAUSE ALTERNATE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX17",
+      "title": "LAUGH ALTERNATE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
     }
   ]
 }

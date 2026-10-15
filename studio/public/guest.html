@@ -20,6 +20,7 @@
     <span class="label">Your status</span>
     <strong id="gState">Connecting…</strong>
     <p class="hint" id="gLine"></p>
+    <ol class="nsteps" id="gSteps" aria-label="Your next steps" hidden></ol>
   </section>
   <div class="guest-grid">
     <section class="card" aria-labelledby="hGCam">
@@ -32,6 +33,10 @@
       </div>
     </section>
     <div class="stack">
+<section class="card" id="gFxCard" aria-labelledby="gFxH" hidden>
+        <div class="card-h"><h2 id="gFxH">Sound FX</h2><div class="aside"><span class="hint">On air in Vienna</span></div></div>
+        <div class="card-b"><div class="fxpads" id="gFxPads"></div><p class="hint mt">You are on air: press once and the effect plays on the show.</p></div>
+      </section>
       <section class="card" aria-labelledby="hGProg">
         <div class="card-h"><h2 id="hGProg">Program preview</h2><div class="aside"><span class="hint">What viewers see, picture only</span></div></div>
         <div class="card-b"><div class="mpic g-prog"><img id="gProg" alt="" hidden><p class="mmsg" id="gProgMsg">Waiting for the picture…</p></div></div>

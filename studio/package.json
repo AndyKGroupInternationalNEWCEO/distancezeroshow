@@ -18,7 +18,8 @@
     "tunnel": "node tunnel.js",
     "obs-check": "node obs-check.js",
     "rotate-overlay": "node server.js --rotate-overlay",
-    "obs-setup": "node obs-setup.js"
+    "obs-setup": "node obs-setup.js",
+    "make-launcher": "zsh launcher/make-app.sh"
   },
   "dependencies": {
     "ws": "^8.22.0"

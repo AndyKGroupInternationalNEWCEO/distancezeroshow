@@ -5,7 +5,9 @@ import { createCall } from './call.js';
 import { notifier } from './notify.js';
 import { testDevices, playTone } from './checks.js';
 import { initHelpTips } from './helptips.js';
-import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, cueLine } from './showpanels.js';
+import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, cueLine, serverNow } from './showpanels.js';
+import { nextSteps, renderSteps } from './steps.js';
+import { renderFxPads } from './fxpads.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 let downSince = 0, reconnects = 0, slowPings = 0;
@@ -91,6 +93,7 @@ function renderStatus() {
 
 const LEAD = { andrej: 'Andrej leads', georgie: 'You lead', both: 'Both of you' };
 function render() {
+  renderFxPads($('#hFxPads'), $('#hFxCard'), S.fx, conn, S.fxAir);
   syncClock(S);
   script.render(S);
   const r0 = S.rundown;
@@ -149,6 +152,7 @@ function renderRundown() {
 
 function tick() {
   sclock.tick(S); bmons.tick(S); mons.update(S);
+  renderSteps($('#hSteps'), nextSteps(S, 'host', serverNow()));
   const r = S.rundown, t = segmentTimer(S);
   if (!t) {
     const at = nextShow(S.show), now = Date.now();

@@ -115,6 +115,7 @@
             <div class="card-h"><h2 id="hClock">Show clock</h2><div class="aside"><span class="badge" id="lockBadge"></span></div></div>
             <div class="card-b" id="showClock"></div>
             <div class="card-b">
+              <ol class="nsteps" id="dSteps" aria-label="Next steps" aria-live="polite" hidden></ol>
               <div class="row">
                 <button class="b primary grow go" type="button" id="goBtn">GO <kbd>]</kbd></button>
               </div>
@@ -156,6 +157,11 @@
           </section>
           </div>
           <div class="sidep" data-p="audio" hidden>
+            <section class="card" aria-labelledby="hFx">
+              <div class="card-h"><h2 id="hFx">Sound FX</h2><div class="aside"><span class="badge" id="fxAir">—</span><button class="b sm" type="button" id="fxStop">STOP</button></div></div>
+              <div class="card-b"><div class="fxpads" id="fxPads"></div>
+              <p class="hint mt">On air through the OBS FX Player, only when you press a pad. Never stops the jingle or the video. The call ring only rings: it does not answer or put anyone on air.</p></div>
+            </section>
             <section class="card" aria-labelledby="hJA">
               <div class="card-h"><h2 id="hJA">Jingles // audio</h2><div class="aside"><span class="badge" id="jaAir">—</span></div></div>
               <div class="card-b"><div class="row"><select class="in sm" id="jaFilter" aria-label="Show filter"><option value="show">This show</option><option value="sunday">Sunday</option><option value="friday">Friday</option><option value="all">All</option></select><span class="grow"></span><button class="b sm" type="button" id="jaStop">STOP</button></div></div>
@@ -171,9 +177,13 @@
             </section>
           </div>
           <div class="sidep" data-p="video" hidden>
+            <section class="card" aria-labelledby="hPS">
+              <div class="card-h"><h2 id="hPS">Pre-show // Virtual Space</h2><div class="aside"><span class="badge" id="psBadge">—</span></div></div>
+              <div class="card-b" id="psBody"></div>
+            </section>
             <section class="card" aria-labelledby="hVV">
               <div class="card-h"><h2 id="hVV">Videos // visuals</h2><div class="aside"><span class="badge" id="vvAir">—</span></div></div>
-              <div class="card-b"><div class="row"><select class="in sm" id="vvCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option></select>
+              <div class="card-b"><div class="row"><select class="in sm" id="vvCat" aria-label="Category"><option value="">All categories</option><option>OPENING</option><option>PROGRAM</option><option>BREAKS</option><option>CLOSING</option><option>VISUALS</option><option>GRAPHICS</option></select>
                 <label class="checks"><input type="checkbox" id="vvLoop"> LOOP</label><span class="grow"></span><button class="b sm" type="button" id="vvStop">STOP</button></div></div>
               <ul class="lib" id="vvList"></ul>
               <div class="card-b"><video id="vvPrev" class="vprev" controls playsinline hidden></video></div>

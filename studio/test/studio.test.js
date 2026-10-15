@@ -384,7 +384,7 @@ test('faders and the jingle cart', async () => {
   const d = client(D, { cookie: directorCookie });
   await d.opened;
   const { s } = await d.next(m => m.t === 'state' && m.s.obs.media.length);
-  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player']);
+  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player', 'FX Player']);
   assert.equal((await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: -6 })).ok, true);
   assert.equal(mock.inputs.find(i => i.inputName === 'DJ Mixer').volumeDb, -6);
   await d.next(m => m.t === 'state' && m.s.obs.audio.find(a => a.name === 'DJ Mixer').volumeDb === -6);
@@ -1044,6 +1044,9 @@ test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate st
   const gu = client(G, { cookie: gc }); await gu.opened;
   const gs = await gu.next(m => m.t === 'state');
   assert.equal(gs.s.guest.status, 'waiting'); assert.equal(gs.s.guest.push, '', 'no studio camera link before ADMIT');
+  assert.deepEqual(gs.s.fx, [], 'no sound pads before the guest is on air');
+  assert.match((await gu.send({ t: 'fx.play', fx: 'FX2' })).error || '', /only while you are on air/);
+  assert.equal((await gu.send({ t: 'fx.stop' })).ok, false, 'the guest cannot stop effects');
   for (const k of ['rundown', 'obs', 'myNotes', 'media', 'vdo', 'ice', 'brk']) assert.equal(gs.s[k], undefined, 'guest view has no ' + k);
   assert.ok(!gu.msgs.some(m => m.t === 'chat.history'), 'no talkback history');
   for (const m of [{ t: 'rundown', action: 'next' }, { t: 'chat.send', text: 'hi' }, { t: 'call.start' }, { t: 'obs', action: 'program', scene: 'GUEST' },
@@ -1067,7 +1070,8 @@ test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate st
   assert.equal(seat().muted, true);
   assert.equal((await d.send({ t: 'guest.onair', confirm: true })).ok, true);
   assert.equal(seat().muted, false); assert.equal(item().sceneItemEnabled, true);
-  await gu.next(m => m.t === 'state' && m.s.guest?.status === 'onair');
+  const go = await gu.next(m => m.t === 'state' && m.s.guest?.status === 'onair');
+  assert.ok(go.s.fx.length > 0, 'on air: the guest gets the sound pads');
   assert.equal((await d.send({ t: 'guest.offair' })).ok, true);
   assert.equal(seat().muted, true); assert.equal(item().sceneItemEnabled, false);
   // ending the invitation disconnects the guest and the old cookie stops working
@@ -1130,11 +1134,12 @@ test('credits: permanent base and episode names; end credits roll and partner li
   const b2 = s2.s.rundown.segments.findIndex(x => x.title === 'BREAK 02');
   const seg2 = s2.s.rundown.segments[b2];
   assert.equal(seg2.cues.video, 'V21');
-  // this episode's spot is a file that does not exist (V12 has none): the break card must take over
-  assert.equal((await d.send({ t: 'script.update', segmentId: seg2.id, fields: { cues: { ...seg2.cues, video: 'V12' } } })).ok, true);
+  // this episode's spot is not playable (no file / not in the library): the break card must take over
+  const missing = s2.s.media.video.find(v => !v.available)?.id || 'V99';
+  assert.equal((await d.send({ t: 'script.update', segmentId: seg2.id, fields: { cues: { ...seg2.cues, video: missing } } })).ok, true);
   const r = await d.send({ t: 'cue.go', index: b2 });
   assert.equal(r.ok, true, JSON.stringify(r));
-  assert.ok(r.result.skipped.some(x => /V12.*NOT AVAILABLE.*fallback V10/.test(x)), JSON.stringify(r.result));
+  assert.ok(r.result.skipped.some(x => new RegExp(missing + '.*NOT AVAILABLE.*fallback V10').test(x)), JSON.stringify(r.result));
   assert.match(mock.inputs.find(i => i.inputName === 'Video Player').settings.local_file, /DZ_02/);
   assert.equal((await d.send({ t: 'break.return', confirm: true })).ok, true);
   await d.send({ t: 'rundown', action: 'reset' });
@@ -1213,10 +1218,122 @@ test('closing sequence: one GO plays V14 → V23 → V17, each following when th
   assert.match(file().local_file, /OFFICIAL END CREDITS/); assert.equal(file().clear_on_media_end, false);
   mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
   await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V17');
-  assert.equal(file().clear_on_media_end, true, 'the last one clears');
+  assert.equal(file().clear_on_media_end, false, 'holds until the background loop');
   mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
-  await new Promise(r => setTimeout(r, 300));
-  assert.match(file().local_file, /THANK_YOU/, 'nothing after the last');
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V22');
+  assert.equal(file().looping, true, 'the end-credits background loops');
+  assert.equal(mock.inputs.find(i => i.inputName === 'Video Player').muted, true, 'background loop without sound');
+  assert.equal(mock.state.stream?.active || false, false, 'the stream is never stopped or started by the sequence');
   await d.send({ t: 'rundown', action: 'reset' });
   d.close();
+});
+
+test('A/B: break video once, then V19 loops muted for the whole break; RETURN TO LIVE brings sound back; programme video clears to the cameras', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 80 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  const vp = () => mock.inputs.find(i => i.inputName === 'Video Player');
+  // programme: V06 once in the MUSIC scene, cleared at the end so the cameras below show
+  await d.send({ t: 'cue.go', index: 5 });
+  assert.equal(vp().settings.looping, false); assert.equal(vp().settings.clear_on_media_end, true);
+  // break: V10 once (held), then V19 loops without sound until RETURN TO LIVE
+  const g = await d.send({ t: 'cue.go', index: 4 });
+  assert.equal(g.ok, true, JSON.stringify(g));
+  assert.equal(vp().settings.looping, false); assert.equal(vp().settings.clear_on_media_end, false);
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V19');
+  assert.equal(vp().settings.looping, true); assert.equal(vp().muted, true);
+  assert.equal(mock.state.program, 'BREAK', 'no automatic return');
+  const r = await d.send({ t: 'break.return', confirm: true });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(vp().muted, false, 'the return video has its sound again');
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('a video with its own sound stops the running jingle; the opening never plays on top of STARTING SOON', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  await d.send({ t: 'cue.go', index: 0 });                        // STARTING SOON: jingle 18 + V03
+  const r = await d.send({ t: 'cue.go', index: 1 });              // OPENING: V01 with its own sound
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.ok(r.result.done.some(x => /JINGLE 18 stopped/.test(x)), JSON.stringify(r.result));
+  // the opening plays once, then the studio background loops by itself (no sound, no extra button)
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V19');
+  // WELCOME: the opening music is not started a second time (17 stays in the library)
+  const w = await d.send({ t: 'cue.go', index: 2 });
+  assert.ok(!w.result.done.some(x => /JINGLE/.test(x)), JSON.stringify(w.result));
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('SOUND FX: Director only, own volume, missing files refused, STOP leaves the jingle alone', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const st = await d.next(m => m.t === 'state');
+  for (const id of ['FX1', 'FX2', 'FX3', 'FX5', 'FX6', 'FX7']) assert.ok(st.s.media.fx.some(x => x.id === id), id);
+  // Georgie has her own pads (a short gap between two effects); she never sets volumes
+  const hs = await hst.next(m => m.t === 'state');
+  assert.ok(hs.s.fx.some(x => x.id === 'FX2'), 'Georgie sees the pads');
+  assert.equal(JSON.stringify(hs.s.fx).includes('.wav'), false, 'no file names for Georgie');
+  assert.equal((await hst.send({ t: 'fx.volume', fx: 'FX2', volume: 10 })).ok, false, 'Georgie cannot change volumes');
+  assert.equal((await d.send({ t: 'fx.volume', fx: 'FX2', volume: 40 })).ok, true);
+  assert.equal((await d.next(m => m.t === 'state' && m.s.fxVol?.FX2 === 40)).s.fxVol.FX2, 40);
+  if (!st.s.media.fx.find(x => x.id === 'FX2').available) assert.match((await d.send({ t: 'fx.play', fx: 'FX2' })).error, /NOT AVAILABLE/);
+  else {
+    const r = await d.send({ t: 'fx.play', fx: 'FX2' });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.match(mock.inputs.find(i => i.inputName === 'FX Player').settings.local_file, /FX2 laugh/);
+    const h1 = await hst.send({ t: 'fx.play', fx: 'FX3' });
+    assert.equal(h1.ok, true, JSON.stringify(h1));
+    assert.equal((await hst.send({ t: 'fx.play', fx: 'FX3' })).ok, false, 'one effect at a time');
+  }
+  const jingle = mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file;
+  assert.equal((await d.send({ t: 'fx.stop' })).ok, true);
+  assert.equal(mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file, jingle);
+  d.close(); hst.close();
+});
+
+test('PRE-SHOW: live 3D counts down to the episode start, video plays the opening; each reloads the page and goes to program', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const r0 = await d.send({ t: 'preshow', mode: 'video', confirm: true });
+  assert.equal(r0.ok, false, 'no PRE-SHOW scene yet');
+  mock.scenes.push('PRE-SHOW'); mock.items['PRE-SHOW'] = [{ sceneItemId: 1, sourceName: 'Virtual Space', inputKind: 'browser_source', sceneItemEnabled: true, sceneItemIndex: 0 }];
+  mock.inputs.push({ inputName: 'Virtual Space', inputKind: 'browser_source', audio: true, muted: false, volumeDb: 0, settings: {} });
+  mock.emit('SceneCreated', { sceneName: 'PRE-SHOW', isGroup: false });
+  await d.next(m => m.t === 'state' && m.s.obs.scenes.some(x => (x.name || x) === 'PRE-SHOW'));
+  const date = new Date(Date.now() + 80 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '10:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  assert.equal((await d.send({ t: 'preshow', mode: 'live' })).ok, false, 'needs confirmation');
+  const url = () => new URL(mock.inputs.find(i => i.inputName === 'Virtual Space').settings.url);
+  const r = await d.send({ t: 'preshow', mode: 'live', confirm: true });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(url().searchParams.get('obs'), '1'); assert.equal(url().searchParams.get('play'), 'live');
+  assert.match(url().searchParams.get('start'), new RegExp(`^${date}T10:00:00\\+0[12]:00$`), 'Vienna time with its offset');
+  assert.equal(mock.state.program, 'PRE-SHOW');
+  assert.ok(mock.log.some(x => x.requestType === 'PressInputPropertiesButton' && x.requestData.inputName === 'Virtual Space'), 'page reloaded');
+  await d.send({ t: 'preshow', mode: 'video', confirm: true });
+  assert.equal(url().searchParams.get('play'), 'video'); assert.equal(url().searchParams.get('start'), null);
+  await d.send({ t: 'obs', action: 'program', scene: 'STANDBY' });
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('launcher status: Director code on the director port only; reports OBS without changing anything', async () => {
+  assert.equal((await fetch(D + '/launcher/status')).status, 403);
+  assert.equal((await fetch(D + '/launcher/status', { headers: { 'x-dz-code': app.secrets.hostCode } })).status, 403);
+  assert.notEqual((await fetch(G + '/launcher/status', { headers: { 'x-dz-code': app.secrets.directorCode } })).status, 200, 'never on Georgie\'s port');
+  const r = await fetch(D + '/launcher/status', { headers: { 'x-dz-code': app.secrets.directorCode } });
+  assert.equal(r.status, 200);
+  const j = await r.json();
+  assert.equal(j.obs.connected, true); assert.equal(j.obs.streaming, false); assert.equal(j.obs.recording, false);
+  assert.ok(!JSON.stringify(j).includes(app.secrets.directorCode), 'no secrets in the answer');
 });

@@ -17,10 +17,11 @@ const ROLES = ['director', 'host', 'overlay', 'guest'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
-  'check.echo', 'check.result', 'notes.set', 'monitors']);  // monitors: watching the camera/program pictures only
+  'check.echo', 'check.result', 'notes.set', 'monitors',  // monitors: watching the camera/program pictures only
+  'fx.play', 'fx.stop']);  // SOUND FX pads, like the Director's
 const OVERLAY_ACTIONS = new Set(['ping']);
 // an invited guest: their own waiting room only. No script, chat, notes, OBS, call or break conversation.
-const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors']);
+const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors', 'fx.play']);  // fx.play: only while on air
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
 const LEADS = ['andrej', 'georgie', 'both'];
@@ -49,6 +50,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     brk: saved.brk || { active: false },
     // THIRD SEAT: one invited guest at a time. Status: invited → waiting (online) → backstage (ADMIT) → onair (TAKE ON AIR)
     guest: saved.guest || null,
+    fxVol: saved.fxVol || {},            // SOUND FX: each pad's own volume, 0–100 %
     mediaAir: saved.mediaAir || { audio: null, video: null },   // what the studio last put on air through the OBS players         // the selected show preset (Sunday / Friday), kept across restarts
   };
   state.gfx.partner = null;            // a partner line never survives a restart
@@ -257,12 +259,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   // titles of the jingles and videos the script refers to (Georgie sees the cues by name, never the files)
   function cueTitles() {
     const out = {};
-    for (const seg of rundown.segments) for (const k of ['jingle', 'video', 'returnJingle', 'returnVideo']) {
+    for (const seg of rundown.segments) for (const k of ['jingle', 'video', 'returnJingle', 'returnVideo', 'loopAfter']) {
       const id = seg.cues?.[k]; const m = id && media?.get(id);
       if (m) out[id] = { title: m.title, available: m.available };
     }
     return out;
   }
+  // the SOUND FX pads as Georgie and an on-air guest see them: names and whether they can play, never files
+  const fxPads = () => (media?.view(state.showId).fx || []).filter(x => x.forShow).map(x => ({ id: x.id, title: x.title, available: x.available && obs.state.connected }));
   const showView = () => ({ title: config.show.title, launch: config.show.launch, schedule: config.show.schedule });
 
   function view(role) {
@@ -270,7 +274,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (role === 'director') {
       const { audio, ...rest } = o;
       return {
-        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, rundown: rundownView(), now: Date.now(), brk: breakView('director'), showCheck: showCheck(), streamArmedUntil: state.streamArmedUntil || 0, guest: guestView('director'), credits: creditsView(), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
+        show: showView(), shows: showList(), showId: state.showId, media: media?.view(state.showId) || null, mediaAir: state.mediaAir, fxVol: state.fxVol, rundown: rundownView(), now: Date.now(), brk: breakView('director'), showCheck: showCheck(), streamArmedUntil: state.streamArmedUntil || 0, guest: guestView('director'), credits: creditsView(), episodes: episodeList(), versions: versionCount(), myNotes: notesFor('andrej'), templates, note: state.note, music: state.music, musicLog: state.musicLog, gfx: state.gfx,
         presence: presence(), hostStatus: state.hostStatus, read: state.read, reminders: state.reminders,
         obs: { ...rest, audio: audio.map(({ db, ...a }) => a), previewScene: previewScene() },
         standby: { scene: standbyScene(), exists: obs.hasScene(standbyScene()) },
@@ -288,6 +292,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
+        fx: fxPads(), fxAir: state.mediaAir.fx || null,
         vdo: { push: vdo.push },
         ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'),
       };
@@ -296,6 +301,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       const g = state.guest;
       return { show: { title: config.show.title }, now: Date.now(),
         guest: g ? { name: g.name, status: g.status, check: g.check || null, push: ['backstage', 'onair'].includes(g.status) ? guestLinks(g).push : '' } : null,
+        fx: g?.status === 'onair' ? fxPads() : [],
         tally: { onAir: obs.state.stream.active } };
     }
     const seg = rundown.segments[state.pos.index];
@@ -449,9 +455,13 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'notes.set': return notesSet(client, msg);
       case 'media.air': return mediaAir(msg);
       case 'media.stop': return mediaStop(msg);
+      case 'fx.play': return fxPlay(msg, client);
+      case 'fx.stop': return fxStop();
+      case 'fx.volume': state.fxVol[str(msg.fx, 4)] = Math.max(0, Math.min(100, Math.round(Number(msg.volume) || 0))); changed(); return;
       case 'media.rescan': media?.scan(); changed(); return;
       case 'cue.go': return cueGo(msg);
       case 'credits': return creditsAction(msg);
+      case 'preshow': return preshow(msg);
       case 'guest.invite': return guestInvite(msg);
       case 'guest.admit': return guestAdmit();
       case 'guest.waiting': return guestBack();
@@ -690,6 +700,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       state.mediaAir.audio = { id: item.id, title: item.title, at: Date.now() };
     } else {
       const scene = str(msg.scene, 256);
+      resetAfter();
+      const vp = (obs.state.audio || []).find(a => a.name === 'Video Player');
+      if (vp?.muted) await obs.setMute('Video Player', false).catch(() => {});   // after a muted background loop
       await obs.playFile('Video Player', item.file, !!msg.loop);
       state.mediaAir.video = { id: item.id, title: item.title, at: Date.now(), loop: !!msg.loop, embeddedAudio: !!item.embeddedAudio };
       // the picture: the given scene, or VT when the program scene has no Video Player
@@ -706,10 +719,36 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   }
   async function mediaStop(msg) {
     const kinds = msg.kind === 'audio' ? ['audio'] : msg.kind === 'video' ? ['video'] : ['audio', 'video'];
-    if (kinds.includes('video')) videoQueue = [];
+    if (kinds.includes('video')) resetAfter();
     for (const k of kinds) { await obs.stopFile(k === 'audio' ? 'Jingle Player' : 'Video Player'); state.mediaAir[k] = null; }
     logEvent('ok', `Stopped: ${kinds.join(' + ')}`);
     changed();
+  }
+
+  /* SOUND FX: short effects (call ring, laugh, applause…) on their own OBS FX Player, only by hand. They never stop the
+     jingle or the video, and they do nothing else: the call ring does not answer a call or put a caller on air. */
+  const FX_GAP = 1500;   // Georgie and the guest: one effect at a time, not a stream of them
+  async function fxPlay(msg, client = {}) {
+    const who = client.role || 'director';
+    if (who === 'guest' && state.guest?.status !== 'onair') throw new Error('Sound effects work only while you are on air');
+    if (who !== 'director') {
+      if (Date.now() - (client.fxAt || 0) < FX_GAP) throw new Error('One moment: the last effect is still playing');
+      client.fxAt = Date.now();
+    }
+    const fx = media?.get(str(msg.fx, 4));
+    if (!fx || fx.type !== 'fx') throw new Error('No such sound effect');
+    if (!fx.available) throw new Error(`${fx.id} — ${fx.title}: FILE NOT AVAILABLE`);
+    if (!obs.state.connected) throw new Error('OBS is not connected');
+    if (!hasInput('FX Player')) throw new Error('OBS has no FX Player yet (npm run obs-setup -- sunday friday --players)');
+    const vol = state.fxVol[fx.id] ?? 80;
+    if ((obs.state.audio || []).some(a => a.name === 'FX Player')) await obs.setVolume('FX Player', vol > 0 ? 20 * Math.log10(vol / 100) : -100);
+    await obs.playFile('FX Player', fx.file, false);
+    state.mediaAir.fx = { id: fx.id, title: fx.title, at: Date.now() };
+    logEvent('ok', `Sound FX: ${fx.id} — ${fx.title} (${vol} %)${who === 'director' ? '' : who === 'host' ? ' · by Georgie' : ' · by the guest'}`);
+    changed();
+  }
+  async function fxStop() {
+    await obs.stopFile('FX Player'); state.mediaAir.fx = null; changed();
   }
 
   /* ---------- SHOW CLOCK, linked cues and breaks ----------
@@ -717,15 +756,40 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
      jingle. A video with its own sound never gets the WAV on top unless the cue says "both". Nothing advances by
      itself: a break that reaches zero shows BREAK COMPLETE — READY TO RETURN and waits for RETURN TO LIVE. */
   const hasInput = n => obs.state.media.some(m => m.name === n);
-  let videoQueue = [];
+  // after the cue's video: the next videos of the sequence, then a background loop, or back to the planned shot
+  let videoQueue = [], afterLoop = null, afterScene = '';
+  const resetAfter = () => { videoQueue = []; afterLoop = null; afterScene = ''; };
+  // one video into the Video Player. A background loop plays without sound; a video with its own sound stops the
+  // running jingle, so the two never play on top of each other.
+  async function startVideo(v, { loop = false, background = false } = {}) {
+    const vp = (obs.state.audio || []).find(a => a.name === 'Video Player');
+    if (vp && vp.muted !== background) await obs.setMute('Video Player', background).catch(() => {});
+    let note = '';
+    if (!background && v.embeddedAudio && state.mediaAir.audio && hasInput('Jingle Player')) {
+      note = `JINGLE ${state.mediaAir.audio.id} stopped: the video carries its own sound`;
+      await obs.stopFile('Jingle Player'); state.mediaAir.audio = null;
+    }
+    await obs.playFile('Video Player', v.file, loop, { keep: !loop && (videoQueue.length > 0 || !!afterLoop) });
+    state.mediaAir.video = { id: v.id, title: v.title, at: Date.now(), loop, background, embeddedAudio: !!v.embeddedAudio };
+    return note;
+  }
   obs.on('media.ended', async name => {
-    if (name !== 'Video Player' || !videoQueue.length) return;
-    const v = videoQueue.shift();
+    if (name !== 'Video Player' || state.mediaAir.video?.loop) return;
     try {
-      await obs.playFile('Video Player', v.file, false, { keep: videoQueue.length > 0 });
-      state.mediaAir.video = { id: v.id, title: v.title, at: Date.now(), loop: false, embeddedAudio: !!v.embeddedAudio };
-      logEvent('ok', `Next in sequence: ${v.id} — ${v.title}`); changed();
-    } catch (e) { videoQueue = []; logEvent('warn', `Sequence stopped: ${e.message}`); }
+      if (videoQueue.length) {
+        const v = videoQueue.shift();
+        const note = await startVideo(v);
+        logEvent('ok', `Next in sequence: ${v.id} — ${v.title}`); if (note) logEvent('ok', note);
+      } else if (afterLoop) {
+        const v = afterLoop; afterLoop = null;
+        await startVideo(v, { loop: true, background: true });
+        logEvent('ok', `Background loop: ${v.id} — ${v.title} (no sound) until the next GO`);
+      } else if (afterScene) {
+        const sc = afterScene; afterScene = ''; state.mediaAir.video = null;
+        if (obs.hasScene(sc)) { await obs.setProgram(sc); logEvent('ok', `Video ended: back to ${sc}`); }
+      } else if (state.mediaAir.video) state.mediaAir.video = null;
+      changed();
+    } catch (e) { resetAfter(); logEvent('warn', `Sequence stopped: ${e.message}`); }
   });
   async function sceneHas(scene, src) {
     try { return (await obs.request('GetSceneItemList', { sceneName: scene })).sceneItems.some(i => i.sourceName === src); } catch { return false; }
@@ -746,20 +810,27 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     const playVideo = vid?.available && hasInput('Video Player');
     if (vid && !vid.available) skipped.push(`${vid.id} — ${vid.title}: VIDEO NOT AVAILABLE`);
     else if (vid && !playVideo) skipped.push(`${vid.id}: OBS has no Video Player yet (npm run obs-setup -- --players)`);
-    // the picture: the cue's scene if it shows the Video Player, otherwise the VT scene for the video
-    if (playVideo && scene && !(await sceneHas(scene, 'Video Player'))) { if (obs.hasScene('VT')) { skipped.push(`SCENE ${scene} has no Video Player: the video plays in VT`); scene = 'VT'; } }
-    // a sequence: the videos that follow this one, each played once when the previous one ends
-    videoQueue = [];
+    // the picture: the cue's scene if it shows the Video Player, otherwise the VT scene for the video; when the video
+    // ends there, the planned shot follows by itself
+    resetAfter();
+    if (playVideo && scene && !(await sceneHas(scene, 'Video Player'))) { if (obs.hasScene('VT')) { skipped.push(`SCENE ${scene} has no Video Player: the video plays in VT, then ${scene}`); afterScene = scene; scene = 'VT'; } }
+    // a sequence: the videos that follow this one, each played once when the previous one ends; then the background loop
     const next = (c.thenVideos || []).map(id => media?.get(id)).filter(x => { if (x?.available) return true; skipped.push(`THEN ${x ? x.id + ' — ' + x.title : 'video'}: NOT AVAILABLE, left out`); return false; });
+    const bg = c.loopAfter ? media?.get(c.loopAfter) : null;
+    if (c.loopAfter && !bg?.available) skipped.push(`LOOP ${bg ? bg.id + ' — ' + bg.title : c.loopAfter}: NOT AVAILABLE, the shot below shows after the video`);
     if (playVideo) {
-      videoQueue = c.mode === 'loop' ? [] : next;
-      await obs.playFile('Video Player', vid.file, c.mode === 'loop', { keep: videoQueue.length > 0 });
-      state.mediaAir.video = { id: vid.id, title: vid.title, at: Date.now(), loop: c.mode === 'loop', embeddedAudio: !!vid.embeddedAudio };
-      done.push(`VIDEO ${vid.id} — ${vid.title}${c.mode === 'loop' ? ' (LOOP)' : ''}${videoQueue.length ? ' → ' + videoQueue.map(x => x.id).join(' → ') : ''}`);
+      const loop = c.mode === 'loop';
+      videoQueue = loop ? [] : next;
+      afterLoop = !loop && bg?.available ? bg : null;
+      if (afterLoop) afterScene = '';
+      const note = await startVideo(vid, { loop });
+      if (note) done.push(note);
+      done.push(`VIDEO ${vid.id} — ${vid.title}${loop ? ' (LOOP)' : ''}${videoQueue.length ? ' → ' + videoQueue.map(x => x.id).join(' → ') : ''}${afterLoop ? ` → ${afterLoop.id} LOOP (no sound)` : ''}`);
     }
     // a segment without a video of its own: the previous one (an opening, a loop) must not stay over the cameras
     if (!c.video && state.mediaAir.video && hasInput('Video Player')) {
-      await obs.stopFile('Video Player'); done.push(`VIDEO ${state.mediaAir.video.id} stopped`); state.mediaAir.video = null;
+      const id = state.mediaAir.video.id; state.mediaAir.video = null;
+      await obs.stopFile('Video Player'); done.push(`VIDEO ${id} stopped`);
     }
     if (scene) { await obs.setProgram(scene); done.push(`SCENE ${scene}`); }
     if (wav) {
@@ -820,7 +891,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (!seg) throw new Error('There is no segment after this break');
     if (!obs.state.connected) throw new Error('OBS is not connected');
     const nc = cleanScript(seg).cues;
-    if (state.mediaAir.video) { await obs.stopFile('Video Player'); state.mediaAir.video = null; }
+    resetAfter();
+    if (state.mediaAir.video) { state.mediaAir.video = null; await obs.stopFile('Video Player'); }
     const r = await fireCues({ ...nc, jingle: b.returnJingle || nc.jingle, video: b.returnVideo || nc.video, mode: b.returnVideo ? 'once' : nc.mode });
     const back = [];
     for (const n of b.muted || []) { try { await obs.setMute(n, false); back.push(n); } catch (e) { r.skipped.push(`${n}: could not unmute (${e.message})`); } }
@@ -847,6 +919,37 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       camsOnAir: (obs.state.items || []).filter(x => x.enabled && /^(Cam|VDO) \/\//.test(x.name)).map(x => x.name),
       otherLive: a.filter(x => !x.mic && !x.muted && /mixer|aux|input_capture/i.test(x.name + ' ' + x.kind)).map(x => x.name),
     } };
+  }
+
+  /* ---------- PRE-SHOW: the Virtual Space page as a clean OBS picture ----------
+     LIVE 3D plays the real-time studio (with a countdown to the episode's start, if it has one: the opening song loops
+     until 3 s before, the beacons flash three times and the opening starts on time). VIDEO plays the finished 90 s
+     opening, which ends on a clean D//0 logo at 88.5–90 s: cut to the cameras there (stinger through the logo). */
+  const PRESHOW_SCENE = 'PRE-SHOW', PRESHOW_SRC = 'Virtual Space';
+  const viennaIso = ms => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'longOffset' }).formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${p.timeZoneName.replace('GMT', '') || '+00:00'}`;
+  };
+  function preshowUrl(mode) {
+    const u = new URL(config.virtualSpace?.url || 'https://virtualspace.distancezeroshow.com/');
+    u.searchParams.set('obs', '1'); u.searchParams.set('play', mode);
+    const at = rundown.episode?.startAt;
+    if (mode === 'live' && at > Date.now()) u.searchParams.set('start', viennaIso(at));
+    return u.toString();
+  }
+  async function preshow(msg) {
+    const mode = msg.mode === 'video' ? 'video' : msg.mode === 'live' ? 'live' : null;
+    if (!mode) throw new Error('Choose LIVE 3D or VIDEO');
+    if (msg.confirm !== true) throw new Error('PRE-SHOW goes to program: it needs confirmation');
+    if (state.brk?.active) throw new Error('A break is running: return to live first');
+    obs.requireScene(PRESHOW_SCENE);
+    const url = preshowUrl(mode);
+    await obs.request('SetInputSettings', { inputName: PRESHOW_SRC, inputSettings: { url } });
+    await obs.request('PressInputPropertiesButton', { inputName: PRESHOW_SRC, propertyName: 'refreshnocache' });
+    await obs.setProgram(PRESHOW_SCENE);
+    logEvent('ok', `PRE-SHOW on program: ${mode === 'live' ? 'live 3D studio' : 'opening video'}`);
+    return { url };
   }
 
   /* ---------- THIRD SEAT: the invited guest ----------
