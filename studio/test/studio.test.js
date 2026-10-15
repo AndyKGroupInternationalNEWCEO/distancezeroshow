@@ -1044,6 +1044,9 @@ test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate st
   const gu = client(G, { cookie: gc }); await gu.opened;
   const gs = await gu.next(m => m.t === 'state');
   assert.equal(gs.s.guest.status, 'waiting'); assert.equal(gs.s.guest.push, '', 'no studio camera link before ADMIT');
+  assert.deepEqual(gs.s.fx, [], 'no sound pads before the guest is on air');
+  assert.match((await gu.send({ t: 'fx.play', fx: 'FX2' })).error || '', /only while you are on air/);
+  assert.equal((await gu.send({ t: 'fx.stop' })).ok, false, 'the guest cannot stop effects');
   for (const k of ['rundown', 'obs', 'myNotes', 'media', 'vdo', 'ice', 'brk']) assert.equal(gs.s[k], undefined, 'guest view has no ' + k);
   assert.ok(!gu.msgs.some(m => m.t === 'chat.history'), 'no talkback history');
   for (const m of [{ t: 'rundown', action: 'next' }, { t: 'chat.send', text: 'hi' }, { t: 'call.start' }, { t: 'obs', action: 'program', scene: 'GUEST' },
@@ -1067,7 +1070,8 @@ test('third seat: invitation, waiting room, ADMIT and TAKE ON AIR as separate st
   assert.equal(seat().muted, true);
   assert.equal((await d.send({ t: 'guest.onair', confirm: true })).ok, true);
   assert.equal(seat().muted, false); assert.equal(item().sceneItemEnabled, true);
-  await gu.next(m => m.t === 'state' && m.s.guest?.status === 'onair');
+  const go = await gu.next(m => m.t === 'state' && m.s.guest?.status === 'onair');
+  assert.ok(go.s.fx.length > 0, 'on air: the guest gets the sound pads');
   assert.equal((await d.send({ t: 'guest.offair' })).ok, true);
   assert.equal(seat().muted, true); assert.equal(item().sceneItemEnabled, false);
   // ending the invitation disconnects the guest and the old cookie stops working
@@ -1274,7 +1278,11 @@ test('SOUND FX: Director only, own volume, missing files refused, STOP leaves th
   await Promise.all([d.opened, hst.opened]);
   const st = await d.next(m => m.t === 'state');
   for (const id of ['FX1', 'FX2', 'FX3', 'FX4', 'FX5', 'FX6', 'FX7']) assert.ok(st.s.media.fx.some(x => x.id === id), id);
-  assert.equal((await hst.send({ t: 'fx.play', fx: 'FX2' })).ok, false, 'Georgie cannot play effects');
+  // Georgie has her own pads (a short gap between two effects); she never sets volumes
+  const hs = await hst.next(m => m.t === 'state');
+  assert.ok(hs.s.fx.some(x => x.id === 'FX2'), 'Georgie sees the pads');
+  assert.equal(JSON.stringify(hs.s.fx).includes('.wav'), false, 'no file names for Georgie');
+  assert.equal((await hst.send({ t: 'fx.volume', fx: 'FX2', volume: 10 })).ok, false, 'Georgie cannot change volumes');
   assert.equal((await d.send({ t: 'fx.volume', fx: 'FX2', volume: 40 })).ok, true);
   assert.equal((await d.next(m => m.t === 'state' && m.s.fxVol?.FX2 === 40)).s.fxVol.FX2, 40);
   if (!st.s.media.fx.find(x => x.id === 'FX2').available) assert.match((await d.send({ t: 'fx.play', fx: 'FX2' })).error, /NOT AVAILABLE/);
@@ -1282,6 +1290,9 @@ test('SOUND FX: Director only, own volume, missing files refused, STOP leaves th
     const r = await d.send({ t: 'fx.play', fx: 'FX2' });
     assert.equal(r.ok, true, JSON.stringify(r));
     assert.match(mock.inputs.find(i => i.inputName === 'FX Player').settings.local_file, /FX2 laugh/);
+    const h1 = await hst.send({ t: 'fx.play', fx: 'FX3' });
+    assert.equal(h1.ok, true, JSON.stringify(h1));
+    assert.equal((await hst.send({ t: 'fx.play', fx: 'FX3' })).ok, false, 'one effect at a time');
   }
   const jingle = mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file;
   assert.equal((await d.send({ t: 'fx.stop' })).ok, true);

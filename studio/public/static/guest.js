@@ -3,6 +3,7 @@
 // them — the studio camera link. Nothing here can control the show; the server allows only these few messages.
 import { $, connect, toast } from './common.js';
 import { nextSteps, renderSteps } from './steps.js';
+import { renderFxPads } from './fxpads.js';
 
 const inv = new URLSearchParams(location.hash.slice(1)).get('invite');
 if (inv) {
@@ -29,6 +30,7 @@ conn.on('frame', f => { if (f.which === 'program' && f.img) { const i = $('#gPro
 function render() {
   const g = S.guest, st = nextSteps(S, 'guest');
   renderSteps($('#gSteps'), st);
+  renderFxPads($('#gFxPads'), $('#gFxCard'), S.fx, conn);
   $('#gStart').classList.toggle('due', st.due === 'check' && !stream);
   $('#gOpen').classList.toggle('due', st.due === 'open');
   if (!g) { $('#gState').textContent = 'Invitation ended'; $('#gLine').textContent = 'Thank you. You can close this page.'; stopCheck(); return; }

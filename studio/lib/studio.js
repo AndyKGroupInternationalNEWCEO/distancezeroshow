@@ -17,10 +17,11 @@ const ROLES = ['director', 'host', 'overlay', 'guest'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
-  'check.echo', 'check.result', 'notes.set', 'monitors']);  // monitors: watching the camera/program pictures only
+  'check.echo', 'check.result', 'notes.set', 'monitors',  // monitors: watching the camera/program pictures only
+  'fx.play', 'fx.stop']);  // SOUND FX pads, like the Director's
 const OVERLAY_ACTIONS = new Set(['ping']);
 // an invited guest: their own waiting room only. No script, chat, notes, OBS, call or break conversation.
-const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors']);
+const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors', 'fx.play']);  // fx.play: only while on air
 const CHAT_KEEP = 1000;
 const LOG_KEEP = 200;
 const LEADS = ['andrej', 'georgie', 'both'];
@@ -264,6 +265,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     }
     return out;
   }
+  // the SOUND FX pads as Georgie and an on-air guest see them: names and whether they can play, never files
+  const fxPads = () => (media?.view(state.showId).fx || []).filter(x => x.forShow).map(x => ({ id: x.id, title: x.title, available: x.available && obs.state.connected }));
   const showView = () => ({ title: config.show.title, launch: config.show.launch, schedule: config.show.schedule });
 
   function view(role) {
@@ -289,6 +292,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         presence: presence(), read: state.read,
         // tally only: Georgie sees whether the show is live, never anything she could act on
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
+        fx: fxPads(), fxAir: state.mediaAir.fx || null,
         vdo: { push: vdo.push },
         ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'),
       };
@@ -297,6 +301,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       const g = state.guest;
       return { show: { title: config.show.title }, now: Date.now(),
         guest: g ? { name: g.name, status: g.status, check: g.check || null, push: ['backstage', 'onair'].includes(g.status) ? guestLinks(g).push : '' } : null,
+        fx: g?.status === 'onair' ? fxPads() : [],
         tally: { onAir: obs.state.stream.active } };
     }
     const seg = rundown.segments[state.pos.index];
@@ -450,7 +455,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'notes.set': return notesSet(client, msg);
       case 'media.air': return mediaAir(msg);
       case 'media.stop': return mediaStop(msg);
-      case 'fx.play': return fxPlay(msg);
+      case 'fx.play': return fxPlay(msg, client);
       case 'fx.stop': return fxStop();
       case 'fx.volume': state.fxVol[str(msg.fx, 4)] = Math.max(0, Math.min(100, Math.round(Number(msg.volume) || 0))); changed(); return;
       case 'media.rescan': media?.scan(); changed(); return;
@@ -722,7 +727,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
 
   /* SOUND FX: short effects (call ring, laugh, applause…) on their own OBS FX Player, only by hand. They never stop the
      jingle or the video, and they do nothing else: the call ring does not answer a call or put a caller on air. */
-  async function fxPlay(msg) {
+  const FX_GAP = 1500;   // Georgie and the guest: one effect at a time, not a stream of them
+  async function fxPlay(msg, client = {}) {
+    const who = client.role || 'director';
+    if (who === 'guest' && state.guest?.status !== 'onair') throw new Error('Sound effects work only while you are on air');
+    if (who !== 'director') {
+      if (Date.now() - (client.fxAt || 0) < FX_GAP) throw new Error('One moment: the last effect is still playing');
+      client.fxAt = Date.now();
+    }
     const fx = media?.get(str(msg.fx, 4));
     if (!fx || fx.type !== 'fx') throw new Error('No such sound effect');
     if (!fx.available) throw new Error(`${fx.id} — ${fx.title}: FILE NOT AVAILABLE`);
@@ -732,7 +744,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if ((obs.state.audio || []).some(a => a.name === 'FX Player')) await obs.setVolume('FX Player', vol > 0 ? 20 * Math.log10(vol / 100) : -100);
     await obs.playFile('FX Player', fx.file, false);
     state.mediaAir.fx = { id: fx.id, title: fx.title, at: Date.now() };
-    logEvent('ok', `Sound FX: ${fx.id} — ${fx.title} (${vol} %)`);
+    logEvent('ok', `Sound FX: ${fx.id} — ${fx.title} (${vol} %)${who === 'director' ? '' : who === 'host' ? ' · by Georgie' : ' · by the guest'}`);
     changed();
   }
   async function fxStop() {
