@@ -206,7 +206,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     lower('DISTANCE // ZERO', 'The show starts soon');
   }
   // 2. the opening video on the wall, with its own sound
-  // the last three seconds before air: flash and tone, three times; then the beacons are on air
+  // the last three seconds before air: flash and tone, three times; then the beacons go dark
   function cue() {
     if (cued) return;
     cued = true; studio.beacons.cue();

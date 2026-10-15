@@ -594,7 +594,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const floorOpaque = () => { floor.material.transparent = false; floor.material.opacity = 1; floor.material.needsUpdate = true; };
   /* ----- the on-air beacons: a small one over the backstage door, two larger ones on the floor either side of the stage
      front. Off the rest of the time; turning slowly while the show is about to start; three flashes, each with a tone
-     from the simulation, in the last three seconds; then on air: bright and turning ----- */
+     from the simulation, in the last three seconds; then off again for the whole time on air ----- */
   const beacons = [beacon(0.65), beacon(1.6, { light: true }), beacon(1.6, { light: true })];
   beacons[0].group.position.set(0, LOUNGE_DOOR.h + 0.3, 0.12); lounge.doorFrame.add(beacons[0].group);
   mesh(new THREE.BoxGeometry(0.05, 0.03, 0.12), M.graphite, lounge.doorFrame).position.set(0, LOUNGE_DOOR.h + 0.285, 0.06);    // its wall bracket
@@ -602,7 +602,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   let beaconMode = 'off', cueAt = 0, beaconClock = () => performance.now() / 1000;   // a rendered clip sets its own clock
   anim.push((t, dt) => {
     const now = beaconClock();                            // real time: the flashes keep step with the tones, also in slow motion
-    if (beaconMode === 'cue' && now - cueAt >= 3) beaconMode = 'air';
+    if (beaconMode === 'cue' && now - cueAt >= 3) beaconMode = 'off';   // on air the beacons are dark
     const flash = beaconMode === 'cue' && (now - cueAt) % 1 < 0.4;
     for (const b of beacons) b.update(dt, beaconMode === 'air' ? 1.5 : beaconMode === 'standby' ? 0.7 : 0,
       beaconMode === 'air' ? 1 : beaconMode === 'standby' ? 0.45 : flash ? 1.3 : 0);
