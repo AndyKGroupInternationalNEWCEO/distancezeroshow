@@ -3,6 +3,7 @@
 //   node production/empty-opening/render.mjs --stills 22.8,24.5       single frames -> out/still-<t>.png
 //   node production/empty-opening/render.mjs --from 15 --to 30        a part only
 //   node production/empty-opening/render.mjs --query view=assistant   extra page parameters (review views)
+//   node production/empty-opening/render.mjs --query cut=arrival      the arrival cut -> out/arrival-1080p30.mp4 (+ out/arrival-steps.json)
 // Needs Google Chrome and ffmpeg. The audio is laid on afterwards by mix.sh (the opening itself renders silent).
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -14,8 +15,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url)), ROOT = join(HERE, '..', '..'), OUT = join(HERE, 'out');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const FPS = 30, from = +arg('from', 0), to = +arg('to', 90), stills = arg('stills', '');
-const query = arg('query', '');
+const query = arg('query', ''), arrival = /(^|&)cut=arrival/.test(query);
+// --blur K: K exposures per frame over half the frame's time (a 180° shutter), averaged: a real camera's motion blur
+const FPS = 30, from = +arg('from', 0), to = +arg('to', arrival ? 130 : 90), stills = arg('stills', ''), K = +arg('blur', 1);
 mkdirSync(OUT, { recursive: true });
 
 // static server for the repository (the page imports ../../assets and ../../virtual-studio)
@@ -58,7 +60,7 @@ async function load() {
 await load();
 // one frame as a PNG, straight from the canvas (frame-exact: the page draws exactly time t), with its mean brightness
 const shoot = async t => {
-  const r = await evaluate(`(async () => { opening.seek(${t}); const cv = document.querySelector('#c');
+  const r = await evaluate(`(async () => { await opening.seek(${t}); const cv = document.querySelector('#c');
     const m = document.createElement('canvas'); m.width = 96; m.height = 54; const x = m.getContext('2d'); x.drawImage(cv, 0, 0, 96, 54);
     const d = x.getImageData(0, 0, 96, 54).data; let l = 0; for (let i = 0; i < d.length; i += 4) l += d[i] + d[i + 1] + d[i + 2];
     const b = await new Promise(r => cv.toBlob(r, 'image/png'));
@@ -82,19 +84,25 @@ async function grab(t) {
 }
 
 if (stills) {
+  if (arrival) console.log('arrival timing', JSON.stringify(await evaluate('opening.arrival.info')));
   // walk up to each still from 2 s before, so damping and the actors' state are as in the clip
   for (const t of stills.split(',').map(Number)) {
     for (let u = Math.max(0, t - 2); u < t; u += 1 / FPS) await evaluate(`opening.seek(${u})`);
     const file = join(OUT, `still-${t.toFixed(2)}${query ? '-' + query.replace(/[^a-z0-9]+/gi, '_') : ''}.png`);
     writeFileSync(file, await grab(t)); console.log('still', file);
+    if (arrival && t < 22) console.log('  heads in frame:', JSON.stringify(await evaluate('opening.arrival.headsInFrame(opening.camera)')));
   }
 } else {
-  const name = join(OUT, from === 0 && to === 90 ? 'empty-opening-1080p30.mp4' : `empty-opening-${from}-${to}.mp4`);
-  const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
+  const full = from === 0 && to === (arrival ? 130 : 90), stem = arrival ? 'arrival' : 'empty-opening';
+  const name = join(OUT, (full ? `${stem}-1080p30` : `${stem}-${from}-${to}`) + (K > 1 ? `-blur${K}` : '') + '.mp4');
+  // the footsteps' timing, for the mix
+  if (arrival) writeFileSync(join(OUT, 'arrival-steps.json'), JSON.stringify(await evaluate('opening.arrival.footsteps()')));
+  const blurFilter = K > 1 ? ['-vf', `tmix=frames=${K},select='eq(mod(n,${K}),${K - 1})',setpts=N/(${FPS}*TB)`, '-r', String(FPS)] : [];
+  const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS * K), '-c:v', 'png', '-i', '-', ...blurFilter,
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', name], { stdio: ['pipe', 'inherit', 'inherit'] });
   const n = Math.round((to - from) * FPS), t0 = Date.now();
-  for (let f = 0; f < n; f++) {
-    const png = await grab(from + f / FPS);
+  for (let f = 0; f < n; f++) for (let k = 0; k < K; k++) {
+    const png = await grab(from + f / FPS + (K > 1 ? (k / K) * 0.5 / FPS : 0));
     if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once('drain', r));
     if (f % 150 === 0) console.log(`frame ${f}/${n}  ${((Date.now() - t0) / 1000 / (f + 1)).toFixed(2)} s/frame`);
   }

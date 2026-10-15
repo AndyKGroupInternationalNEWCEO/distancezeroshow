@@ -46,13 +46,35 @@ function loadClip(path, role) {
   return clipCache.get(key);
 }
 
-export async function createActor(key, texLoader) {
+// the library's specular map, inverted, as a roughness map: rubber soles, leather, denim and skin each get their own sheen
+function roughnessFromSpecular(url) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+      for (let i = 0; i < p.length; i += 4) { const r = 0.42 + 0.56 * (1 - p[i + 1] / 255); p[i] = p[i + 1] = p[i + 2] = Math.round(r * 255); }
+      x.putImageData(d, 0, 0);
+      const t = new THREE.CanvasTexture(c); t.flipY = true; t.anisotropy = 8; res(t);
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+
+// opts.realistic: physically based cloth and shoes (roughness from the specular map, a little sheen on the fabric);
+// opts.wardrobe: a named set of body maps from ../avatars (e.g. 'show': wardrobe_show.py, black trousers and shoes)
+export async function createActor(key, texLoader, opts = {}) {
+  const W = opts.wardrobe;
   const C = CAST[key], clipNames = CLIPS[C.sex];
   const tex = (name, srgb = true) => { const t = texLoader.load(AVATARS + 'web/' + name); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
   const [model, ...clipList] = await Promise.all([loadFBX(C.model), ...Object.entries(clipNames).map(([role, p]) => loadClip(p, role))]);
 
   const mats = {
-    body: new THREE.MeshStandardMaterial({ map: tex(C.body + '.jpg'), normalMap: tex(C.tex + '_body_normal.png', false), roughness: 0.78 }),
+    body: opts.realistic
+      ? new THREE.MeshPhysicalMaterial({ map: tex(W ? `${C.tex}_body_color_${W}.jpg` : C.body + '.jpg'), normalMap: tex(`${C.tex}_body_normal${W ? '_' + W : ''}.png`, false), normalScale: new THREE.Vector2(1.2, 1.2),
+          roughness: 1, roughnessMap: await roughnessFromSpecular(`${AVATARS}web/${C.tex}_body_specular${W ? '_' + W : ''}.jpg`), sheen: 0.3, sheenRoughness: 0.8, sheenColor: new THREE.Color(0x202328) })
+      : new THREE.MeshStandardMaterial({ map: tex(C.body + '.jpg'), normalMap: tex(C.tex + '_body_normal.png', false), roughness: 0.78 }),
     head: new THREE.MeshStandardMaterial({ map: tex(C.tex + '_head_color.jpg'), normalMap: tex(C.tex + '_head_normal.png', false), roughness: 0.55 }),
   };
   if (C.opacity) mats.opacity = new THREE.MeshStandardMaterial({ map: tex(C.tex + '_opacity_color.png'), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.6 });

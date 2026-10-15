@@ -52,6 +52,7 @@ document.body.classList.toggle('render', render);
 const canvas = $('#c');
 const app = await start({ canvas, width: 1920, height: 1080, realtime: !render, progress: p => { $('#status').textContent = 'Loading ' + Math.round(p * 100) + '%'; } });
 window.opening = app; window.openingReady = true;
+$('#scrub').max = DURATION;
 if (!render) {
   $('#status').textContent = 'Preview renders in real time and may drop frames; the offline render is frame-exact.';
   for (const c of CUES) { const i = document.createElement('i'); i.style.left = (c.t / DURATION * 100) + '%'; i.title = `${c.t.toFixed(1)} s · ${c.label}`; $('#marks').append(i); }

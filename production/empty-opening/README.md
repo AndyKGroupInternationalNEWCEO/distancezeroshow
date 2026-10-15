@@ -41,3 +41,34 @@ transition point 0 ms. The live picture of Andy'K and Georgie then appears throu
     sh production/empty-opening/stinger.sh                   # stinger + preview
 
 Preview in the browser: serve the repository and open `production/empty-opening/index.html`.
+
+## The arrival cut (`?cut=arrival`, 130 s)
+
+The same opening with the presenters' arrival before it and a new end after ON AIR. The 90 s cut above is unchanged.
+
+| s | |
+|---|---|
+| 0–3.6 | Night: the studio building, wide (wet pavement, uplit concrete, the D//0 sign, the lit lobby) |
+| 3.6–7.4 | Andy'K's and Georgie's shoes on the wet slabs, in at the glass doors (no faces: the camera stays at ankle height) |
+| 7.4–11 | The lobby: the reception desk with the D//0 logo lit in its front; they walk on past it to the corridor |
+| 11–20.4 | The backstage lounge: out of the dressing rooms to their armchairs, and down |
+| 20.4–25 | The camera goes on alone through the BACKSTAGE door into the dark studio |
+| 25–105 | The 90 s opening's first 80 s (all cue times + 25 s); the beacons go dark after their three flashes |
+| 105.4 | The wall plays the opening video (`assets/video/dz-logo-reveal.mp4`, as in the on-air simulation) |
+| 113.5 | The wall plays the studio background loop (`assets/video/dz-master-studio.mp4`) |
+| 120.5–130 | The loop fills the frame, clean: the live cameras go over it. The camera never pulls back |
+
+The presenters are the Rocketbox avatars (MIT, see `../avatars/README.md`), not likenesses; only their legs and shoes
+are seen, dressed as in the references by `../avatars/wardrobe_show.py` (Andy'K: black trousers and black leather
+shoes; Georgie: slim black trousers, her black shoes). Realism: Poly Haven CC0 concrete, paving and asphalt (`cc0.sh`)
+tinted to the street's own tones, wet reflections blurred and broken up by the surface (not a mirror), the night city
+HDRI only as reflections in glass and wet ground, contact shadows under the shoes, walks fitted to whole strides (no
+sliding), a smoothly eased dolly, and motion blur (`--blur 4`, a 180° shutter). The arrival's sound (city, drizzle,
+footsteps on the measured foot contacts, the doors, room tone) is made by `arrival-sfx.mjs`, no library sounds.
+
+    sh production/empty-opening/cc0.sh                               # CC0 textures and the night HDRI
+    sh production/empty-opening/frames.sh                            # the wall's two videos as frame sequences
+    node production/empty-opening/render.mjs --query cut=arrival --blur 4   # out/arrival-1080p30-blur4.mp4 (+ arrival-steps.json)
+    sh production/empty-opening/mix-arrival.sh out/arrival-1080p30-blur4.mp4
+
+Preview: `production/empty-opening/index.html?cut=arrival`.
