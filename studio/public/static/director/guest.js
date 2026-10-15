@@ -50,12 +50,12 @@ export function render(ctx) {
     h('div', { class: 'gs-steps' },
       h('div', { class: 'gs-step' + (['invited', 'waiting'].includes(g.status) ? '' : ' done') }, h('span', { class: 'label', text: '1 · Preview' }), h('p', { class: 'hint', text: 'Still preview on the GUEST monitor, if the guest shares it.' })),
       h('div', { class: 'gs-step' + (['invited', 'waiting'].includes(g.status) ? ' cur' : g.status === 'onair' || g.status === 'backstage' ? ' done' : '') }, h('span', { class: 'label', text: '2 · Admit backstage' }),
-        ['invited', 'waiting'].includes(g.status) ? b('ADMIT GUEST', 'primary', e => act(e.currentTarget, () => send(ctx, 'guest.admit'), 'Guest admitted backstage — not on air'), { disabled: !g.online }) : null,
+        ['invited', 'waiting'].includes(g.status) ? b('ADMIT GUEST', 'primary', e => act(e.currentTarget, () => send(ctx, 'guest.admit'), 'Guest admitted backstage — not on air'), { disabled: !g.online, dataset: { step: 'admit' } }) : null,
         g.status === 'backstage' ? b('Back to waiting room', 'quiet', e => act(e.currentTarget, () => send(ctx, 'guest.waiting'))) : null),
       h('div', { class: 'gs-step' + (['backstage', 'onair'].includes(g.status) ? ' cur' : '') }, h('span', { class: 'label', text: '3 · On air' }),
         g.status === 'onair' ? b('TAKE GUEST OFF AIR', 'danger', e => act(e.currentTarget, () => send(ctx, 'guest.offair'), 'Guest off air'))
           : b('TAKE GUEST ON AIR', 'danger', e => { if (confirmTwice(e.currentTarget, 'CONFIRM: GUEST ON AIR')) act(e.currentTarget, () => send(ctx, 'guest.onair', { confirm: true }), 'Guest on air'); },
-            { disabled: g.status !== 'backstage' || !!S.brk?.active || !seat, title: g.status !== 'backstage' ? 'Admit the guest first' : '' }))),
+            { disabled: g.status !== 'backstage' || !!S.brk?.active || !seat, title: g.status !== 'backstage' ? 'Admit the guest first' : '', dataset: { step: 'onair' } }))),
     // why a step is not available, in words
     (() => { const why = ['invited', 'waiting'].includes(g.status) && !g.online ? `ADMIT waits for ${g.name} to open the link.`
       : g.status !== 'backstage' && g.status !== 'onair' ? 'TAKE GUEST ON AIR needs ADMIT first.'

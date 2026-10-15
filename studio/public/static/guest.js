@@ -2,6 +2,7 @@
 // microphone check, an optional still preview for the studio, the program picture, and — once the Director admits
 // them — the studio camera link. Nothing here can control the show; the server allows only these few messages.
 import { $, connect, toast } from './common.js';
+import { nextSteps, renderSteps } from './steps.js';
 
 const inv = new URLSearchParams(location.hash.slice(1)).get('invite');
 if (inv) {
@@ -26,7 +27,10 @@ conn.on('state', ({ s }) => { S = s; render(); });
 conn.on('frame', f => { if (f.which === 'program' && f.img) { const i = $('#gProg'); i.src = f.img; i.hidden = false; $('#gProgMsg').hidden = true; } });
 
 function render() {
-  const g = S.guest;
+  const g = S.guest, st = nextSteps(S, 'guest');
+  renderSteps($('#gSteps'), st);
+  $('#gStart').classList.toggle('due', st.due === 'check' && !stream);
+  $('#gOpen').classList.toggle('due', st.due === 'open');
   if (!g) { $('#gState').textContent = 'Invitation ended'; $('#gLine').textContent = 'Thank you. You can close this page.'; stopCheck(); return; }
   const [t, line] = STATE[g.status] || STATE.waiting;
   $('#gState').textContent = t; $('#gLine').textContent = line;

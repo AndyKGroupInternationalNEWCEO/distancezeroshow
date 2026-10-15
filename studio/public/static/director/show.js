@@ -5,6 +5,7 @@
 import { $, $$, h, hms, act, toast, segmentTimes, clock, zonedToday } from '../common.js';
 import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, serverNow, cueLine } from '../showpanels.js';
 import { showClock, mmss } from '../clock.js';
+import { nextSteps, renderSteps } from '../steps.js';
 import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
 import * as preshowPanel from './preshow.js';
@@ -223,4 +224,10 @@ function renderSide(ctx) {
 export function tick(ctx) {
   const S = ctx.S;
   clk.tick(S); brk.tick(S); mons.update(S);
+  // 1 · 2 · 3 and the one button to press now blinks (GO, RETURN TO LIVE, ADMIT GUEST or TAKE GUEST ON AIR)
+  const st = nextSteps(S, 'director', serverNow());
+  renderSteps($('#dSteps'), st);
+  $('#goBtn').classList.toggle('due', st.due === 'go' || st.due === 'return');
+  for (const b of $$('#gsBody [data-step]')) b.classList.toggle('due', b.dataset.step === st.due);
+  $('#sideTabs [data-p=guest]').classList.toggle('due', st.due === 'admit' || st.due === 'onair');
 }
