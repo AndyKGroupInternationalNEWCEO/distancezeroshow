@@ -48,7 +48,7 @@ else {
       { cwd: ROOT, detached: true, stdio: ['ignore', out, out], env });
     child.unref(); started = true;
   }
-  for (let i = 0; i < 60 && !(await get('/healthz')); i++) await sleep(250);
+  for (let i = 0; i < 240 && !(await get('/healthz')); i++) await sleep(250);   // up to 60 s: the first start measures every media file
   if (mine) fs.rmSync(lock, { force: true });
   if (await get('/healthz')) notes.push(started ? 'Studio: started' : 'Studio: started by the other click');
   else problems.push(`The studio did not start → open the studio folder and double-click "Start DISTANCE ZERO Studio" to see the reason (log: data/launcher.log).`);

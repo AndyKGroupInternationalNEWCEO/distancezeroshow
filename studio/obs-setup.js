@@ -137,13 +137,18 @@ async function addPlayers(show, existing) {
 
 // Background removal (the free OBS Background Removal plugin, royshil/obs-backgroundremoval): each person is cut out of
 // their camera and stands in front of the show's own background video (show.keying.background) instead of their room.
-// Settings from the private virtual-live rehearsal of 13 Oct (MediaPipe on CoreML, mask every 2nd frame, soft edges).
+// Settings from the rehearsals of 13 and 15 Oct: Robust Video Matting on CoreML (cleaner hair and edges than MediaPipe),
+// mask every 2nd frame with temporal smoothing (three keyed people on an 8 GB M2), edges pulled in by 1 px against halos.
 // The mask keeps running when the camera is not on air: started on a cut, it needs 5–10 s and the person would be missing.
 // A scene that shows a keyed camera without that background gets it at the very bottom, full frame.
 const KEY_FILTER = 'D//0 Background Removal';
-const keySettings = { model_select: 'models/mediapipe.with_runtime_opt.ort', useGPU: 'coreml', numThreads: 1, mask_every_x_frames: 2,
-  enable_threshold: true, threshold: 0.42, contour_filter: 0.05, smooth_contour: 0.5, feather: 0.015, mask_expansion: 0,
-  temporal_smooth_factor: 0.65, enable_image_similarity: true, blur_background: 0, stop_when_source_is_inactive: false };
+const keySettings = { model_select: 'models/rvm_mobilenetv3_fp32.with_runtime_opt.ort', useGPU: 'coreml', numThreads: 1, mask_every_x_frames: 2,
+  enable_threshold: true, threshold: 0.5, contour_filter: 0.05, smooth_contour: 0.5, feather: 0.02, mask_expansion: -1,
+  temporal_smooth_factor: 0.55, enable_image_similarity: true, blur_background: 0, stop_when_source_is_inactive: false };
+// Andrej's own camera (the Mac's camera): full 1080p, and a grade towards the studio's dark, cool look with a little sharpening
+const CAM = 'Cam // Andrej';
+const camFilters = [['D//0 Studio Look', 'color_filter_v2', { contrast: 0.08, saturation: -0.12, gamma: -0.05, brightness: -0.02 }],
+  ['D//0 Sharpen', 'sharpness_filter', { sharpness: 0.12 }]];
 async function addKeying(show, existing) {
   const name = show.obs.sceneCollection;
   if (!show.keying) { say(`SKIP  "${name}": no keying in shows/${show.id}.json`); return; }
@@ -165,6 +170,18 @@ async function addKeying(show, existing) {
     }
     await req('CreateSourceFilter', { sourceName: src, filterName: KEY_FILTER, filterKind: 'background_removal', filterSettings: keySettings });
     done.push(`background removal on ${src}`);
+  }
+  if (keyed.includes(CAM)) {
+    const cur = (await req('GetInputSettings', { inputName: CAM })).inputSettings;
+    if (cur.preset !== 'AVCaptureSessionPreset1920x1080') {
+      await req('SetInputSettings', { inputName: CAM, inputSettings: { use_preset: true, preset: 'AVCaptureSessionPreset1920x1080' } });
+      done.push(`${CAM} at 1920x1080`);
+    }
+    const have = new Set((await req('GetSourceFilterList', { sourceName: CAM })).filters.map(f => f.filterName));
+    for (const [fname, kind, settings] of camFilters) {
+      if (have.has(fname)) await req('SetSourceFilterSettings', { sourceName: CAM, filterName: fname, filterSettings: settings });
+      else { await req('CreateSourceFilter', { sourceName: CAM, filterName: fname, filterKind: kind, filterSettings: settings }); done.push(`${fname} on ${CAM}`); }
+    }
   }
   const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
   for (const { sceneName } of (await req('GetSceneList')).scenes) {
