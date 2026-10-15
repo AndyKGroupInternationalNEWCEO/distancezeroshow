@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Broadcast graphics — DISTANCE // ZERO production</title>
+<!-- Lower thirds for OBS, drawn frame by frame on a transparent 1920×1080 canvas (render-graphics.mjs makes the
+     WebM/MOV files). ?g=andy | georgie | guest&name=…&sub=…  ·  ?t=2.5 shows one moment in the browser. -->
+<style>
+  @font-face { font-family: Archivo; src: url(../../assets/fonts/archivo-latin.woff2) format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: Archivo; src: url(../../assets/fonts/archivo-latin-ext.woff2) format('woff2'); font-weight: 100 900; unicode-range: U+0100-024F; }
+  html, body { margin: 0; background: #333; }
+  canvas { display: block; width: 100vw; max-width: 1920px; background: repeating-conic-gradient(#555 0 25%, #444 0 50%) 0 0 / 40px 40px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+const q = new URLSearchParams(location.search);
+const AMBER = [242, 166, 80], ICE = [169, 200, 238], CHAMPAGNE = [227, 199, 154];
+const PRESETS = {
+  andy: { name: "DJ ANDY'K", sub: 'ANDREJ KNEISL  ·  VIENNA', accent: AMBER, side: 'left' },
+  georgie: { name: 'GEORGIE WALKER', sub: 'MELBOURNE', accent: ICE, side: 'left' },
+  guest: { name: q.get('name') || 'SPECIAL GUEST', sub: q.get('sub') || 'DISTANCE // ZERO', accent: CHAMPAGNE, side: 'left' },
+};
+const G = { ...PRESETS[q.get('g') || 'andy'], ...(q.get('name') ? { name: q.get('name') } : {}), ...(q.get('sub') ? { sub: q.get('sub') } : {}) };
+export const DURATION = 8, IN = 0.9, OUT = 0.8;
+const c = document.getElementById('c'), x = c.getContext('2d');
+const logo = new Image(); logo.src = '../../assets/logo-do-1k.webp';   // the crystal D//0, transparent, 1024 × 512
+await Promise.all([document.fonts.load('600 54px Archivo'), document.fonts.load('500 24px Archivo'), new Promise(r => logo.complete ? r() : (logo.onload = r))]);
+
+const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : 1 - Math.pow(1 - u, 3);
+const easeIn = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * u;
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+function spaced(text, px, py, spacing) {
+  let cx = px; for (const ch of text) { x.fillText(ch, cx, py); cx += x.measureText(ch).width + spacing; } return cx - spacing - px;
+}
+function width(text, spacing) { let w = 0; for (const ch of text) w += x.measureText(ch).width + spacing; return w - spacing; }
+
+// one moment of the lower third, t in seconds
+export function draw(t) {
+  x.clearRect(0, 0, 1920, 1080);
+  const inU = ease(t / IN), outU = easeIn((t - (DURATION - OUT)) / OUT), vis = inU * (1 - outU);
+  if (vis <= 0) return;
+  x.font = '600 54px Archivo'; const nameW = width(G.name, 7);
+  x.font = '500 22px Archivo'; const subW = width(G.sub, 6);
+  const L = 120, B = 935, H = 128, W = Math.max(nameW, subW) + 190;   // title-safe: 6 % from the left, above the bottom tenth
+  // the panel opens from the accent line to the right: dark smoked glass, a faint top sheen, a soft shadow
+  const open = ease((t - 0.12) / 0.7) * (1 - outU);
+  const pw = W * open;
+  x.save();
+  x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 30; x.shadowOffsetY = 8;
+  const g = x.createLinearGradient(0, B - H, 0, B);
+  g.addColorStop(0, 'rgba(18,20,24,0.82)'); g.addColorStop(1, 'rgba(6,7,9,0.88)');
+  x.fillStyle = g; x.fillRect(L, B - H, pw, H);
+  x.restore();
+  const sheen = x.createLinearGradient(0, B - H, 0, B - H + 40);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.10)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = sheen; x.fillRect(L, B - H, pw, 40);
+  x.fillStyle = 'rgba(255,255,255,0.08)'; x.fillRect(L, B - H, pw, 1);
+  // the accent: a vertical bar that grows first, then a thin line along the panel's foot, with a light sweeping along it
+  const bar = ease(t / 0.5) * (1 - outU);
+  x.fillStyle = rgba(G.accent, 1); x.fillRect(L - 6, B - H * bar, 6, H * bar);
+  x.fillStyle = rgba(G.accent, 0.85); x.fillRect(L, B - 2, pw, 2);
+  const sweep = ((t - 0.9) / 1.6), sx = L + (W + 300) * sweep - 150;
+  if (sweep > 0 && sweep < 1) {
+    const sg = x.createLinearGradient(sx - 150, 0, sx + 150, 0);
+    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.85)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    x.save(); x.beginPath(); x.rect(L, B - 3, pw, 4); x.clip(); x.fillStyle = sg; x.fillRect(sx - 150, B - 3, 300, 4); x.restore();
+  }
+  // the crystal logo at the panel's left, the name and the line under it, rising into place
+  const tx = ease((t - 0.35) / 0.7), ta = tx * (1 - outU);
+  x.save(); x.beginPath(); x.rect(L, B - H, pw, H); x.clip();
+  x.globalAlpha = ta;
+  const lw = 92, lh = lw * logo.height / logo.width;
+  x.drawImage(logo, L + 26, B - H / 2 - lh / 2 + (1 - tx) * 10, lw, lh);
+  x.fillStyle = '#f3f5f8'; x.font = '600 54px Archivo'; x.textBaseline = 'alphabetic';
+  spaced(G.name, L + 140, B - 58 + (1 - tx) * 14, 7);
+  x.globalAlpha = ta * ease((t - 0.55) / 0.6);
+  x.fillStyle = rgba(G.accent, 0.95); x.font = '500 22px Archivo';
+  spaced(G.sub, L + 142, B - 24 + (1 - tx) * 10, 6);
+  x.restore();
+}
+window.graphic = { draw, DURATION, canvas: c };
+window.graphicReady = true;
+if (q.has('t')) draw(+q.get('t')); else { const t0 = performance.now(); const loop = () => { draw(((performance.now() - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); }; loop(); }
+</script>
+</body>
+</html>
