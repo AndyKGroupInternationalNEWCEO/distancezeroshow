@@ -482,6 +482,70 @@
       "shows": [
         "friday"
       ]
+    },
+    {
+      "id": "FX9",
+      "title": "TYPING",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX10",
+      "title": "CALL DISCONNECT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX11",
+      "title": "CORRECT ANSWER",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX13",
+      "title": "PRIZE REVEAL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX14",
+      "title": "AUDIENCE SURPRISE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX15",
+      "title": "COMEDY RIMSHOT",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX16",
+      "title": "APPLAUSE ALTERNATE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX17",
+      "title": "LAUGH ALTERNATE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
     }
   ]
 }

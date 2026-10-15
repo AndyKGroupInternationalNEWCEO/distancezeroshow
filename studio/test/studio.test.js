@@ -1273,11 +1273,16 @@ test('SOUND FX: Director only, own volume, missing files refused, STOP leaves th
   const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
   await Promise.all([d.opened, hst.opened]);
   const st = await d.next(m => m.t === 'state');
-  assert.deepEqual(st.s.media.fx.map(x => x.id), ['FX1', 'FX2', 'FX3', 'FX4', 'FX5', 'FX6', 'FX7']);
+  for (const id of ['FX1', 'FX2', 'FX3', 'FX4', 'FX5', 'FX6', 'FX7']) assert.ok(st.s.media.fx.some(x => x.id === id), id);
   assert.equal((await hst.send({ t: 'fx.play', fx: 'FX2' })).ok, false, 'Georgie cannot play effects');
   assert.equal((await d.send({ t: 'fx.volume', fx: 'FX2', volume: 40 })).ok, true);
   assert.equal((await d.next(m => m.t === 'state' && m.s.fxVol?.FX2 === 40)).s.fxVol.FX2, 40);
   if (!st.s.media.fx.find(x => x.id === 'FX2').available) assert.match((await d.send({ t: 'fx.play', fx: 'FX2' })).error, /NOT AVAILABLE/);
+  else {
+    const r = await d.send({ t: 'fx.play', fx: 'FX2' });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.match(mock.inputs.find(i => i.inputName === 'FX Player').settings.local_file, /FX2 laugh/);
+  }
   const jingle = mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file;
   assert.equal((await d.send({ t: 'fx.stop' })).ok, true);
   assert.equal(mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file, jingle);
