@@ -20,6 +20,7 @@ const wanted = process.argv.slice(2).filter(a => !a.startsWith('-'));
 const PLAYERS = process.argv.includes('--players');   // add the media players to EXISTING show collections (nothing else changes)
 const KEYING = process.argv.includes('--keying');     // add background removal to EXISTING show collections (nothing else changes)
 const PRESHOW = process.argv.includes('--preshow');   // add the PRE-SHOW scene to EXISTING show collections (nothing else changes)
+const MEDIA = process.argv.includes('--media');       // point EXISTING media sources at the files the preset names now (nothing else changes)
 if (!wanted.length) { console.log('Usage: npm run obs-setup -- sunday friday'); process.exit(1); }
 const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows', id + '.json'), 'utf8')));
 
@@ -203,6 +204,26 @@ async function addPreshow(show, existing, cam) {
   say(`OK    "${name}": added scene PRE-SHOW (${sc.items.map(i => i[0]).join(', ')})`);
 }
 
+// a preset's media file changed (a new background render, a sharper loop): only the file of each EXISTING media source
+// is updated, with the preset's loop setting and hardware decoding; scenes, layout and filters stay as they are
+async function syncMedia(show, existing) {
+  const name = show.obs.sceneCollection;
+  if (!existing.includes(name)) { say(`SKIP  "${name}" does not exist`); return; }
+  await switchTo('SetCurrentSceneCollection', name);
+  const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
+  const done = [];
+  for (const [src, o] of Object.entries(show.sources)) {
+    if (o.kind !== 'media' || !o.file || !inputs.has(src)) continue;
+    const file = path.join(DZ, o.file);
+    if (!fs.existsSync(file)) { say(`WARN  "${src}": ${o.file} not found, left as it is`); continue; }
+    const cur = (await req('GetInputSettings', { inputName: src })).inputSettings;
+    if (cur.local_file === file) continue;
+    await req('SetInputSettings', { inputName: src, inputSettings: { is_local_file: true, local_file: file, looping: !!o.loop, hw_decode: true }, overlay: true });
+    done.push(`${src} → ${path.basename(file)}`);
+  }
+  say(done.length ? `OK    "${name}": ${done.join(', ')}` : `OK    "${name}": media files already up to date`);
+}
+
 obs.on('link', async up => {
   if (!up) return;
   clearTimeout(timeout);
@@ -216,8 +237,9 @@ obs.on('link', async up => {
     say(`OK    backup of OBS scene collections: data/obs-backups/${stamp}/`);
     const before = await req('GetSceneCollectionList');
     const cam = existingCamera();
-    if (PLAYERS || KEYING || PRESHOW) {
+    if (PLAYERS || KEYING || PRESHOW || MEDIA) {
       for (const show of shows) {
+        if (MEDIA) await syncMedia(show, before.sceneCollections);
         if (PLAYERS) await addPlayers(show, before.sceneCollections);
         if (PRESHOW) await addPreshow(show, before.sceneCollections, cam);
         if (KEYING) await addKeying(show, before.sceneCollections);
