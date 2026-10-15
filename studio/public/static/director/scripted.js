@@ -107,7 +107,7 @@ function fields() {
     questions: v('sfQuestions').split('\n').map(x => x.trim()).filter(Boolean),
     cues: { scene: v('sfScene'), jingle: v('sfJingle'), video: v('sfVideo'), mode: v('sfMode'), audioMode: v('sfAudio'), music: v('sfMusic'),
       returnJingle: v('sfRetJingle'), returnVideo: v('sfRetVideo'), fallbackVideo: v('sfFallback'), fallbackMode: v('sfFallbackMode') || 'loop',
-      thenVideos: [v('sfThen1'), v('sfThen2'), v('sfThen3')].filter(Boolean) },
+      thenVideos: [v('sfThen1'), v('sfThen2'), v('sfThen3')].filter(Boolean), loopAfter: v('sfLoopAfter') },
     director: v('sfDirector'), closing: v('sfClosing'), notes: v('sfNotes'),
   };
 }
@@ -221,6 +221,8 @@ export function render(ctx) {
         field('Then play (once, in order)', select('sfThen1', mediaOpts(video), (c.thenVideos || [])[0] || '')),
         field('Then', select('sfThen2', mediaOpts(video), (c.thenVideos || [])[1] || '')),
         field('Then', select('sfThen3', mediaOpts(video), (c.thenVideos || [])[2] || ''))),
+      field('Then loop, without sound, until the next GO / RETURN TO LIVE', select('sfLoopAfter', mediaOpts(video), c.loopAfter || ''),
+        'Empty: when the video ends, the shot below (the cameras) shows by itself.'),
       h('div', { class: 'fields two' },
         field('If the video is missing or fails, play instead', select('sfFallback', mediaOpts(video), c.fallbackVideo)),
         field('Fallback mode', select('sfFallbackMode', [['loop', 'Loop'], ['once', 'Play once']], c.fallbackMode || 'loop')))),

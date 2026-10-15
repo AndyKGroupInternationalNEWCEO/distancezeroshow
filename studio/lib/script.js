@@ -40,7 +40,9 @@ export function cleanScript(s = {}) {
       // when the cue's video is missing or fails: this one instead (partner break: the break card)
       fallbackVideo: str(c.fallbackVideo, 4), fallbackMode: c.fallbackMode === 'once' ? 'once' : 'loop',
       // then play, in order, after the video (e.g. closing → end credits → thank you); each once
-      thenVideos: (Array.isArray(c.thenVideos) ? c.thenVideos : []).map(x => str(x, 4)).filter(Boolean).slice(0, 4) },
+      thenVideos: (Array.isArray(c.thenVideos) ? c.thenVideos : []).map(x => str(x, 4)).filter(Boolean).slice(0, 4),
+      // after the last video: this background loops (muted) until the next GO / RETURN TO LIVE (breaks, closing)
+      loopAfter: str(c.loopAfter, 4) },
     director: str(s.director, 4000), closing: str(s.closing, 2000),
   };
 }

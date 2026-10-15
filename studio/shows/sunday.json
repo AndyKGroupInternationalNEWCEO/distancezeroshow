@@ -47,9 +47,10 @@
           "scene": "STANDBY",
           "jingle": "18",
           "video": "V03",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
-          "music": ""
+          "music": "",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -143,11 +144,12 @@
           "scene": "BREAK",
           "jingle": "04",
           "video": "V10",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": "V11"
+          "returnVideo": "V11",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -227,7 +229,8 @@
           "returnJingle": "05",
           "returnVideo": "V11",
           "fallbackVideo": "V10",
-          "fallbackMode": "loop"
+          "fallbackMode": "once",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -297,11 +300,12 @@
           "scene": "BREAK",
           "jingle": "04",
           "video": "V10",
-          "mode": "loop",
+          "mode": "once",
           "audioMode": "wav",
           "music": "",
           "returnJingle": "05",
-          "returnVideo": "V11"
+          "returnVideo": "V11",
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -383,7 +387,8 @@
             "V17"
           ],
           "fallbackVideo": "V16",
-          "fallbackMode": "once"
+          "fallbackMode": "once",
+          "loopAfter": "V22"
         },
         "guest": {
           "name": "",

@@ -384,7 +384,7 @@ test('faders and the jingle cart', async () => {
   const d = client(D, { cookie: directorCookie });
   await d.opened;
   const { s } = await d.next(m => m.t === 'state' && m.s.obs.media.length);
-  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player']);
+  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player', 'FX Player']);
   assert.equal((await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: -6 })).ok, true);
   assert.equal(mock.inputs.find(i => i.inputName === 'DJ Mixer').volumeDb, -6);
   await d.next(m => m.t === 'state' && m.s.obs.audio.find(a => a.name === 'DJ Mixer').volumeDb === -6);
@@ -1213,12 +1213,68 @@ test('closing sequence: one GO plays V14 → V23 → V17, each following when th
   assert.match(file().local_file, /OFFICIAL END CREDITS/); assert.equal(file().clear_on_media_end, false);
   mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
   await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V17');
-  assert.equal(file().clear_on_media_end, true, 'the last one clears');
+  assert.equal(file().clear_on_media_end, false, 'holds until the background loop');
   mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
-  await new Promise(r => setTimeout(r, 300));
-  assert.match(file().local_file, /THANK_YOU/, 'nothing after the last');
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V22');
+  assert.equal(file().looping, true, 'the end-credits background loops');
+  assert.equal(mock.inputs.find(i => i.inputName === 'Video Player').muted, true, 'background loop without sound');
+  assert.equal(mock.state.stream?.active || false, false, 'the stream is never stopped or started by the sequence');
   await d.send({ t: 'rundown', action: 'reset' });
   d.close();
+});
+
+test('A/B: break video once, then V19 loops muted for the whole break; RETURN TO LIVE brings sound back; programme video clears to the cameras', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 80 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  const vp = () => mock.inputs.find(i => i.inputName === 'Video Player');
+  // programme: V06 once in the MUSIC scene, cleared at the end so the cameras below show
+  await d.send({ t: 'cue.go', index: 5 });
+  assert.equal(vp().settings.looping, false); assert.equal(vp().settings.clear_on_media_end, true);
+  // break: V10 once (held), then V19 loops without sound until RETURN TO LIVE
+  const g = await d.send({ t: 'cue.go', index: 4 });
+  assert.equal(g.ok, true, JSON.stringify(g));
+  assert.equal(vp().settings.looping, false); assert.equal(vp().settings.clear_on_media_end, false);
+  mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V19');
+  assert.equal(vp().settings.looping, true); assert.equal(vp().muted, true);
+  assert.equal(mock.state.program, 'BREAK', 'no automatic return');
+  const r = await d.send({ t: 'break.return', confirm: true });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(vp().muted, false, 'the return video has its sound again');
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('a video with its own sound stops the running jingle; the opening never plays on top of STARTING SOON', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  await d.send({ t: 'cue.go', index: 0 });                        // STARTING SOON: jingle 18 + V03
+  const r = await d.send({ t: 'cue.go', index: 1 });              // OPENING: V01 with its own sound
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.ok(r.result.done.some(x => /JINGLE 18 stopped/.test(x)), JSON.stringify(r.result));
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
+test('SOUND FX: Director only, own volume, missing files refused, STOP leaves the jingle alone', async () => {
+  const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
+  await Promise.all([d.opened, hst.opened]);
+  const st = await d.next(m => m.t === 'state');
+  assert.deepEqual(st.s.media.fx.map(x => x.id), ['FX1', 'FX2', 'FX3', 'FX4', 'FX5', 'FX6', 'FX7']);
+  assert.equal((await hst.send({ t: 'fx.play', fx: 'FX2' })).ok, false, 'Georgie cannot play effects');
+  assert.equal((await d.send({ t: 'fx.volume', fx: 'FX2', volume: 40 })).ok, true);
+  assert.equal((await d.next(m => m.t === 'state' && m.s.fxVol?.FX2 === 40)).s.fxVol.FX2, 40);
+  if (!st.s.media.fx.find(x => x.id === 'FX2').available) assert.match((await d.send({ t: 'fx.play', fx: 'FX2' })).error, /NOT AVAILABLE/);
+  const jingle = mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file;
+  assert.equal((await d.send({ t: 'fx.stop' })).ok, true);
+  assert.equal(mock.inputs.find(i => i.inputName === 'Jingle Player').settings.local_file, jingle);
+  d.close(); hst.close();
 });
 
 test('PRE-SHOW: live 3D counts down to the episode start, video plays the opening; each reloads the page and goes to program', async () => {

@@ -40,6 +40,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { inputName: 'VDO // Guest', inputKind: 'browser_source', audio: true, muted: true, settings: {} },
     { inputName: 'Jingle Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 5000, settings: {} },
     { inputName: 'Video Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 30000, settings: {} },
+    { inputName: 'FX Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 3000, settings: {} },
   ];
   for (const i of inputs) if (i.audio) i.volumeDb = 0;
   // German names on purpose: the real Vienna OBS runs in German, and the studio must find "Cut" by kind

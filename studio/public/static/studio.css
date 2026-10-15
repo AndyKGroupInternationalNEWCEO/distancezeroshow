@@ -949,3 +949,15 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 @keyframes stepdue{50%{background:rgba(242,166,80,.14)}}
 @keyframes btndue{50%{box-shadow:0 0 0 4px rgba(242,166,80,.55);filter:brightness(1.35)}}
 @media (prefers-reduced-motion:reduce){.nsteps li.due,.b.due,[role=tab].due{animation:none;box-shadow:0 0 0 3px rgba(242,166,80,.7)}}
+
+/* SOUND FX pads */
+.fxpads{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.fxpad{display:grid;gap:6px;padding:8px;border:1px solid var(--line)}
+.fxpad.air{border-color:var(--red)}
+.fxpad.other{opacity:.55}
+.fxbtn{flex-direction:column;align-items:flex-start;gap:2px;min-height:52px;padding:8px 10px;text-align:left}
+.fxbtn b{font-size:.74rem;letter-spacing:.08em}
+.fxbtn small{font-size:.62rem;color:var(--dim);letter-spacing:.06em}
+.fxvol{display:flex;align-items:center;gap:8px}
+.fxvol input{flex:1;min-width:0;accent-color:var(--amber)}
+.fxv{font-size:.66rem;color:var(--dim);width:38px;text-align:right}

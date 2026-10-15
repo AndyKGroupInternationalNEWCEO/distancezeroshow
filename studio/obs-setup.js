@@ -88,6 +88,8 @@ async function addPlayers(show, existing) {
   const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
   const done = [];
   if (!inputs.has('Jingle Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'Jingle Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('Jingle Player'); }
+  // SOUND FX pads: a separate player, so an effect never cuts the jingle
+  if (!inputs.has('FX Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'FX Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('FX Player'); }
   const full = { positionX: 0, positionY: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: 1920, boundsHeight: 1080 };
   const place = async (scene, created) => {
     const items = (await req('GetSceneItemList', { sceneName: scene })).sceneItems;

@@ -25,7 +25,7 @@ export function cueTitle(S, id) {
 // one line for the plan: what plays in this segment (jingle, video, scene; for a break also the return cue)
 export function cueLine(S, seg) {
   const c = seg?.cues || {}, short = id => cueTitle(S, id);
-  return [c.jingle && '♪ ' + short(c.jingle), c.video && '▶ ' + [short(c.video), ...(c.thenVideos || []).map(short)].join(' → ') + (c.mode === 'loop' ? ' (LOOP)' : ''),
+  return [c.jingle && '♪ ' + short(c.jingle), c.video && '▶ ' + [short(c.video), ...(c.thenVideos || []).map(short)].join(' → ') + (c.mode === 'loop' ? ' (LOOP)' : '') + (c.loopAfter && c.mode !== 'loop' ? ` → ${short(c.loopAfter)} (LOOP, NO SOUND)` : ''),
     c.fallbackVideo && 'IF MISSING: ▶ ' + short(c.fallbackVideo), c.music && '♫ ' + c.music, c.scene && 'SCENE ' + c.scene,
     (c.returnJingle || c.returnVideo) && 'RETURN: ' + [c.returnJingle && '♪ ' + short(c.returnJingle), c.returnVideo && '▶ ' + short(c.returnVideo)].filter(Boolean).join(' + ')].filter(Boolean).join('  ·  ');
 }

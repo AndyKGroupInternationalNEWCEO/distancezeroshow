@@ -16,7 +16,7 @@ function duration(file) {
 
 export function createMedia({ root, dzRoot }) {
   const catalogFile = path.join(root, 'media', 'catalog.json');
-  let lib = { audio: [], video: [] }, scannedAt = 0;
+  let lib = { audio: [], video: [], fx: [] }, scannedAt = 0;
 
   function scan() {
     const cat = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
@@ -37,7 +37,16 @@ export function createMedia({ root, dzRoot }) {
       const ok = !!abs && fs.existsSync(abs);
       return { ...v, type: 'video', file: ok ? abs : '', fileName: ok ? path.basename(abs) : '', available: ok, duration: ok ? duration(abs) : 0 };
     });
-    lib = { audio, video, unmatchedFiles: files.filter(f => !used.has(f)) };
+    // SOUND FX: short effects for the pads; a file matches by title or by starting with the FX number ("FX2 laugh.wav")
+    const fxDir = cat.fxDir ? path.join(dzRoot, cat.fxDir) : '';
+    const fxFiles = fxDir && fs.existsSync(fxDir) ? fs.readdirSync(fxDir).filter(f => /\.(wav|mp3|m4a|aiff?)$/i.test(f)) : [];
+    const fx = (cat.fx || []).map(a => {
+      const want = norm(a.title), base = f => norm(f.replace(/\.[a-z0-9]+$/i, ''));
+      const f = fxFiles.find(x => new RegExp(`^${a.id}\\b`, 'i').test(x)) || fxFiles.find(x => base(x) === want);
+      const abs = f ? path.join(fxDir, f) : '';
+      return { ...a, type: 'fx', file: abs, fileName: f || '', available: !!f, duration: f ? duration(abs) : 0 };
+    });
+    lib = { audio, video, fx, unmatchedFiles: files.filter(f => !used.has(f)) };
     scannedAt = Date.now();
     return lib;
   }
@@ -51,8 +60,8 @@ export function createMedia({ root, dzRoot }) {
       const pick = x => ({ id: x.id, title: x.title, type: x.type, category: x.category || '', shows: x.shows, available: x.available,
         duration: x.duration, embeddedAudio: !!x.embeddedAudio, linkedAudio: x.linkedAudio || null, fileName: x.fileName,
         forShow: !showId || x.shows.includes(showId) });
-      return { audio: lib.audio.map(pick), video: lib.video.map(pick), scannedAt, unmatched: lib.unmatchedFiles };
+      return { audio: lib.audio.map(pick), video: lib.video.map(pick), fx: (lib.fx || []).map(pick), scannedAt, unmatched: lib.unmatchedFiles };
     },
-    get(id) { return lib.audio.find(x => x.id === id) || lib.video.find(x => x.id === id) || null; },
+    get(id) { return lib.audio.find(x => x.id === id) || lib.video.find(x => x.id === id) || (lib.fx || []).find(x => x.id === id) || null; },
   };
 }

@@ -1,6 +1,7 @@
 {
-  "_about": "Media catalog of the Broadcast Studio. Audio = the master WAV jingles (matched by title in audioDir). Video = the show's MP4 cards. Entries without a file show NOT AVAILABLE. IDs follow the official catalog; 03 is not identified yet and is deliberately absent.",
+  "_about": "Media catalog of the Broadcast Studio. Audio = the master WAV jingles (matched by title in audioDir). Video = the show's MP4 cards. Entries without a file show NOT AVAILABLE. IDs follow the official catalog; 03 is not identified yet and is deliberately absent. Sound FX = short effects for the SOUND FX pads (files in fxDir, matched by title or by a name starting with the FX number, e.g. \"FX2 laugh.wav\"); played only by hand through the OBS FX Player.",
   "audioDir": "shared-assets/jingles/DZ-masters",
+  "fxDir": "shared-assets/jingles/FX",
   "audio": [
     {
       "id": "01",
@@ -423,6 +424,63 @@
       "embeddedAudio": false,
       "linkedAudio": null,
       "note": "52 s, 3840×2160 24 fps, silent, plays once. DJ ANDY'K — FRIDAY LIVE: host DJ Andy'K only (no Georgie), partners with their logos, ends on the D//0 logo with THANK YOU FOR LISTENING and the DJ Andy'K logo. Optional special guest: show the episode's guest with the lower third during the music interlude 0:16.5–0:23.5 (no guest = leave it). Keep the overlay end-credits roll OFF while V24 plays. Friday sequence: V15 FRIDAY SHOW CLOSING + jingle 19 → V24."
+    }
+  ],
+  "fx": [
+    {
+      "id": "FX1",
+      "title": "INCOMING CALL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX2",
+      "title": "LAUGH",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX3",
+      "title": "APPLAUSE",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX4",
+      "title": "CROWD CHEER",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX5",
+      "title": "DRUM ROLL",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX6",
+      "title": "WHOOSH",
+      "shows": [
+        "sunday",
+        "friday"
+      ]
+    },
+    {
+      "id": "FX7",
+      "title": "DJ SCRATCH REWIND",
+      "shows": [
+        "friday"
+      ]
     }
   ]
 }

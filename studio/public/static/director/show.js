@@ -9,6 +9,7 @@ import { nextSteps, renderSteps } from '../steps.js';
 import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
 import * as preshowPanel from './preshow.js';
+import * as fxPanel from './fx.js';
 
 let mons, clk, script, brk, lib;
 const two = n => String(n).padStart(2, '0');
@@ -21,6 +22,7 @@ export function init(ctx) {
   lib = createLibrary(ctx, { mode: 'show', audioList: $('#jaList'), videoList: $('#vvList'), filter: $('#jaFilter'), catSel: $('#vvCat'), loopBox: $('#vvLoop'),
     audioStop: $('#jaStop'), videoStop: $('#vvStop'), videoPreview: $('#vvPrev'), audioBadge: $('#jaAir'), videoBadge: $('#vvAir') });
 
+  fxPanel.init(ctx);
   const rd = (action, extra) => ctx.conn.send({ t: 'rundown', action, ...extra });
   $('#goBtn').addEventListener('click', e => go(ctx, e.currentTarget));
   $('#advance').addEventListener('click', e => act(e.currentTarget, () => rd('next')));
@@ -136,6 +138,7 @@ export function render(ctx) {
   lib.render();
   guestPanel.render(ctx);
   preshowPanel.render(ctx);
+  fxPanel.render(ctx);
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);
