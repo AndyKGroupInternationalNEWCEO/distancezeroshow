@@ -291,6 +291,7 @@ export async function start({ canvas, width, height, realtime = true, progress =
     bloom.strength = L.bloom;
     lens.uniforms.uTime.value = tIn;
     card.uniforms.uMix.value = ramp(tIn, FILL - 1.2, FILL);
+    studio.viewfinders.update(renderer, scene);                     // every camera's viewfinder: its own live picture
     composer.render(dt);
   }
   if (films) await films.ready(0);

@@ -608,7 +608,8 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
       beaconMode === 'air' ? 1 : beaconMode === 'standby' ? 0.45 : flash ? 1.3 : 0);
   });
 
-  return { update, wall, cams, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; },
+  const viewfinders = createViewfinders(cams.map(c => c.vf).filter(Boolean));
+  return { update, wall, cams, viewfinders, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; },
     beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = beaconClock(); }, air() { beaconMode = 'air'; }, clock(fn) { beaconClock = fn; } } };
 }
 
@@ -855,7 +856,9 @@ function tvCamera(M, n, glows) {
   add(new THREE.BoxGeometry(0.07, 0.025, 0.025), tallyMat, 0, 0.345, 0.5, head);
   add(new THREE.BoxGeometry(0.07, 0.025, 0.025), tallyMat, 0, 0.5, -0.15, head);
   shadows(group);
-  return { group, head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
+  // its picture: from the lens, through the prompter glass, along the head's +z (the viewfinder shows it, live)
+  const vf = { screen: vfScreen, head, eye: new THREE.Vector3(0, 0.2, 1.02), ahead: new THREE.Vector3(0, 0.2, 6), fov: 30, name: `CAM ${n}` };
+  return { group, head, vf, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
 }
 
 // a compact 4K high-speed (slow-motion) camera: box body, cine lens with matte box, top monitor, on a short slider
@@ -882,7 +885,8 @@ function highSpeedCamera(M) {
   const tallyMat = new THREE.MeshBasicMaterial({ color: 0x220405 });
   add(new THREE.BoxGeometry(0.02, 0.012, 0.012), tallyMat, 0.045, 0.136, 0.09, head);
   shadows(head);
-  return { head, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
+  const vf = { screen: scr, head, eye: new THREE.Vector3(0, 0.065, 0.33), ahead: new THREE.Vector3(0, 0.065, 6), fov: 38, name: 'SLOW-MO 4K' };
+  return { head, vf, tally(on) { tallyMat.color.setRGB(on ? 6 : 0.14, on ? 0.15 : 0.015, on ? 0.12 : 0.02); } };
 }
 
 /* ---------- motion-control camera robot (like the arms on real sets) carrying the 4K high-speed camera ----------
@@ -954,7 +958,7 @@ function cineRobot(M) {
     head.position.copy(wp).y += 0.06; head.lookAt(lookAt);
   }
   return {
-    group, head, tally: cam.tally,
+    group, head, tally: cam.tally, vf: cam.vf,
     // the camera's picture: where its lens is and what it looks at (for the slow-mo shot)
     shot: { pos: lens, target: look },
     set active(on) { if (on && !active) u = 0; active = on; },
@@ -1601,4 +1605,61 @@ function buildLights(root, quality, wallLight, pianoLamp) {
       soft.intensity = (0.55 + 0.25 * L.house) * (1 - 0.85 * L.solo);
     },
   };
+}
+
+/* ---------- the studio cameras' viewfinders: each shows its own camera's live picture ----------
+   Rendered small from the lens (through the prompter glass), under a viewfinder overlay: safe-area corners, a centre
+   cross, the camera's name and the lens settings. update() renders all of them (offline renders, every frame) or only
+   the one at `index` (the live page spreads them over frames). The mirror floor and the shadow maps are left alone
+   while they render: the floor would render its reflection again for every viewfinder, the shadows are current. */
+function createViewfinders(list) {
+  const W = 320, H = 208, eye = new THREE.Vector3(), ahead = new THREE.Vector3();
+  const items = list.map(v => {
+    const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType });
+    rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
+    const cam = new THREE.PerspectiveCamera(v.fov, W / H, 0.05, 60);
+    v.screen.material = new THREE.MeshBasicMaterial({ map: rt.texture, color: new THREE.Color(0.9, 0.9, 0.9) });
+    const overlay = new THREE.Mesh(v.screen.geometry, new THREE.MeshBasicMaterial({ map: viewfinderOverlay(v.name), transparent: true, depthWrite: false }));
+    overlay.position.z = 0.0008; v.screen.add(overlay);
+    return { ...v, rt, cam };
+  });
+  let reflectors = null;
+  return {
+    count: items.length,
+    update(renderer, scene, index) {
+      reflectors ??= (() => { const r = []; scene.traverse(o => { if (o.isReflector) r.push(o); }); return r; })();
+      const auto = renderer.shadowMap.autoUpdate, target = renderer.getRenderTarget();
+      renderer.shadowMap.autoUpdate = false;
+      const shown = reflectors.map(o => o.visible); reflectors.forEach(o => { o.visible = false; });
+      for (const [i, v] of items.entries()) {
+        if (index !== undefined && i !== index % items.length) continue;
+        v.head.updateWorldMatrix(true, false);
+        v.cam.position.copy(eye.copy(v.eye).applyMatrix4(v.head.matrixWorld));
+        v.cam.lookAt(ahead.copy(v.ahead).applyMatrix4(v.head.matrixWorld));
+        v.screen.visible = false;
+        renderer.setRenderTarget(v.rt); renderer.render(scene, v.cam);
+        v.screen.visible = true;
+      }
+      reflectors.forEach((o, i) => { o.visible = shown[i]; });
+      renderer.setRenderTarget(target); renderer.shadowMap.autoUpdate = auto;
+    },
+  };
+}
+function viewfinderOverlay(name) {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 416;
+  const x = c.getContext('2d'), w = c.width, h = c.height;
+  x.strokeStyle = 'rgba(255,255,255,0.75)'; x.lineWidth = 3;
+  // safe-area corners (90 %), a small centre cross
+  const m = 0.05, L = 34;
+  for (const [cx, cy, sx, sy] of [[w * m, h * m, 1, 1], [w * (1 - m), h * m, -1, 1], [w * m, h * (1 - m), 1, -1], [w * (1 - m), h * (1 - m), -1, -1]]) {
+    x.beginPath(); x.moveTo(cx, cy + sy * L); x.lineTo(cx, cy); x.lineTo(cx + sx * L, cy); x.stroke();
+  }
+  x.beginPath(); x.moveTo(w / 2 - 14, h / 2); x.lineTo(w / 2 + 14, h / 2); x.moveTo(w / 2, h / 2 - 14); x.lineTo(w / 2, h / 2 + 14); x.stroke();
+  x.font = '600 26px "Helvetica Neue", Arial, sans-serif'; x.fillStyle = 'rgba(255,255,255,0.85)'; x.textBaseline = 'top';
+  x.fillText(name, w * 0.08, h * 0.08);
+  x.textAlign = 'right'; x.fillText('1080p50', w * 0.92, h * 0.08);
+  x.textBaseline = 'bottom'; x.textAlign = 'left'; x.font = '500 22px "Helvetica Neue", Arial, sans-serif';
+  x.fillText('F2.8   1/100   0dB   5600K', w * 0.08, h * 0.92);
+  x.textAlign = 'right'; x.fillText('TC 10:00:00:00', w * 0.92, h * 0.92);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }

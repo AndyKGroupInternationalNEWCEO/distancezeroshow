@@ -384,6 +384,11 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     return { rt, cam };
   });
   let feedAt = 0, loungeOn = null;
+  // the studio cameras' viewfinders show their own live pictures: one camera per frame, in turn, about 20 times a
+  // second in all, and only while the viewer is near the cameras (from further away the screens are a few pixels)
+  let vfAt = 0, vfNext = 0;
+  const camSpot = studio.cams.map(c => c.group.getWorldPosition(new THREE.Vector3()));
+  const nearCams = p => camSpot.some(q => q.distanceTo(p) < 7);
   // slow motion: on the high-speed camera's shot the set's own time (lights, wall, logo, beams) eases down to its time scale
   let slowK = 1, setTime = 0;
   let wallAccum = 0;
@@ -442,6 +447,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
       for (const f of feeds) { renderer.setRenderTarget(f.rt); renderer.render(scene, f.cam); }
       renderer.setRenderTarget(null);
     }
+    if (t - vfAt > 0.05 && nearCams(camera.position)) { vfAt = t; studio.viewfinders.update(renderer, scene, vfNext++); }
     cctvPass.uniforms.uTime.value = t;
     composer.render(dt);
     adapt(now);
