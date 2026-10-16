@@ -1071,7 +1071,7 @@ function musicStation(M, glows, anim) {
   // the booth's name on the far sides, which face the room and the cameras (the DJ stands behind the booth)
   const plate = (text, wd, x, size = 64, color = '#e7c48d') => { const m = add(new THREE.PlaneGeometry(wd, wd / 8), new THREE.MeshBasicMaterial({ map: label(text, { w: 1024, h: 128, size, color, bg: '#1b1d22' }) }), x, TOP - 0.05, -0.2265); m.rotation.y = Math.PI; return m; };
   // the mixer's front: the DJ Andy'K logo, lit, and the model name beside it
-  const djTex = new THREE.TextureLoader().load('assets/sponsor-djandyk.webp'); djTex.colorSpace = THREE.SRGBColorSpace; djTex.anisotropy = 8;
+  const djTex = new THREE.TextureLoader().load(new URL('../assets/sponsor-djandyk.webp', import.meta.url).href); djTex.colorSpace = THREE.SRGBColorSpace; djTex.anisotropy = 8;
   add(new THREE.PlaneGeometry(0.084, 0.084 * 273 / 520), new THREE.MeshBasicMaterial({ map: djTex, transparent: true, alphaTest: 0.04, color: new THREE.Color(1.15, 1.05, 0.92) }), 0.075, TOP - 0.05, -0.2268).rotation.y = Math.PI;
   plate('AKX 2026', 0.16, -0.095, 72);
   plate('AKX 2026  ·  DECK 1', 0.26, -0.37, 56, '#c9ced6'); plate('AKX 2026  ·  DECK 2', 0.26, 0.37, 56, '#c9ced6');   // (seen from the room, deck 1 is on the right)
@@ -1188,7 +1188,7 @@ function buildLogo(M, glows) {
 
 function buildLogoImage() {
   const g = new THREE.Group();
-  const tex = new THREE.TextureLoader().load('assets/logo-do-1k.webp');
+  const tex = new THREE.TextureLoader().load(new URL('../assets/logo-do-1k.webp', import.meta.url).href);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   // the picture fills 1024 x 501 of its 1024 x 512 canvas; 2.12 m wide, as the key-visual logo it replaces
@@ -1327,7 +1327,7 @@ function buildLounge(M, quality) {
   ring.position.set(0, 0.01, -9.45); g.add(ring);
 
   // back wall: the D//0 logo between four monitors, over a walnut sideboard
-  const logoTex = new THREE.TextureLoader().load('assets/logo-do-1k.webp'); logoTex.colorSpace = THREE.SRGBColorSpace;
+  const logoTex = new THREE.TextureLoader().load(new URL('../assets/logo-do-1k.webp', import.meta.url).href); logoTex.colorSpace = THREE.SRGBColorSpace;
   add(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, alphaTest: 0.04, toneMapped: false, color: new THREE.Color(0.8, 0.8, 0.8) }), 0, 2.25, z0 + 0.02);
   const screens = [];
   // wall-mounted broadcast monitors: slim satin bezel on a wall arm, the live picture under a faintly reflective glass,
