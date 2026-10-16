@@ -85,6 +85,7 @@ async function grab(t) {
 
 if (stills) {
   if (arrival) console.log('arrival timing', JSON.stringify(await evaluate('opening.arrival.info')));
+  if (arrival) for (const r of [[3.6, 7], [11, 15], [15, 19.5]]) console.log('soles below ground', r, JSON.stringify(await evaluate(`opening.arrival.soles(Array.from({length: 40}, (_, i) => ${r[0]} + i * ${(r[1] - r[0]) / 40}))`)));
   // walk up to each still from 2 s before, so damping and the actors' state are as in the clip
   for (const t of stills.split(',').map(Number)) {
     for (let u = Math.max(0, t - 2); u < t; u += 1 / FPS) await evaluate(`opening.seek(${u})`);

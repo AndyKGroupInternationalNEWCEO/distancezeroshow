@@ -16,6 +16,7 @@ const OUTSIDE = 8.0 + RX;                  // cut from the lobby (reception) to 
 const FZ = 34;                             // the building's front, facing +z, well clear of the studio floor (r 26)
 const V = THREE.Vector3;
 const SEAT_TOP = 0.37;                     // the lounge armchairs' cushion
+const SOLE = { andy: 0.009, georgie: 0.018 };
 
 /* ---------- small canvas helpers ---------- */
 function canvasTex(w, h, draw, srgb = true) {
@@ -283,6 +284,43 @@ async function stageCast(scene) {
   return { andy, georgie, cast, info: { a1, g1, a2, g2, sA, sG } };
 }
 
+/* ---------- sitting in a low armchair: the legs bend further so the feet stay on the floor ----------
+   The library's sit-down is for a desk chair; lowered onto these 37 cm cushions the whole body would go down with it,
+   feet through the floor. Here the body is lowered, then each leg (thigh, calf) is solved analytically so the ankle
+   stays where it was, the knee bending in its own plane, and the foot keeps its own angle on the floor. */
+const _v = [new V(), new V(), new V(), new V(), new V()], _q = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+function rotateBoneWorld(bone, qWorld) {
+  // apply a world-space rotation to a bone, keeping its parent
+  bone.getWorldQuaternion(_q[0]); bone.parent.getWorldQuaternion(_q[1]);
+  bone.quaternion.copy(_q[1].invert().multiply(qWorld.clone().multiply(_q[0])));
+  bone.updateWorldMatrix(false, true);
+}
+function legIK(a, side, raise) {
+  const b = a.bones, thigh = b[`Bip01_${side}_Thigh`], calf = b[`Bip01_${side}_Calf`], foot = b[`Bip01_${side}_Foot`];
+  if (!thigh || !calf || !foot) return;
+  const footQ = foot.getWorldQuaternion(new THREE.Quaternion());
+  const H = thigh.getWorldPosition(_v[0]), K = calf.getWorldPosition(_v[1]), A = foot.getWorldPosition(_v[2]);
+  const T = A.clone(); T.y += raise;                                       // where the ankle was before the body went down
+  const la = H.distanceTo(K), lb = K.distanceTo(A), d = Math.min(H.distanceTo(T), la + lb - 1e-4);
+  // 1. the knee: bend it so hip to ankle is as long as hip to target
+  const cur = _v[3].copy(H).sub(K).normalize().angleTo(_v[4].copy(A).sub(K).normalize());
+  const want = Math.acos(THREE.MathUtils.clamp((la * la + lb * lb - d * d) / (2 * la * lb), -1, 1));
+  const axis = new V().subVectors(H, K).cross(new V().subVectors(A, K)).normalize();
+  if (axis.lengthSq() > 0.5) rotateBoneWorld(calf, new THREE.Quaternion().setFromAxisAngle(axis, want - cur));
+  // 2. the hip: swing the leg so the ankle lands on the target
+  const A2 = foot.getWorldPosition(new V());
+  rotateBoneWorld(thigh, new THREE.Quaternion().setFromUnitVectors(A2.sub(H).normalize(), T.clone().sub(H).normalize()));
+  // 3. the foot keeps its angle (flat on the floor)
+  foot.parent.getWorldQuaternion(_q[2]); foot.quaternion.copy(_q[2].invert().multiply(footQ)); foot.updateWorldMatrix(false, true);
+}
+
+function posePresenter(a, T) {
+  a.pose(T);
+  const drop = Math.min(0, a.group.position.y);                         // how far the sit-down took the body under the floor
+  a.group.position.y += SOLE[a.key]; a.group.updateMatrixWorld(true);
+  if (drop < 0) { legIK(a, 'L', -drop); legIK(a, 'R', -drop); }
+}
+
 /* ---------- the camera: always low, at the shoes ---------- */
 const curve = pts => new THREE.CatmullRomCurve3(pts.map(p => new V(...p)), false, 'centripetal');
 function midOf(cast, T) { const a = cast.andy.where(T), g = cast.georgie.where(T); return { x: (a.x + g.x) / 2, z: (a.z + g.z) / 2, h: lerpAngle(a.heading, g.heading, 0.5) }; }
@@ -376,7 +414,9 @@ export async function buildArrival(scene, renderer) {
       street.group.visible = outside;
       studio.lounge.light(!outside);
       doorLight.intensity = outside ? 0 : 30;
-      for (const a of cast.cast) { a.pose(T); a.group.visible = T >= WIDE; }
+      // the library's soles sit a few millimetres under the ground at each step (measured: Andy'K 7 mm, Georgie's heels
+      // 16 mm): lifted so they stand on it
+      for (const a of cast.cast) { posePresenter(a, T); a.group.visible = T >= WIDE; }
       placeBlots(T);
       const cam = cameraAt(cast, T);
       // an operator's hands on a low dolly: a few millimetres of slow drift, never a shake
@@ -387,6 +427,17 @@ export async function buildArrival(scene, renderer) {
     },
     hide(studio) { doorLight.intensity = 0; street.group.visible = false; for (const a of cast.cast) a.group.visible = false; for (const f of feet) f.m.visible = false; studio.lounge.light(false); },
     show() {},
+    // review: the lowest point of each presenter's skinned mesh over time (soles under the ground are below 0)
+    soles(times) {
+      const box = new THREE.Box3(), out = {};
+      for (const T of times) for (const a of cast.cast) {
+        posePresenter(a, T); let lo = Infinity;
+        a.group.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); box.copy(o.boundingBox).applyMatrix4(o.matrixWorld); lo = Math.min(lo, box.min.y); } });
+        const ground = T < OUTSIDE ? 0.002 : 0.004;
+        out[a.key] = Math.min(out[a.key] ?? Infinity, +(lo - ground).toFixed(4));
+      }
+      return out;
+    },
     // review: is any head inside the picture? (never wanted)
     headsInFrame(camera) {
       return cast.cast.filter(a => { if (!a.group.visible) return false; a.bones.Bip01_Head.getWorldPosition(heads); ndc.copy(heads).project(camera); return Math.abs(ndc.x) < 1.05 && Math.abs(ndc.y) < 1.05 && ndc.z < 1; }).map(a => a.key);

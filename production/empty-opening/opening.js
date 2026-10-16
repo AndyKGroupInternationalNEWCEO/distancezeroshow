@@ -170,7 +170,7 @@ async function filmFrames() {
   const cache = new Map();
   const name = t => {
     if (t < BG_AT) return `intro/${String(Math.min(count.intro, Math.max(1, Math.floor((t - INTRO_AT) * count.fps) + 1))).padStart(4, '0')}.jpg`;
-    return `bg/${String(Math.floor((t - BG_AT) * count.fps) % count.bg + 1).padStart(4, '0')}.jpg`;
+    return `bg-loop/${String(Math.floor((t - BG_AT) * count.fps) % count.bg + 1).padStart(4, '0')}.jpg`;   // the seamless loop (frames.sh)
   };
   const load = n => {
     if (!cache.has(n)) cache.set(n, new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = base + n; }).then(i => (cache.get(n).img = i)));

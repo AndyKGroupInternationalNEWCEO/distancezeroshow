@@ -10,9 +10,11 @@ import { setClockSource } from '../../virtual-studio/screens.js';
 
 const V = THREE.Vector3;
 const FPS = 30;
-// one loop = four passes of the studio background video (5.0417 s, 121 frames at 24 fps): 605 frames at 30 fps exactly,
-// so the wall, the camera and the light all come back to their first frame
-export const LOOP = 121 * 4 / 24;
+// one loop = four passes of the studio background video made seamless (bg-loop: its last second dissolved into its
+// start, 97 frames at 24 fps): 485 frames at 30 fps exactly, so the wall, the camera and the light all come back to
+// their first frame, and the wall's picture never jumps
+const BG = 'bg-loop', BG_FRAMES = 97;
+export const LOOP = BG_FRAMES * 4 / 24;
 const N = Math.round(LOOP * FPS);
 
 // on air, as the opening has it after ON AIR: keys, rims, accents and fins up, house light down, a little beam haze
@@ -58,14 +60,14 @@ export async function start({ shot }) {
   // the wall's film: the studio background loop's frames (frames.sh), drawn by the wall's own 'film' programme
   const base = new URL('../empty-opening/out/frames/', import.meta.url).href;
   const count = await (await fetch(base + 'count.json')).json();
-  const frames = await Promise.all(Array.from({ length: count.bg }, (_, i) => new Promise((res, rej) => {
-    const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = `${base}bg/${String(i + 1).padStart(4, '0')}.jpg`;
+  const frames = await Promise.all(Array.from({ length: BG_FRAMES }, (_, i) => new Promise((res, rej) => {
+    const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = `${base}${BG}/${String(i + 1).padStart(4, '0')}.jpg`;
   })));
   const film = document.createElement('canvas'); film.width = frames[0].width; film.height = frames[0].height;
   Object.assign(film, { readyState: 4, videoWidth: film.width, videoHeight: film.height });
   studio.wall.film(() => [[film, 1]]);
   studio.wall.set('film');
-  const setFilm = f => film.getContext('2d').drawImage(frames[Math.floor(f * 24 / FPS) % count.bg], 0, 0);
+  const setFilm = f => film.getContext('2d').drawImage(frames[Math.floor(f * 24 / FPS) % BG_FRAMES], 0, 0);
 
   // every image texture loaded before anything is exported
   await new Promise(r => setTimeout(r, 3000));
