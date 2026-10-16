@@ -524,15 +524,15 @@
     },
     {
       "id": "V34",
-      "title": "PRE-SHOW — ARRIVAL (2:10)",
+      "title": "OPENING — ARRIVAL, STUDIO, LED WALL (2:10)",
       "category": "OPENING",
       "shows": [
         "sunday",
         "friday"
       ],
-      "file": "shared-assets/virtual-studio/02-predshow/predshow-prichod.mp4",
+      "file": "shared-assets/virtual-studio/02-predshow/opening-prichod-FINAL.mp4",
       "embeddedAudio": true,
-      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+      "note": "Final arrival opening from Virtual Space (16 Oct 2026): ends full frame on the moving studio background."
     }
   ],
   "fx": [

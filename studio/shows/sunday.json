@@ -66,12 +66,12 @@
         "presenters": "",
         "script": "",
         "talkingPoints": "",
-        "director": "Opening video runs 1:30 with its own sound (no extra jingle). Hold the remaining time on its last frame or the STANDBY loop until you take the next segment.",
+        "director": "Opening video runs 2:10 with its own sound (no extra jingle): arrival, studio, LED wall. It ends on the moving studio background, which then loops silently until you take the next segment.",
         "closing": "",
         "cues": {
           "scene": "OPENING",
           "jingle": "",
-          "video": "V25",
+          "video": "V34",
           "mode": "once",
           "audioMode": "video",
           "music": "",
@@ -417,7 +417,7 @@
     },
     "Opening Video": {
       "kind": "media",
-      "file": "shared-assets/virtual-studio/02-predshow/predshow-90s-studio.mp4",
+      "file": "shared-assets/virtual-studio/02-predshow/opening-prichod-FINAL.mp4",
       "restart": true
     },
     "Logo Reveal": {
@@ -500,7 +500,7 @@
           }
         ]
       ],
-      "note": "live 3D studio or the 90 s opening video from the Virtual Space; cut to the cameras with the stinger through the logo"
+      "note": "live 3D studio or the 2:10 opening video from the Virtual Space; cut to the cameras with the stinger through the logo"
     },
     {
       "name": "OPENING",
