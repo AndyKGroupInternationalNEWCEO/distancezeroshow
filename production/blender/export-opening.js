@@ -47,6 +47,32 @@ export async function start() {
   animTex.forEach((t, i) => canvases.get(t).forEach(m => { m.userData.dzt = i; m.name = `DZT_${i}`; }));
   lights.forEach((l, i) => { l.name = `DZL_${i}`; });
 
+  // the studio cameras' viewfinders: their live picture is a render target, which the glTF cannot carry (it came out
+  // white); each gets a canvas of its own, named as one more changing screen, filled per frame from its render target
+  const VW = 320, VH = 208, renderer = op.renderer;
+  const vfs = [];
+  scene.traverse(o => { if (o.isMesh && o.material?.map?.isRenderTargetTexture) vfs.push({ mesh: o, rtTex: o.material.map }); });
+  const vfScene = new THREE.Scene(), vfCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const vfQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial());
+  vfScene.add(vfQuad);
+  vfs.forEach((v, k) => {
+    v.canvas = document.createElement('canvas'); v.canvas.width = VW; v.canvas.height = VH;
+    v.tex = new THREE.CanvasTexture(v.canvas); v.tex.colorSpace = THREE.SRGBColorSpace;
+    v.name = `DZT_${animTex.length + k}`; v.mesh.material.name = v.name;
+  });
+  // the viewfinder's picture as the live studio shows it (tone-mapped, sRGB), drawn into its canvas
+  function grabViewfinders() {
+    const size = renderer.getSize(new THREE.Vector2()), target = renderer.getRenderTarget();
+    renderer.setRenderTarget(null); renderer.setSize(VW, VH, false);
+    for (const v of vfs) {
+      vfQuad.material.map = v.rtTex; vfQuad.material.needsUpdate = true;
+      renderer.render(vfScene, vfCam);
+      const g = v.canvas.getContext('2d'); g.clearRect(0, 0, VW, VH); g.drawImage(renderer.domElement, 0, 0, VW, VH);
+    }
+    renderer.setSize(size.x, size.y, false); renderer.setRenderTarget(target);
+  }
+  const frustum = new THREE.Frustum(), pv = new THREE.Matrix4();
+
   // the set as it stands ON AIR (86 s): geometry and materials; lights, cameras and custom shaders go to the JSON
   await op.seek(86);
   scene.updateMatrixWorld(true);
@@ -62,7 +88,7 @@ export async function start() {
   scene.traverse(o => { if (o.isReflector) hidden.push([o, o.visible]), (o.visible = false); });
 
   return {
-    frames: N, counts: { lights: lights.length, mats: animMats.length, objs: animObjs.length, screens: animTex.length },
+    frames: N, counts: { lights: lights.length, mats: animMats.length, objs: animObjs.length, screens: animTex.length, viewfinders: vfs.length },
     async glb() {
       const ok = img => (img instanceof HTMLCanvasElement || img instanceof ImageBitmap || (img instanceof HTMLImageElement && img.complete)) && img.width > 0 && img.height > 0;
       const KEYS = ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'alphaMap', 'clearcoatMap', 'clearcoatRoughnessMap', 'clearcoatNormalMap', 'sheenColorMap', 'sheenRoughnessMap', 'transmissionMap', 'thicknessMap', 'specularIntensityMap', 'specularColorMap', 'lightMap', 'bumpMap', 'displacementMap'];
@@ -70,7 +96,9 @@ export async function start() {
       scene.traverse(o => { if (!o.isMesh) return; for (const m of [].concat(o.material)) for (const k of KEYS) if (m && m[k] && !ok(m[k].image)) { restore.push([m, k, m[k]]); m[k] = null; } });
       // lights, the real-time fake beams (custom shaders: Cycles has real haze) and the mirror floor stay out of the glTF
       const parents = [...lights, ...hidden.map(([o]) => o)].map(l => [l, l.parent]); for (const [l, p] of parents) p.remove(l);
+      grabViewfinders(); for (const v of vfs) v.mesh.material.map = v.tex;     // the viewfinders as images
       const out = await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: false, maxTextureSize: 4096 });
+      for (const v of vfs) v.mesh.material.map = v.rtTex;
       for (const [l, p] of parents) p.add(l); for (const [m, k, t] of restore) m[k] = t;
       const a = new Uint8Array(out); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode(...a.subarray(i, i + 32768));
       return btoa(s);
@@ -89,7 +117,7 @@ export async function start() {
         }),
         shaders, yUp: true, env: true, background: [0.016, 0.02, 0.027], fog: { color: [0.016, 0.02, 0.027], density: 0.024 }, exposure: 1.1, toneMapping: 4,
         actors: [], actorVisible: [], frames: { fps: FPS, first: 0, count: N, startSeconds: 0 }, focus: 9,
-        anim: { mats: animMats.map(m => m.name), objs: animObjs.map(o => o.name), screens: animTex.map((t, i) => ({ name: `DZT_${i}`, w: t.image.width, h: t.image.height })) },
+        anim: { mats: animMats.map(m => m.name), objs: animObjs.map(o => o.name), screens: [...animTex.map((t, i) => ({ name: `DZT_${i}`, w: t.image.width, h: t.image.height })), ...vfs.map(v => ({ name: v.name, w: VW, h: VH, viewfinder: true }))] },
       };
     },
     // one frame of the opening: camera, lights, materials, objects, and the changing screens' pictures (JPEG data URLs)
@@ -97,7 +125,11 @@ export async function start() {
       await op.seek(f / FPS);
       scene.updateMatrixWorld(true); camera.updateMatrixWorld(true);
       const tp = new THREE.Vector3();
+      grabViewfinders();
+      frustum.setFromProjectionMatrix(pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       return {
+        // which viewfinders the shot sees (by bounds, not occlusion): the frames to render again after the fix
+        vfSeen: vfs.map((v, k) => (frustum.intersectsObject(v.mesh) ? k : -1)).filter(k => k >= 0),
         camera: { m: camera.matrixWorld.toArray().map(r4), fov: r4(camera.fov) },
         lights: lights.map(l => {
           const p = l.getWorldPosition(new THREE.Vector3());
@@ -107,7 +139,7 @@ export async function start() {
         }),
         mats: animMats.map(matState),
         objs: animObjs.map(objState),
-        screens: animTex.map(t => (t.image.toDataURL ? t.image.toDataURL('image/jpeg', 0.92) : null)),
+        screens: [...animTex.map(t => (t.image.toDataURL ? t.image.toDataURL('image/jpeg', 0.92) : null)), ...vfs.map(v => v.canvas.toDataURL('image/jpeg', 0.92))],
       };
     },
   };
