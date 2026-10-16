@@ -73,7 +73,9 @@ const shoot = async t => {
 let lastLum = -1;
 async function grab(t) {
   let f = await shoot(t);
-  for (let tries = 0; t > 2 && lastLum > 3 && f.lum < 0.5 && tries < 3; tries++) {
+  // (the arrival goes dark on purpose through the backstage door, into the black the opening starts in: not a fault)
+  const darkOnPurpose = arrival && t > 18 && t < 27.5;
+  for (let tries = 0; t > 2 && !darkOnPurpose && lastLum > 3 && f.lum < 0.5 && tries < 3; tries++) {
     console.log(`black frame at ${t.toFixed(2)} s: reloading`);
     await load();
     for (let u = Math.max(0, t - 2); u < t; u += 1 / FPS) await evaluate(`opening.seek(${u})`);

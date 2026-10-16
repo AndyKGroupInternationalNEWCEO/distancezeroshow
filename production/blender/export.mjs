@@ -1,5 +1,6 @@
 // Exports one background loop's studio for Blender: cache-<shot>/set.glb, scene.json and wall/0001.jpg … (one per frame).
 //   node production/blender/export.mjs wide        (shots: wide, two, vienna, melbourne — see export.js)
+//   node production/blender/export.mjs opening     the 90 s opening, animated (export-opening.js): cache-opening/
 // Then: DZ_CACHE=cache-wide blender -b -P production/blender/build.py
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';

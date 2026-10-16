@@ -129,7 +129,7 @@ export async function start({ shot }) {
         const c = camAt(shot, f), m = new THREE.Matrix4().lookAt(c.pos, c.target, new V(0, 1, 0)).setPosition(c.pos);
         camera.push({ m: m.toArray(), fov: c.fov, aspect: 16 / 9 });
       }
-      return { lights, shaders, env: true, background: [0.016, 0.02, 0.027], fog: { color: [0.016, 0.02, 0.027], density: 0.024 }, exposure: 1.1, toneMapping: 4,
+      return { lights, shaders, yUp: true, env: true, background: [0.016, 0.02, 0.027], fog: { color: [0.016, 0.02, 0.027], density: 0.024 }, exposure: 1.1, toneMapping: 4,
         actors: [], frames: { fps: FPS, first: 0, count: N, startSeconds: 0 }, camera, actorVisible: [], focus: SHOTS[shot].focus, wall: wallMesh ? { name: 'DZ_LED_WALL' } : null };
     },
     // the wall's picture for frame f, as a JPEG (data URL)

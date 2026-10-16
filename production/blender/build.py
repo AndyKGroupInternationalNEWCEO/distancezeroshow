@@ -11,6 +11,8 @@ CACHE = os.path.join(HERE, os.environ.get('DZ_CACHE', 'cache'))
 NAME = os.environ.get('DZ_NAME', 'opening-45-50')
 AV = os.path.join(HERE, '..', 'avatars')
 meta = json.load(open(os.path.join(CACHE, 'scene.json')))
+if 'camera' not in meta and os.path.isdir(os.path.join(CACHE, 'anim')):   # an animated export: the camera per frame
+    meta['camera'] = [json.load(open(os.path.join(CACHE, 'anim', f'f{f:04d}.json')))['camera'] for f in range(1, meta['frames']['count'] + 1)]
 FRAMES = meta['frames']['count']
 # the look of the real-time studio: deep black room, light only where the fixtures and LEDs put it
 K_LIGHT = float(os.environ.get('DZ_K', '2.0'))            # global light calibration against the reference frames
@@ -96,6 +98,9 @@ for s in meta['shaders']:
     c_set.objects.link(ring)
 
 # ---------------------------------------------------------------- lights (from the real-time rig, physical units)
+# exports from export.js / export-opening.js carry three.js coordinates (y up): turned to Blender's (z up) here
+YUP = bool(meta.get('yUp'))
+cv = (lambda p: (p[0], -p[2], p[1])) if YUP else (lambda p: tuple(p))
 c_light = coll('Lights')
 def look(obj, target):
     d = Vector(target) - obj.location
@@ -119,11 +124,11 @@ for i, L in enumerate(meta['lights']):
         continue                                                    # hemisphere/ambient: replaced by real bounce light
     ld.color = L['color']
     ob = bpy.data.objects.new(ld.name, ld); c_light.objects.link(ob)
-    ob.location = L['pos']
-    if t == 'SpotLight': look(ob, L['target'])
+    ob.location = cv(L['pos'])
+    if t == 'SpotLight': look(ob, cv(L['target']))
     elif t == 'PointLight': pass
     else:
-        d, u = Vector(L['quat']['dir']), Vector(L['quat']['up'])
+        d, u = Vector(cv(L['quat']['dir'])), Vector(cv(L['quat']['up']))
         x = u.cross(-d).normalized()                                   # Blender area lights emit along local -Z
         ob.rotation_euler = Matrix((x, u, -d)).transposed().to_euler()
 
@@ -298,6 +303,15 @@ if meta.get('wall') and os.path.isdir(wall_dir):
             p.inputs['Emission Strength'].default_value = float(os.environ.get('DZ_WALL', '1.6'))
             p.inputs['Base Color'].default_value = (0.005, 0.005, 0.005, 1); p.inputs['Roughness'].default_value = 0.35
     print('wall: image sequence of', len(seq), 'frames')
+
+# the LED wall's picture: three.js mirrors it (repeat.x = -1) because the curved wall is seen from inside; the glTF import
+# keeps that flip but its V runs the other way, so in Blender the picture came out upside down (D\\0 for D//0)
+for mat in bpy.data.materials:
+    if (mat.name.startswith('DZ_LED_WALL') or mat.name.startswith('DZT_0')) and mat.use_nodes:
+        for n in mat.node_tree.nodes:
+            if n.type == 'MAPPING' and abs(n.inputs['Scale'].default_value[0] + 1) < 1e-6:
+                n.inputs['Scale'].default_value[1] = -1.0; n.inputs['Location'].default_value[1] = 1.0
+                print('wall: picture turned upright in', mat.name)
 
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, NAME + '.blend'), relative_remap=True)
 print('BUILD OK', len(scene.objects), 'objects,', FRAMES, 'frames')
