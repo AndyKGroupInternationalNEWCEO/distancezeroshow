@@ -6,3 +6,4 @@ vendor-cache/
 *.blend1
 *.log
 pod-backup-*/
+pod-tools/
