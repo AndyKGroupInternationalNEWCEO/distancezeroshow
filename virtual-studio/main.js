@@ -387,7 +387,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   // the studio cameras' viewfinders show their own live pictures: one camera per frame, in turn, about 20 times a
   // second in all, and only while the viewer is near the cameras (from further away the screens are a few pixels)
   let vfAt = 0, vfNext = 0;
-  const camSpot = studio.cams.map(c => c.group.getWorldPosition(new THREE.Vector3()));
+  const camSpot = studio.cams.map(c => (c.group || c.head).getWorldPosition(new THREE.Vector3()));   // (the jib's camera has only its head)
   const nearCams = p => camSpot.some(q => q.distanceTo(p) < 7);
   // slow motion: on the high-speed camera's shot the set's own time (lights, wall, logo, beams) eases down to its time scale
   let slowK = 1, setTime = 0;

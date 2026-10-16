@@ -5,3 +5,4 @@ vendor-cache/
 *.blend
 *.blend1
 *.log
+pod-backup-*/
