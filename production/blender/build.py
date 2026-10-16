@@ -304,6 +304,34 @@ if meta.get('wall') and os.path.isdir(wall_dir):
             p.inputs['Base Color'].default_value = (0.005, 0.005, 0.005, 1); p.inputs['Roughness'].default_value = 0.35
     print('wall: image sequence of', len(seq), 'frames')
 
+# ---------------------------------------------------------------- the studio cameras' viewfinders: live pictures per frame
+for k in range(meta.get('viewfinders', 0)):
+    d = os.path.join(CACHE, f'vf{k}')
+    if not os.path.isdir(d): continue
+    seq = sorted(f for f in os.listdir(d) if f.endswith('.jpg'))
+    img = bpy.data.images.load(os.path.join(d, seq[0])); img.source = 'SEQUENCE'
+    for mat in bpy.data.materials:
+        if mat.name.split('.')[0] != f'DZ_VF_{k}' or not mat.use_nodes: continue
+        for n in mat.node_tree.nodes:
+            if n.type == 'TEX_IMAGE':
+                n.image = img; n.image_user.frame_duration = len(seq); n.image_user.frame_start = 1; n.image_user.use_cyclic = True; n.image_user.use_auto_refresh = True
+    print('viewfinder', k, ':', len(seq), 'frames')
+
+# ---------------------------------------------------------------- the hanging logo: amber and ice glass, glowing edges
+# (the real-time glass gets its colour from a volume tint the glTF import leaves out: in Cycles it came out clear)
+TINT = {'DZ_GLASS_WARM': (1.0, 0.52, 0.16), 'DZ_GLASS_COOL': (0.5, 0.74, 1.0)}
+for mat in bpy.data.materials:
+    base = mat.name.split('.')[0]
+    p = principled(mat)
+    if base in TINT and p:
+        p.inputs['Base Color'].default_value = (*TINT[base], 1)
+        print('logo glass tinted:', mat.name)
+    elif base.startswith('DZ_LINE_') and mat.use_nodes:
+        for n in mat.node_tree.nodes:
+            if n.type in ('EMISSION', 'BACKGROUND'): n.inputs['Strength'].default_value = float(os.environ.get('DZ_LOGO_LINE', '6'))
+            if n.type == 'BSDF_PRINCIPLED': n.inputs['Emission Strength'].default_value = float(os.environ.get('DZ_LOGO_LINE', '6'))
+        print('logo edges glowing:', mat.name)
+
 # the LED wall's picture: three.js mirrors it (repeat.x = -1) because the curved wall is seen from inside; the glTF import
 # keeps that flip but its V runs the other way, so in Blender the picture came out upside down (D\\0 for D//0)
 for mat in bpy.data.materials:

@@ -45,6 +45,10 @@ const only = +(process.argv[3] || 0);   // optional: export only the first N wal
 for (let f = 0; f < (only || meta.frames.count); f++) {
   const url = await evaluate(`studioExport.wall(${f})`);
   writeFileSync(join(OUT, 'wall', `${String(f + 1).padStart(4, '0')}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
+  (await evaluate('studioExport.viewfinders()')).forEach((u, k) => {
+    mkdirSync(join(OUT, `vf${k}`), { recursive: true });
+    writeFileSync(join(OUT, `vf${k}`, `${String(f + 1).padStart(4, '0')}.jpg`), Buffer.from(u.split(',')[1], 'base64'));
+  });
 }
 console.log('done', OUT);
 ws.close(); chrome.kill(); server.close();

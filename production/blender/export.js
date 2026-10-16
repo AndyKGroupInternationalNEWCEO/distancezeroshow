@@ -81,6 +81,37 @@ export async function start({ shot }) {
   let wallMesh = null;
   scene.traverse(o => { if (o.isMesh && (o.material?.map === studio.wall.texture || o.material?.emissiveMap === studio.wall.texture)) { o.material.name = 'DZ_LED_WALL'; wallMesh = o; } });
 
+  // the hanging logo's glass and its glowing edges, named so build.py can give Cycles their amber and ice
+  studio.logo.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material, warm = c => c.r > c.b;
+    if (m.transmission > 0) m.name = warm(m.attenuationColor) ? 'DZ_GLASS_WARM' : 'DZ_GLASS_COOL';
+    else if (m.isMeshBasicMaterial) m.name = warm(m.color) ? 'DZ_LINE_AMBER' : 'DZ_LINE_ICE';
+  });
+  // the studio cameras' viewfinders: their live picture is a render target the glTF cannot carry (it came out white);
+  // each gets a canvas, exported per frame like the wall (vf<k>/0001.jpg …)
+  const VW = 320, VH = 208, vfs = [];
+  scene.traverse(o => { if (o.isMesh && o.material?.map?.isRenderTargetTexture) vfs.push({ mesh: o, rtTex: o.material.map }); });
+  const vfScene = new THREE.Scene(), vfCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const vfQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial());
+  vfScene.add(vfQuad);
+  vfs.forEach((v, k) => {
+    v.canvas = document.createElement('canvas'); v.canvas.width = VW; v.canvas.height = VH;
+    v.tex = new THREE.CanvasTexture(v.canvas); v.tex.colorSpace = THREE.SRGBColorSpace;
+    v.mesh.material.name = `DZ_VF_${k}`;
+  });
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1; renderer.outputColorSpace = THREE.SRGBColorSpace;
+  function grabViewfinders() {
+    studio.viewfinders.update(renderer, scene);
+    renderer.setRenderTarget(null); renderer.setSize(VW, VH, false);
+    for (const v of vfs) {
+      vfQuad.material.map = v.rtTex; vfQuad.material.needsUpdate = true;
+      renderer.render(vfScene, vfCam);
+      const g = v.canvas.getContext('2d'); g.clearRect(0, 0, VW, VH); g.drawImage(renderer.domElement, 0, 0, VW, VH);
+    }
+    renderer.setSize(64, 36, false);
+  }
+
   // lights and custom shaders go to scene.json; the glTF carries geometry and standard materials only
   const lights = [], shaders = [], detached = [], hidden = [];
   const wp = new V(), wq = new THREE.Quaternion(), ws = new V();
@@ -118,7 +149,9 @@ export async function start({ shot }) {
       if (skipped.length) console.warn('textures left out:', [...new Set(skipped)].join(', '));
       for (const o of hidden) o.visible = false;
       const parents = detached.map(l => [l, l.parent]); for (const [l, p] of parents) p.remove(l);
+      grabViewfinders(); for (const v of vfs) v.mesh.material.map = v.tex;     // the viewfinders as pictures
       const out = await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true, maxTextureSize: 4096 });
+      for (const v of vfs) v.mesh.material.map = v.rtTex;
       for (const [l, p] of parents) p.add(l); for (const o of hidden) o.visible = true;
       const a = new Uint8Array(out); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode(...a.subarray(i, i + 32768));
       return btoa(s);
@@ -130,9 +163,11 @@ export async function start({ shot }) {
         camera.push({ m: m.toArray(), fov: c.fov, aspect: 16 / 9 });
       }
       return { lights, shaders, yUp: true, env: true, background: [0.016, 0.02, 0.027], fog: { color: [0.016, 0.02, 0.027], density: 0.024 }, exposure: 1.1, toneMapping: 4,
-        actors: [], frames: { fps: FPS, first: 0, count: N, startSeconds: 0 }, camera, actorVisible: [], focus: SHOTS[shot].focus, wall: wallMesh ? { name: 'DZ_LED_WALL' } : null };
+        actors: [], frames: { fps: FPS, first: 0, count: N, startSeconds: 0 }, camera, actorVisible: [], focus: SHOTS[shot].focus, wall: wallMesh ? { name: 'DZ_LED_WALL' } : null, viewfinders: vfs.length };
     },
     // the wall's picture for frame f, as a JPEG (data URL)
     wall(f) { setFilm(f); studio.wall.draw(T0 + f / FPS, 1 / FPS); return studio.wall.canvas.toDataURL('image/jpeg', 0.93); },
+    // the viewfinders' pictures for frame f (after wall(f), so they see the wall's picture of that frame)
+    viewfinders() { studio.wall.texture.needsUpdate = true; grabViewfinders(); return vfs.map(v => v.canvas.toDataURL('image/jpeg', 0.92)); },
   };
 }
