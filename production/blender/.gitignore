@@ -1,0 +1,7 @@
+cache/
+cache-*/
+renders/
+vendor-cache/
+*.blend
+*.blend1
+*.log

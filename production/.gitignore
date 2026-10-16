@@ -1,0 +1,12 @@
+# downloaded avatar library files, converted textures and rendered clips: large, reproducible with avatars/fetch.sh
+avatars/source/
+avatars/web/
+poc/out-*.mp4
+opening/out/
+opening/review/
+# the presenters' face reference photos: personal, kept out of git
+avatars/reference/
+avatars/.venv/
+avatars/models/
+avatars/likeness/
+empty-opening/out/

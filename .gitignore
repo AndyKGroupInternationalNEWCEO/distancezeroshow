@@ -1,5 +1,7 @@
 .vercel
 .env*
+virtualspace/dist/
 .DS_Store
+virtualspace/.vercel-old-*/
 rehearsal-virtual-live/
 studio/media/catalog.backup-*.json
