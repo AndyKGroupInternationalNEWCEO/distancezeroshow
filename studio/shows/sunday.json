@@ -71,11 +71,11 @@
         "cues": {
           "scene": "OPENING",
           "jingle": "",
-          "video": "V01",
+          "video": "V25",
           "mode": "once",
           "audioMode": "video",
           "music": "",
-          "loopAfter": "V19"
+          "loopAfter": "V26"
         },
         "guest": {
           "name": "",
@@ -417,7 +417,7 @@
     },
     "Opening Video": {
       "kind": "media",
-      "file": "shared-assets/previews/DISTANCE_ZERO_OPENING_NEW_LOGO_preview-A.mp4",
+      "file": "shared-assets/virtual-studio/02-predshow/predshow-90s-studio.mp4",
       "restart": true
     },
     "Logo Reveal": {
