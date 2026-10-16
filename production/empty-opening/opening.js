@@ -212,7 +212,7 @@ export async function start({ canvas, width, height, realtime = true, progress =
   let clockT = 0;
   setClockSource(() => new Date(SHOW_START - (DURATION - clockT) * 1000));
 
-  const studio = buildStudio({ scene, quality, logo: 'image' });
+  const studio = buildStudio({ scene, quality, logo: 'kv' });   // the hanging logo: the key visual's glass, as in the studio loops
   studio.beacons.clock(() => clockT);
   const arrival = ARRIVAL ? await buildArrival(scene, renderer) : null;
   // the wall's film: the video in the same 3 m high 16:9 box as the logo card, black round it
