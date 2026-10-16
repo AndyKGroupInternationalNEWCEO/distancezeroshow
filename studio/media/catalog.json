@@ -147,17 +147,6 @@
   ],
   "video": [
     {
-      "id": "V01",
-      "title": "SUNDAY MAIN SHOW OPENING",
-      "category": "OPENING",
-      "shows": [
-        "sunday"
-      ],
-      "file": "shared-assets/previews/DISTANCE_ZERO_OPENING_NEW_LOGO_preview-A.mp4",
-      "embeddedAudio": true,
-      "linkedAudio": "17"
-    },
-    {
       "id": "V02",
       "title": "FRIDAY LIVE OPENING",
       "category": "OPENING",
@@ -428,15 +417,14 @@
     },
     {
       "id": "V25",
-      "title": "PRE-SHOW — THE STUDIO WAKES UP (90 S)",
+      "title": "SUNDAY MAIN SHOW OPENING — THE STUDIO WAKES UP",
       "category": "OPENING",
       "shows": [
-        "sunday",
-        "friday"
+        "sunday"
       ],
       "file": "shared-assets/virtual-studio/02-predshow/predshow-90s-studio.mp4",
       "embeddedAudio": true,
-      "note": "From the Virtual Space render (shared-assets/virtual-studio/README.md)."
+      "note": "The Sunday opening since 16 Oct 2026 (replaces the old preview-A). Ends on the clean logo card."
     },
     {
       "id": "V26",
