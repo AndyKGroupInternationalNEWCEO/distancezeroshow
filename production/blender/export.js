@@ -53,8 +53,8 @@ export async function start({ shot }) {
   scene.environment = pm.fromScene(studioEnvironment(), 0.02).texture;
   setClockSource(() => new Date(Date.UTC(2027, 0, 27, 9, 0, 0)));   // the clocks at 10:00 Vienna, show time
   const quality = { mobile: false, dpr: 1, shadowSize: 2048, shadows2: true, reflections: false, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30, ao: false };
-  // the hanging logo as the key visual's real glass (amber Vienna, ice Melbourne): ray-traced glass in Cycles
-  const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'kv' });
+  // the hanging logo: the official artwork, as the live Virtual Space hangs it ('kv': the 3D glass version)
+  const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'image' });   // as the live Virtual Space
   studio.liftLogo(false); studio.beacons.off();
 
   // the wall's film: the studio background loop's frames (frames.sh), drawn by the wall's own 'film' programme
@@ -86,7 +86,7 @@ export async function start({ shot }) {
     if (!o.isMesh) return;
     const m = o.material, warm = c => c.r > c.b;
     if (m.transmission > 0) m.name = warm(m.attenuationColor) ? 'DZ_GLASS_WARM' : 'DZ_GLASS_COOL';
-    else if (m.isMeshBasicMaterial) m.name = warm(m.color) ? 'DZ_LINE_AMBER' : 'DZ_LINE_ICE';
+    else if (m.isMeshBasicMaterial && !m.map) m.name = warm(m.color) ? 'DZ_LINE_AMBER' : 'DZ_LINE_ICE';   // the glass version's edges
   });
   // the studio cameras' viewfinders: their live picture is a render target the glTF cannot carry (it came out white);
   // each gets a canvas, exported per frame like the wall (vf<k>/0001.jpg …)
