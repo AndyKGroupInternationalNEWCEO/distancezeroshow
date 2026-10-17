@@ -332,7 +332,10 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       return { show: { title: config.show.title }, now: Date.now(),
         guest: g ? { name: g.name, status: g.status, check: g.check || null, push: ['backstage', 'onair'].includes(g.status) ? guestLinks(g).push : '' } : null,
         fx: g?.status === 'onair' ? fxPads() : [],
-        tally: { onAir: obs.state.stream.active } };
+        tally: { onAir: obs.state.stream.active },
+        // backstage and on air the guest READS the viewer chat (to react on air); only the hosts answer
+        viewerChat: vchat && ['backstage', 'onair'].includes(g?.status) ? { ...vchat.view(), readOnly: true } : null,
+        segment: rundown.segments[state.pos.index] ? { title: rundown.segments[state.pos.index].title } : null };
     }
     const seg = rundown.segments[state.pos.index];
     return { show: showView(), roll: state.gfx.credits ? creditRoll() : null, gfx: state.gfx, segment: seg ? { title: seg.title, kind: seg.kind } : null };
