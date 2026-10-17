@@ -204,6 +204,10 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
 .glive .pic{max-height:58vh;margin:0 auto}
 .lvl{height:8px;background:var(--smoke);position:relative;overflow:hidden;margin-top:6px}
 .lvl i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--green),var(--warn) 80%,var(--red));transition:width .12s}
+.vchat{max-height:340px;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.vchat.on{border-color:var(--red)}
+.vcm{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;font-size:.88rem;align-items:baseline}
+.vcm b{color:var(--ice)} .vcm.host b{color:var(--amber)} .vcm span{overflow-wrap:anywhere} .vcm time{color:var(--faint);font-size:.7rem}
 @media (max-width:760px){.ggrid{grid-template-columns:1fr}}
 </style>
 
@@ -258,6 +262,11 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
         </div>
       </section>
       <div class="col">
+        <section class="card key vchat" id="vcCard" aria-label="Live chat with viewers" hidden>
+          <div class="card-h"><h2>Live chat // viewers</h2><div class="aside"><span class="badge ok" id="vcBadge"></span></div></div>
+          <ol class="chat-log" id="vcLog" aria-live="polite"></ol>
+          <p class="hint" style="padding:0 14px 12px">What viewers write on distancezeroshow.com. Feel free to react on air; Andy'K and Georgie answer here.</p>
+        </section>
         <section class="card" id="fxCard" aria-labelledby="fxH" hidden>
           <div class="card-h"><h2 id="fxH">Sound FX</h2><div class="aside"><span class="hint">On air in Vienna</span></div></div>
           <div class="card-b"><div class="fxpads" id="fxPads"></div><p class="hint" style="margin-top:10px">You are on air: press once and the effect plays on the show.</p></div>
@@ -276,6 +285,7 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
             <li>Use Chrome on a computer, plugged into power, ideally with a network cable.</li>
             <li>Close other video apps (Zoom, FaceTime, Teams): only one app can use the camera.</li>
             <li>No account and no download: the invite link is all you need. It works only for this show.</li>
+            <li>From backstage on you can read the viewers' live chat. You can react on air; the hosts answer in the chat.</li>
           </ul></div></section>
       </div>
     </div>
@@ -367,6 +377,26 @@ $('#fxPads').replaceChildren(...FX.map((n, i) => h('button', { type: 'button', c
 } })));
 
 $('#resetAll').addEventListener('click', () => { for (const t of timers) clearTimeout(t); timers = []; done = new Set(); store.set('done', []); joined = false; checking = false; clearInterval(lvlT); $('#lvl').style.width = '0'; $('#gStart').textContent = 'Start check'; $('#camBadge').textContent = 'Not checked'; $('#camBadge').className = 'badge'; $('#camInfo').textContent = ''; setStatus('waiting'); renderSteps(); toast('Back in the waiting room. Start with step 1.'); });
+
+/* viewer chat: read only for guests, from backstage on (pretend viewers here) */
+const VC_NICKS = ['Sophie_MEL', 'tranceKid', 'Lena.wien', 'DJ_Marco', 'nightowl', 'Ana_VIE', 'bassline88', 'KatieB'];
+const VC_LINES = ['Welcome to the show!', 'Big fan of your music', 'Where are you joining from?', 'What are you working on next?', 'Hello from Melbourne!', 'Servus aus Wien!', 'Can you tell the story behind your last release?', 'This is great, thank you!'];
+let vcMsgs = [], vcOnline = 18, vcNext = 0;
+function vcRender() {
+  const card = $('#vcCard'); card.hidden = !['backstage', 'onair'].includes(status) && !vcMsgs.length; if (card.hidden) return;
+  $('#vcBadge').textContent = vcOnline + ' in chat';
+  const log = $('#vcLog');
+  log.replaceChildren(...(vcMsgs.length ? vcMsgs.map(m => h('li', { class: 'vcm' + (m.host ? ' host' : '') }, h('b', { text: m.nick }), h('span', { text: m.text }), h('time', { text: new Date(m.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }))) : [h('li', { class: 'hint', text: 'No messages yet.' })]));
+  log.scrollTop = log.scrollHeight;
+}
+setInterval(() => {
+  if (!['backstage', 'onair'].includes(status)) { vcRender(); return; }
+  if (Date.now() < vcNext) return;
+  vcNext = Date.now() + (status === 'onair' ? 3000 : 6000) + Math.random() * 3000; vcOnline = Math.min(60, vcOnline + (Math.random() < .5 ? 1 : 0));
+  const host = Math.random() < .2;
+  vcMsgs.push({ nick: host ? (Math.random() < .5 ? 'Georgie' : 'Andrej') : VC_NICKS[Math.floor(Math.random() * VC_NICKS.length)], text: host ? 'Thanks for writing in, keep the questions coming!' : VC_LINES[Math.floor(Math.random() * VC_LINES.length)], at: Date.now(), host });
+  if (vcMsgs.length > 60) vcMsgs.shift(); vcRender();
+}, 700);
 
 renderSteps(); setStatus('waiting');
 })();
