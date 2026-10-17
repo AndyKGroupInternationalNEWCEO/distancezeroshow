@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /practice/
 
 Sitemap: https://distancezeroshow.com/sitemap.xml
