@@ -170,6 +170,9 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
 .call .ctrls{display:flex;gap:6px;padding:12px;flex-wrap:wrap}
 .call .ctrls .b{flex:1;padding:9px 6px;font-size:.62rem}
 .call .info{padding:0 14px;font-size:.78rem;color:var(--dim)}
+.vchat.on{border-color:var(--red);box-shadow:0 0 0 1px rgba(255,77,85,.35)}
+.vcm{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;font-size:.88rem;align-items:baseline}
+.vcm b{color:var(--ice)} .vcm.me b{color:var(--amber)} .vcm span{overflow-wrap:anywhere} .vcm time{color:var(--faint);font-size:.7rem}
 .call.min .stage,.call.min .info{display:none}
 .livevid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 .pgm .people .you{width:18%;aspect-ratio:3/4;border-radius:50% 50% 10% 10%;overflow:hidden;position:relative;border:1px solid var(--ice)}
@@ -230,7 +233,7 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
   <aside class="card key lesson" aria-labelledby="lessonH">
     <div class="card-b">
       <span class="label">Learn the studio</span>
-      <h1 id="lessonH">Nine steps to your first show</h1>
+      <h1 id="lessonH">Ten steps to your first show</h1>
       <p class="hint">Do them in order. Each one ticks itself when you've done it.</p>
       <div class="progress-line" aria-hidden="true"><i id="lessonBar"></i></div>
       <ol class="steps" id="steps"></ol>
@@ -295,6 +298,12 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
         </div>
 
         <div class="col">
+          <section class="card key vchat" id="vcCard" aria-label="Live chat with viewers" hidden>
+            <div class="card-h"><h2>Live chat // viewers</h2><div class="aside"><span class="badge" id="vcBadge"></span></div></div>
+            <ol class="chat-log" id="vcLog" aria-live="polite"></ol>
+            <form class="chat-form" id="vcForm" autocomplete="off"><input class="in" id="vcInput" maxlength="280" placeholder="Answer the viewers as Georgie" aria-label="Answer in the live chat"><button class="b primary" type="submit">Send</button></form>
+            <p class="hint" id="vcHint" style="padding:0 14px 12px"></p>
+          </section>
           <section class="card key" aria-labelledby="chatH" id="chatCard">
             <div class="card-h"><h2 id="chatH">Talkback // Andrej</h2><div class="aside"><span class="badge ok">Online</span></div></div>
             <ol class="chat-log" id="chatLog" aria-live="polite"></ol>
@@ -427,6 +436,7 @@ const STEPS = [
   { id: 'cue', title: 'Follow an instruction', why: 'Andrej sends instructions like "Wrap up in 30 seconds". They flash in orange. Press Got it so he knows you saw it.', go: () => { setView('show'); if (!live) startShow(); setTimeout(() => instruction('Wrap up in 30 seconds, then hand over to me.'), 800); } },
   { id: 'fx', title: 'Play a Sound FX', why: 'While on air, one press plays the sound on the show. Try Applause.', go: () => { setView('show'); if (!live) startShow(); coach('#fxCard'); } },
   { id: 'brk', title: 'Get through a break', why: 'In a break your mic is muted for viewers and a countdown shows when the show comes back. You can still talk to Andrej in the call.', go: () => { setView('show'); if (!live) startShow(); jumpTo(4); } },
+  { id: 'vchat', title: 'Answer a viewer', why: 'Viewers write in the live chat on the website. In COMMUNITY & LIVE CHAT the window lights up red: read a message out on air, then answer one here. Viewers see your answer as Georgie.', go: () => { setView('show'); jumpTo(9); setTimeout(() => coach('#vcCard'), 300); } },
   { id: 'help', title: 'Ask for help', why: 'HELP sends Andrej an alert with your connection details. Normal for small things, Urgent for problems, Critical only when something is wrong on air.', go: () => { openHelp(); } },
 ];
 let done = new Set(store.get('done', []));
@@ -442,7 +452,7 @@ function tick(id) {
   if (done.has(id)) return;
   done.add(id); store.set('done', [...done]); renderSteps();
   const s = STEPS.find(x => x.id === id);
-  toast(done.size === STEPS.length ? 'All nine steps done. You are ready for the show.' : `Done: ${s.title}`);
+  toast(done.size === STEPS.length ? 'All ten steps done. You are ready for the show.' : `Done: ${s.title}`);
 }
 function coach(sel) { const el = $(sel); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('coach'); void el.offsetWidth; el.classList.add('coach'); }
 $('#resetAll').addEventListener('click', () => { done = new Set(); store.set('done', []); stopShow(); for (const c of document.querySelectorAll('#checks input')) c.checked = false; vdo = false; paintVdo(); renderSteps(); setView('check'); toast('Lessons reset. Start with step 1.'); });
@@ -709,6 +719,42 @@ $('#fbForm').addEventListener('submit', e => {
   if (!fbText.value.trim()) { toast('Write something first.'); return; }
   location.href = 'mailto:info@distancezeroshow.com?subject=' + encodeURIComponent('Studio practice feedback — Georgie') + '&body=' + encodeURIComponent(fbBody());
   $('#fbState').textContent = 'Your mail app should open now. Your text stays saved here.';
+});
+
+/* ---------- viewer live chat (pretend viewers; the real one comes from distancezeroshow.com) ---------- */
+const VC_NICKS = ['Sophie_MEL', 'tranceKid', 'Lena.wien', 'DJ_Marco', 'nightowl', 'Ana_VIE', 'bassline88', 'KatieB', 'Moritz', 'sunrise_set', 'Jules', 'melb_raver'];
+const VC_LINES = ['Hello from Melbourne!', 'Servus aus Wien!', 'This track is fire', 'Who is the guest tonight?', 'Greetings from Berlin', 'Turn it up!', 'Georgie, what was that last track?',
+  'Andrej, are you up too early again?', 'Love the studio', 'First time here, great show', 'Can you play something progressive?', 'Sound is perfect tonight',
+  'What time is it in Melbourne right now?', 'Shoutout to everyone in the chat!', 'Ösi vs Aussie, who wins tonight?'];
+const VC_ME = 'Georgie';
+let vcMsgs = [], vcOnline = 14, vcShown = -1, vcNext = 0;
+const vcRunning = () => live;
+const vcSeg = () => { const s = typeof idx === 'number' && idx >= 0 ? SEGS[idx] : null; return !!s && /CHAT|COMMUNITY/.test(s.t); };
+function vcAdd(nick, text, me) { vcMsgs.push({ nick, text, me: !!me, at: Date.now() }); if (vcMsgs.length > 80) vcMsgs.shift(); vcRender(); }
+function vcRender() {
+  const card = $('#vcCard'), on = vcSeg(), run = vcRunning();
+  card.hidden = !run && !vcMsgs.length; if (card.hidden) return;
+  card.classList.toggle('on', on);
+  $('#vcBadge').textContent = on ? `ON NOW · ${vcOnline} in chat` : `${vcOnline} in chat`; $('#vcBadge').className = 'badge ' + (on ? 'air' : 'ok');
+  $('#vcHint').textContent = on ? 'This is the live-chat segment: read the best messages out on air, and answer one here.' : 'Viewers write on distancezeroshow.com. In practice these viewers are pretend.';
+  if (vcShown === vcMsgs.length) return;
+  const log = $('#vcLog');
+  log.replaceChildren(...(vcMsgs.length ? vcMsgs.map(m => h('li', { class: 'vcm' + (m.me ? ' me' : '') }, h('b', { text: m.nick }), h('span', { text: m.text }),
+    h('time', { text: new Date(m.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }))) : [h('li', { class: 'hint', text: 'No messages yet.' })]));
+  log.scrollTop = log.scrollHeight; vcShown = vcMsgs.length;
+}
+setInterval(() => {
+  if (!vcRunning()) { vcRender(); return; }
+  const now = Date.now(); if (now < vcNext) { vcRender(); return; }
+  vcNext = now + (vcSeg() ? 2500 + Math.random() * 2000 : 7000 + Math.random() * 6000);
+  vcOnline = Math.min(60, vcOnline + (Math.random() < .6 ? 1 : 0));
+  vcAdd(VC_NICKS[Math.floor(Math.random() * VC_NICKS.length)], VC_LINES[Math.floor(Math.random() * VC_LINES.length)]);
+}, 700);
+$('#vcForm').addEventListener('submit', e => {
+  e.preventDefault(); const t = $('#vcInput').value.trim(); if (!t) return;
+  vcAdd(VC_ME, t, true); $('#vcInput').value = ''; tick('vchat');
+  toast(`Practice: viewers would see this as ${VC_ME}.`);
+  setTimeout(() => vcAdd(VC_NICKS[Math.floor(Math.random() * VC_NICKS.length)], 'Thanks ' + VC_ME + '!'), 1800);
 });
 
 renderSteps(); renderRO(); paintVdo();

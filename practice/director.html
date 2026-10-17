@@ -170,6 +170,9 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
 .call .ctrls{display:flex;gap:6px;padding:12px;flex-wrap:wrap}
 .call .ctrls .b{flex:1;padding:9px 6px;font-size:.62rem}
 .call .info{padding:0 14px;font-size:.78rem;color:var(--dim)}
+.vchat.on{border-color:var(--red);box-shadow:0 0 0 1px rgba(255,77,85,.35)}
+.vcm{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;font-size:.88rem;align-items:baseline}
+.vcm b{color:var(--ice)} .vcm.me b{color:var(--amber)} .vcm span{overflow-wrap:anywhere} .vcm time{color:var(--faint);font-size:.7rem}
 .call.min .stage,.call.min .info{display:none}
 .ring{animation:ring 1s infinite}
 @keyframes ring{50%{box-shadow:0 0 0 4px rgba(56,211,159,.35)}}
@@ -277,7 +280,7 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
   <aside class="card key lesson" aria-labelledby="lessonH">
     <div class="card-b">
       <span class="label">Learn the Director Studio</span>
-      <h1 id="lessonH">Twelve steps through a whole show</h1>
+      <h1 id="lessonH">Thirteen steps through a whole show</h1>
       <p class="hint">Do them in order. Each one ticks itself when you've done it.</p>
       <div class="progress-line" aria-hidden="true"><i id="lessonBar"></i></div>
       <ol class="steps" id="steps"></ol>
@@ -342,6 +345,12 @@ ol.howto{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
           <section class="card key"><div class="card-h"><h2>Live show script</h2><div class="aside"><span class="example">Example lines</span></div></div><div class="card-b script" id="script"><p class="hint">Press GO 01 to start. The script of the segment on air shows here.</p></div></section>
         </div>
         <div class="col">
+          <section class="card key vchat" id="vcCard" aria-label="Live chat with viewers" hidden>
+            <div class="card-h"><h2>Live chat // viewers</h2><div class="aside"><span class="badge" id="vcBadge"></span></div></div>
+            <ol class="chat-log" id="vcLog" aria-live="polite"></ol>
+            <form class="chat-form" id="vcForm" autocomplete="off"><input class="in" id="vcInput" maxlength="280" placeholder="Answer the viewers as Andrej" aria-label="Answer in the live chat"><button class="b primary" type="submit">Send</button></form>
+            <p class="hint" id="vcHint" style="padding:0 14px 12px"></p>
+          </section>
           <section class="card" id="gfxCard"><div class="card-h"><h2>Graphics</h2><div class="aside"><span class="badge ok">Overlay live</span></div></div>
             <div class="card-b gfx"><button class="b" type="button" data-g="bug">D//0 bug</button><button class="b" type="button" data-g="clocks">Clocks</button><button class="b" type="button" data-g="lt">Lower third</button><button class="b" type="button" data-g="clear">Clear all</button></div></section>
           <section class="card" id="cartCard"><div class="card-h"><h2>Jingles</h2><div class="aside"><button class="b" type="button" id="stopAll" style="padding:5px 8px">Stop</button></div></div><div class="card-b cart" id="cart"></div></section>
@@ -414,6 +423,7 @@ const STEPS = [
   { id: 'jingle', title: 'Play a jingle', why: 'Jingles: one press plays it on air (you hear it, Georgie hears it in the call). Stop ends it.', go: () => { setView('show'); coachEl('#cartCard'); } },
   { id: 'brk', title: 'Run a break', why: 'Start break: mics mute for viewers and the break video runs. When you are ready, Return to live: mics come back.', go: () => { setView('show'); coachEl('#breakBtn'); } },
   { id: 'help', title: 'Answer Georgie\'s HELP', why: 'A HELP banner appears at the top with her problem. Press Seen so she knows you saw it, then Resolved when it is fixed.', go: () => raiseHelp() },
+  { id: 'vchat', title: 'Answer a viewer', why: 'The website live chat shows on your Show tab while the show runs. In COMMUNITY & LIVE CHAT it lights up red. Answer one viewer: they see it as Andrej.', go: () => { setView('show'); if (idx < 8) { idx = 8; go(); } setTimeout(() => coachEl('#vcCard'), 300); } },
   { id: 'live', title: 'Learn GO LIVE (real show)', why: 'End the rehearsal first, then Live tab → Unlock GO LIVE → hold GO LIVE for 2 seconds. In practice nothing streams.', go: () => { setView('live'); coachEl('#outStream'); } },
   { id: 'end', title: 'End the rehearsal', why: 'Rehearsal tab → End rehearsal. You get a report of what passed and what was not tested.', go: () => { setView('rh'); coachEl('#rhEnd'); } },
 ];
@@ -424,7 +434,7 @@ function renderSteps() {
     h('button', { type: 'button', onclick: () => s.go() }, h('span', { class: 'n', text: done.has(s.id) ? '✓' : String(i + 1) }), h('span', {}, h('b', { text: s.title }), h('span', { class: 'why', text: s.why }))))));
   $('#lessonBar').style.width = (done.size / STEPS.length * 100) + '%';
 }
-function tick(id) { if (done.has(id)) return; done.add(id); store.set('done', [...done]); renderSteps(); const s = STEPS.find(x => x.id === id); toast(done.size === STEPS.length ? 'All twelve steps done. You know the whole studio.' : 'Done: ' + s.title); }
+function tick(id) { if (done.has(id)) return; done.add(id); store.set('done', [...done]); renderSteps(); const s = STEPS.find(x => x.id === id); toast(done.size === STEPS.length ? 'All thirteen steps done. You know the whole studio.' : 'Done: ' + s.title); }
 function coachEl(sel) { const el = $(sel); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('coach'); void el.offsetWidth; el.classList.add('coach'); }
 function setView(v) { for (const t of $$('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v)); for (const id of ['live', 'show', 'rh']) $('#view-' + id).hidden = id !== v; }
 for (const t of $$('.tab')) t.addEventListener('click', () => setView(t.dataset.view));
@@ -596,6 +606,42 @@ $('#rhEnd').addEventListener('click', () => { if (!rh) { toast('No rehearsal is 
 $('#showSel').addEventListener('change', () => { if (idx >= 0) { toast('Not possible while the show clock runs. In the real studio press Reset first.'); $('#showSel').value = 'sunday'; return; } toast('OBS switched to ' + $('#showSel').selectedOptions[0].textContent + '.'); if ($('#showSel').value === 'sunday' && store.get('pickedFriday', false)) tick('show'); if ($('#showSel').value === 'friday') store.set('pickedFriday', true); });
 
 function paintAll() { paintMonitors(); paintMics(); paintLights(); paintOut(); paintCart(); paintRh(); renderSeg(); paintHelp(); }
+/* ---------- viewer live chat (pretend viewers; the real one comes from distancezeroshow.com) ---------- */
+const VC_NICKS = ['Sophie_MEL', 'tranceKid', 'Lena.wien', 'DJ_Marco', 'nightowl', 'Ana_VIE', 'bassline88', 'KatieB', 'Moritz', 'sunrise_set', 'Jules', 'melb_raver'];
+const VC_LINES = ['Hello from Melbourne!', 'Servus aus Wien!', 'This track is fire', 'Who is the guest tonight?', 'Greetings from Berlin', 'Turn it up!', 'Georgie, what was that last track?',
+  'Andrej, are you up too early again?', 'Love the studio', 'First time here, great show', 'Can you play something progressive?', 'Sound is perfect tonight',
+  'What time is it in Melbourne right now?', 'Shoutout to everyone in the chat!', 'Ösi vs Aussie, who wins tonight?'];
+const VC_ME = 'Andrej';
+let vcMsgs = [], vcOnline = 14, vcShown = -1, vcNext = 0;
+const vcRunning = () => idx >= 0;
+const vcSeg = () => { const s = typeof idx === 'number' && idx >= 0 ? SEGS[idx] : null; return !!s && /CHAT|COMMUNITY/.test(s.t); };
+function vcAdd(nick, text, me) { vcMsgs.push({ nick, text, me: !!me, at: Date.now() }); if (vcMsgs.length > 80) vcMsgs.shift(); vcRender(); }
+function vcRender() {
+  const card = $('#vcCard'), on = vcSeg(), run = vcRunning();
+  card.hidden = !run && !vcMsgs.length; if (card.hidden) return;
+  card.classList.toggle('on', on);
+  $('#vcBadge').textContent = on ? `ON NOW · ${vcOnline} in chat` : `${vcOnline} in chat`; $('#vcBadge').className = 'badge ' + (on ? 'air' : 'ok');
+  $('#vcHint').textContent = on ? 'This is the live-chat segment: read the best messages out on air, and answer one here.' : 'Viewers write on distancezeroshow.com. In practice these viewers are pretend.';
+  if (vcShown === vcMsgs.length) return;
+  const log = $('#vcLog');
+  log.replaceChildren(...(vcMsgs.length ? vcMsgs.map(m => h('li', { class: 'vcm' + (m.me ? ' me' : '') }, h('b', { text: m.nick }), h('span', { text: m.text }),
+    h('time', { text: new Date(m.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }))) : [h('li', { class: 'hint', text: 'No messages yet.' })]));
+  log.scrollTop = log.scrollHeight; vcShown = vcMsgs.length;
+}
+setInterval(() => {
+  if (!vcRunning()) { vcRender(); return; }
+  const now = Date.now(); if (now < vcNext) { vcRender(); return; }
+  vcNext = now + (vcSeg() ? 2500 + Math.random() * 2000 : 7000 + Math.random() * 6000);
+  vcOnline = Math.min(60, vcOnline + (Math.random() < .6 ? 1 : 0));
+  vcAdd(VC_NICKS[Math.floor(Math.random() * VC_NICKS.length)], VC_LINES[Math.floor(Math.random() * VC_LINES.length)]);
+}, 700);
+$('#vcForm').addEventListener('submit', e => {
+  e.preventDefault(); const t = $('#vcInput').value.trim(); if (!t) return;
+  vcAdd(VC_ME, t, true); $('#vcInput').value = ''; tick('vchat');
+  toast(`Practice: viewers would see this as ${VC_ME}.`);
+  setTimeout(() => vcAdd(VC_NICKS[Math.floor(Math.random() * VC_NICKS.length)], 'Thanks ' + VC_ME + '!'), 1800);
+});
+
 renderSteps(); paintAll();
 })();
 </script>
