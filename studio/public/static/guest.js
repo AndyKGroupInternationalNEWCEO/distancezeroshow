@@ -4,6 +4,7 @@
 import { $, connect, toast } from './common.js';
 import { nextSteps, renderSteps } from './steps.js';
 import { renderFxPads } from './fxpads.js';
+import { createViewerChatCard } from './vchat.js';
 
 const inv = new URLSearchParams(location.hash.slice(1)).get('invite');
 if (inv) {
@@ -24,6 +25,7 @@ const conn = connect({ query: '?as=guest', onStatus: st => {
   if (st.state === 'open') conn.send({ t: 'monitors', on: true }).catch(() => {});
   if (st.state === 'closed' && !S) { $('#gState').textContent = 'Invitation not valid'; $('#gLine').textContent = 'Ask the studio for a new link.'; }
 } });
+let vchatCard = null;
 conn.on('state', ({ s }) => { S = s; render(); });
 conn.on('frame', f => { if (f.which === 'program' && f.img) { const i = $('#gProg'); i.src = f.img; i.hidden = false; $('#gProgMsg').hidden = true; } });
 
@@ -31,6 +33,7 @@ function render() {
   const g = S.guest, st = nextSteps(S, 'guest');
   renderSteps($('#gSteps'), st);
   renderFxPads($('#gFxPads'), $('#gFxCard'), S.fx, conn);
+  (vchatCard ||= createViewerChatCard($('#vchatGuest'), conn, { readOnly: true })).update(S);
   $('#gStart').classList.toggle('due', st.due === 'check' && !stream);
   $('#gOpen').classList.toggle('due', st.due === 'open');
   if (!g) { $('#gState').textContent = 'Invitation ended'; $('#gLine').textContent = 'Thank you. You can close this page.'; stopCheck(); return; }
