@@ -66,7 +66,7 @@
         "presenters": "",
         "script": "",
         "talkingPoints": "",
-        "director": "Opening video runs 2:10 with its own sound (no extra jingle): arrival, studio, LED wall. It ends on the moving studio background, which then loops silently until you take the next segment.",
+        "director": "Opening video runs 2:10 with its own sound (no extra jingle): arrival, studio, LED wall. Then the D//0 corridor (V19 STUDIO LOOP) loops silently until you take the next segment.",
         "closing": "",
         "cues": {
           "scene": "OPENING",
@@ -75,7 +75,7 @@
           "mode": "once",
           "audioMode": "video",
           "music": "",
-          "loopAfter": "V26"
+          "loopAfter": "V19"
         },
         "guest": {
           "name": "",
@@ -411,7 +411,7 @@
     },
     "Studio Loop": {
       "kind": "media",
-      "file": "shared-assets/virtual-studio/01-pozadia/pozadie-two.mp4",
+      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
       "loop": true,
       "muted": true
     },

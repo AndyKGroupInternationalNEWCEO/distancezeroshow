@@ -1,6 +1,7 @@
 // TECHNICAL CONTROL — engineering: OBS diagnostics, connections, event log, the full audio mixer with
 // faders and microphone tagging, sources in program, emergency, and settings.
 import { $, $$, h, act, toast, holdButton, clock } from '../common.js';
+import { georgieProof } from './live.js';
 
 const level = d => Math.max(0, Math.min(100, (d + 60) / 60 * 100)).toFixed(1) + '%';
 let lastBytes = null, kbps = 0;
@@ -70,8 +71,9 @@ export function render(ctx) {
     dd('Private call', S.call ? (S.call.phase === 'active' ? (S.call.route || 'connected') : 'ringing') : 'none', S.call?.phase === 'active' ? 'ok' : ''),
     dd('Call quality', S.call?.directorStats ? `${S.call.directorStats.rtt} ms · ${S.call.directorStats.fps} fps in · Georgie ${S.call.hostStats?.rtt ?? '–'} ms` : '—', (S.call?.directorStats?.rtt || 0) > 400 ? 'warn' : ''),
     dd('OBS address', S.settings.obsUrl));
-  const item = (label, ok) => h('span', { class: 'light ' + (!fresh ? '' : ok ? 'ok' : 'warn'), text: label });
-  $('#hostStat').replaceChildren(item('Camera', hs?.camera), item('Mic', hs?.mic), item('Headphones', hs?.headphones),
+  const item = (label, ok) => h('span', { class: 'light ' + (ok ? 'ok' : !fresh ? '' : 'warn'), text: label });
+  const proof = georgieProof(S, hs);
+  $('#hostStat').replaceChildren(item('Camera', proof.camera), item('Mic', proof.mic), item('Headphones', hs?.headphones),
     item('Wired net', hs?.wired), item('Light', hs?.light), item('In VDO', hs?.vdo),
     h('span', { class: 'hint', text: fresh ? `checked ${clock('vie', hs.at, false)} Vienna` : 'no check yet' }));
 

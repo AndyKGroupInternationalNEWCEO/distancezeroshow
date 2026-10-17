@@ -1,22 +1,27 @@
 // Private video/audio call between Andrej and Georgie (WebRTC), shared by both dashboards.
 // The studio server only relays the call set-up; audio and video go browser to browser, encrypted
 // (DTLS-SRTP), and never into OBS. A floating panel shows the other person, your own picture,
-// and controls for microphone, camera, screen sharing and hang-up.
+// and controls for microphone, camera, screen sharing and hang-up. Andrej can also send the show sound (RETURN FEED):
+// OBS monitors the music, jingles, videos and FX to BlackHole 2ch, and the call mixes that device with his mic.
 import { h, hms, toast } from './common.js';
 
 const NAME = { director: 'Andrej', host: 'Georgie' };
 const CITY = { director: 'Vienna', host: 'Melbourne' };
 const DEFAULT_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 
-export function createCall(conn, me, { getState = () => null, onProblem = () => {}, note = null } = {}) {
+export function createCall(conn, me, { getState = () => null, onProblem = () => {}, note = null, video = true, autoAnswer = () => false } = {}) {
   const peerRole = me === 'director' ? 'host' : 'director';
   let pc = null, cid = null, phase = 'idle', local = null, cam = null, screen = null, pending = [], startedAt = 0;
   let statsTimer = 0, clockTimer = 0, restarted = false, ringer = null, iAmCaller = false, peerScreen = false;
-  const media = { mic: true, cam: true, screen: false };
+  const media = { mic: true, cam: true, screen: false, show: false };
+  let mix = null, mixBusy = false, autoShowDone = false; // RETURN FEED: { ctx, feed, track } while the show sound is mixed into the call
   const listeners = new Set();
 
   /* ---------- panel ---------- */
   const remoteV = h('video', { class: 'rv', autoplay: true, playsinline: true });
+  // when the other side sends no camera (Georgie's one camera is in VDO.Ninja), her live OBS picture shows here instead
+  const remoteImg = h('img', { class: 'rv rimg', alt: '', hidden: true });
+  let peerCam = true;
   const localV = h('video', { class: 'lv', autoplay: true, playsinline: true, muted: true });
   localV.muted = true;
   const title = h('strong', { text: '' }), status = h('span', { class: 'cs', text: '' }), timer = h('span', { class: 'ct num', text: '' });
@@ -25,17 +30,19 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
   const bMic = btn('Mic', 'mic', () => toggle('mic'), 'Mute or unmute your microphone');
   const bCam = btn('Camera', 'cam', () => toggle('cam'), 'Turn your camera off or on');
   const bScr = btn('Share screen', 'scr', () => shareScreen(), 'Share your screen');
+  const bShow = btn('Show sound', 'show', () => toggleShow(), 'Send the show sound (music, jingles, videos) to Georgie in this call');
+  if (me !== 'director') bShow.hidden = true;
   const bBig = btn('⤢', 'big', () => panel.classList.toggle('large'), 'Larger video');
   const bSide = btn('⇆', 'big', () => panel.classList.toggle('left'), 'Move the call window to the other side');
   const bEnd = btn('Hang up', 'end', () => hangup());
   const bAccept = btn('Accept', 'accept', () => accept());
   const bDecline = btn('Decline', 'decline', () => decline());
-  const stage = h('div', { class: 'stage' }, remoteV, localV, h('div', { class: 'waiting' }, h('span', { class: 'ring-dot' }), h('span', { class: 'wt', text: '' })));
+  const stage = h('div', { class: 'stage' }, remoteV, remoteImg, localV, h('div', { class: 'waiting' }, h('span', { class: 'ring-dot' }), h('span', { class: 'wt', text: '' })));
   const panel = h('section', { class: 'callpanel', role: 'dialog', 'aria-label': `Private call with ${NAME[peerRole]}`, hidden: true },
     h('header', {}, h('div', {}, title, h('span', { class: 'meta' }, status, timer)), bSide, bBig),
     stage,
     h('div', { class: 'cinfo' }, peerFlags, quality),
-    h('div', { class: 'ctrls inc' }, bMic, bCam, bScr, bEnd),
+    h('div', { class: 'ctrls inc' }, bMic, bCam, bScr, bShow, bEnd),
     h('div', { class: 'ctrls ringing' }, bDecline, bAccept));
   document.body.append(panel);
 
@@ -51,6 +58,14 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
 
   /* ---------- media ---------- */
   async function getLocal() {
+    // audio-only side (Georgie): her camera stays free for VDO.Ninja, which carries it to the show
+    if (!video) {
+      try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+      catch (e2) {
+        onProblem('call-media', e2.name === 'NotAllowedError' ? 'Microphone permission blocked for the call' : 'No microphone for the call: ' + e2.name, { error: e2.name });
+        throw new Error(e2.name === 'NotAllowedError' ? 'Allow the microphone for this page in the browser, then try again.' : 'No microphone available: ' + e2.message);
+      }
+    }
     try {
       return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } });
     } catch (e) {
@@ -103,6 +118,7 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     if (phase !== 'idle') return;
     cid = m.cid; iAmCaller = false;
     setPhase('ringing-in', m.video ? 'Video call' : 'Audio call');
+    if (autoAnswer()) { accept(); return; }
     ring(true);
   });
   conn.on('call.accepted', async m => {
@@ -146,8 +162,10 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     peerScreen = !!m.screen;
     const f = [];
     if (!m.mic) f.push(`${NAME[peerRole]} is muted`);
-    if (!m.cam && !m.screen) f.push('camera off');
+    if (!m.cam && !m.screen) f.push(remoteImg.src ? 'picture from OBS (camera is in VDO.Ninja)' : 'camera in VDO.Ninja');
+    peerCam = !!m.cam || !!m.screen; remoteImg.hidden = peerCam || !remoteImg.src;
     if (m.screen) f.push(`${NAME[peerRole]} is sharing the screen`);
+    if (m.show) f.push('show sound on');
     peerFlags.textContent = f.join(' // ');
     panel.classList.toggle('peer-screen', !!m.screen);
   });
@@ -223,18 +241,57 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     panel.classList.remove('me-screen');
     media.screen = false; paintButtons(); sendMedia();
   }
+  // RETURN FEED: the show sound from BlackHole 2ch, unprocessed (echo cancelling and noise suppression would eat the
+  // music), mixed with the mic in WebAudio and swapped onto the call's audio sender, so no renegotiation is needed.
+  // The mic button keeps working: it switches the mic track inside the mix.
+  async function toggleShow(auto = false) {
+    if (!pc || !local || mixBusy) return;
+    const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+    if (media.show) return auto ? undefined : stopShow(sender);
+    mixBusy = true;
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      const dev = devs.find(d => d.kind === 'audioinput' && /blackhole 2ch/i.test(d.label)) || devs.find(d => d.kind === 'audioinput' && /blackhole/i.test(d.label));
+      if (!dev) return auto ? undefined : toast('BlackHole 2ch not found. Install it and set it as the OBS monitoring device, then try again.', 'bad');
+      const feed = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: dev.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2 } });
+      const ctx = new AudioContext({ latencyHint: 'interactive' }), out = ctx.createMediaStreamDestination();
+      if (ctx.state !== 'running') await ctx.resume().catch(() => {});
+      const mic = local.getAudioTracks()[0];
+      if (mic) ctx.createMediaStreamSource(new MediaStream([mic])).connect(out);
+      const music = ctx.createGain(); music.gain.value = 0.8;
+      ctx.createMediaStreamSource(feed).connect(music).connect(out);
+      const track = out.stream.getAudioTracks()[0];
+      if (sender) await sender.replaceTrack(track);
+      mix = { ctx, feed, track };
+      media.show = true; paintButtons(); sendMedia();
+      toast('Georgie now hears the show sound with your voice.');
+    } catch (e) { toast('Show sound failed: ' + e.message, 'bad'); }
+    finally { mixBusy = false; }
+  }
+  async function stopShow(sender) {
+    if (!media.show) return;
+    if (sender) await sender.replaceTrack(local?.getAudioTracks()[0] || null).catch(() => {});
+    endMix();
+    media.show = false; paintButtons(); sendMedia();
+  }
+  function endMix() {
+    if (!mix) return;
+    mix.feed.getTracks().forEach(t => t.stop()); mix.track.stop(); mix.ctx.close().catch(() => {});
+    mix = null;
+  }
   function sendMedia() { if (cid && phase !== 'idle') conn.send({ t: 'call.media', cid, ...media, cam: media.cam && !!cam }).catch(() => {}); }
   function paintButtons() {
     bMic.textContent = media.mic ? 'Mic' : 'Mic off'; bMic.classList.toggle('off', !media.mic);
     bCam.textContent = !cam ? 'No camera' : media.cam ? 'Camera' : 'Camera off'; bCam.classList.toggle('off', !media.cam || !cam); bCam.disabled = !cam;
     bScr.textContent = media.screen ? 'Stop sharing' : 'Share screen'; bScr.classList.toggle('on', media.screen);
+    bShow.textContent = media.show ? 'Show sound on' : 'Show sound'; bShow.classList.toggle('on', media.show);
   }
 
   /* ---------- quality: measured every 3 s, shown here and reported to Vienna ---------- */
   async function stats() {
     if (!pc || phase !== 'active') return;
     const r = await pc.getStats();
-    let pair, rtt = 0, kbps = 0, fps = 0, lost = 0, route = '';
+    let pair, rtt = 0, kbps = 0, fps = 0, lost = 0, route = '', audio = 0;
     r.forEach(s => { if (s.type === 'transport' && s.selectedCandidatePairId) pair = r.get(s.selectedCandidatePairId); });
     if (!pair) r.forEach(s => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
     if (pair) {
@@ -243,10 +300,10 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
       const lc = r.get(pair.localCandidateId), rc = r.get(pair.remoteCandidateId);
       route = lc?.candidateType === 'relay' || rc?.candidateType === 'relay' ? 'relay (TURN)' : lc?.candidateType === 'host' && rc?.candidateType === 'host' ? 'direct (same network)' : 'direct (peer-to-peer)';
     }
-    r.forEach(s => { if (s.type === 'inbound-rtp' && s.kind === 'video') { fps = Math.round(s.framesPerSecond || 0); lost += s.packetsLost || 0; } if (s.type === 'inbound-rtp' && s.kind === 'audio') lost += s.packetsLost || 0; });
+    r.forEach(s => { if (s.type === 'inbound-rtp' && s.kind === 'video') { fps = Math.round(s.framesPerSecond || 0); lost += s.packetsLost || 0; } if (s.type === 'inbound-rtp' && s.kind === 'audio') { lost += s.packetsLost || 0; audio = Math.round((s.audioLevel || 0) * 100); } });
     quality.textContent = `${route} · ${rtt} ms · ${fps} fps${lost ? ' · lost ' + lost : ''}`;
     quality.className = 'cq ' + (rtt > 500 ? 'bad' : rtt > 250 ? 'warn' : 'ok');
-    conn.send({ t: 'call.stats', cid, stats: { rtt, kbps, fps, lost, route, peerScreen } }).catch(() => {});
+    conn.send({ t: 'call.stats', cid, stats: { rtt, kbps, fps, lost, route, peerScreen, audio } }).catch(() => {});
   }
 
   /* ---------- ringing tone (WebAudio, no files) ---------- */
@@ -269,11 +326,12 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     ring(false);
     clearInterval(statsTimer); clearInterval(clockTimer);
     try { pc?.close(); } catch {}
-    pc = null; cid = null; startedAt = 0; restarted = false; pending = []; peerScreen = false;
+    pc = null; cid = null; startedAt = 0; restarted = false; pending = []; peerScreen = false; autoShowDone = false;
     screen?.stop(); screen = null;
+    endMix();
     local?.getTracks().forEach(t => t.stop()); local = null; cam = null;
-    remoteV.srcObject = null; localV.srcObject = null;
-    Object.assign(media, { mic: true, cam: true, screen: false });
+    remoteV.srcObject = null; localV.srcObject = null; peerCam = true; remoteImg.hidden = true; remoteImg.removeAttribute('src');
+    Object.assign(media, { mic: true, cam: true, screen: false, show: false });
     peerFlags.textContent = ''; quality.textContent = ''; timer.textContent = '';
     panel.classList.remove('large', 'peer-screen', 'me-screen');
     paintButtons();
@@ -285,6 +343,8 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
       clearInterval(statsTimer); statsTimer = setInterval(() => stats().catch(() => {}), 3000);
       clearInterval(clockTimer); clockTimer = setInterval(() => { timer.textContent = startedAt ? ' · ' + hms(Date.now() - startedAt) : ''; }, 1000);
       sendMedia();
+      // Andrej's calls carry the show sound from the start; the button switches it off and on
+      if (me === 'director' && !autoShowDone) { autoShowDone = true; toggleShow(true); }
     }
   });
   paintButtons();
@@ -297,5 +357,7 @@ export function createCall(conn, me, { getState = () => null, onProblem = () => 
     // for the BREAK MONITORS: the same pictures, shown a second time (sound stays with the call itself)
     streams: () => ({ local: localV.srcObject || null, remote: remoteV.srcObject || null }),
     micOn: () => media.mic,
+    // a still of the other person from OBS, shown while their camera is not in the call
+    peerPicture(src) { if (!src) return; remoteImg.src = src; remoteImg.hidden = peerCam || phase === 'idle'; },
   };
 }

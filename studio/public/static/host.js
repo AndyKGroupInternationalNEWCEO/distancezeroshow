@@ -8,6 +8,7 @@ import { initHelpTips } from './helptips.js';
 import { createMonitors, createClock, createScript, createBreakMonitors, syncClock, cueLine, serverNow } from './showpanels.js';
 import { nextSteps, renderSteps } from './steps.js';
 import { renderFxPads } from './fxpads.js';
+import { createViewerChatCard } from './vchat.js';
 
 let S = null, link = { state: 'connecting' }, everOpen = false, lastNote = null, roKey = '';
 let downSince = 0, reconnects = 0, slowPings = 0;
@@ -31,9 +32,17 @@ const conn = connect({ onStatus: st => {
   }
   renderStatus();
 } });
-conn.on('state', ({ s }) => { S = s; render(); });
+conn.on('state', ({ s }) => { S = s; render(); reloadIfUpdated(s.build); });
+// after a studio update this page reloads by itself, but never during a call
+let bootBuild = '';
+function reloadIfUpdated(b) {
+  if (!b) return;
+  bootBuild ||= b;
+  if (b !== bootBuild && !document.querySelector('.callpanel:not([hidden])')) location.reload();
+}
 // SHOW: the three monitors, the show clock, the live script with teleprompter, break monitors (all read-only)
 const mons = createMonitors($('#hMons'), { programLabel: 'LIVE PROGRAM' });
+const vchatCard = createViewerChatCard($('#vchatHost'), conn, { me: 'Georgie' });
 const sclock = createClock($('#hClock'));
 const script = createScript($('#hScript'), { me: 'GEORGIE', role: 'host', conn });
 const bmons = createBreakMonitors($('#hBreak'), { call: { get phase() { return call.phase; }, streams: () => call.streams(), micOn: () => call.micOn() }, role: 'host' });
@@ -151,7 +160,7 @@ function renderRundown() {
 }
 
 function tick() {
-  sclock.tick(S); bmons.tick(S); mons.update(S);
+  sclock.tick(S); bmons.tick(S); mons.update(S); vchatCard.update(S);
   renderSteps($('#hSteps'), nextSteps(S, 'host', serverNow()));
   const r = S.rundown, t = segmentTimer(S);
   if (!t) {
@@ -222,6 +231,12 @@ async function startCheck() {
     const why = e.name === 'NotAllowedError' ? 'Camera or microphone permission was blocked. Allow it in the browser address bar and try again.'
       : e.name === 'NotReadableError' ? 'Another app is using the camera or microphone. Close it and try again.'
       : e.name === 'NotFoundError' ? 'No camera or microphone found.' : e.message;
+    // busy because VDO.Ninja or the private call already uses them: her devices work, so no HELP to Vienna
+    if (e.name === 'NotReadableError' && (checks.vdo || call.phase !== 'idle')) {
+      $('#previewMsg').textContent = 'Your camera and microphone are in use by ' + (call.phase !== 'idle' ? 'the private call' : 'VDO.Ninja') + '. That is fine: Vienna receives you there. Run this check again when they are closed.';
+      setBadge('untested', 'In use');
+      return;
+    }
     $('#previewMsg').textContent = why;
     setBadge('bad', 'Problem');
     autoHelp('normal', 'camera-check', 'Georgie\'s camera/mic check failed: ' + e.name, { error: e.name });
@@ -310,7 +325,8 @@ setView(startView);
 /* ---------- private call with Vienna ---------- */
 
 const call = createCall(conn, 'host', {
-  getState: () => S, note,
+  getState: () => S, note, video: false,   // her one camera belongs to VDO.Ninja; the call carries her voice
+  autoAnswer: () => !!(S?.rehearsal?.active || S?.showRunning),   // during a rehearsal or show Andrej's call connects by itself
   onProblem: (kind, text, diag) => autoHelp('urgent', kind, text, diag),
 });
 call.onPhase(p => {

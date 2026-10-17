@@ -30,8 +30,15 @@ ctx.conn = connect({ onStatus: st => {
 ctx.obs = (action, data = {}) => ctx.conn.send({ t: 'obs', action, ...data });
 
 let firstState = true;
+// after a studio update this page reloads by itself, but never during a call
+let bootBuild = '';
+function reloadIfUpdated(b) {
+  if (!b) return;
+  bootBuild ||= b;
+  if (b !== bootBuild && !document.querySelector('.callpanel:not([hidden])')) location.reload();
+}
 ctx.conn.on('state', ({ s }) => {
-  ctx.S = s; render();
+  ctx.S = s; render(); reloadIfUpdated(s.build);
   // opening the studio while a rehearsal runs lands in the Rehearsal workspace (unless a workspace was asked for)
   if (firstState) { firstState = false; if (s.rehearsal?.active && !location.hash) setWs('rehearse'); }
 });

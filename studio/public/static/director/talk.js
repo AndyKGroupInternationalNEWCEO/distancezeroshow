@@ -10,6 +10,7 @@ let call, alarm = 0, heard = new Set();
 export function init(ctx) {
   call = createCall(ctx.conn, 'director', { getState: () => ctx.S, note: ctx.note });
   ctx.call = call;
+  ctx.conn.on('frame', f => { if (f.which === 'camB' && f.img) call.peerPicture(f.img); });
   call.onPhase(p => {
     for (const b of [$('#callBtn'), $('#callBtn2')]) {
       b.textContent = p === 'idle' ? 'Call Georgie' : p === 'active' ? 'In call' : p === 'ringing-in' ? 'Georgie calling' : 'Calling…';

@@ -10,12 +10,15 @@ import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
 import * as preshowPanel from './preshow.js';
 import * as fxPanel from './fx.js';
+import { createViewerChatCard } from '../vchat.js';
 
 let mons, clk, script, brk, lib;
+let vchatCard = null;
 const two = n => String(n).padStart(2, '0');
 
 export function init(ctx) {
   mons = createMonitors($('#showMons'));
+  vchatCard = createViewerChatCard($('#vchatShow'), ctx.conn, { me: 'Andrej' });
   clk = createClock($('#showClock'));
   script = createScript($('#liveScript'), { me: "ANDY'K", role: 'director', conn: ctx.conn });
   brk = createBreakMonitors($('#breakMons'), { call: { get phase() { return ctx.call?.phase; }, streams: () => ctx.call?.streams?.(), micOn: () => ctx.call?.micOn?.() }, role: 'director', onReturn: btn => returnToLive(ctx, btn) });
@@ -226,7 +229,7 @@ function renderSide(ctx) {
 /* timers: every 250 ms */
 export function tick(ctx) {
   const S = ctx.S;
-  clk.tick(S); brk.tick(S); mons.update(S);
+  clk.tick(S); brk.tick(S); mons.update(S); vchatCard?.update(S);
   // 1 · 2 · 3 and the one button to press now blinks (GO, RETURN TO LIVE, ADMIT GUEST or TAKE GUEST ON AIR)
   const st = nextSteps(S, 'director', serverNow());
   renderSteps($('#dSteps'), st);
