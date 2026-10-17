@@ -260,6 +260,8 @@ select.in{appearance:none;background-image:linear-gradient(45deg,transparent 50%
 .out.on{border-color:rgba(255,77,85,.6);background:rgba(255,77,85,.06)}
 .out.on .tc{color:var(--red)}
 .out .b{grid-row:1/3;grid-column:2}
+/* the stream row has two buttons: UNLOCK on top, GO LIVE under it (they used to sit on top of each other) */
+#outStream #armBtn:not([hidden]){grid-row:1}#outStream #armBtn:not([hidden])+#streamBtn{grid-row:2}
 
 /* ================= SHOW CONTROL ================= */
 .show-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);gap:var(--gap);align-items:start}
@@ -460,7 +462,7 @@ select.in{appearance:none;background-image:linear-gradient(45deg,transparent 50%
 .prerow{display:flex;align-items:center;gap:16px;padding:16px 18px;flex-wrap:wrap}
 
 /* ---------- responsive: one Mac screen first, tablets next ---------- */
-@media (max-width:1600px){
+@media (max-width:1800px){
   .bar{gap:14px} .tab{padding:0 13px} .tab kbd{display:none} .tab::after{left:13px;right:13px}
   .brand span{display:none} .bar-right{gap:12px}
   .clock strong{font-size:1.12rem} .tally{padding:0 12px;font-size:.74rem}
@@ -681,13 +683,25 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
 @media (max-width:1100px){.rh-grid{grid-template-columns:1fr}.rh-hero{grid-template-columns:1fr 1fr}.rh-go{grid-column:1/-1}.ck{grid-template-columns:6.6em minmax(0,1fr);}.ck time{display:none}.ck-a{grid-column:1/-1;justify-content:flex-start}}
 @media (max-width:860px){.board{grid-template-columns:1fr 1fr}}
 /* laptop screens: four tabs, call button and tallies on one bar */
-@media (max-width:1600px){
+@media (max-width:1800px){
   .tab .long{display:none}
   .bar .callbtn{padding:9px 12px}
   #popout{display:none}
   .clock.show .label{max-width:9.5em;overflow:hidden;text-overflow:ellipsis}
 }
+@media (max-width:1500px){.bar-right .clock.vie{display:none}}  /* Vienna = the Mac's own clock in the menu bar */
 @media (max-width:1300px){.bar-right .clock.vie,.bar-right .clock.mel{display:none}}
+/* MacBook Air width (≈1470 px): everything on the bar stays on screen, nothing scrolls sideways */
+@media (max-width:1800px){
+  .bar{gap:8px}.bar-right{gap:8px}.tab{padding:0 10px}.tab::after{left:10px;right:10px}
+  .brand span,.showpick>span{display:none}
+  .clock strong{font-size:1.05rem}.clock.show strong{min-width:6.2em}
+  .bar{padding:0 14px}.bar .signout{padding:8px 0;letter-spacing:.08em}
+  #helpBtn{display:none}  /* the ? key opens the shortcuts */
+  .tab{letter-spacing:.12em}.showpick select{max-width:150px}
+  .bar .tally{padding-left:8px;padding-right:8px;letter-spacing:.1em}.modesw button{padding-left:10px;padding-right:10px;letter-spacing:.12em}
+  #layoutBtn{display:none}
+}
 /* notifications bottom-left (never over the main controls), action feedback bottom-centre */
 .notes{top:auto;bottom:18px;left:18px;right:auto}
 .toasts{left:50%;right:auto;transform:translateX(-50%);bottom:18px}
@@ -729,11 +743,15 @@ label.checks input{accent-color:var(--amber);width:20px;height:20px}
 /* ================= SHOW workspace · HOST mode · Host dashboard (three monitors, clock, live script) =================
    Fits the window: the monitors on top, three columns below that scroll on their own, never the page. */
 .show3{display:grid;grid-template-rows:auto minmax(0,1fr);gap:var(--gap);height:calc(100vh - var(--bar) - var(--gap) - 28px);min-height:620px}
-.mon3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.15fr);gap:var(--gap);max-width:1500px;width:100%;justify-self:center}
+/* ANDY'K | big LIVE PROGRAM in the middle | GEORGIE, the guest small under Andrej */
+.mon3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.6fr) minmax(0,1fr);grid-template-areas:"a p b" "g p .";align-items:start;gap:var(--gap);max-width:1700px;width:100%;justify-self:center}
+.mon3-tile[data-which=camA]{grid-area:a}.mon3-tile[data-which=camB]{grid-area:b}.mon3-tile[data-which=guest]{grid-area:g}.mon3-tile[data-which=program]{grid-area:p}
 .mon3-tile{margin:0;background:#000;border:1px solid var(--line);min-width:0}
 .mon3-tile figcaption{display:flex;align-items:center;gap:8px;padding:6px 10px;font-stretch:112%;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase}
 .mon3-tile figcaption b{color:var(--chrome-hi);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mon3-tile[data-which=program]{border-color:rgba(255,77,85,.4);margin-left:var(--gap)}
+.mon3-tile[data-which=program]{border-color:rgba(255,77,85,.55)}
+.mon3-tile[data-which=program] .mpic{max-height:52vh}
+.mon3-tile[data-which=program] figcaption{font-size:.72rem}
 .mpic{position:relative;aspect-ratio:16/9;max-height:20vh;margin:0 auto;display:grid;place-items:center;background:#050506}
 .mpic img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .mmsg{position:relative;padding:0 14px;text-align:center;color:var(--dim);font-size:.78rem;letter-spacing:.06em}
@@ -894,7 +912,8 @@ body[data-status=backstage] .g-status strong{color:var(--ice)}
 body[data-status=onair] .g-status strong{color:var(--red)}
 .guest-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:var(--gap);align-items:start}
 .guest-grid video{width:100%;aspect-ratio:16/9;background:#000;object-fit:cover}
-.g-prog{max-height:none}
+.g-prog{max-height:58vh}
+.g-live{border-color:rgba(255,77,85,.55)}
 .gs-who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
 .gs-who strong{font-size:1.05rem;color:var(--chrome-hi)}
 .gs-checks{list-style:none;padding:10px 0 0;font-size:.82rem;display:flex;flex-direction:column;gap:2px;color:var(--dim)}
@@ -961,3 +980,13 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 .fxvol{display:flex;align-items:center;gap:8px}
 .fxvol input{flex:1;min-width:0;accent-color:var(--amber)}
 .fxv{font-size:.66rem;color:var(--dim);width:38px;text-align:right}
+
+/* VIEWER CHAT: the website's live chat inside the studio; lit up in the live-chat segment */
+.vchat{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-height:340px}
+.vchat.vc-on{border-color:var(--red);box-shadow:0 0 0 1px rgba(255,77,85,.35)}
+.vc-log{list-style:none;margin:0;padding:10px 14px;display:grid;gap:6px;overflow:auto;min-height:90px;align-content:start}
+.vc-msg{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;font-size:.88rem;align-items:baseline}
+.vc-msg b{color:var(--ice);font-weight:700}.vc-msg span{overflow-wrap:anywhere}.vc-msg time{color:var(--faint);font-size:.7rem;font-variant-numeric:tabular-nums}
+.vc-msg.vc-show b{color:var(--amber)}
+.vc-hint{padding:0 14px 12px}
+#vchatShow{margin-top:var(--gap)}

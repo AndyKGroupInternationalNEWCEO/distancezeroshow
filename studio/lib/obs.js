@@ -252,8 +252,8 @@ export class Obs extends EventEmitter {
   async onEvent(type, d) {
     const s = this.state;
     switch (type) {
-      case 'CurrentProgramSceneChanged': s.program = d.sceneName; await this.refreshItems(); break;
-      case 'CurrentPreviewSceneChanged': s.preview = d.sceneName; break;
+      case 'CurrentProgramSceneChanged': s.program = d.sceneName; this.emit('scene.changed', 'program'); await this.refreshItems(); break;
+      case 'CurrentPreviewSceneChanged': s.preview = d.sceneName; this.emit('scene.changed', 'preview'); break;
       case 'CurrentSceneCollectionChanged': s.collection = d.sceneCollectionName || ''; break;
       case 'StudioModeStateChanged': s.studioMode = !!d.studioModeEnabled; if (!s.studioMode) s.preview = ''; else await this.refreshScenes(); break;
       case 'SceneListChanged': this.setScenes(d.scenes || []); break;
@@ -284,6 +284,7 @@ export class Obs extends EventEmitter {
       case 'SceneTransitionEnded': case 'SceneTransitionVideoEnded': s.transitioning = false; break;
       case 'MediaInputPlaybackStarted': case 'MediaInputPlaybackEnded': case 'MediaInputActionTriggered': {
         if (type === 'MediaInputPlaybackEnded') this.emit('media.ended', d.inputName);
+        if (type === 'MediaInputPlaybackStarted') this.emit('media.started', d.inputName);
         const m = s.media.find(x => x.name === d.inputName);
         if (!m) return;
         const x = await this.request('GetMediaInputStatus', { inputName: m.name }).catch(() => null);

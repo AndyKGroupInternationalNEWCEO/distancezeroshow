@@ -4,6 +4,14 @@ import { $, $$, h, hms, act, holdButton, segmentTimer } from '../common.js';
 
 const frames = { program: { at: 0, scene: '' }, preview: { at: 0, scene: '' } };
 const level = d => Math.max(0, Math.min(100, (d + 60) / 60 * 100)).toFixed(1) + '%';
+// Georgie's camera/mic are proven by what really arrives: her video and voice in the private call, her sound in OBS.
+// Her own check page cannot test them while VDO.Ninja or the call already uses her one camera and mic.
+const heard = { obs: 0, call: 0 };
+export function georgieProof(S, hs) {
+  const st = S.call?.phase === 'active' ? S.call.directorStats : null, now = Date.now();
+  if (st?.audio > 1) heard.call = now;
+  return { camera: !!hs?.camera || st?.fps > 0, mic: !!hs?.mic || now - heard.call < 60000 || now - heard.obs < 60000 };
+}
 
 export function init(ctx) {
   $('#cutBtn').addEventListener('click', e => fire(e.currentTarget, ctx, 'cut'));
@@ -94,7 +102,7 @@ export function render(ctx) {
   }
 
   /* links */
-  const hs = S.hostStatus, fresh = hs && Date.now() - hs.at < 6 * 3600e3;
+  const hs = S.hostStatus, fresh = hs && Date.now() - hs.at < 6 * 3600e3, proof = georgieProof(S, hs);
   const light = (text, cls) => h('span', { class: 'light ' + cls, text });
   $('#lightsVie').replaceChildren(
     light('Studio', ctx.link.state === 'open' ? 'ok' : 'bad'),
@@ -103,8 +111,8 @@ export function render(ctx) {
   $('#detailVie').textContent = o.connected ? `${o.stats.fps.toFixed(0)} fps · CPU ${o.stats.cpu.toFixed(0)}% · OBS ${o.stats.latency} ms` : (o.error || 'OBS offline');
   $('#lightsMel').replaceChildren(
     light('Georgie', S.presence.host ? 'ok' : ''),
-    light('Camera', !fresh ? '' : hs.camera ? 'ok' : 'warn'),
-    light('Mic', !fresh ? '' : hs.mic ? 'ok' : 'warn'),
+    light('Camera', proof.camera ? 'ok' : !fresh ? '' : 'warn'),
+    light('Mic', proof.mic ? 'ok' : !fresh ? '' : 'warn'),
     light('VDO', !fresh ? '' : hs.vdo ? 'ok' : 'warn'));
   $('#detailMel').textContent = S.presence.host ? (hs?.rtt ? `Dashboard link ${hs.rtt} ms` : 'Dashboard online') : 'Dashboard not open';
 
@@ -147,6 +155,7 @@ export function tick(ctx) {
 }
 
 export function frame({ which, scene, img }) {
+  if (which !== 'program' && which !== 'preview') return;   // camera pictures belong to the SHOW monitors and the call window
   const el = $(which === 'program' ? '#pgmImg' : '#pvwImg');
   frames[which] = { at: Date.now(), scene };
   el.src = img;
@@ -156,6 +165,7 @@ export function frame({ which, scene, img }) {
 }
 
 export function meters(m) {
+  const g = m['VDO // Georgie']; if (g && Math.max(...g) > -50) heard.obs = Date.now();
   for (const tile of $$('#micTiles .mic')) {
     const v = m[tile.dataset.input] || [-60, -60];
     const bars = tile.querySelectorAll('.meter i');

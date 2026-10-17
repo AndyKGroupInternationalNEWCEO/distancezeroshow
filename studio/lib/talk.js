@@ -134,9 +134,10 @@ export function createTalk({ state, clients, obs, changed, logEvent, notify = ()
         if (!call || call.cid !== msg.cid || call.phase !== 'active') return;
         const peer = peerOf(client);
         if (peer === undefined) throw new Error('Not your call');
-        const m = { mic: !!msg.mic, cam: !!msg.cam, screen: !!msg.screen };
+        const m = { mic: !!msg.mic, cam: !!msg.cam, screen: !!msg.screen, show: role === 'director' && !!msg.show };
         peer?.send({ t: 'call.media', cid: call.cid, ...m });
         if (m.screen !== !!call[role + 'Screen']) { call[role + 'Screen'] = m.screen; logEvent('ok', `${NAME[role]} ${m.screen ? 'started' : 'stopped'} screen sharing`); }
+        if (m.show !== !!call.showSound) { call.showSound = m.show; logEvent('ok', `Show sound ${m.show ? 'sent to' : 'no longer sent to'} Georgie in the private call`); }
         return;
       }
       case 'call.stats': {
@@ -171,6 +172,8 @@ export function createTalk({ state, clients, obs, changed, logEvent, notify = ()
         helpLimit.push(now);
         const level = LEVELS.includes(msg.level) ? msg.level : 'normal';
         const item = raiseHelp({ level, text: str(msg.text, 300), auto: !!msg.auto, kind: str(msg.kind, 40), diag: cleanDiag(msg.diag) });
+        // "was disconnected and is back" needs no answer: it stays in the log and report, the banner closes itself
+        if (item.auto && item.kind === 'reconnected') autoResolve('reconnected', 'she is back');
         return { hid: item.hid };
       }
       case 'help.cancel': {
@@ -243,5 +246,15 @@ export function createTalk({ state, clients, obs, changed, logEvent, notify = ()
     return { call: c || null, help: role === 'director' ? state.help.slice(0, 30) : state.help.filter(h => h.by === 'host').slice(0, 10) };
   }
 
-  return { handle, onConnect, onClose, view, raiseHelp, get call() { return call; } };
+  // an automatic HELP whose cause went away closes by itself (e.g. the camera check failed only because VDO.Ninja had the camera)
+  function autoResolve(kind, why) {
+    for (const h of state.help) if (h.auto && h.kind === kind && h.status !== 'resolved') {
+      h.status = 'resolved'; h.resolvedAt = Date.now();
+      toRole('host', { t: 'help.update', item: h }); toRole('director', { t: 'help.update', item: h });
+      logEvent('ok', `HELP resolved by itself: ${h.text || h.kind} (${why})`, 'help-answer');
+      changed();
+    }
+  }
+
+  return { handle, onConnect, onClose, view, raiseHelp, autoResolve, get call() { return call; } };
 }

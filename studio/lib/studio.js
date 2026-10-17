@@ -10,12 +10,25 @@ import crypto from 'node:crypto';
 import { debounced } from './store.js';
 import { createTalk } from './talk.js';
 import { createRehearsal } from './rehearsal.js';
+import { createViewerChat } from './viewerchat.js';
+
+// the build of the pages this server serves: when it changes after an update, open pages reload by themselves (outside a call)
+// measured again every 5 s, so a page update needs no studio restart
+let buildAt = 0, buildHash = '';
+function BUILD_NOW() {
+  if (Date.now() - buildAt < 5000) return buildHash;
+  const h = crypto.createHash('sha1'), walk = d => { for (const f of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else h.update(f.name + fs.statSync(p).mtimeMs); } };
+  try { walk(new URL('../public', import.meta.url).pathname); } catch {}
+  buildAt = Date.now(); buildHash = h.digest('hex').slice(0, 10);
+  return buildHash;
+}
 import { watchTunnel } from './tunnel.js';
 import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, renderHtml, LOCK_MINUTES } from './script.js';
 
 const ROLES = ['director', 'host', 'overlay', 'guest'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
-const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status',
+const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status', 'vchat.say',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
   'check.echo', 'check.result', 'notes.set', 'monitors',  // monitors: watching the camera/program pictures only
   'fx.play', 'fx.stop']);  // SOUND FX pads, like the Director's
@@ -213,6 +226,19 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   obs.on('link', (up, why) => {
     if (up) notify('ok', 'obs-up', `OBS connected (obs-websocket ${obs.state.version})`);
     if (up) setTimeout(() => obs.refreshBrowser('D//0 Overlay').catch(() => {}), 1500);   // the graphics page loads even if OBS started first
+    // nothing plays unless Andrej starts it: OBS starts every media source in a showing scene when it loads (the jingles and
+    // beds sit in AUDIO // ALL, inside every show scene), so on connect they are stopped. The silent background loops stay,
+    // and nothing is touched while streaming or recording.
+    if (up) setTimeout(async () => {
+      const o = obs.state;
+      if (!o.connected || o.stream.active || o.record.active) return;
+      const keep = new Set(['Video Player', 'Studio Loop']);
+      const stopped = [];
+      for (const m of o.media || []) if (!keep.has(m.name)) { await obs.stopFile(m.name).catch(() => {}); stopped.push(m.name); }
+      state.mediaAir.audio = null; state.mediaAir.fx = null; bedOn = null;   // the bed starts again if a loop is running
+      if (stopped.length) logEvent('ok', `OBS opened: stopped ${stopped.length} sounds that start by themselves (${stopped.join(', ')})`);
+      changed();
+    }, 2500);
     else notify(wasOnAir ? 'critical' : 'warn', 'obs-down', `OBS disconnected: ${why}${wasOnAir ? '. It was streaming or recording: check OBS now.' : ''}`, { sound: wasOnAir });
   });
   const tunnel = watchTunnel({ dataDir: store.dir, onChange: (st, before) => {
@@ -230,6 +256,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   });
 
   rehearsal = createRehearsal({ state, clients, obs, store, tunnel, changed: () => changed(), notify });
+  // the website's live chat, read in the studio; Andrej and Georgie answer under their reserved names
+  const vchat = config.viewerChat?.url && config.viewerChat?.key
+    ? createViewerChat({ ...config.viewerChat, log: (level, text) => logEvent(level, text), onChange: () => changed() }) : null;
   const talk = createTalk({ state, clients, obs, changed: () => changed(), logEvent, notify, hooks: rehearsal.hooks, graceMs: config.call?.graceMs });
 
   /* ---------- switcher: the preview bus ---------- */
@@ -283,7 +312,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
           obsUrl: config.obs.url, directorPort: config.director.port, guestPort: config.guest.port, dataDir: store.dir,
         },
         vdo: { view: vdo.view, push: vdo.push }, overlayKey: secrets.overlayKey,
-        ...talk.view('director'), ice: config.call?.iceServers || [], ...rehearsal.view('director'),
+        ...talk.view('director'), ice: config.call?.iceServers || [], ...rehearsal.view('director'), build: BUILD_NOW(), viewerChat: vchat?.view() || null,
       };
     }
     if (role === 'host') {
@@ -294,7 +323,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         tally: { obs: o.connected, onAir: o.stream.active, recording: o.record.active },
         fx: fxPads(), fxAir: state.mediaAir.fx || null,
         vdo: { push: vdo.push },
-        ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'),
+        ...talk.view('host'), ice: config.call?.iceServers || [], ...rehearsal.view('host'), build: BUILD_NOW(), viewerChat: vchat?.view() || null,
+        showRunning: !!state.pos.showStartedAt,   // her page answers Andrej's call by itself while a show or rehearsal runs
       };
     }
     if (role === 'guest') {
@@ -339,8 +369,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     const jobs = [];
     if (!live.length && !show.length) jobs.push(['program', obs.state.program, watchers, 480]);   // only guests watching
     if (live.length) for (const which of tick % 2 ? ['program', 'preview'] : ['program']) jobs.push([which, which === 'program' ? obs.state.program : previewScene(), live, 640]);
+    if (live.length && !show.length && talk.call?.phase === 'active' && tick % 3 === 2) jobs.push(['camB', CAMS.camB, live, 480]);   // Georgie in the call window
     if (show.length) {
-      if (!live.length) jobs.push(['program', obs.state.program, show, 480]);
+      if (!live.length) jobs.push(['program', obs.state.program, show, 800]);   // the big monitor in the middle
       if (tick % 3 === 0) jobs.push(['camA', CAMS.camA, show, 480]);
       if (tick % 3 === 1) jobs.push(['camB', CAMS.camB, show, 480]);
       if (tick % 3 === 2 && ['backstage', 'onair'].includes(state.guest?.status)) jobs.push(['guest', 'VDO // Guest', show, 480]);
@@ -423,6 +454,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     switch (msg.t) {
       case 'ping': client.send({ t: 'pong', ts: msg.ts }); return;
       case 'chat.send': return chatSend(role, msg.text);
+      case 'vchat.say': if (!vchat) throw new Error('The viewer chat is not set up'); vchat.say(role === 'host' ? 'Georgie' : 'Andrej', msg.text); return;
       case 'chat.read': {
         state.read[role] = Math.max(state.read[role] || 0, Number(msg.upTo) || 0);
         changed(); return;
@@ -433,6 +465,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
           camera: !!s.camera, mic: !!s.mic, headphones: !!s.headphones, wired: !!s.wired, light: !!s.light, vdo: !!s.vdo,
           cameraLabel: str(s.cameraLabel, 80), micLabel: str(s.micLabel, 80), rtt: Math.max(0, Math.min(60000, Number(s.rtt) || 0)), at: Date.now(),
         };
+        if (state.hostStatus.vdo || state.hostStatus.camera) talk.autoResolve('camera-check', state.hostStatus.camera ? 'camera works' : 'she is in VDO.Ninja');
         changed(); return;
       }
       case 'monitors': client.monitors = role === 'guest' ? (msg.on ? 'program' : false) : msg.on === 'show' || (role === 'host' && msg.on) ? 'show' : msg.on ? 'live' : false; return;
@@ -773,6 +806,36 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     state.mediaAir.video = { id: v.id, title: v.title, at: Date.now(), loop, background, embeddedAudio: !!v.embeddedAudio };
     return note;
   }
+  // MUSIC UNDER THE LOOP: whenever the silent background loop runs, the Three-Note Signature bed plays quietly under it;
+  // any other video, a break, a stop or no video at all stops it again. Checked twice a second, so every path is covered.
+  const BED = 'Bed // Three-Note Signature', BED_DB = -18;
+  let bedOn = null;
+  const bedTimer = setInterval(async () => {
+    if (!obs.state.connected || !hasInput(BED)) { bedOn = null; return; }
+    const want = !!state.mediaAir.video?.background;
+    if (want === bedOn) return;
+    bedOn = want;
+    try {
+      if (want) { await obs.setVolume(BED, BED_DB).catch(() => {}); await obs.request('TriggerMediaInputAction', { inputName: BED, mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART' }); }
+      else await obs.stopFile(BED);
+      logEvent('ok', `Music under the loop: Three-Note Signature ${want ? 'on' : 'off'}`);
+    } catch (e) { bedOn = null; }
+  }, 500);
+  bedTimer.unref?.();
+
+  // nothing plays unless Andrej starts it, also after a scene change: OBS restarts the sounds inside AUDIO // ALL whenever a
+  // scene with it comes on (program, or preview in Studio Mode). A start within 2 s of a scene change is OBS's, not
+  // Andrej's: it is stopped. A sound he plays by hand in OBS later keeps playing.
+  const SELF_STARTERS = new Set(['Jingle // D//0 Opening', 'Jingle // slot 2', 'Jingle // slot 3', 'Music // DISTANCE ZERO Theme', 'Bed // Three-Note Signature B', BED]);
+  let sceneAt = 0;
+  obs.on('scene.changed', () => { sceneAt = Date.now(); });
+  obs.on('media.started', async name => {
+    if (!SELF_STARTERS.has(name) || Date.now() - sceneAt > 2000) return;
+    if (name === BED && bedOn) return;                       // the music under the loop is the studio's own
+    await obs.stopFile(name).catch(() => {});
+    logEvent('ok', `Stopped ${name}: OBS started it by itself after a scene change`);
+  });
+
   obs.on('media.ended', async name => {
     if (name !== 'Video Player' || state.mediaAir.video?.loop) return;
     try {
@@ -1256,7 +1319,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   return {
     connect, view, vdo, clients,
     flush() { saveState.flush(); saveChat.flush(); },
-    stop() { clearInterval(monitorTimer); tunnel.stop(); },
+    stop() { clearInterval(monitorTimer); clearInterval(bedTimer); vchat?.stop(); tunnel.stop(); },
     report(id) { return rehearsal.readReport(id); },
     renderReport: r => rehearsal.renderHtml(r),
     // script import / export for the HTTP routes (Director only)

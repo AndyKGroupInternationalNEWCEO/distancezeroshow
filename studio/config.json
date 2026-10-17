@@ -28,6 +28,12 @@
     "micPattern": "mic|mikro|georgie|vdo",
     "micInputs": []
   },
+  "viewerChat": {
+    "_about": "The retro live chat on distancezeroshow.com (Supabase Realtime). Same public key as the website. Remove this block to switch it off.",
+    "url": "https://lltxttphmtxtmatlsyto.supabase.co",
+    "key": "sb_publishable_R5qZvEuZspipSUGLRaSBVw_1RS1lp2B",
+    "room": "dz-live-chat"
+  },
   "vdoNinja": {
     "base": "https://vdo.ninja/"
   },

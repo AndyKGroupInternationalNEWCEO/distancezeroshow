@@ -18,6 +18,7 @@ function config(obsPort) {
   c.guest = { host: '127.0.0.1', port: 0 };
   c.obs = { url: `ws://127.0.0.1:${obsPort}` };
   c.call = { ...c.call, graceMs: 400 };
+  c.viewerChat = null;   // tests never join the real website chat
   return c;
 }
 
@@ -1263,9 +1264,9 @@ test('a video with its own sound stops the running jingle; the opening never pla
   const r = await d.send({ t: 'cue.go', index: 1 });              // OPENING: V34 with its own sound
   assert.equal(r.ok, true, JSON.stringify(r));
   assert.ok(r.result.done.some(x => /JINGLE 18 stopped/.test(x)), JSON.stringify(r.result));
-  // the opening plays once, then the studio background loops by itself (no sound, no extra button)
+  // the opening plays once, then the D//0 corridor (V19) loops by itself (no sound, no extra button)
   mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
-  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V26');
+  await d.next(m => m.t === 'state' && m.s.mediaAir?.video?.id === 'V19');
   // WELCOME: the opening music is not started a second time (17 stays in the library)
   const w = await d.send({ t: 'cue.go', index: 2 });
   assert.ok(!w.result.done.some(x => /JINGLE/.test(x)), JSON.stringify(w.result));
