@@ -107,10 +107,26 @@ export function buildStage({ studio, scene }) {
   /* ----- the light rig ----- */
   const rig = buildRig({ studioLights: studio.lights, M, add, mesh });
 
+  /* ----- the optional key light: soft, warm, no shadow; added to the scene (not to `root`, which is hidden when out
+     of view: a light hidden with it would change the light count) and lit only while the stage is in use ----- */
+  let key = null, keyK = 0;
+  function keyLight(on) {
+    if (on && !key) {
+      key = new THREE.SpotLight(0xfff1e2, 0, 0, RIG.key.angle, 1, 2);
+      scene.add(key, key.target);
+    } else if (!on && key) { scene.remove(key, key.target); key = null; }
+  }
+
   /* ----- per frame: `L` is the light state from index.js (each group's level and colour, the haze) ----- */
   function update(t, dt, h, L, seen = true, active = false) {
     pose(h);
     studio.lights.pianoLift(platformTop(h));
+    if (key) {
+      keyK += ((active ? 1 : 0) - keyK) * Math.min(1, dt * 2);
+      key.position.set(RIG.key.pos[0], RIG.key.pos[1] + RIG.key.rise * h, RIG.key.pos[2]);
+      key.target.position.set(STAGE.x, platformTop(h) + 0.85, STAGE.z);
+      key.intensity = RIG.key.level * keyK;
+    }
     shine += ((active ? 1 : 0) - shine) * Math.min(1, dt * 2);
     for (const m of lacquer) m.envMapIntensity = lacquerEnv * (1 + 1.4 * shine);
     if (!seen) return rig.dark();
@@ -123,7 +139,7 @@ export function buildStage({ studio, scene }) {
   }
 
   const R = Math.max(RIG.perimeter.r, 3.2) + 0.5;
-  return { root, piano, platform, lift, pose, update, rig,
+  return { root, piano, platform, lift, pose, update, rig, keyLight, get key() { return !!key; },
     bounds: new THREE.Box3(new THREE.Vector3(STAGE.x - R, -LIFT.depth, STAGE.z - R), new THREE.Vector3(STAGE.x + R, ROOM.H, STAGE.z + R)) };
 }
 

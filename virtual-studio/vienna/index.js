@@ -7,6 +7,8 @@ import { AMBER, ICE } from '../screens.js';
 import { createLift } from './lift.js';
 import { buildStage } from './stage.js';
 import { LIFT, CAMS, STUDIO_PIANO_VIEW, platformTop } from './layout.js';
+import { OPENING } from './opening.js';
+import { createShow } from './show.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
 // lighting modes: each group's [level, colour, (moving heads) pattern | (under) pulse], the haze in the beams, and the
@@ -30,21 +32,22 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const lift = createLift(LIFT);
 
   /* ----- light state: eased towards the mode (plus any per-group override from the sequence) ----- */
-  let mode = 'WARM PIANO', override = {};
-  const L = { haze: 0, frame: 0 };
+  let mode = 'WARM PIANO', override = {}, masterGoal = 1;
+  const L = { haze: 0, frame: 0, master: 1 };   // master: an overall fader (the Piano Show's closing takes it down slowly)
   for (const g of GROUPS) L[g] = { level: 0, color: new THREE.Color(), pattern: 'center', pulse: 0 };
   const goalColor = new THREE.Color();
   function easeLights(dt) {
     const m = MODES[mode], k = 1 - Math.exp(-dt * 2.2);
+    L.master += (masterGoal - L.master) * (1 - Math.exp(-dt * 0.7));
     for (const g of GROUPS) {
       const [level, color, extra] = m[g], s = L[g];
-      s.level += ((override[g] ?? level) - s.level) * k;
+      s.level += ((override[g] ?? level) * L.master - s.level) * k;
       s.color.lerp(goalColor.set(color), k);
       if (g === 'moving') s.pattern = extra;
       if (g === 'under') s.pulse += (extra - s.pulse) * k;
     }
-    L.haze += (m.haze - L.haze) * k;
-    L.frame += (m.frame - L.frame) * k;
+    L.haze += (m.haze * L.master - L.haze) * k;
+    L.frame += (m.frame * L.master - L.frame) * k;
   }
 
   /* ----- cameras P1–P5: studio viewpoints whose position rides with the lift ----- */
@@ -79,40 +82,75 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     director.go(id(k), { instant });
   };
 
-  /* ----- the cinematic sequence: lights dim, under-platform light, lift rises, cameras follow, spot, final frame ----- */
+  /* ----- the cinematic opening, on the jingle's clock (opening.js): lights down, under-platform light, the lift sets
+     off so the platform arrives on the jingle's hit, cameras follow it up, performance spot, final frame ----- */
   let seq = null;
-  const history = [];   // what the sequence did and when (seconds into it): shown in the panel's message line, read by tests
+  const history = [];   // what the opening did and when (seconds into it): shown in the panel's message line, read by tests
   const say = text => { ui.msg.textContent = text; if (seq && text) history.push({ t: +seq.t.toFixed(2), text, view: director.current, h: +lift.height.toFixed(2) }); };
+  // how long a full rise takes, from the lift's own motion profile: the lift sets off this long before the hit
+  const RISE = (() => { const l = createLift(LIFT); l.command('up'); let s = 0; while (l.state !== 'ELEVATED' && s < 60) { l.step(1 / 60); s += 1 / 60; } return s; })();
+  const jingle = new URLSearchParams(location.search).get('jingle') || (OPENING.audio && new URL(`../../${OPENING.audio}`, import.meta.url).href);
+  const cueTime = c => (c.at || 0) + ({ lift: Math.max(0, OPENING.hit - RISE), hit: OPENING.hit, end: OPENING.duration }[c.from] ?? 0);
+  const cues = OPENING.cues.map(c => ({ ...c, time: cueTime(c) })).sort((a, b) => a.time - b.time);
   function cinematic() {
-    if (seq) return say('Cinematic sequence already running');
+    if (seq) return say('Cinematic opening already running');
+    if (show.segment || show.state === 'PREPARING') return say('The Piano Show is running: STOP SHOW first');
     if (lift.state !== 'LOWERED') return say('Lower the platform first (DOWN or RESET)');
-    seq = { t: 0, done: new Set(), cams: true, lights: true, elevatedAt: null };
+    seq = { t: 0, next: 0, cams: true, lights: true, audio: null, clock: 'internal' };
     history.length = 0;
-    mode = 'LIFT REVEAL'; override = { under: 0, spot: 0 };       // 1. the stage lights dim
-    cut('P4', { instant: true });
-    say('Cinematic: lights down');
+    // the jingle, if it is there: its clock drives the opening once it plays; until then (or without it) our own clock
+    if (jingle) {
+      const a = new Audio(jingle); a.preload = 'auto';
+      a.addEventListener('playing', () => { if (seq?.audio === a) seq.clock = 'jingle'; });
+      a.play().catch(() => {});
+      seq.audio = a;
+    }
+    runSequence(0);
   }
-  const once = (name, when, fn) => { if (when && !seq.done.has(name)) { seq.done.add(name); fn(); } };
+  function fire(c) {
+    if (c.lights && seq.lights) mode = c.lights;
+    if (c.hold) for (const g of c.hold) override[g] = 0;
+    if (c.release === 'all') override = {}; else if (c.release) delete override[c.release];
+    if (c.set) Object.assign(override, c.set);
+    if (c.cut && seq.cams) cut(c.cut, { instant: true });
+    if (c.lift) lift.command(c.lift);
+    if (c.say) say('Cinematic: ' + c.say);
+  }
   function runSequence(dt) {
     if (!seq) return;
-    seq.t += dt;
-    once('under', seq.t >= 2, () => { delete override.under; say('Cinematic: under-platform light'); });           // 2.
-    once('rise', seq.t >= 3.5, () => { lift.command('up'); say('Cinematic: lift rising'); });                      // 3.
-    once('track', seq.t >= 8, () => { if (seq.cams) cut('P5', { instant: true }); });                              // 4. follow it up
-    if (seq.elevatedAt === null && lift.state === 'ELEVATED') {
-      seq.elevatedAt = seq.t; override.spot = 1; say('Cinematic: performance spot');                               // 5.
-    }
-    once('final', seq.elevatedAt !== null && seq.t >= seq.elevatedAt + 2.5, () => {                                 // 6.
-      if (seq.cams) cut('P1', { instant: true });
-      if (seq.lights) { mode = 'CINEMATIC'; delete override.spot; }
-      say('Cinematic: done'); seq = null;
-    });
+    const a = seq.audio;
+    seq.t = seq.clock === 'jingle' && a && !a.paused ? Math.max(seq.t, a.currentTime) : seq.t + dt;
+    while (seq && seq.next < cues.length && seq.t >= cues[seq.next].time) fire(cues[seq.next++]);
+    if (seq && seq.next >= cues.length) { seq.audio = null; seq = null; }   // the jingle plays out on its own
   }
-  function abortSequence(why) { if (!seq) return; seq = null; override = {}; say(why); }
+  function abortSequence(why) { if (!seq) return; seq.audio?.pause(); seq = null; override = {}; say(why); }
+
+  /* ----- the Piano Show (show.js): official opening → piano theme → live; it drives the same cuts, lights and lift ----- */
+  let frozen = false;   // the lift holds still while the show is paused
+  const show = createShow({ rise: RISE, api: {
+    cut: k => cut(k, { instant: true }),
+    lights(m, c = {}) {
+      if (m) mode = m;
+      if (c.release === 'all') override = {}; else if (c.release) delete override[c.release];
+      if (c.hold) for (const g of c.hold) override[g] = 0;
+      if (c.set) Object.assign(override, c.set);
+      if (c.master !== undefined) masterGoal = c.master;
+    },
+    lift: c => lift.command(c),
+    liftState: () => lift.state,
+    freezeLift: on => { frozen = on; },
+    say: text => say(text),
+  } });
+  function showCommand(name) {
+    if (name !== 'pause' && name !== 'video') abortSequence('Cinematic sequence cancelled');
+    show.command(name);
+  }
 
   /* ----- commands (the panel's buttons) ----- */
   function command(name) {
     if (name === 'cinematic') return cinematic();
+    // the lift's own buttons always work, also during the Piano Show (which then leaves the lift to the operator)
+    show.manual('lift'); frozen = false;
     if (name === 'stop' || name === 'reset') abortSequence(name === 'stop' ? 'Stopped: sequence cancelled' : 'Reset: sequence cancelled');
     const r = lift.command(name);
     if (!r.ok) say(r.reason);
@@ -120,11 +158,13 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     else if (name !== 'stop') say('');
   }
   function setMode(name) {
-    mode = name;
+    mode = name; masterGoal = 1;
+    show.manual('lights');
     if (seq) { seq.lights = false; override = {}; }   // the operator has the lights now; the lift carries on
   }
   function pickCamera(k) {
     if (seq) seq.cams = false;     // the operator has the cameras now
+    show.manual('cams');
     program = k;
     director.setAuto(false);
     director.go(id(k));
@@ -185,7 +225,11 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   };
 
   /* ----- the panel ----- */
-  const ui = panel({ command, setMode, pickCamera, setSource });
+  // the optional front key light on the grand (?key=1 to start with it on): a real light, so it is added or taken out of
+  // the scene once (every material recompiles: choose it before going on air), not dimmed to zero at a cost
+  const setKey = on => { stage.keyLight(on); say(on ? 'Key light on' : 'Key light off'); };
+  if (new URLSearchParams(location.search).get('key') === '1') stage.keyLight(true);
+  const ui = panel({ command, setMode, pickCamera, setSource, setKey, showCommand, video: show.video });
 
   /* ----- per frame ----- */
   let settle = null, wasFlying = false;
@@ -193,7 +237,8 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   function update(dt) {
     t += dt;
     runSequence(dt);
-    const h = lift.step(dt);
+    show.update(dt);
+    const h = frozen ? lift.height : lift.step(dt);
     for (const k of keys) {
       const lag = CAMS[k].lag;
       eased[k] = lag && !reducedMotion ? eased[k] + (h - eased[k]) * (1 - Math.exp(-dt / lag * 2)) : h;
@@ -217,20 +262,21 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
     const seen = visible();
     stage.root.visible = seen;
-    const active = !!VIEWS[director.current]?.vienna || h > 0.001 || lift.moving || !!seq;
+    const active = !!VIEWS[director.current]?.vienna || h > 0.001 || lift.moving || !!seq || show.state !== 'IDLE';
     stage.update(t, dt, h, L, seen, active);   // the grand and the studio's piano lights always; the rig only while seen
     renderFeed(t);
-    ui.show({ state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: !!seq });
+    ui.show({ state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: seq && `${seq.t.toFixed(1)} / ${OPENING.duration} s · ${seq.clock === 'jingle' ? 'jingle' : 'own clock'}`, key: stage.key,
+      show: { state: show.state, paused: show.paused, label: show.label, t: show.time, d: show.duration, clock: show.clock, video: show.videoShown } });
   }
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setMode, pickCamera, setSource, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, show, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 
 /* ---------- the stage's control panel (built here, so the studio page only has to load this module) ---------- */
-function panel({ command, setMode, pickCamera, setSource }) {
+function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, video }) {
   const css = `
   .vz{position:fixed;left:var(--gut,16px);top:calc(env(safe-area-inset-top,0px) + 74px);z-index:6;width:min(300px,calc(100vw - 32px));
     max-height:calc(100vh - 200px);overflow:auto;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px) saturate(120%);
@@ -252,6 +298,9 @@ function panel({ command, setMode, pickCamera, setSource }) {
   .vz .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--champagne))}
   .vz .msg{min-height:1.2em;margin-top:8px;color:var(--champagne);font-size:.7rem}
   .vz small{color:var(--dim);font-size:.6rem;letter-spacing:.1em}
+  .vz .show-h{margin-top:4px;color:var(--champagne)}
+  .vz .row.show{margin:8px 0 4px}
+  .vz [data-k="showState"].live{color:var(--red)}
   body.obs .vz{display:none}`;
   const el = document.createElement('section');
   el.className = 'vz'; el.setAttribute('aria-label', 'Vienna piano stage controls');
@@ -259,15 +308,25 @@ function panel({ command, setMode, pickCamera, setSource }) {
   el.innerHTML = `<style>${css}</style>
     <h2>Vienna piano stage <button type="button" class="min-btn" aria-label="Minimise" aria-expanded="true">–</button></h2>
     <div class="body">
+      <h3 class="show-h">D//0 — Piano Sessions <small>simulation · local only</small></h3>
+      <div class="state"><b data-k="showState">READY</b><span data-k="showTime"></span></div>
+      <div class="bar"><i data-k="showBar"></i></div>
+      <small data-k="showLabel"></small>
+      <div class="row show">${btn('show', 'start', 'Start piano show')}${btn('show', 'pause', 'Pause')}${btn('show', 'stop', 'Stop show')}${btn('show', 'restart', 'Restart opening')}${btn('show', 'skip', 'Skip to long theme')}${btn('show', 'live', 'Go live — piano')}${video ? btn('show', 'video', 'Video / 3D') : ''}</div>
+      <div class="row show">${btn('show', 'between', 'Play between songs')}${btn('show', 'between-stop', 'Stop between songs')}${btn('show', 'return-live', 'Return to live piano')}</div>
+      <div class="row show">${btn('show', 'closing', 'Start closing')}${btn('show', 'closing-stop', 'Stop closing')}${btn('show', 'closing-restart', 'Restart closing')}</div>
       <div class="state"><b data-k="state">LOWERED</b><span data-k="h">0.00 m</span></div>
       <div class="bar"><i data-k="bar"></i></div>
+      <small data-k="seq"></small>
       <h3>Piano lift</h3>
       <div class="row">${btn('cmd', 'up', 'Up')}${btn('cmd', 'stop', 'Stop')}${btn('cmd', 'down', 'Down')}${btn('cmd', 'reset', 'Reset')}${btn('cmd', 'cinematic', 'Cinematic')}</div>
       <h3>Cameras</h3>
       <div class="row">${Object.entries(CAMS).map(([k, c]) => btn('cam', k, k, `title="${c.long}"`)).join('')}</div>
       <h3>Lighting</h3>
       <div class="row">${Object.keys(MODES).map(m => btn('mode', m, m.toLowerCase())).join('')}</div>
-      <h3>Main display</h3>
+      <h3>Piano key light <small>(real light: costs frame time)</small></h3>
+      <div class="row">${btn('key', 'on', 'On')}${btn('key', 'off', 'Off')}</div>
+      <h3>Main display <small>(a live feed renders the scene again)</small></h3>
       <div class="row">${SOURCES.map(([k, label, later]) => btn('src', k, label, later ? `disabled title="${later}"` : '')).join('')}</div>
       <p class="msg" data-k="msg" role="status" aria-live="polite"></p>
       <small>Development preview · simulation only, nothing is broadcast</small>
@@ -279,10 +338,12 @@ function panel({ command, setMode, pickCamera, setSource }) {
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.classList.contains('min-btn')) { const min = el.classList.toggle('min'); b.setAttribute('aria-expanded', String(!min)); b.textContent = min ? '+' : '–'; return; }
-    if (b.dataset.cmd) command(b.dataset.cmd);
+    if (b.dataset.show) showCommand(b.dataset.show);
+    else if (b.dataset.cmd) command(b.dataset.cmd);
     else if (b.dataset.cam) pickCamera(b.dataset.cam);
     else if (b.dataset.mode) setMode(b.dataset.mode);
     else if (b.dataset.src) setSource(b.dataset.src);
+    else if (b.dataset.key) setKey(b.dataset.key === 'on');
   });
   // keys used by the studio page stay with it: the panel is used with the pointer
   el.addEventListener('keydown', e => e.stopPropagation());
@@ -291,16 +352,29 @@ function panel({ command, setMode, pickCamera, setSource }) {
   return {
     msg: q('msg'),
     show(s) {
-      const key = [s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq].join('|');
+      const sh = s.show, mmss = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+      const key = [s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
       if (key === last) return;
       last = key;
-      q('state').textContent = s.state + (s.seq ? ' · CINEMATIC' : '');
+      q('showState').textContent = ({ BETWEEN: 'BETWEEN SONGS', ENDED: 'SHOW ENDED', LIVE: 'LIVE PIANO' }[sh.state] || sh.state) + (sh.paused ? ' · PAUSED' : '');
+      q('showState').classList.toggle('live', sh.state === 'LIVE');
+      q('showTime').textContent = sh.d ? `${mmss(sh.t)} / ${mmss(sh.d)} · −${mmss(Math.max(0, sh.d - sh.t))}` : '';
+      q('showBar').style.width = sh.d ? `${(sh.t / sh.d) * 100}%` : sh.state === 'LIVE' ? '100%' : '0';
+      q('showLabel').textContent = sh.label + (sh.d ? ` · ${sh.clock}` : '');
+      el.querySelector('[data-show="pause"]').textContent = sh.paused ? 'Resume' : 'Pause';
+      press('[data-show="start"]', () => sh.state !== 'IDLE' && sh.state !== 'LIVE');
+      press('[data-show="live"]', () => sh.state === 'LIVE');
+      press('[data-show="between"]', () => sh.state === 'BETWEEN');
+      press('[data-show="closing"]', () => sh.state === 'CLOSING');
+      press('[data-show="video"]', () => sh.video);
+      q('state').textContent = s.state; q('seq').textContent = s.seq ? 'Opening ' + s.seq : '';
       q('h').textContent = `+${s.h.toFixed(2)} m`;
       q('bar').style.width = `${(s.h / LIFT.travel) * 100}%`;
       press('[data-cam]', b => b.dataset.cam === s.view);
       press('[data-mode]', b => b.dataset.mode === s.mode);
       press('[data-src]', b => b.dataset.src === s.source);
-      press('[data-cmd="cinematic"]', () => s.seq);
+      press('[data-cmd="cinematic"]', () => !!s.seq);
+      press('[data-key]', b => (b.dataset.key === 'on') === s.key);
       for (const b of el.querySelectorAll('[data-cam]')) b.textContent = b.dataset.cam + (b.dataset.cam === s.program ? ' ●' : '');
     },
   };

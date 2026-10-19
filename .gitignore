@@ -7,3 +7,5 @@ rehearsal-virtual-live/
 studio/media/catalog.backup-*.json
 vienna-dev.html
 test-output/
+# the Piano Sessions audio masters (large; copied from the originals, see docs/vienna-stage/PIANO-SHOW.md)
+assets/audio/piano-sessions/*.wav

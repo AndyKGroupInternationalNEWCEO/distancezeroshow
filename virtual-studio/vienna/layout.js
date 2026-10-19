@@ -62,4 +62,7 @@ export const RIG = {
   // two floor backlights behind the grand, two high back rims (behind = away from the studio cameras)
   accent: [xyz(-1.2, -2.7, 0.25), xyz(1.2, -2.7, 0.25), xyz(-1.8, -3.0, 5.2), xyz(1.8, -3.0, 5.2)],
   spot: [-1.9, 7.6, 3.4],                                                // the performance spot, front of house, high
+  // the optional front key light on the grand (a real light; off unless chosen): high on the camera side of the open
+  // lid, riding up with the lift by `rise`
+  key: { pos: xyz(-0.6, 4.6, 5.2), rise: 0.8, level: 900, angle: 0.4 },
 };

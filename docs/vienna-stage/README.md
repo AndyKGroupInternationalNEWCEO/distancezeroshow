@@ -13,7 +13,7 @@ pushed, merged or deployed.
 ```sh
 cd ~/DISTANCE-ZERO/virtual-space-vienna
 node virtual-studio/vienna/dev-page.mjs          # writes vienna-dev.html from studio.html (generated, not committed)
-python3 -m http.server 8130 --bind 127.0.0.1     # any static server
+node virtual-studio/vienna/serve.mjs             # local server with byte ranges (the show's long WAVs need them)
 open http://127.0.0.1:8130/vienna-dev.html       # the studio with the stage and its control panel
 open http://127.0.0.1:8130/studio.html           # the public page, unchanged
 ```
@@ -27,6 +27,11 @@ Tests:
 node --test virtual-studio/vienna/lift.test.mjs   # lift controller (7 tests)
 node virtual-studio/vienna/e2e.mjs                # whole page in headless Chrome (29 tests), screenshots in test-output/vienna/
 ```
+
+**D//0 — PIANO SESSIONS** (the show on the official audio: short opening → piano theme → live) is documented in
+[PIANO-SHOW.md](PIANO-SHOW.md).
+
+`?key=1` starts the page with the optional front key light on. It is also on the panel.
 
 ## Audit summary (Phase 0)
 
@@ -54,6 +59,10 @@ New, in `virtual-studio/vienna/`:
 | `index.js` | Wiring: cameras P1–P5, lighting modes, cinematic sequence, LED-wall routing, control panel. |
 | `dev-page.mjs` | Generates `vienna-dev.html` from `studio.html` (adds the stage, `noindex`). |
 | `drawings.mjs` | Generates `docs/vienna-stage/floor-plan.svg` and `section.svg` from `layout.js`. |
+| `opening.js` | The CINEMATIC button's quick lift reveal (cue sheet, about 18 s). |
+| `piano-show-config.js`, `show.js` | The Piano Show: media, rules, controller (see PIANO-SHOW.md). |
+| `audio-map.mjs` → `piano-show-map.js` | Measures the audio masters (durations, onsets, sections) for the show's script. |
+| `serve.mjs` | Local preview server with byte ranges. |
 | `lift.test.mjs`, `e2e.mjs` | Tests. |
 
 Small changes to existing files. They do nothing unless the stage is loaded, and the public page's behaviour is unchanged (tested):
@@ -208,6 +217,28 @@ Run on 2026-10-19 in headless Chrome 155 (Metal) on this Mac.
 The first build gave the stage seven real three.js lights. It measured 139–173 ms per frame, more than double, even
 with the stage out of view. That is why the rig is now drawn. Headless absolute numbers are far below a real browser;
 compare only the ratios.
+
+## Optional key light
+
+There is one real light, a soft warm key from the open lid's side (`RIG.key` in `layout.js`). Its shape:
+- It is off by default; turn it on with the panel's *Piano key light* or with `?key=1`.
+- It is lit only while the stage is in use.
+- Switching it adds or removes one light, so every material recompiles once (a brief hitch): choose it before going
+  on air.
+
+Measured in a real Chrome window on this Mac, 1600 × 900, grand up, CINEMATIC mode, key light at level 900:
+
+| Camera | Render time, off | Render time, on | Frame rate, off | Frame rate, on |
+|---|---|---|---|---|
+| P1 | 23.2 ms | 24.6 ms | 36.4 fps | 34.9 fps |
+| P4 | 21.3 ms | 23.1 ms | 39.5 fps | 37.2 fps |
+| P5 | 32.0 ms | 34.7 ms | 27.8 fps | 26.0 fps |
+
+So it costs about 6–8 % of render time. Visually, it brings out the lid edge, the case side, the legs and the bench.
+At the first level tried (150) it was barely visible.
+
+The "Vienna piano live" feed on the LED wall cost about 11 % of the frame rate in real Chrome (29.6 → 26.4 fps) and
+about 24 % headless. Leave it on Main studio unless a segment needs it.
 
 ## Remaining issues and next steps
 
