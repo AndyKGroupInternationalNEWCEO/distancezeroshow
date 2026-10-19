@@ -72,7 +72,9 @@ export function buildStage({ studio, scene }) {
   // stage it would read as a black silhouette); back to the studio's own value when the stage is not in use
   const lacquer = new Set(); piano.traverse(o => { if (o.isMesh && o.material.clearcoat === 1 && o.material.color.getHex() === 0x050506) lacquer.add(o.material); });
   const lacquerEnv = [...lacquer][0]?.envMapIntensity ?? 0.9;
-  let shine = 0;
+  let shine = 0, lacquerMap = null, lacquerK = 1;
+  // a look can give the lacquer reflections of its own (concert-look.js: warm softbox strips), used while on stage
+  function lacquerLook(map, k = 1) { lacquerMap = map; lacquerK = k; }
 
   // the scissor geometry for a lift height h; returns the rams' length
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
@@ -128,7 +130,8 @@ export function buildStage({ studio, scene }) {
       key.intensity = RIG.key.level * keyK;
     }
     shine += ((active ? 1 : 0) - shine) * Math.min(1, dt * 2);
-    for (const m of lacquer) m.envMapIntensity = lacquerEnv * (1 + 1.4 * shine);
+    const own = lacquerMap && shine > 0.5;
+    for (const m of lacquer) { m.envMap = own ? lacquerMap : null; m.envMapIntensity = own ? lacquerEnv * lacquerK * shine : lacquerEnv * (1 + 1.4 * shine); }
     if (!seen) return rig.dark();
     steel.emissive.copy(L.under.color).multiplyScalar(0.07 * L.under.level * Math.min(1, h / 0.6));
     for (const { m, k, group } of glows) {
@@ -139,7 +142,7 @@ export function buildStage({ studio, scene }) {
   }
 
   const R = Math.max(RIG.perimeter.r, 3.2) + 0.5;
-  return { root, piano, platform, lift, pose, update, rig, keyLight, get key() { return !!key; },
+  return { root, piano, platform, lift, pose, update, rig, keyLight, lacquerLook, get key() { return !!key; },
     bounds: new THREE.Box3(new THREE.Vector3(STAGE.x - R, -LIFT.depth, STAGE.z - R), new THREE.Vector3(STAGE.x + R, ROOM.H, STAGE.z + R)) };
 }
 

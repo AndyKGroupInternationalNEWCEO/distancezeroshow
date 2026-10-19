@@ -9,6 +9,7 @@ import { buildStage } from './stage.js';
 import { LIFT, CAMS, STUDIO_PIANO_VIEW, platformTop } from './layout.js';
 import { OPENING } from './opening.js';
 import { createShow } from './show.js';
+import { concertLook } from './concert-look.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
 // lighting modes: each group's [level, colour, (moving heads) pattern | (under) pulse], the haze in the beams, and the
@@ -229,7 +230,11 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   // the scene once (every material recompiles: choose it before going on air), not dimmed to zero at a cost
   const setKey = on => { stage.keyLight(on); say(on ? 'Key light on' : 'Key light off'); };
   if (new URLSearchParams(location.search).get('key') === '1') stage.keyLight(true);
-  const ui = panel({ command, setMode, pickCamera, setSource, setKey, showCommand, video: show.video });
+  // the concert look (a visual test: ?look=concert or the panel): see concert-look.js
+  const look = concertLook({ renderer, scene, stage });
+  if (new URLSearchParams(location.search).get('look') === 'concert') look.set(true);
+  const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
+  const ui = panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video });
 
   /* ----- per frame ----- */
   let settle = null, wasFlying = false;
@@ -263,20 +268,21 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const seen = visible();
     stage.root.visible = seen;
     const active = !!VIEWS[director.current]?.vienna || h > 0.001 || lift.moving || !!seq || show.state !== 'IDLE';
+    look.update(dt, !!VIEWS[director.current]?.vienna, L.frame);
     stage.update(t, dt, h, L, seen, active);   // the grand and the studio's piano lights always; the rig only while seen
     renderFeed(t);
-    ui.show({ state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: seq && `${seq.t.toFixed(1)} / ${OPENING.duration} s · ${seq.clock === 'jingle' ? 'jingle' : 'own clock'}`, key: stage.key,
+    ui.show({ look: look.on, state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: seq && `${seq.t.toFixed(1)} / ${OPENING.duration} s · ${seq.clock === 'jingle' ? 'jingle' : 'own clock'}`, key: stage.key,
       show: { state: show.state, paused: show.paused, label: show.label, t: show.time, d: show.duration, clock: show.clock, video: show.videoShown } });
   }
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, show, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, setLook, look, show, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 
 /* ---------- the stage's control panel (built here, so the studio page only has to load this module) ---------- */
-function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, video }) {
+function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video }) {
   const css = `
   .vz{position:fixed;left:var(--gut,16px);top:calc(env(safe-area-inset-top,0px) + 74px);z-index:6;width:min(300px,calc(100vw - 32px));
     max-height:calc(100vh - 200px);overflow:auto;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px) saturate(120%);
@@ -324,6 +330,8 @@ function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, v
       <div class="row">${Object.entries(CAMS).map(([k, c]) => btn('cam', k, k, `title="${c.long}"`)).join('')}</div>
       <h3>Lighting</h3>
       <div class="row">${Object.keys(MODES).map(m => btn('mode', m, m.toLowerCase())).join('')}</div>
+      <h3>Look <small>(test)</small></h3>
+      <div class="row">${btn('look', 'studio', 'Studio')}${btn('look', 'concert', 'Concert')}</div>
       <h3>Piano key light <small>(real light: costs frame time)</small></h3>
       <div class="row">${btn('key', 'on', 'On')}${btn('key', 'off', 'Off')}</div>
       <h3>Main display <small>(a live feed renders the scene again)</small></h3>
@@ -344,6 +352,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, v
     else if (b.dataset.mode) setMode(b.dataset.mode);
     else if (b.dataset.src) setSource(b.dataset.src);
     else if (b.dataset.key) setKey(b.dataset.key === 'on');
+    else if (b.dataset.look) setLook(b.dataset.look === 'concert');
   });
   // keys used by the studio page stay with it: the panel is used with the pointer
   el.addEventListener('keydown', e => e.stopPropagation());
@@ -353,7 +362,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, v
     msg: q('msg'),
     show(s) {
       const sh = s.show, mmss = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
-      const key = [s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
+      const key = [s.look, s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
       if (key === last) return;
       last = key;
       q('showState').textContent = ({ BETWEEN: 'BETWEEN SONGS', ENDED: 'SHOW ENDED', LIVE: 'LIVE PIANO' }[sh.state] || sh.state) + (sh.paused ? ' · PAUSED' : '');
@@ -375,6 +384,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, showCommand, v
       press('[data-src]', b => b.dataset.src === s.source);
       press('[data-cmd="cinematic"]', () => !!s.seq);
       press('[data-key]', b => (b.dataset.key === 'on') === s.key);
+      press('[data-look]', b => (b.dataset.look === 'concert') === s.look);
       for (const b of el.querySelectorAll('[data-cam]')) b.textContent = b.dataset.cam + (b.dataset.cam === s.program ? ' ●' : '');
     },
   };

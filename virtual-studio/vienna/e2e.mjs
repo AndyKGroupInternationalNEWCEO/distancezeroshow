@@ -119,8 +119,11 @@ await test('lift: DOWN refused when lowered, UP raises with limited speed and ac
     const L = T.a.ext.lift, { LIFT } = T.layout;
     T.click('[data-cmd="down"]'); const refused = T.msg();
     if (!/Already lowered/.test(refused)) throw new Error('DOWN not refused: ' + refused);
-    let vmax = 0, amax = 0, last = 0, lastT = performance.now(), sampling = true;
-    const sample = () => { const now = performance.now(), dt = (now - lastT) / 1000; if (dt > 0.008 && L.speed) { amax = Math.max(amax, Math.abs(L.speed - last) / dt); } vmax = Math.max(vmax, Math.abs(L.speed)); last = L.speed; lastT = now; if (sampling) requestAnimationFrame(sample); };
+    // acceleration over 0.25 s windows: frame to frame, the page's step and this sampler's clock fall out of phase
+    let vmax = 0, amax = 0, sampling = true; const track = [];
+    const sample = () => { const now = performance.now() / 1000; track.push([now, L.speed]); vmax = Math.max(vmax, Math.abs(L.speed));
+      for (let i = track.length - 2; i >= 0; i--) if (now - track[i][0] >= 0.25) { if (L.speed && track[i][1]) amax = Math.max(amax, Math.abs(L.speed - track[i][1]) / (now - track[i][0])); break; }
+      if (sampling) requestAnimationFrame(sample); };
     requestAnimationFrame(sample);
     const t0 = performance.now();
     T.click('[data-cmd="up"]');
@@ -130,7 +133,7 @@ await test('lift: DOWN refused when lowered, UP raises with limited speed and ac
     const secs = (performance.now() - t0) / 1000;
     if (L.state !== 'ELEVATED' || Math.abs(L.height - LIFT.travel) > 1e-6) throw new Error('not elevated');
     if (vmax > LIFT.vmax + 1e-6) throw new Error('too fast ' + vmax);
-    if (amax > LIFT.accel * 2) throw new Error('acceleration ' + amax);
+    if (amax > LIFT.accel * 1.5 * 1.15) throw new Error('acceleration ' + amax);   // braking may use up to 1.5× (lift.js)
     const top = T.a.ext.stage.platform.position.y, pianoY = T.a.studio.piano.position.y;
     if (Math.abs(top - T.layout.platformTop(LIFT.travel)) > 1e-6 || Math.abs(pianoY - top) > 1e-6) throw new Error('platform ' + top + ', grand ' + pianoY);
     T.click('[data-cmd="up"]'); const again = T.msg();
