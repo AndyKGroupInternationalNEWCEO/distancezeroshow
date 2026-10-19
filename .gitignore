@@ -5,3 +5,5 @@ virtualspace/dist/
 virtualspace/.vercel-old-*/
 rehearsal-virtual-live/
 studio/media/catalog.backup-*.json
+vienna-dev.html
+test-output/

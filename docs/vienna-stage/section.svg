@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1048" height="615" viewBox="0 0 1048 615"><style>
+  text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1d1f23}
+  .t{font-size:13px}.s{font-size:10.5px;fill:#4a4f57}.h{font-size:17px;font-weight:700;letter-spacing:.06em}.k{font-size:11px;font-weight:600}
+  .studio{fill:none;stroke:#9aa0a8;stroke-width:1.2}.studioFill{fill:#eef0f3;stroke:#9aa0a8;stroke-width:1}
+  .wall{fill:none;stroke:#1d1f23;stroke-width:3}.wallThin{fill:none;stroke:#1d1f23;stroke-width:1.5}
+  .new{fill:none;stroke:#c97a1e;stroke-width:2}.pit{fill:#3a3530;stroke:#a65f12;stroke-width:1.5}.plat{fill:#e9b779;stroke:#7a4407;stroke-width:1.5}
+  .piano{fill:#2b2d31;stroke:#000;stroke-width:1}.ghost{fill:none;stroke:#7a4407;stroke-width:1.2;stroke-dasharray:5 4}
+  .walk{fill:none;stroke:#3b6fb6;stroke-width:1;stroke-dasharray:2 4}
+  .dim{stroke:#3b6fb6;stroke-width:1;fill:none}.dimT{font-size:11px;fill:#3b6fb6}
+  .cam{fill:#d23b2f}.fov{fill:#d23b2f;fill-opacity:.07;stroke:#d23b2f;stroke-width:.8;stroke-dasharray:3 3}
+  .fx{fill:#ffd23f;stroke:#7a5b00;stroke-width:1}.mv{fill:#ff9b2f;stroke:#7a3f00;stroke-width:1}.ac{fill:#59a6ff;stroke:#1d4d8a;stroke-width:1}
+  .beam{stroke:#e8a400;stroke-width:.8;stroke-dasharray:2 3;fill:none}.steel{stroke:#3c4148;stroke-width:3;fill:none}.ram{stroke:#8a1c1c;stroke-width:5}
+</style><rect width="1048" height="615" fill="#fff"/>
+<text x="30" y="26" class="h">DISTANCE // ZERO — VIENNA PIANO STAGE · SECTION A–A</text>
+<text x="30" y="44" class="s">Vertical section along the grand's length through the lift's centre, seen from the studio cameras' side (52 px = 1 m) · ELEVATED solid, LOWERED dashed · fixtures and cameras off the line projected</text>
+<line x1="30" y1="532.8" x2="264" y2="532.8" class="wall" />
+<line x1="503.2" y1="532.8" x2="768.4" y2="532.8" class="wall" />
+<polyline points="264,532.8 264,558.8 503.2,558.8 503.2,532.8" class="wallThin"/>
+<line x1="30" y1="96" x2="768.4" y2="96" class="wallThin" />
+<text x="758" y="111.6" class="s" text-anchor="end">studio ceiling</text>
+<text x="758" y="522.4" class="s" text-anchor="end">studio floor ±0.00</text>
+<rect x="308.2" y="553.6" width="150.8" height="5.2" class="ghost"/>
+<line x1="321.2" y1="553.6" x2="445.9" y2="548.57" class="ghost" />
+<line x1="321.2" y1="548.57" x2="445.9" y2="553.6" class="ghost" />
+<line x1="321.2" y1="548.57" x2="445.9" y2="543.55" class="ghost" />
+<line x1="321.2" y1="543.55" x2="445.9" y2="548.57" class="ghost" />
+<line x1="321.2" y1="543.55" x2="445.9" y2="538.52" class="ghost" />
+<line x1="321.2" y1="538.52" x2="445.9" y2="543.55" class="ghost" />
+<rect x="308.2" y="536.96" width="150.8" height="1.56" class="ghost"/>
+<rect x="269.2" y="532.8" width="228.8" height="4.16" class="ghost"/>
+<rect x="299.88" y="482.88" width="133.64" height="17.68" class="ghost"/>
+<rect x="433.52" y="494.32" width="8.84" height="6.24" class="ghost"/>
+<rect x="418.96" y="500.56" width="5.2" height="32.24" class="ghost"/>
+<rect x="313.92" y="500.56" width="5.2" height="32.24" class="ghost"/>
+<polyline points="418.96,481.84 307.68,436.6 299.88,448.56" class="ghost" style="stroke-width:1.2"/>
+<rect x="455.88" y="506.28" width="19.76" height="3.64" class="ghost"/>
+<rect x="456.92" y="509.92" width="2.08" height="22.88" class="ghost"/>
+<rect x="472.52" y="509.92" width="2.08" height="22.88" class="ghost"/>
+<rect x="308.2" y="553.6" width="150.8" height="5.2" class="plat"/>
+<line x1="321.2" y1="553.6" x2="427.31" y2="487.91" class="steel" />
+<line x1="321.2" y1="487.91" x2="427.31" y2="553.6" class="steel" />
+<line x1="321.2" y1="487.91" x2="427.31" y2="422.21" class="steel" />
+<line x1="321.2" y1="422.21" x2="427.31" y2="487.91" class="steel" />
+<line x1="321.2" y1="422.21" x2="427.31" y2="356.52" class="steel" />
+<line x1="321.2" y1="356.52" x2="427.31" y2="422.21" class="steel" />
+<line x1="336.8" y1="551.52" x2="353.03" y2="507.61" class="ram" />
+<rect x="308.2" y="354.96" width="150.8" height="1.56" class="plat"/>
+<rect x="269.2" y="350.8" width="228.8" height="4.16" class="plat"/>
+<rect x="299.88" y="300.88" width="133.64" height="17.68" class="piano"/>
+<rect x="433.52" y="312.32" width="8.84" height="6.24" class="piano"/>
+<rect x="418.96" y="318.56" width="5.2" height="32.24" class="piano"/>
+<rect x="313.92" y="318.56" width="5.2" height="32.24" class="piano"/>
+<polyline points="418.96,299.84 307.68,254.6 299.88,266.56" class="steel" style="stroke-width:2"/>
+<rect x="455.88" y="324.28" width="19.76" height="3.64" class="piano"/>
+<rect x="456.92" y="327.92" width="2.08" height="22.88" class="piano"/>
+<rect x="472.52" y="327.92" width="2.08" height="22.88" class="piano"/>
+<text x="258.8" y="353.4" class="k" text-anchor="end">platform ELEVATED</text>
+<text x="258.8" y="509.4" class="s" text-anchor="end">LOWERED: flush with the floor,</text>
+<text x="258.8" y="522.4" class="s" text-anchor="end">the grand exactly where it stands today</text>
+<text x="466.8" y="444.4" class="s" text-anchor="start">3-stage scissor, arms 2.4 m, two packs</text>
+<text x="466.8" y="460" class="s" text-anchor="start">2 hydraulic rams 0.42–0.9 m (red)</text>
+<text x="466.8" y="475.6" class="s" text-anchor="start">scissor angle 2.31°–31.76°</text>
+<text x="321.2" y="246.8" class="s" text-anchor="middle">tail</text>
+<text x="465.76" y="317" class="s" text-anchor="middle">bench</text>
+<circle cx="243.2" cy="122" r="6" class="fx"/>
+<circle cx="524" cy="122" r="6" class="fx"/>
+<text x="534.4" y="116.8" class="s" text-anchor="start">ring truss S1–S8</text>
+<rect x="473.16" y="123.80000000000001" width="12" height="12" class="mv"/>
+<rect x="336.59" y="123.80000000000001" width="12" height="12" class="mv"/>
+<rect x="282.04" y="123.80000000000001" width="12" height="12" class="mv"/>
+<rect x="418.61" y="123.80000000000001" width="12" height="12" class="mv"/>
+<text x="383.6" y="153.2" class="s" text-anchor="middle">M1–M4</text>
+<polygon points="321.21,512.8 328.21,525.8 314.21,525.8" class="ac"/>
+<polygon points="446.01,512.8 453.01,525.8 439.01,525.8" class="ac"/>
+<polygon points="289.99,255.39999999999998 296.99,268.4 282.99,268.4" class="ac"/>
+<polygon points="477.19,255.39999999999998 484.19,268.4 470.19,268.4" class="ac"/>
+<text x="490.19" y="262.4" class="s" text-anchor="start">A3/A4 back rims</text>
+<circle cx="657.52" cy="137.6" r="8" class="fx" style="fill:#fff2b0"/>
+<text x="670.52" y="142.8" class="k" text-anchor="start">FS</text>
+<line x1="657.52" y1="137.6" x2="383.6" y2="304" class="beam" />
+<line x1="524" y1="122" x2="383.6" y2="304" class="beam" />
+<line x1="243.2" y1="122" x2="383.6" y2="304" class="beam" />
+<line x1="30" y1="174" x2="768.4" y2="174" class="studio" style="stroke-dasharray:8 6"/>
+<text x="35.2" y="169.84" class="s" text-anchor="start">studio truss 6.9 m (beside the stage, not over it)</text>
+<circle cx="368.01" cy="418.4" r="5" fill="none" stroke="#d23b2f" stroke-width="1.5"/>
+<circle cx="368.01" cy="281.9" r="5" class="cam"/>
+<line x1="368.01" y1="418.4" x2="368.01" y2="281.9" class="dim" style="stroke:#d23b2f;stroke-dasharray:2 2"/>
+<text x="375.81" y="274.9" class="k" text-anchor="start">P1</text>
+<circle cx="469.95" cy="400.2" r="5" fill="none" stroke="#d23b2f" stroke-width="1.5"/>
+<circle cx="469.95" cy="218.2" r="5" class="cam"/>
+<line x1="469.95" y1="400.2" x2="469.95" y2="218.2" class="dim" style="stroke:#d23b2f;stroke-dasharray:2 2"/>
+<text x="477.75" y="211.2" class="k" text-anchor="start">P2</text>
+<circle cx="544.81" cy="441.8" r="5" fill="none" stroke="#d23b2f" stroke-width="1.5"/>
+<circle cx="544.81" cy="259.8" r="5" class="cam"/>
+<line x1="544.81" y1="441.8" x2="544.81" y2="259.8" class="dim" style="stroke:#d23b2f;stroke-dasharray:2 2"/>
+<text x="552.61" y="252.8" class="k" text-anchor="start">P3</text>
+<text x="763.2" y="376.8" class="k" text-anchor="end">P4 (projected 7.7 m) </text>
+<circle cx="206.81" cy="460" r="5" fill="none" stroke="#d23b2f" stroke-width="1.5"/>
+<circle cx="206.81" cy="278" r="5" class="cam"/>
+<line x1="206.81" y1="460" x2="206.81" y2="278" class="dim" style="stroke:#d23b2f;stroke-dasharray:2 2"/>
+<text x="214.61" y="271" class="k" text-anchor="start">P5</text>
+<line x1="508.4" y1="558.8" x2="529.2" y2="558.8" class="dim" />
+<polygon points="518.8,558.8 513.8,550.8 523.8,550.8" fill="#3b6fb6"/>
+<text x="534.4" y="562.8" class="dimT" text-anchor="start">−0.50 pit floor</text>
+<line x1="40.4" y1="96" x2="61.2" y2="96" class="dim" />
+<polygon points="50.8,96 45.8,88 55.8,88" fill="#3b6fb6"/>
+<text x="66.4" y="100" class="dimT" text-anchor="start">+8.40</text>
+<line x1="253.6" y1="532.8" x2="253.6" y2="350.8" class="dim" />
+<line x1="248.4" y1="532.8" x2="258.8" y2="532.8" class="dim" />
+<line x1="248.4" y1="350.8" x2="258.8" y2="350.8" class="dim" />
+<text x="245.8" y="445.8" class="dimT" text-anchor="end">travel 3.5 m</text>
+<text x="808" y="68" class="k">NOTES</text>
+<text x="808" y="90" class="s">One stage: the studio’s own grand, at</text>
+<text x="808" y="105" class="s">its own place, on a round lift platform</text>
+<text x="808" y="120" class="s">Ø 4.4 m let into the floor (pit Ø 4.6 m).</text>
+<text x="808" y="135" class="s"></text>
+<text x="808" y="150" class="s">Travel 3.5 m · 0.32 m/s cruise ·</text>
+<text x="808" y="165" class="s">0.18 m/s² accel and brake: ~13 s a move.</text>
+<text x="808" y="180" class="s">Platform top ±0.00 lowered, +3.50 up;</text>
+<text x="808" y="195" class="s">lid top then at about +5.35.</text>
+<text x="808" y="210" class="s"></text>
+<text x="808" y="225" class="s">The lift stands on the pit floor; the</text>
+<text x="808" y="240" class="s">rig over it carries lights only.</text>
+<text x="808" y="255" class="s"></text>
+<text x="808" y="270" class="s">Camera heights shown lowered (o) and</text>
+<text x="808" y="285" class="s">riding with the lift (●).</text>
+<text x="808" y="300" class="s"></text>
+<text x="808" y="315" class="s">Design values from layout.js.</text>
+<text x="808" y="330" class="s">Not a structural drawing.</text></svg>

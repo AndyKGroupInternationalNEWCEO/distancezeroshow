@@ -67,7 +67,9 @@ export const OBS = (() => {
 })();
 const PRESHOW = 'assets/video/dz-preshow-2026-10-14b.mp4';   // the rendered empty-studio opening, with its sound (a new name for each new render: assets are cached for a year)
 
-export async function start({ canvas, ui, quality, progress = () => {} }) {
+// `extend` (optional): builds an addition to the set (the Vienna piano stage) once the studio stands; it gets the
+// renderer, scene, studio and camera direction and returns { update(dt, t) }, run every frame after the camera has moved
+export async function start({ canvas, ui, quality, progress = () => {}, extend = null }) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ----- renderer ----- */
@@ -172,6 +174,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
 
   const lens = { fov: v0.fov };
   let air = null;   // the full-screen on-air simulation (created below)
+  let lastFree = false;
   const director = createDirector({
     camera, lens, controls, reducedMotion,
     onView: name => {
@@ -180,8 +183,12 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
       ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
       const cctv = name && VIEWS[name].cctv;
       document.body.classList.toggle('cctv', !!cctv); cctvPass.enabled = !!cctv;
-      // a security camera looks from where it hangs, often from the side or behind the set: no orbit limits there
-      controls.minAzimuthAngle = cctv ? -Infinity : -1.35; controls.maxAzimuthAngle = cctv ? Infinity : 1.35;
+      // a security camera looks from where it hangs, often from the side or behind the set: no orbit limits there (nor
+      // for shots marked `free`: the Vienna piano stage's cameras, which look across the set)
+      // (dragging away from a free shot keeps the limits open: closing them would swing the camera round)
+      const free = cctv || (name ? !!VIEWS[name].free : lastFree); lastFree = !cctv && free;
+      controls.minAzimuthAngle = free ? -Infinity : -1.35; controls.maxAzimuthAngle = free ? Infinity : 1.35;
+      controls.maxPolarAngle = free && !cctv ? Math.PI - 0.2 : 1.55;   // the Vienna stage's cameras look up at the raised grand
       if (cctv) document.getElementById('cctvName').textContent = cctv;
       for (const b of ui.views) if (b.dataset.view === 'security') b.setAttribute('aria-pressed', String(!!cctv));
       for (const b of ui.views) if (b.dataset.view === 'slowmo') b.setAttribute('aria-pressed', String(name === 'slowmo' || name === 'robot'));
@@ -199,14 +206,14 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     const base = { ...LOOKS[look] };
     const goal = onAir ? { ...base, ...ON }
       : { ...base, key: base.key * OFF.key, rim: base.rim * OFF.rim, accent: base.accent * OFF.accent, fins: base.fins * OFF.fins, beams: 0, wall: OFF.wall, house: OFF.house, onAir: 0, music: base.music * 0.3 };
-    goal.solo = director.current === 'piano' ? 1 : 0;
-    if (goal.solo) for (const [k, v] of Object.entries(SOLO)) goal[k] *= v;
+    goal.solo = director.current === 'piano' ? 1 : VIEWS[director.current]?.solo || 0;   // (shots of the Vienna piano stage: partly)
+    if (goal.solo) for (const [k, v] of Object.entries(SOLO)) goal[k] *= 1 + (v - 1) * goal.solo;
     return goal;
   };
 
   function showTally() {
     const n = director.tally();
-    ui.cam.textContent = onAir ? (n === 4 ? 'JIB' : n === 6 ? '4K HS' : `CAM ${n}`) : 'CAM —';
+    ui.cam.textContent = onAir ? (VIEWS[director.current]?.cam || (n === 4 ? 'JIB' : n === 6 ? '4K HS' : `CAM ${n}`)) : 'CAM —';
   }
 
   // the wall's own on-air programme, except while the simulation player has the wall for the show's video
@@ -436,6 +443,7 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     if (director.walking) camera.lookAt(controls.target); else controls.update(dt);   // walking: no orbit limits, just look ahead
     // the slow-mo shot is the robot's own camera: the picture follows its lens through the programme of moves
     if (robotShot) { camera.position.copy(studio.robot.shot.pos); controls.target.copy(studio.robot.shot.target); camera.lookAt(controls.target); }
+    ext?.update(dt, t);
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 
@@ -453,6 +461,8 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
     adapt(now);
     raf = requestAnimationFrame(frame);
   }
+
+  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; } }) : null;
 
   // warm up: draw the wall once and compile shaders before revealing
   studio.wall.set('idle');
@@ -488,5 +498,5 @@ export async function start({ canvas, ui, quality, progress = () => {} }) {
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air };
+  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air, ext };
 }

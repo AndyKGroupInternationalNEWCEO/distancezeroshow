@@ -65,7 +65,7 @@ function materials(q) {
 }
 
 // glowing materials: colour values above 1 feed the bloom; `level` is set every frame by the lighting
-function glow(color, map) {
+export function glow(color, map) {
   const m = new THREE.MeshBasicMaterial({ color: color.clone(), map: map || null, toneMapped: true });
   m.userData.base = color.clone();
   return m;
@@ -609,7 +609,8 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   });
 
   const viewfinders = createViewfinders(cams.map(c => c.vf).filter(Boolean));
-  return { update, wall, cams, viewfinders, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, liftLogo(on) { liftTo = on ? 1 : 0; },
+  // M: the set's materials, for the Vienna piano stage (vienna/stage.js) built round the grand
+  return { update, wall, cams, viewfinders, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, M, liftLogo(on) { liftTo = on ? 1 : 0; },
     beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = beaconClock(); }, air() { beaconMode = 'air'; }, clock(fn) { beaconClock = fn; } } };
 }
 
@@ -672,7 +673,7 @@ function beacon(s, { light = false } = {}) {
   };
 }
 
-function beamMaterial(color) {
+export function beamMaterial(color) {
   return new THREE.ShaderMaterial({
     uniforms: { uColor: { value: color.clone() }, uOpacity: { value: 0 } },
     vertexShader: `varying float vV; varying vec3 vN; varying vec3 vView;
@@ -1568,7 +1569,7 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   pianoLamp.quaternion.copy(restQ);
   const soloFrom = pianoLamp.getWorldPosition(new THREE.Vector3());
   const soloSpot = spot(C.tungsten, soloFrom, soloAim, { angle: 0.26, penumbra: 0.55, shadow: many });
-  const soloLen = soloFrom.distanceTo(soloAim);
+  const soloLen = soloFrom.distanceTo(soloAim), pianoAim = pianoSpot.target.position.clone(), soloAim0 = soloAim.clone(), lampQ = new THREE.Quaternion();
   const soloBeam = new THREE.Mesh(new THREE.ConeGeometry(Math.tan(0.26) * soloLen, soloLen, 32, 1, true).translate(0, -soloLen / 2, 0).rotateX(-Math.PI / 2), beamMaterial(C.tungsten));
   soloBeam.position.z = 0.2;
   pianoLamp.add(soloBeam);
@@ -1585,6 +1586,14 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   soft.position.set(0, 2.6, 9.5); soft.lookAt(0, 1.0, -2.5);
   root.add(fill, house, hemi, soft);
   return {
+    piano: { top: pianoSpot, solo: soloSpot },   // the grand's own lights (the Vienna piano stage uses them as its key and spot)
+    // the grand raised by the piano lift (vienna/): its warm top light and the solo spot follow it up
+    pianoLift(y) {
+      pianoSpot.target.position.copy(pianoAim).setY(pianoAim.y + y);
+      soloAim.copy(soloAim0).setY(soloAim0.y + y); soloSpot.target.position.copy(soloAim);
+      lampQ.copy(pianoLamp.quaternion); pianoLamp.quaternion.copy(restQ); pianoLamp.lookAt(soloAim); aimQ.copy(pianoLamp.quaternion); pianoLamp.quaternion.copy(lampQ);
+      soloBeam.scale.setScalar(soloFrom.distanceTo(soloAim) / soloLen);
+    },
     update(t, L) {
       const breathe = 1 + 0.04 * Math.sin(t * 0.7);
       keyL.intensity = 220 * L.key * L.warm;

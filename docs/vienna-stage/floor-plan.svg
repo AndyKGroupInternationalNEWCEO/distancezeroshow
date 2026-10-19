@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="996" height="748" viewBox="0 0 996 748"><style>
+  text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1d1f23}
+  .t{font-size:13px}.s{font-size:10.5px;fill:#4a4f57}.h{font-size:17px;font-weight:700;letter-spacing:.06em}.k{font-size:11px;font-weight:600}
+  .studio{fill:none;stroke:#9aa0a8;stroke-width:1.2}.studioFill{fill:#eef0f3;stroke:#9aa0a8;stroke-width:1}
+  .wall{fill:none;stroke:#1d1f23;stroke-width:3}.wallThin{fill:none;stroke:#1d1f23;stroke-width:1.5}
+  .new{fill:none;stroke:#c97a1e;stroke-width:2}.pit{fill:#3a3530;stroke:#a65f12;stroke-width:1.5}.plat{fill:#e9b779;stroke:#7a4407;stroke-width:1.5}
+  .piano{fill:#2b2d31;stroke:#000;stroke-width:1}.ghost{fill:none;stroke:#7a4407;stroke-width:1.2;stroke-dasharray:5 4}
+  .walk{fill:none;stroke:#3b6fb6;stroke-width:1;stroke-dasharray:2 4}
+  .dim{stroke:#3b6fb6;stroke-width:1;fill:none}.dimT{font-size:11px;fill:#3b6fb6}
+  .cam{fill:#d23b2f}.fov{fill:#d23b2f;fill-opacity:.07;stroke:#d23b2f;stroke-width:.8;stroke-dasharray:3 3}
+  .fx{fill:#ffd23f;stroke:#7a5b00;stroke-width:1}.mv{fill:#ff9b2f;stroke:#7a3f00;stroke-width:1}.ac{fill:#59a6ff;stroke:#1d4d8a;stroke-width:1}
+  .beam{stroke:#e8a400;stroke-width:.8;stroke-dasharray:2 3;fill:none}.steel{stroke:#3c4148;stroke-width:3;fill:none}.ram{stroke:#8a1c1c;stroke-width:5}
+</style><rect width="996" height="748" fill="#fff"/>
+<text x="30" y="26" class="h">DISTANCE // ZERO — VIENNA PIANO STAGE · FLOOR PLAN</text>
+<text x="30" y="44" class="s">Scale ≈ 1:126 at 96 dpi (30 px = 1 m) · studio coordinates in metres (x → Melbourne side, z → studio cameras) · grey = existing studio, unchanged · orange = new</text>
+<line x1="48" y1="70" x2="48" y2="718" stroke="#f5f6f7"/>
+<line x1="78" y1="70" x2="78" y2="718" stroke="#f5f6f7"/>
+<line x1="108" y1="70" x2="108" y2="718" stroke="#f5f6f7"/>
+<line x1="138" y1="70" x2="138" y2="718" stroke="#e6e8eb"/>
+<line x1="168" y1="70" x2="168" y2="718" stroke="#f5f6f7"/>
+<line x1="198" y1="70" x2="198" y2="718" stroke="#f5f6f7"/>
+<line x1="228" y1="70" x2="228" y2="718" stroke="#f5f6f7"/>
+<line x1="258" y1="70" x2="258" y2="718" stroke="#f5f6f7"/>
+<line x1="288" y1="70" x2="288" y2="718" stroke="#e6e8eb"/>
+<line x1="318" y1="70" x2="318" y2="718" stroke="#f5f6f7"/>
+<line x1="348" y1="70" x2="348" y2="718" stroke="#f5f6f7"/>
+<line x1="378" y1="70" x2="378" y2="718" stroke="#f5f6f7"/>
+<line x1="408" y1="70" x2="408" y2="718" stroke="#f5f6f7"/>
+<line x1="438" y1="70" x2="438" y2="718" stroke="#e6e8eb"/>
+<line x1="468" y1="70" x2="468" y2="718" stroke="#f5f6f7"/>
+<line x1="498" y1="70" x2="498" y2="718" stroke="#f5f6f7"/>
+<line x1="528" y1="70" x2="528" y2="718" stroke="#f5f6f7"/>
+<line x1="558" y1="70" x2="558" y2="718" stroke="#f5f6f7"/>
+<line x1="588" y1="70" x2="588" y2="718" stroke="#e6e8eb"/>
+<line x1="618" y1="70" x2="618" y2="718" stroke="#f5f6f7"/>
+<line x1="648" y1="70" x2="648" y2="718" stroke="#f5f6f7"/>
+<line x1="678" y1="70" x2="678" y2="718" stroke="#f5f6f7"/>
+<line x1="30" y1="88" x2="696" y2="88" stroke="#f5f6f7"/>
+<line x1="30" y1="118" x2="696" y2="118" stroke="#f5f6f7"/>
+<line x1="30" y1="148" x2="696" y2="148" stroke="#e6e8eb"/>
+<line x1="30" y1="178" x2="696" y2="178" stroke="#f5f6f7"/>
+<line x1="30" y1="208" x2="696" y2="208" stroke="#f5f6f7"/>
+<line x1="30" y1="238" x2="696" y2="238" stroke="#f5f6f7"/>
+<line x1="30" y1="268" x2="696" y2="268" stroke="#f5f6f7"/>
+<line x1="30" y1="298" x2="696" y2="298" stroke="#e6e8eb"/>
+<line x1="30" y1="328" x2="696" y2="328" stroke="#f5f6f7"/>
+<line x1="30" y1="358" x2="696" y2="358" stroke="#f5f6f7"/>
+<line x1="30" y1="388" x2="696" y2="388" stroke="#f5f6f7"/>
+<line x1="30" y1="418" x2="696" y2="418" stroke="#f5f6f7"/>
+<line x1="30" y1="448" x2="696" y2="448" stroke="#e6e8eb"/>
+<line x1="30" y1="478" x2="696" y2="478" stroke="#f5f6f7"/>
+<line x1="30" y1="508" x2="696" y2="508" stroke="#f5f6f7"/>
+<line x1="30" y1="538" x2="696" y2="538" stroke="#f5f6f7"/>
+<line x1="30" y1="568" x2="696" y2="568" stroke="#f5f6f7"/>
+<line x1="30" y1="598" x2="696" y2="598" stroke="#e6e8eb"/>
+<line x1="30" y1="628" x2="696" y2="628" stroke="#f5f6f7"/>
+<line x1="30" y1="658" x2="696" y2="658" stroke="#f5f6f7"/>
+<line x1="30" y1="688" x2="696" y2="688" stroke="#f5f6f7"/>
+<line x1="30" y1="718" x2="696" y2="718" stroke="#f5f6f7"/>
+<polyline points="805.87,624.59 811.87,608.52 817.18,592.2 821.77,575.67 825.64,558.95 828.78,542.08 831.19,525.09 832.86,508.02 833.79,490.88 833.98,473.72 833.42,456.58 832.12,439.47 830.08,422.43 827.31,405.5 823.8,388.7 819.57,372.07 814.62,355.64 808.97,339.44 802.62,323.5 795.58,307.85 787.88,292.52 779.51,277.54 770.51,262.93 760.88,248.73 750.64,234.96 739.82,221.64 728.43,208.81 716.5,196.48 704.04,184.68 691.09,173.43 677.65,162.75 663.77,152.67 649.47,143.19 634.76,134.34 619.69,126.14 604.28,118.6 588.55,111.74 572.55,105.56 556.29,100.08 539.8,95.31 523.13,91.26 506.3,87.93 489.34,85.34 472.28,83.49 455.15,82.37 438,82 420.85,82.37 403.72,83.49 386.66,85.34 369.7,87.93 352.87,91.26 336.2,95.31 319.71,100.08 303.45,105.56 287.45,111.74 271.72,118.6 256.31,126.14 241.24,134.34 226.53,143.19 212.23,152.67 198.35,162.75 184.91,173.43 171.96,184.68 159.5,196.48 147.57,208.81 136.18,221.64 125.36,234.96 115.12,248.73 105.49,262.93 96.49,277.54 88.12,292.52 80.42,307.85 73.38,323.5 67.03,339.44 61.38,355.64 56.43,372.07 52.2,388.7 48.69,405.5 45.92,422.43 43.88,439.47 42.58,456.58 42.02,473.72 42.21,490.88 43.14,508.02 44.81,525.09 47.22,542.08 50.36,558.95 54.23,575.67 58.82,592.2 64.13,608.52 70.13,624.59" class="wall"/>
+<polyline points="597.36,283.82 594.18,281.86 590.98,279.94 587.76,278.05 584.51,276.21 581.24,274.41 577.95,272.64 574.64,270.92 571.3,269.24 567.95,267.61 564.57,266.01 561.18,264.46 557.77,262.94 554.33,261.47 550.88,260.05 547.42,258.66 543.93,257.33 540.43,256.03 536.91,254.78 533.38,253.57 529.83,252.4 526.27,251.28 522.7,250.2 519.11,249.17 515.51,248.19 511.9,247.24 508.27,246.35 504.64,245.49 500.99,244.69 497.34,243.93 493.68,243.21 490,242.54 486.32,241.92 482.63,241.34 478.94,240.81 475.24,240.32 471.53,239.88 467.82,239.49 464.1,239.14 460.38,238.84 456.65,238.58 452.93,238.37 449.2,238.21 445.47,238.09 441.73,238.02 438,238 434.27,238.02 430.53,238.09 426.8,238.21 423.07,238.37 419.35,238.58 415.62,238.84 411.9,239.14 408.18,239.49 404.47,239.88 400.76,240.32 397.06,240.81 393.37,241.34 389.68,241.92 386,242.54 382.32,243.21 378.66,243.93 375.01,244.69 371.36,245.49 367.73,246.35 364.1,247.24 360.49,248.19 356.89,249.17 353.3,250.2 349.73,251.28 346.17,252.4 342.62,253.57 339.09,254.78 335.57,256.03 332.07,257.33 328.58,258.66 325.12,260.05 321.67,261.47 318.23,262.94 314.82,264.46 311.43,266.01 308.05,267.61 304.7,269.24 301.36,270.92 298.05,272.64 294.76,274.41 291.49,276.21 288.24,278.05 285.02,279.94 281.82,281.86 278.64,283.82" class="studio"/>
+<text x="438" y="251.5" class="s" text-anchor="middle">LED wall</text>
+<circle cx="438" cy="391" r="100.8" class="studioFill"/>
+<text x="438" y="395.5" class="s" text-anchor="middle">desk riser · host · co-host · guest</text>
+<rect x="333" y="112" width="210" height="115.5" class="studioFill"/>
+<text x="438" y="173.75" class="s" text-anchor="middle">backstage lounge</text>
+<polygon points="619.69,416.64 561.12,458.52 580.31,485.36 638.88,443.48" class="studioFill"/>
+<text x="600" y="455" class="s" text-anchor="middle">DJ booth</text>
+<rect x="228.9" y="316" width="22.2" height="12" class="studioFill"/>
+<rect x="624.9" y="316" width="22.2" height="12" class="studioFill"/>
+<text x="240" y="305.5" class="s" text-anchor="middle">VIENNA pylon</text>
+<text x="636" y="305.5" class="s" text-anchor="middle">MELBOURNE pylon</text>
+<polyline points="438,571 449.51,570.6 460.96,569.39 472.31,567.39 483.48,564.61 494.43,561.05 505.11,556.74 515.46,551.69 525.44,545.93 534.98,539.49 544.06,532.4 552.62,524.69 560.62,516.41 568.02,507.58 574.79,498.27 580.89,488.5 586.3,478.33 590.99,467.81 594.92,456.99 598.1,445.92 600.49,434.65 602.1,423.25 602.9,411.76 602.9,400.24 602.1,388.75 600.49,377.35 598.1,366.08 594.92,355.01 590.99,344.19 586.3,333.67 580.89,323.5 574.79,313.73 568.02,304.42 560.62,295.59 552.62,287.31 544.06,279.6 534.98,272.51 525.44,266.07 515.46,260.31 505.11,255.26 494.43,250.95 483.48,247.39 472.31,244.61 460.96,242.61 449.51,241.4 438,241 426.49,241.4 415.04,242.61 403.69,244.61 392.52,247.39 381.57,250.95 370.89,255.26 360.54,260.31 350.56,266.07 341.02,272.51 331.94,279.6 323.38,287.31 315.38,295.59 307.98,304.42 301.21,313.73 295.11,323.5 289.7,333.67 285.01,344.19 281.08,355.01 277.9,366.08 275.51,377.35 273.9,388.75 273.1,400.24 273.1,411.76 273.9,423.25 275.51,434.65 277.9,445.92 281.08,456.99 285.01,467.81 289.7,478.33 295.11,488.5 301.21,498.27 307.98,507.58 315.38,516.41 323.38,524.69 331.94,532.4 341.02,539.49 350.56,545.93 360.54,551.69 370.89,556.74 381.57,561.05 392.52,564.61 403.69,567.39 415.04,569.39 426.49,570.6 438,571" class="studio"/>
+<text x="534" y="253" class="s" text-anchor="middle">studio lighting truss (6.9 m)</text>
+<polyline points="333,466 291,352 249,256 297,199 345,199" class="walk"/>
+<text x="303" y="292" class="s" text-anchor="start">walk to backstage</text>
+<rect x="99.5" y="345" width="8" height="8" fill="#555"/>
+<text x="112.5" y="338.5" class="s" text-anchor="start">SEC 1</text>
+<text x="540" y="676" class="s" text-anchor="middle">studio cameras and the open front of the set ↓</text>
+<text x="408" y="703" class="s" text-anchor="middle">existing studio: Ø 26.4 m, 8.4 m high — unchanged except the piano area</text>
+<circle cx="252.24" cy="446.32" r="71.85" class="new"/>
+<circle cx="252.24" cy="446.32" r="69" class="pit"/>
+<circle cx="252.24" cy="446.32" r="66" class="plat"/>
+<polygon points="223.53,400.93 200.16,459.44 280.95,491.71 304.32,433.2" class="ghost"/>
+<polygon points="216.17,406.4 198.59,450.41 274.93,480.9 292.51,436.89" class="piano"/>
+<polygon points="295.41,450.64 286.51,472.93 297.09,477.16 305.99,454.87" class="piano"/>
+<text x="245.55" y="447.65" class="k" text-anchor="middle" style="fill:#fff">GRAND</text>
+<text x="174.24" y="546.82" class="k" text-anchor="start">platform Ø 4.4 m in a Ø 4.6 m pit, flush with the floor when lowered</text>
+<text x="174.24" y="557.32" class="s" text-anchor="start">keyboard and pianist face the studio; the open lid faces the cameras</text>
+<circle cx="252.24" cy="446.32" r="81" class="new"/>
+<circle cx="327.07" cy="477.32" r="6" class="fx"/>
+<text x="327.07" y="468.32" class="s" text-anchor="middle">S1</text>
+<circle cx="283.24" cy="521.15" r="6" class="fx"/>
+<text x="283.24" y="512.15" class="s" text-anchor="middle">S2</text>
+<circle cx="221.24" cy="521.15" r="6" class="fx"/>
+<text x="221.24" y="512.15" class="s" text-anchor="middle">S3</text>
+<circle cx="177.41" cy="477.32" r="6" class="fx"/>
+<text x="177.41" y="468.32" class="s" text-anchor="middle">S4</text>
+<circle cx="177.41" cy="415.32" r="6" class="fx"/>
+<text x="177.41" y="406.32" class="s" text-anchor="middle">S5</text>
+<circle cx="221.24" cy="371.49" r="6" class="fx"/>
+<text x="221.24" y="362.49" class="s" text-anchor="middle">S6</text>
+<circle cx="283.24" cy="371.49" r="6" class="fx"/>
+<text x="283.24" y="362.49" class="s" text-anchor="middle">S7</text>
+<circle cx="327.07" cy="415.32" r="6" class="fx"/>
+<text x="327.07" y="406.32" class="s" text-anchor="middle">S8</text>
+<rect x="288.66" y="482.74" width="12" height="12" class="mv"/>
+<text x="294.66" y="506.74" class="s" text-anchor="middle">M1</text>
+<rect x="203.82" y="482.74" width="12" height="12" class="mv"/>
+<text x="209.82" y="506.74" class="s" text-anchor="middle">M2</text>
+<rect x="203.82" y="397.9" width="12" height="12" class="mv"/>
+<text x="209.82" y="421.9" class="s" text-anchor="middle">M3</text>
+<rect x="288.66" y="397.9" width="12" height="12" class="mv"/>
+<text x="294.66" y="421.9" class="s" text-anchor="middle">M4</text>
+<polygon points="248.85,350.76 255.85,363.76 241.85,363.76" class="ac"/>
+<text x="257.85" y="361.76" class="s" text-anchor="start">A1</text>
+<polygon points="315.72,377.46 322.72,390.46 308.72,390.46" class="ac"/>
+<text x="324.72" y="388.46" class="s" text-anchor="start">A2</text>
+<polygon points="235.47,335.7 242.47,348.7 228.47,348.7" class="ac"/>
+<text x="244.47" y="346.7" class="s" text-anchor="start">A3</text>
+<polygon points="335.76,375.78 342.76,388.78 328.76,388.78" class="ac"/>
+<text x="344.76" y="386.78" class="s" text-anchor="start">A4</text>
+<circle cx="381" cy="550" r="8" class="fx" style="fill:#fff2b0"/>
+<text x="381" y="554" class="k" text-anchor="middle">FS</text>
+<polygon points="177.12,610.15 169.81,532.49 240.74,565.02" class="fov"/>
+<circle cx="177.12" cy="610.15" r="5.5" class="cam"/>
+<text x="177.12" y="600.15" class="k" text-anchor="middle">P1</text>
+<polygon points="298.5,464.8 221.97,479.87 253.4,401.16" class="fov"/>
+<circle cx="298.5" cy="464.8" r="5.5" class="cam"/>
+<text x="298.5" y="454.8" class="k" text-anchor="middle">P2</text>
+<polygon points="359.76,427.87 306.16,484.53 282.42,417.78" class="fov"/>
+<circle cx="359.76" cy="427.87" r="5.5" class="cam"/>
+<text x="359.76" y="417.87" class="k" text-anchor="middle">P3</text>
+<polygon points="414,664 339.69,640.29 412.74,586.01" class="fov"/>
+<circle cx="414" cy="664" r="5.5" class="cam"/>
+<text x="414" y="654" class="k" text-anchor="middle">P4</text>
+<polygon points="114.12,517.15 154.73,450.56 191.9,523.03" class="fov"/>
+<circle cx="114.12" cy="517.15" r="5.5" class="cam"/>
+<text x="114.12" y="507.15" class="k" text-anchor="middle">P5</text>
+<text x="736" y="68" class="k">LEGEND</text>
+<line x1="736" y1="90" x2="754" y2="90" class="wall"/>
+<text x="762" y="94" class="s">studio wall (unchanged)</text>
+<circle cx="745" cy="112" r="7" class="pit"/>
+<text x="762" y="116" class="s">lift pit, 0.5 m deep</text>
+<circle cx="745" cy="134" r="7" class="plat"/>
+<text x="762" y="138" class="s">lift platform</text>
+<line x1="736" y1="156" x2="754" y2="156" class="ghost"/>
+<text x="762" y="160" class="s">scissor frame, below the platform</text>
+<rect x="738" y="172" width="14" height="12" class="piano"/>
+<text x="762" y="182" class="s">the studio grand (stays in place)</text>
+<circle cx="745" cy="200" r="6" class="fx"/>
+<text x="762" y="204" class="s">S1–S8 perimeter spots, ring 7.9 m</text>
+<rect x="739" y="216" width="12" height="12" class="mv"/>
+<text x="762" y="226" class="s">M1–M4 moving heads, 7.75 m</text>
+<polygon points="745,237 752,250 738,250" class="ac"/>
+<text x="762" y="248" class="s">A1–A2 floor backlights, A3–A4 rims</text>
+<circle cx="745" cy="266" r="7" class="fx" style="fill:#fff2b0"/>
+<text x="762" y="270" class="s">FS performance spot, 7.6 m</text>
+<circle cx="745" cy="288" r="5.5" class="cam"/>
+<text x="762" y="292" class="s">virtual cameras (lift lowered)</text>
+<text x="736" y="316" class="s">P1 Main front · 36° · rides 75 % of the lift</text>
+<text x="736" y="332" class="s">P2 Keyboard top · 40° · rides 100 % of the lift</text>
+<text x="736" y="348" class="s">P3 Side cinematic · 32° · rides 100 % of the lift</text>
+<text x="736" y="364" class="s">P4 Lift reveal · 44° · on the floor</text>
+<text x="736" y="380" class="s">P5 Elevated tracking · 38° · rides 100 % of the lift</text>
+<text x="736" y="406" class="s">Dimensions are design values from layout.js,</text>
+<text x="736" y="421" class="s">checked against the studio model (set.js).</text>
+<text x="736" y="436" class="s">Not a structural drawing.</text></svg>
