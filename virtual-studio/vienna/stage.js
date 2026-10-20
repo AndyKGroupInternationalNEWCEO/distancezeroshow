@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { glow, beamMaterial } from '../set.js';
 import { AMBER, ICE } from '../screens.js';
-import { ROOM, PIANO, STAGE, LIFT, RIG, platformTop } from './layout.js';
+import { ROOM, PIANO, STAGE, LIFT, RIG, MIC, platformTop, at } from './layout.js';
 
 const C = { amber: new THREE.Color(AMBER), ice: new THREE.Color(ICE), warm: new THREE.Color('#ffe2c0'), white: new THREE.Color('#fff4e8'),
   tungsten: new THREE.Color('#ffb46b') };
@@ -66,7 +66,8 @@ export function buildStage({ studio, scene }) {
   mesh(new THREE.TorusGeometry(LIFT.r - 0.08, 0.016, 6, 128).rotateX(Math.PI / 2), underMat, platform).position.y = -LIFT.thick - 0.006;
   const topRing = glow(C.amber); glows.push({ m: topRing, k: 0.9, group: 'under' });
   mesh(new THREE.TorusGeometry(LIFT.r - 0.05, 0.006, 4, 128).rotateX(Math.PI / 2), topRing, platform).position.y = 0.007;
-  disc.userData.focus = 'piano';   // the platform, like the grand on it, opens the studio's piano shot and Piano tab
+  disc.userData.focus = 'piano';
+  platform.add(vocalMic(M));   // the platform, like the grand on it, opens the studio's piano shot and Piano tab
   const pianoY0 = piano.position.y;
   // the grand's lacquer: on stage it shows more of the room in its reflections (with the studio dimmed around the
   // stage it would read as a black silhouette); back to the studio's own value when the stage is not in use
@@ -144,6 +145,91 @@ export function buildStage({ studio, scene }) {
   const R = Math.max(RIG.perimeter.r, 3.2) + 0.5;
   return { root, piano, platform, lift, pose, update, rig, keyLight, lacquerLook, get key() { return !!key; },
     bounds: new THREE.Box3(new THREE.Vector3(STAGE.x - R, -LIFT.depth, STAGE.z - R), new THREE.Vector3(STAGE.x + R, ROOM.H, STAGE.z + R)) };
+}
+
+/* ---------- the singer's microphone: a boom stand with a dynamic vocal mic (visual only, no audio) ---------- */
+// Built to the real thing's sizes: a bevelled cast-iron round base (Ø 30 cm) with a rubber ring, a matt black powder-coated
+// telescopic pole (lower tube Ø 22 mm, upper Ø 17 mm) with its height clutch, a boom clutch with a T-knob, a Ø 13 mm
+// boom with an end counterweight, a C-clip holding the mic by its handle, and the mic itself: a 16 cm handheld
+// dynamic (tapered satin handle, XLR socket, chrome ring, a woven-wire ball grille Ø 5 cm). The cable leaves the XLR,
+// hangs in a short loop and runs along the boom and down the pole to the floor, towards the middle of the platform.
+// Placed in the piano's frame (MIC in layout.js), well inside the platform's edge.
+function vocalMic(M) {
+  const g = new THREE.Group(); g.name = 'vienna-mic';
+  const local = (along, across, y) => { const [x, z] = at(along, across); return new THREE.Vector3(x - STAGE.x, y, z - STAGE.z); };
+  const powder = new THREE.MeshStandardMaterial({ color: 0x141416, metalness: 0.35, roughness: 0.62 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0, roughness: 0.9 });
+  const handle = new THREE.MeshPhysicalMaterial({ color: 0x232428, metalness: 0.55, roughness: 0.34, clearcoat: 0.3, clearcoatRoughness: 0.4 });
+  // the grille: fine woven wire (a canvas weave as colour and bump), silver-grey, over a dark foam windscreen
+  const weave = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const x = c.getContext('2d'); x.fillStyle = '#1b1b1b'; x.fillRect(0, 0, 64, 64);
+    x.strokeStyle = '#d6d9dd'; x.lineWidth = 3;
+    for (let i = 0; i < 64; i += 8) { x.beginPath(); x.moveTo(i + 2, 0); x.lineTo(i + 2, 64); x.stroke(); x.beginPath(); x.moveTo(0, i + 2); x.lineTo(64, i + 2); x.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 10); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const grille = new THREE.MeshStandardMaterial({ color: 0xc4c8cd, map: weave, bumpMap: weave, bumpScale: 0.6, metalness: 0.9, roughness: 0.42 });
+  const foam = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 1 });
+  const add = (geo, mat, pos, parent = g) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); parent.add(m); m.castShadow = true; return m; };
+  const tube = (from, to, r, mat) => {   // a cylinder from one point to another
+    const d = to.clone().sub(from), m = add(new THREE.CylinderGeometry(r, r, d.length(), 16), mat, from.clone().addScaledVector(d, 0.5));
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return m;
+  };
+  const lathe = (pts, segs = 40) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), segs);
+
+  const base = local(...MIC.base, 0), top = base.clone().setY(MIC.pole), cap = local(...MIC.capsule), aim = local(...MIC.aim);
+  // the base: a low bevelled disc on a rubber ring
+  add(new THREE.CylinderGeometry(0.115, 0.15, 0.026, 64), powder, base.clone().setY(0.017));
+  add(new THREE.CylinderGeometry(0.03, 0.04, 0.012, 24), powder, base.clone().setY(0.036));
+  add(new THREE.CylinderGeometry(0.146, 0.146, 0.004, 48), rubber, base.clone().setY(0.002));
+  // the pole: lower tube, height clutch, upper tube
+  const clutchY = MIC.pole * 0.58;
+  tube(base.clone().setY(0.03), base.clone().setY(clutchY), 0.011, powder);
+  add(lathe([[0, -0.03], [0.016, -0.03], [0.018, -0.02], [0.018, 0.02], [0.013, 0.03], [0, 0.03]], 24), powder, base.clone().setY(clutchY));
+  add(new THREE.CylinderGeometry(0.006, 0.006, 0.03, 10).rotateZ(Math.PI / 2), rubber, base.clone().setY(clutchY).add(new THREE.Vector3(0.03, 0, 0)));   // clutch screw
+  tube(base.clone().setY(clutchY), top, 0.0085, powder);
+  // the mic's pose: its axis points at the singer's mouth; the clip holds it 5 cm behind the grille, the clip's stud
+  // meets the boom 3 cm below the handle
+  const axis = aim.clone().sub(cap).normalize();
+  const mic = new THREE.Group(); mic.position.copy(cap); g.add(mic);
+  mic.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
+  const clipAt = cap.clone().addScaledVector(axis, -0.06), boomEnd = clipAt.clone().add(new THREE.Vector3(0, -0.035, 0));
+  // the boom clutch (a block with a T-knob), the boom with its counterweight
+  const dir = boomEnd.clone().sub(top).normalize(), tail = top.clone().addScaledVector(dir, -0.26);
+  const clutch = add(new RoundedBoxGeometry(0.045, 0.06, 0.045, 2, 0.008), powder, top);
+  clutch.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), new THREE.Vector3(dir.x, 0, dir.z).normalize());
+  const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  tube(top, top.clone().addScaledVector(side, 0.05), 0.005, powder);
+  tube(top.clone().addScaledVector(side, 0.05).add(new THREE.Vector3(0, -0.02, 0)), top.clone().addScaledVector(side, 0.05).add(new THREE.Vector3(0, 0.02, 0)), 0.007, rubber);
+  tube(tail, boomEnd, 0.0065, powder);
+  tube(tail, tail.clone().addScaledVector(dir, 0.07), 0.021, powder);                                  // counterweight
+  tube(tail.clone().addScaledVector(dir, -0.004), tail.clone().addScaledVector(dir, 0.002), 0.017, rubber);   // its end cap
+  tube(boomEnd, clipAt.clone().add(new THREE.Vector3(0, -0.016, 0)), 0.004, powder);                    // the clip's stud
+  // the mic (in its own frame: +z towards the mouth, 0 = the ring under the grille)
+  const body = add(lathe([[0, -0.112], [0.0105, -0.112], [0.0112, -0.104], [0.0122, -0.09], [0.0155, -0.03], [0.0168, -0.012], [0.017, 0]]), handle, null, mic);
+  body.geometry.rotateX(Math.PI / 2);
+  add(new THREE.CylinderGeometry(0.0182, 0.0182, 0.007, 32).rotateX(Math.PI / 2), M.chrome, new THREE.Vector3(0, 0, 0.0035), mic);   // the ring
+  add(new THREE.CylinderGeometry(0.0085, 0.0085, 0.006, 20).rotateX(Math.PI / 2), M.chrome, new THREE.Vector3(0, 0, -0.114), mic);   // the XLR socket
+  const R = 0.0245, C = 0.026, ball = [[0.0185, 0.007], [0.0225, 0.01], [R, 0.016]];
+  for (let i = 0; i <= 12; i++) { const a = (i / 12) * Math.PI / 2; ball.push([+(R * Math.cos(a)).toFixed(5) || 0, C + R * Math.sin(a)]); }
+  add(lathe(ball, 48), grille, null, mic).geometry.rotateX(Math.PI / 2);
+  add(new THREE.SphereGeometry(R - 0.002, 24, 16), foam, new THREE.Vector3(0, 0, C - 0.004), mic);
+  const clip = add(new THREE.TorusGeometry(0.0175, 0.0035, 8, 24, Math.PI * 1.55), powder, new THREE.Vector3(0, 0, -0.06), mic);
+  clip.rotation.z = -Math.PI / 2 + Math.PI * 0.225;   // the C opens upwards, the mic sits in it
+  // the cable: out of the XLR, a short drop, taped along under the boom, down the pole, onto the floor towards the
+  // middle of the platform
+  const xlr = cap.clone().addScaledVector(axis, -0.12), down = new THREE.Vector3(0, -1, 0), inward = base.clone().negate().setY(0).normalize();
+  const boomLen = boomEnd.distanceTo(top), under = f => top.clone().addScaledVector(dir, boomLen * f).addScaledVector(down, 0.011);
+  const pole = y => base.clone().setY(y).addScaledVector(side, -0.013);
+  const cable = new THREE.CatmullRomCurve3([
+    xlr, xlr.clone().addScaledVector(axis, -0.025).addScaledVector(down, 0.035), under(0.86), under(0.6), under(0.3), under(0.08),
+    pole(MIC.pole - 0.07), pole(clutchY + 0.05), pole(clutchY - 0.05), pole(0.3), pole(0.09),
+    base.clone().setY(0.03).addScaledVector(inward, 0.16), base.clone().setY(0.004).addScaledVector(inward, 0.24),
+    base.clone().setY(0.003).addScaledVector(inward, 0.6),
+  ], false, 'centripetal');
+  add(new THREE.TubeGeometry(cable, 120, 0.003, 8), rubber);
+  return g;
 }
 
 /* ---------- the light rig: perimeter ring, moving heads, accents, the performance spot, the under-platform LED ---------- */

@@ -55,6 +55,12 @@ export const CAMS = {
 // the studio's own piano shot (views.js `piano`, key 9) rides along too, so it keeps the grand in frame
 export const STUDIO_PIANO_VIEW = { rise: 0.7 };
 
+// the singer's microphone at the grand (visual only): a boom stand on the platform beside the bench, on the side away
+// from the cameras, its arm reaching in so the capsule sits by the pianist's mouth, off to the side of the keyboard
+// (in the piano's frame: along/across from the stage centre; heights above the platform)
+// The base stands beside the bench, 0.35 m clear of it and 0.38 m inside the platform's edge (base Ø 0.3 m)
+export const MIC = { base: [1.4, -0.9], capsule: [1.36, -0.17, 1.19], aim: [1.47, 0.0, 1.17], pole: 1.0 };
+
 // the light rig round the grand, hung under the studio ceiling (aim points are on the platform and follow it)
 export const RIG = {
   perimeter: { n: 8, r: 2.7, y: 7.9 },                                   // a small ring truss over the platform

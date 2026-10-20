@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { stagePage } from '../virtual-studio/vienna/dev-page.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'virtualspace', 'dist');
@@ -28,6 +29,10 @@ const FILES = [
   'assets/logo-do.webp', 'assets/logo-do-1k.webp', 'assets/sponsor-djandyk.webp',
   // the show's wall videos and jingles for the on-air simulation (made by virtualspace/show-media.sh): these two folders only
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
+  // the Vienna Piano Stage (/piano-stage): its code and the Piano Sessions' four official recordings (git-ignored:
+  // copied from the masters, see docs/vienna-stage/PIANO-SHOW.md). The songs stream from djandykofficial.com
+  ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire'].map(f => `virtual-studio/vienna/${f}.js`),
+  ...['opening', 'theme', 'between-songs', 'closing'].map(f => `assets/audio/piano-sessions/dz-piano-${f === 'opening' || f === 'closing' ? 'sessions-' + f : f}.wav`),
 ];
 
 // clear the previous build but keep .vercel (the link to the Vercel project)
@@ -56,15 +61,20 @@ const ld = { '@context': 'https://schema.org', '@type': 'WebApplication', name: 
   creator: { '@type': 'Organization', name: "Andy'K Group International LTD" } };
 html = html.replace('</head>', `<script type="application/ld+json">${JSON.stringify(ld)}</script>\n</head>`);
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
+// the Vienna Piano Stage: the same page with the stage and its control panel (noindex)
+const stage = stagePage(html, 'Vienna Piano Stage — DISTANCE // ZERO')
+  .replace(`<link rel="canonical" href="${HOST}">`, `<link rel="canonical" href="${HOST}piano-stage">`)
+  .replace(`<meta property="og:url" content="${HOST}">`, `<meta property="og:url" content="${HOST}piano-stage">`);
+fs.writeFileSync(path.join(OUT, 'piano-stage.html'), stage);
 // the "How it works" page (linked in the footer), a static page of its own
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT, 'dj-manual.html'));
 // /favicon.ico, which browsers also ask for on their own (Safari keeps the old one otherwise); not under /assets, so not cached for a year
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'favicon.ico'), path.join(OUT, 'favicon.ico'));   // the DJ booth's own manual
 
-// Content Security Policy: our own files only; the two inline scripts (import map, boot) allowed by hash
-const hashes = [...html.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
-  .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
+// Content Security Policy: our own files only; the inline scripts of both pages (import map, boot) allowed by hash
+const hashes = [...new Set([html, stage].flatMap(page => [...page.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
+  .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`)))];
 const csp = [
   "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`, "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
   "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com https://www.djandykofficial.com", // the soundtrack streams from the main site, DJ Andy'K's releases from his

@@ -1,4 +1,5 @@
-// The concert look for the Vienna Piano Stage (a test, ?look=concert or the panel): the same studio, the same grand
+// The concert look for the Vienna Piano Stage (the Piano Sessions' look: on by default on the stage page, ?look=studio
+// or the panel for the studio look): the same studio, the same grand
 // and lift, lit and framed as an intimate concert. Nothing is rebuilt and no wall or stage is added:
 //   · the grand's lacquer reflects warm softbox strips of its own (an environment map: costs nothing per frame), and
 //     the optional front key light is on;
@@ -13,7 +14,7 @@ const xyz = (along, across, y) => { const [x, z] = at(along, across); return [x,
 // the camera and key-light values of the look; `before` keeps the studio's own, to switch back
 const LOOK = {
   P1: { pos: xyz(-0.2, 5.0, 2.0), target: [STAGE.x, 1.15, STAGE.z], fov: 30 },
-  P5: { pos: xyz(-2.8, 3.2, 1.05), target: xyz(0.1, 0, 0.85), fov: 34 },
+  P5: { pos: xyz(-3.05, 3.5, 1.1), target: xyz(0.15, 0, 0.85), fov: 38 },   // (wider than the first test: the lid's tail was cut)
   key: { level: 700 },
 };
 const before = { P1: { ...CAMS.P1 }, P5: { ...CAMS.P5 }, key: { level: RIG.key.level } };

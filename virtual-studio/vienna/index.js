@@ -10,6 +10,8 @@ import { LIFT, CAMS, STUDIO_PIANO_VIEW, platformTop } from './layout.js';
 import { OPENING } from './opening.js';
 import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
+import { createKeyPlayer } from './keys.js';
+import { REPERTOIRE } from './repertoire.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
 // lighting modes: each group's [level, colour, (moving heads) pattern | (under) pulse], the haze in the beams, and the
@@ -230,20 +232,36 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   // the scene once (every material recompiles: choose it before going on air), not dimmed to zero at a cost
   const setKey = on => { stage.keyLight(on); say(on ? 'Key light on' : 'Key light off'); };
   if (new URLSearchParams(location.search).get('key') === '1') stage.keyLight(true);
-  // the concert look (a visual test: ?look=concert or the panel): see concert-look.js
+  // the concert look, the Piano Sessions' look (concert-look.js): on unless ?look=studio; the panel switches it
   const look = concertLook({ renderer, scene, stage });
-  if (new URLSearchParams(location.search).get('look') === 'concert') look.set(true);
+  if (new URLSearchParams(location.search).get('look') !== 'studio') look.set(true);
+
+  /* ----- the repertoire (DJ Andy'K's song library, repertoire.js) and the grand's keys (keys.js) ----- */
+  // no song has an approved piano part yet: the key player stays empty and the keys stay still until one is added
+  const keyPlayer = createKeyPlayer(studio.piano.userData.keyboard);
+  const parts = {};   // song id → approved part (none yet; see docs/vienna-stage/SCORE-IMPORT.md)
+  let picked = REPERTOIRE.find(s => s.piano) || REPERTOIRE[0];
+  const pickSong = id => { picked = REPERTOIRE.find(s => s.id === id) || picked; ui.song(picked, parts[picked.id]); };
+  const performSong = () => { abortSequence('Cinematic sequence cancelled'); keyPlayer.load(parts[picked.id] || null); show.playSong(picked); };
   const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
-  const ui = panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video });
+  const seekSong = f => show.seek(f * show.duration);
+  const ui = panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video, pickSong, performSong, seekSong });
+  ui.song(picked, parts[picked.id]);
 
   /* ----- per frame ----- */
-  let settle = null, wasFlying = false;
+  let settle = null, wasFlying = false, liftSeg = null, liftT = 0;
   const want = { pos: new THREE.Vector3(), target: new THREE.Vector3() }, offset = new THREE.Vector3();
   function update(dt) {
     t += dt;
     runSequence(dt);
     show.update(dt);
-    const h = frozen ? lift.height : lift.step(dt);
+    if (show.segment === 'song' && keyPlayer.part) keyPlayer.update(show.time); else if (keyPlayer.part) keyPlayer.stop();
+    // while a show segment plays on its recording's clock, the lift moves by what that clock moved (frames that come
+    // late, or are cut short by main.js's 0.1 s limit, cannot leave the platform behind the music); otherwise by dt
+    const seg = show.segment, onAudio = seg && show.clock === 'audio' && !show.paused;
+    const step = onAudio && seg === liftSeg && show.time >= liftT && show.time - liftT < 0.5 ? show.time - liftT : dt;
+    liftSeg = seg; liftT = show.time;
+    const h = frozen ? lift.height : lift.step(step);
     for (const k of keys) {
       const lag = CAMS[k].lag;
       eased[k] = lag && !reducedMotion ? eased[k] + (h - eased[k]) * (1 - Math.exp(-dt / lag * 2)) : h;
@@ -277,12 +295,19 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, setLook, look, show, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 
 /* ---------- the stage's control panel (built here, so the studio page only has to load this module) ---------- */
-function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video }) {
+function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video, pickSong, performSong, seekSong }) {
+  // the song list: the piano repertoire first, then every album of the library
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const songOptions = () => {
+    const groups = [['Piano repertoire', REPERTOIRE.filter(s => s.piano)]];
+    for (const s of REPERTOIRE) { let g = groups.find(x => x[0] === s.album); if (!g) groups.push(g = [s.album, []]); g[1].push(s); }
+    return groups.map(([name, list]) => `<optgroup label="${esc(name)}">${list.map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('')}</optgroup>`).join('');
+  };
   const css = `
   .vz{position:fixed;left:var(--gut,16px);top:calc(env(safe-area-inset-top,0px) + 74px);z-index:6;width:min(300px,calc(100vw - 32px));
     max-height:calc(100vh - 200px);overflow:auto;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px) saturate(120%);
@@ -305,7 +330,13 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
   .vz .msg{min-height:1.2em;margin-top:8px;color:var(--champagne);font-size:.7rem}
   .vz small{color:var(--dim);font-size:.6rem;letter-spacing:.1em}
   .vz .show-h{margin-top:4px;color:var(--champagne)}
+  .vz select.vz-songs{width:100%;margin:2px 0 6px;background:rgba(255,255,255,.05);color:var(--chrome-hi);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:.72rem}
+  .vz .vz-songinfo{font-size:.68rem;line-height:1.5;margin:4px 0 8px;color:var(--chrome)}
+  .vz .vz-songinfo .ch{display:inline-block;border:1px solid rgba(242,166,80,.45);border-radius:6px;padding:1px 6px;margin:2px 3px 0 0;color:var(--chrome-hi)}
+  .vz .vz-songinfo a{color:var(--amber)}
+  .vz .vz-songinfo .warn{color:#ffb3ad}
   .vz .row.show{margin:8px 0 4px}
+  .vz .bar.seek{cursor:pointer;height:8px}
   .vz [data-k="showState"].live{color:var(--red)}
   body.obs .vz{display:none}`;
   const el = document.createElement('section');
@@ -321,6 +352,10 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
       <div class="row show">${btn('show', 'start', 'Start piano show')}${btn('show', 'pause', 'Pause')}${btn('show', 'stop', 'Stop show')}${btn('show', 'restart', 'Restart opening')}${btn('show', 'skip', 'Skip to long theme')}${btn('show', 'live', 'Go live — piano')}${video ? btn('show', 'video', 'Video / 3D') : ''}</div>
       <div class="row show">${btn('show', 'between', 'Play between songs')}${btn('show', 'between-stop', 'Stop between songs')}${btn('show', 'return-live', 'Return to live piano')}</div>
       <div class="row show">${btn('show', 'closing', 'Start closing')}${btn('show', 'closing-stop', 'Stop closing')}${btn('show', 'closing-restart', 'Restart closing')}</div>
+      <h3>Repertoire <small>DJ Andy'K song library · original recordings</small></h3>
+      <select class="vz-songs" aria-label="Song">${songOptions()}</select>
+      <div class="row show">${btn('song', 'perform', 'Perform song')}${btn('show', 'song-stop', 'Stop song')}</div>
+      <div class="vz-songinfo" data-k="songInfo"></div>
       <div class="state"><b data-k="state">LOWERED</b><span data-k="h">0.00 m</span></div>
       <div class="bar"><i data-k="bar"></i></div>
       <small data-k="seq"></small>
@@ -346,7 +381,8 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.classList.contains('min-btn')) { const min = el.classList.toggle('min'); b.setAttribute('aria-expanded', String(!min)); b.textContent = min ? '+' : '–'; return; }
-    if (b.dataset.show) showCommand(b.dataset.show);
+    if (b.dataset.song) performSong();
+    else if (b.dataset.show) showCommand(b.dataset.show);
     else if (b.dataset.cmd) command(b.dataset.cmd);
     else if (b.dataset.cam) pickCamera(b.dataset.cam);
     else if (b.dataset.mode) setMode(b.dataset.mode);
@@ -356,18 +392,38 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
   });
   // keys used by the studio page stay with it: the panel is used with the pointer
   el.addEventListener('keydown', e => e.stopPropagation());
+  // during a song the show's time bar is a seek bar: a click jumps the recording (and the keys) there
+  const showBar = q('showBar').parentElement;
+  showBar.addEventListener('click', e => { if (!showBar.classList.contains('seek')) return; const r = showBar.getBoundingClientRect(); seekSong(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); });
+  const songSel = el.querySelector('.vz-songs');
+  songSel.addEventListener('change', () => pickSong(songSel.value));
   let last = '';
   const press = (sel, on) => { for (const b of el.querySelectorAll(sel)) b.setAttribute('aria-pressed', String(on(b))); };
   return {
+    // what the library has for the chosen song: key, tempo, its main chord progression, the song sheet or score; and
+    // whether the keys can play it (only from an approved piano part: none yet)
+    song(s, part) {
+      songSel.value = s.id;
+      const row = (k, v) => `<div><small>${k}</small> ${v}</div>`;
+      q('songInfo').innerHTML = [
+        row('Album', esc(s.album)),
+        row('Key · tempo', `${s.key ? esc(s.key) : '— (not in the library)'} · ${s.bpm ? s.bpm + ' BPM' : '— BPM'}`),
+        row('Chords', s.chords ? s.chords.split(/\s*[–—-]\s*/).map(c => `<span class="ch">${esc(c)}</span>`).join('') + '<br><small>the song\'s main progression from the library — not timed to the recording</small>' : '— (not in the library)'),
+        row('Notation', s.sheet ? `<a href="${esc(s.sheet)}" target="_blank" rel="noopener">Song sheet (PDF)</a>` : s.score ? `<a href="${esc(s.score)}" target="_blank" rel="noopener">Score (PDF)</a> <small>(not yet timed to the recording)</small>` : '— (no song sheet)'),
+        row('Recording', s.audio ? `<a href="${esc(s.audio)}" target="_blank" rel="noopener">original (MP3)</a>` : '<span class="warn">missing — please provide the original recording</span>'),
+        row('Keys', part ? `play the approved ${esc(part.kind)} (${esc(part.source)})` : '<span class="warn">still — no approved piano part for this song yet</span>'),
+      ].join('');
+    },
     msg: q('msg'),
     show(s) {
       const sh = s.show, mmss = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
       const key = [s.look, s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
       if (key === last) return;
       last = key;
-      q('showState').textContent = ({ BETWEEN: 'BETWEEN SONGS', ENDED: 'SHOW ENDED', LIVE: 'LIVE PIANO' }[sh.state] || sh.state) + (sh.paused ? ' · PAUSED' : '');
+      q('showState').textContent = ({ BETWEEN: 'BETWEEN SONGS', ENDED: 'SHOW ENDED', LIVE: 'LIVE PIANO', SONG: 'LIVE PIANO · SONG' }[sh.state] || sh.state) + (sh.paused ? ' · PAUSED' : '');
       q('showState').classList.toggle('live', sh.state === 'LIVE');
       q('showTime').textContent = sh.d ? `${mmss(sh.t)} / ${mmss(sh.d)} · −${mmss(Math.max(0, sh.d - sh.t))}` : '';
+      showBar.classList.toggle('seek', sh.state === 'SONG'); showBar.title = sh.state === 'SONG' ? 'Click to jump within the song' : '';
       q('showBar').style.width = sh.d ? `${(sh.t / sh.d) * 100}%` : sh.state === 'LIVE' ? '100%' : '0';
       q('showLabel').textContent = sh.label + (sh.d ? ` · ${sh.clock}` : '');
       el.querySelector('[data-show="pause"]').textContent = sh.paused ? 'Resume' : 'Pause';

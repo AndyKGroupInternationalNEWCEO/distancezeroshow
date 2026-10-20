@@ -102,6 +102,31 @@ export function grandPiano(M) {
   }
   blacks.count = bi;
   g.add(whites, blacks);
+
+  // the 88 keys by MIDI note (A0 = 21 … C8 = 108), each an instance with its own matrix: `press(note, depth)` dips a key
+  // (0 = at rest, 1 = fully down), turning it about its back end as a real key does. At rest the matrices are exactly
+  // the ones above. Used by the Vienna piano stage (vienna/keys.js); nothing presses a key by itself
+  const STEP = [2, 1, 2, 2, 1, 2, 2], keyMap = new Map(), DIP = 0.06;   // A→B→C… semitones; the dip, in radians at full depth
+  for (let w = 0, midi = 21, b = 0; w < 52; midi += STEP[w % 7], w++) {
+    keyMap.set(midi, { mesh: whites, i: w, z: front - 0.075, back: 0.075 });
+    if (w < 51 && hasBlack(w) && b < bi) keyMap.set(midi + 1, { mesh: blacks, i: b++, z: front - 0.122, back: 0.046 });
+  }
+  for (const k of keyMap.values()) { k.rest = new THREE.Matrix4(); k.mesh.getMatrixAt(k.i, k.rest); k.depth = 0; }
+  const pivot = new THREE.Matrix4(), turn = new THREE.Matrix4(), back = new THREE.Matrix4(), m = new THREE.Matrix4();
+  g.userData.keyboard = {
+    notes: [...keyMap.keys()],
+    press(note, depth) {
+      const k = keyMap.get(note);
+      if (!k || k.depth === depth) return;
+      k.depth = depth;
+      // turn about the key's back end: (back) · rotate · (to back) · rest
+      pivot.makeTranslation(0, 0, -k.back); turn.makeRotationX(DIP * depth); back.makeTranslation(0, 0, k.back);
+      m.multiplyMatrices(k.rest, pivot).multiply(turn).multiply(back);
+      k.mesh.setMatrixAt(k.i, depth ? m : k.rest);
+      k.mesh.instanceMatrix.needsUpdate = true;
+    },
+    depth: note => keyMap.get(note)?.depth ?? null,
+  };
   add(new THREE.BoxGeometry(1.24, 0.07, 0.17), satin, 0, KEY_Y - 0.06, front - 0.08);       // key bed
   add(new RoundedBoxGeometry(1.25, 0.05, 0.022, 2, 0.006), lacquer, 0, KEY_Y - 0.03, front + 0.006); // key slip
   for (const s of [-1, 1]) add(new RoundedBoxGeometry(0.17, 0.11, 0.2, 3, 0.02), lacquer, s * 0.705, KEY_Y - 0.005, front - 0.1); // cheek blocks

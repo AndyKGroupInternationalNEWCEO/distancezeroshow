@@ -12,7 +12,10 @@
 import { SHOW } from './piano-show-config.js';
 import { AUDIO_MAP } from './piano-show-map.js';
 
-export const STATES = ['IDLE', 'PREPARING', 'OPENING', 'THEME', 'LIVE', 'BETWEEN', 'CLOSING', 'ENDED'];
+export const STATES = ['IDLE', 'PREPARING', 'OPENING', 'THEME', 'LIVE', 'SONG', 'BETWEEN', 'CLOSING', 'ENDED'];
+
+// a song from the repertoire, performed live: calm cuts round the stage cameras, warm light (the operator can take over)
+const SONG_SHOTS = { length: 16, cams: ['P1', 'P3', 'P2', 'P5'] };
 
 // the opening's script, from its measured onsets: under-light on the first accent; the lift sets off so the platform
 // arrives on the biggest moment (the onset with the loudest 5 s after it, once the lift has had time to rise); the
@@ -101,9 +104,14 @@ export function createShow({ api, rise }) {
     between: { cfg: SHOW.between, map: AUDIO_MAP.between, script: identScript(AUDIO_MAP.between, SHOW.between), state: 'BETWEEN', next: 'live' },
     closing: { cfg: SHOW.closing, map: AUDIO_MAP.closing, script: identScript(AUDIO_MAP.closing, SHOW.closing, { dim: true }), state: 'CLOSING', next: 'ended' },
   };
+  // the song slot: one recording at a time from the repertoire (its original audio, from the song library)
+  const songAudio = new Audio(); songAudio.preload = 'auto';
+  const song = { cfg: { label: '' }, map: null, state: 'SONG', next: 'live', audio: songAudio, script: { cues: [] }, entry: null };
+  songAudio.addEventListener('loadedmetadata', () => { song.duration = songAudio.duration; });
+  songAudio.addEventListener('error', () => { song.failed = true; });
   for (const m of Object.values(media)) {
     const a = new Audio(new URL(`../../${m.cfg.audio}`, import.meta.url).href);
-    a.preload = 'auto';
+    a.preload = 'metadata';   // the masters are large WAVs: the browser streams each one when its segment starts
     a.addEventListener('loadedmetadata', () => {
       m.duration = a.duration;
       if (Math.abs(a.duration - m.map.duration) > 0.05) api.say(`${m.cfg.label}: the file is ${a.duration.toFixed(2)} s, the timing map ${m.map.duration} s — run audio-map.mjs`);
@@ -111,6 +119,8 @@ export function createShow({ api, rise }) {
     a.addEventListener('error', () => { m.failed = true; });
     m.audio = a;
   }
+
+  media.song = song;
 
   /* the opening video slot (SHOW.opening.video): muted, over the 3D studio, kept on the opening audio's clock */
   let video = null, videoShown = false;
@@ -177,8 +187,9 @@ export function createShow({ api, rise }) {
     get paused() { return paused; },
     get segment() { return seg; },
     get time() { return t; },
-    get duration() { return seg ? media[seg].duration || media[seg].map.duration : 0; },
-    get label() { return seg ? media[seg].cfg.label : { LIVE: SHOW.live.label, ENDED: SHOW.ended.label, PREPARING: 'Preparing the stage' }[state] || 'Ready'; },
+    get duration() { return seg ? media[seg].duration || media[seg].map?.duration || media[seg].entry?.seconds || 0 : 0; },
+    get song() { return song.entry; },
+    get label() { return seg === 'song' ? 'Live piano · ' + song.entry.title : seg ? media[seg].cfg.label : { LIVE: SHOW.live.label, ENDED: SHOW.ended.label, PREPARING: 'Preparing the stage' }[state] || 'Ready'; },
     get clock() { return seg && !media[seg].failed ? 'audio' : 'show clock'; },
     get video() { return !!video; },
     get videoShown() { return videoShown; },
@@ -205,7 +216,30 @@ export function createShow({ api, rise }) {
         case 'between-stop': case 'return-live': return seg === 'between' || name === 'return-live' ? live() : undefined;
         case 'closing': case 'closing-restart': if (state === 'PREPARING') return api.say('Closing: the stage is still being prepared'); return begin('closing');
         case 'closing-stop': return seg === 'closing' ? live() : undefined;
+        case 'song-stop': return seg === 'song' ? live() : undefined;
       }
+    },
+    // perform a song from the repertoire: its original recording, the stage cameras in turn, back to LIVE at its end.
+    // A recording that cannot be loaded is reported (and nothing is put in its place)
+    playSong(entry) {
+      if (running()) return api.say('Perform a song from LIVE (the openings are still running)');
+      if (!entry?.audio) return api.say(`${entry?.title || 'Song'}: no original recording listed in the song library — please provide it`);
+      stopAll();
+      song.entry = entry; song.failed = false; song.duration = entry.seconds || 0;
+      song.cfg.label = entry.title;
+      if (songAudio.src !== entry.audio) songAudio.src = entry.audio;
+      song.script.cues = Array.from({ length: 400 }, (_, i) => ({ t: i * SONG_SHOTS.length, cut: SONG_SHOTS.cams[i % SONG_SHOTS.cams.length] }));
+      Object.assign(song.script.cues[0], { lights: SHOW.live.lights, release: 'all', master: 1, say: 'song · ' + entry.title });
+      begin('song');
+    },
+    // a jump within the song (the operator clicks the time bar): the recording moves, the keys and the next cut follow
+    // its time. Only the song: the openings and idents run their scripts from the top
+    seek(time) {
+      if (seg !== 'song') return;
+      const m = media.song, d = m.duration || 0;
+      t = Math.max(0, d ? Math.min(time, d - 0.05) : time);
+      if (!m.failed) m.audio.currentTime = t;
+      cue = m.script.cues.findIndex(c => c.t > t); if (cue < 0) cue = m.script.cues.length;
     },
     // the operator takes a part over: the show stops driving it (cameras and lights until the next segment, the lift
     // for the rest of the show)
@@ -215,12 +249,13 @@ export function createShow({ api, rise }) {
       if (state === 'PREPARING') { if (api.liftState() === 'LOWERED') { const n = then; then = null; begin(n); } return; }
       if (!seg || paused) return;
       const m = media[seg];
+      if (seg === 'song' && m.failed) { const e = m.entry; live(); api.say(`${e.title}: the original recording could not be loaded — please provide it (${e.audio})`); return; }
       t = m.failed ? t + dt : m.audio.currentTime;
       if (video && seg === 'opening' && videoShown && Math.abs(video.currentTime - t) > 0.12) video.currentTime = t;   // the video follows the audio
       const cues = m.script.cues;
       while (cue < cues.length && t >= cues[cue].t) fire(cues[cue++]);
       // the end: the recording has played out (the closing waits for its natural end, not a cut-off)
-      if (m.audio.ended || (m.failed && t >= (m.duration || m.map.duration))) {
+      if (m.audio.ended || (m.failed && t >= (m.duration || m.map?.duration))) {
         const next = m.next;
         if (next === 'theme') begin('theme'); else if (next === 'live') live({ first: seg === 'theme' }); else ended();
       }

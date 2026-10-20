@@ -281,9 +281,12 @@ for (const mode of ['WARM PIANO', 'CINEMATIC', 'PERFORMANCE', 'LIFT REVEAL', 'BL
   });
 }
 
-await test('stage adds no lights to the studio and is culled when out of view', async () => {
+await test('stage adds no lights to the studio (studio look; the concert look adds only its key light) and is culled when out of view', async () => {
   return run(async () => {
     const count = () => { let n = 0; T.a.scene.traverse(o => { if (o.isLight) n++; }); return n; };
+    const concert = count(); T.a.ext.setLook(false); await T.sleep(200);
+    const studio = count(); T.a.ext.setLook(true); await T.sleep(200);
+    if (concert !== studio + 1 || count() !== concert) throw new Error(JSON.stringify({ concert, studio }));
     const own = []; T.a.scene.getObjectByName('vienna-stage').traverse(o => { if (o.isLight) own.push(o.type); });
     document.querySelector('.vz [data-mode="PERFORMANCE"]').click();
     T.a.director.go('georgie', { instant: true }); await T.sleep(400);
@@ -292,7 +295,7 @@ await test('stage adds no lights to the studio and is culled when out of view', 
     const shown = T.a.scene.getObjectByName('vienna-stage').visible;
     document.querySelector('.vz [data-mode="WARM PIANO"]').click();
     if (own.length || !hidden || !shown) throw new Error(JSON.stringify({ own, hidden, shown }));
-    return { lightsInStage: own.length, sceneLights: count(), hiddenWhenAway: hidden };
+    return { lightsInStage: own.length, sceneLights: studio, concertLookLights: concert, hiddenWhenAway: hidden };
   });
 });
 
@@ -415,11 +418,13 @@ await test('on air: a Vienna camera shows its own tally label', async () => {
 });
 
 /* the optional key light */
-await test('key light: off by default; on adds exactly one light, lit only while the stage is in use; off removes it', async () => {
+await test('key light: on with the concert look (the default); in the studio look off, on adds exactly one light, lit only while the stage is in use; off removes it', async () => {
   return run(async () => {
     const count = () => { let n = 0; T.a.scene.traverse(o => { if (o.isLight) n++; }); return n; };
     const find = () => { let k = null; T.a.scene.traverse(o => { if (o.isSpotLight && o.color.getHex() === 0xfff1e2) k = o; }); return k; };
-    const n0 = count(), off = !find();
+    const concert = T.a.ext.look.on && !!find();
+    document.querySelector('.vz [data-look="studio"]').click(); await T.sleep(200);
+    const n0 = count(), off = !find() && !T.a.ext.look.on;
     document.querySelector('.vz [data-key="on"]').click(); await T.sleep(200);
     const n1 = count(), pressed = document.querySelector('.vz [data-key="on"]').getAttribute('aria-pressed');
     T.a.ext.pickCamera('P1'); await T.until(() => !T.a.director.flying, 6000); await T.sleep(2500);
@@ -428,8 +433,9 @@ await test('key light: off by default; on adds exactly one light, lit only while
     const away = find().intensity;
     document.querySelector('.vz [data-key="off"]').click(); await T.sleep(200);
     const n2 = count();
-    if (!off || n1 !== n0 + 1 || n2 !== n0 || lit < 50 || away > 5 || pressed !== 'true') throw new Error(JSON.stringify({ off, n0, n1, n2, lit, away, pressed }));
-    return { offByDefault: off, lightsOff: n0, lightsOn: n1, intensityOnStage: Math.round(lit), intensityAway: Math.round(away) };
+    document.querySelector('.vz [data-look="concert"]').click(); await T.sleep(200);
+    if (!concert || !off || n1 !== n0 + 1 || n2 !== n0 || lit < 50 || away > 5 || pressed !== 'true' || !find()) throw new Error(JSON.stringify({ concert, off, n0, n1, n2, lit, away, pressed }));
+    return { concertLookKeyOn: concert, offInStudioLook: off, lightsOff: n0, lightsOn: n1, intensityOnStage: Math.round(lit), intensityAway: Math.round(away) };
   });
 });
 
@@ -467,6 +473,153 @@ perf.renderMs = await run(async () => {
   out.studio_feedOff_fps = await frame(); a.ext.setSource('vienna'); out.studio_feedOn_fps = await frame(); a.ext.setSource('main');
   return out;
 });
+
+/* ----- the repertoire: songs from the library on their original recordings; the grand's keys ----- */
+await open('vienna-dev.html');
+// a watch on the keys: the 88 keys' instance matrices as they are now; `moved()` says whether any has changed since
+await run(() => {
+  const kb = T.a.studio.piano.userData.keyboard, meshes = [];
+  T.a.studio.piano.traverse(o => { if (o.isInstancedMesh) meshes.push(o); });
+  const snap = () => meshes.map(m => Float32Array.from(m.instanceMatrix.array));
+  const rest = snap();
+  T.keys = { kb, rest, moved: () => snap().some((a, i) => a.some((v, j) => v !== rest[i][j])), down: () => kb.notes.filter(n => kb.depth(n) > 0) };
+});
+await test('repertoire panel: the whole library listed (piano repertoire first), the chosen song\'s details, keys marked still', async () => {
+  const r = await run(async () => {
+    const { REPERTOIRE } = await import('./virtual-studio/vienna/repertoire.js');
+    const sel = document.querySelector('.vz .vz-songs'), groups = [...sel.querySelectorAll('optgroup')].map(g => [g.label, g.children.length]);
+    const info = document.querySelector('.vz [data-k="songInfo"]').textContent;
+    const other = REPERTOIRE.find(s => !s.piano); sel.value = other.id; sel.dispatchEvent(new Event('change')); await T.sleep(50);
+    const picked = T.a.ext.picked.id, info2 = document.querySelector('.vz [data-k="songInfo"]').textContent;
+    sel.value = REPERTOIRE.find(s => s.piano).id; sel.dispatchEvent(new Event('change'));
+    return { songs: REPERTOIRE.length, piano: REPERTOIRE.filter(s => s.piano).length, options: sel.options.length, first: groups[0], groups: groups.length, picked, other: other.id,
+      infoHasKeysStill: /no approved piano part/.test(info), infoHasRecording: /original \(MP3\)/.test(info), info2HasChords: info2.includes(other.chords?.split(/\s*[–—-]\s*/)[0] || '—'), keysMoved: T.keys.moved() };
+  });
+  expect(r.options === r.songs + r.piano && r.first[0] === 'Piano repertoire' && r.first[1] === r.piano, 'song list ' + JSON.stringify(r));
+  expect(r.picked === r.other && r.info2HasChords, 'picking a song');
+  expect(r.infoHasKeysStill && r.infoHasRecording && !r.keysMoved, 'song info / keys');
+  return r;
+});
+await test('singer\'s microphone: on the platform, rises with the lift', async () => {
+  return run(async () => {
+    const mic = T.a.scene.getObjectByName('vienna-mic'), e = T.a.ext;
+    if (!mic) throw new Error('no microphone');
+    const y = () => { mic.updateWorldMatrix(true, false); return mic.matrixWorld.elements[13]; };
+    const onPlatform = (() => { for (let o = mic.parent; o; o = o.parent) if (o === e.stage.platform) return true; return false; })();
+    const y0 = y(); T.click('[data-cmd="up"]'); await T.until(() => e.lift.state === 'ELEVATED', 30000);
+    const y1 = y(), h = e.lift.height ?? e.lift.h;
+    T.click('[data-cmd="reset"]'); await T.until(() => e.lift.state === 'LOWERED', 30000);
+    if (!onPlatform || !(y1 - y0 > 3.4)) throw new Error(JSON.stringify({ onPlatform, y0, y1, h }));
+    return { onPlatform, rise: +(y1 - y0).toFixed(3) };
+  });
+});
+await test('song: PERFORM plays the original recording on its own clock, cuts round P1 → P3, keys stay still (no approved part)', async () => {
+  const r = await run(async () => {
+    const sh = T.a.ext.show, a = sh.audio.song, cuts = [];
+    T.click('[data-song="perform"]');
+    const started = await T.until(() => !a.paused && a.currentTime > 0.5, 30000);
+    let moved = false, drift = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 19000) {
+      if (T.keys.moved()) moved = true;
+      if (!a.paused) drift = Math.max(drift, Math.abs(sh.time - a.currentTime));
+      const v = T.a.director.current; if (cuts.at(-1) !== v) cuts.push(v);
+      await T.sleep(100);
+    }
+    return { started, state: sh.state, segment: sh.segment, label: sh.label, src: a.src, duration: +a.duration.toFixed(2), listed: T.a.ext.picked.seconds, cuts, moved, drift: +drift.toFixed(3),
+      panel: document.querySelector('.vz [data-k="showState"]').textContent, seekBar: document.querySelector('.vz [data-k="showBar"]').parentElement.classList.contains('seek'),
+      playing: Object.values(sh.audio).filter(x => !x.paused).length };
+  });
+  expect(r.started && r.state === 'SONG' && r.segment === 'song', 'song did not start ' + JSON.stringify(r));
+  expect(r.src === (await run(() => T.a.ext.picked.audio)), 'not the original recording');
+  expect(Math.abs(r.duration - r.listed) < 2, `recording ${r.duration} s, library ${r.listed} s`);
+  expect(r.cuts.join() === 'vP1,vP3', 'cuts ' + r.cuts);
+  expect(!r.moved, 'keys moved without an approved part');
+  expect(r.drift < 0.1 && r.playing === 1 && r.seekBar, 'clock / audio / seek bar ' + JSON.stringify(r));
+  await shot('song-P3');
+  return r;
+});
+await test('song: PAUSE freezes the recording and the show time; a jump while paused moves both; RESUME plays on from there', async () => {
+  const r = await run(async () => {
+    const sh = T.a.ext.show, a = sh.audio.song;
+    T.click('[data-show="pause"]'); await T.sleep(300);
+    const p0 = sh.time, a0 = a.currentTime; await T.sleep(1500);
+    const frozen = { paused: sh.paused && a.paused, dt: +(sh.time - p0).toFixed(3), da: +(a.currentTime - a0).toFixed(3), label: document.querySelector('.vz [data-k="showState"]').textContent, button: document.querySelector('.vz [data-show="pause"]').textContent };
+    // the jump: a click on the time bar at 50 %
+    const bar = document.querySelector('.vz [data-k="showBar"]').parentElement, b = bar.getBoundingClientRect();
+    bar.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: b.left + b.width * 0.5, clientY: b.top + b.height / 2 }));
+    await T.sleep(300);
+    const jumped = { time: +sh.time.toFixed(2), audio: +a.currentTime.toFixed(2), half: +(sh.duration / 2).toFixed(2), stillPaused: a.paused };
+    T.click('[data-show="pause"]'); await T.until(() => !a.paused, 5000); await T.sleep(1500);
+    return { frozen, jumped, resumed: { playing: !a.paused, time: +sh.time.toFixed(2), audio: +a.currentTime.toFixed(2) }, moved: T.keys.moved() };
+  });
+  expect(r.frozen.paused && r.frozen.dt === 0 && r.frozen.da === 0 && /PAUSED/.test(r.frozen.label) && r.frozen.button === 'Resume', 'pause ' + JSON.stringify(r.frozen));
+  expect(Math.abs(r.jumped.time - r.jumped.half) < 1 && Math.abs(r.jumped.audio - r.jumped.time) < 0.05 && r.jumped.stillPaused, 'jump while paused ' + JSON.stringify(r.jumped));
+  expect(r.resumed.playing && r.resumed.time > r.jumped.time + 1 && r.resumed.time < r.jumped.time + 2.5, 'resume ' + JSON.stringify(r.resumed));
+  expect(!r.moved, 'keys moved');
+  return r;
+});
+await test('song: jumps forward and back keep the cuts on the song\'s grid (next cut at the next 16 s mark)', async () => {
+  const r = await run(async () => {
+    const sh = T.a.ext.show, a = sh.audio.song, next = async (at, ms) => { sh.seek(at); const v0 = T.a.director.current; const t0 = performance.now(); await T.until(() => T.a.director.current !== v0, ms); return { at, view: T.a.director.current, when: +sh.time.toFixed(2), after: Math.round(performance.now() - t0) }; };
+    const fwd = await next(46, 6000);    // the cue at 48 s: P5
+    const back = await next(13, 6000);   // back: the cue at 16 s: P3 (the grid is not lost after a jump back)
+    return { fwd, back, moved: T.keys.moved() };
+  });
+  expect(r.fwd.view === 'vP5' && r.fwd.when >= 48 && r.fwd.when < 49, 'forward ' + JSON.stringify(r.fwd));
+  expect(r.back.view === 'vP3' && r.back.when >= 16 && r.back.when < 17, 'back ' + JSON.stringify(r.back));
+  expect(!r.moved, 'keys moved');
+  return r;
+});
+await test('keys: a test part (test only, never in the repertoire) follows the recording\'s time through jumps and pause; STOP lifts every key', async () => {
+  const r = await run(async () => {
+    const e = T.a.ext, sh = e.show, a = sh.audio.song;
+    // three notes, two seconds each, well apart: C4 at 100 s, E4 at 104 s, a G2–G3 octave at 108 s
+    const errors = e.keyPlayer.load({ song: 'test/only', kind: 'piano-part', source: 'e2e test', approved: { by: 'e2e test', on: '2026-10-20' },
+      notes: [{ t: 100, d: 2, m: 60 }, { t: 104, d: 2, m: 64 }, { t: 108, d: 2, m: 43 }, { t: 108, d: 2, m: 55 }] });
+    const at = async s => { sh.seek(s); await T.sleep(250); return { at: s, time: +sh.time.toFixed(2), down: T.keys.down() }; };
+    const seen = [await at(101), await at(103), await at(105), await at(108.5), await at(101.2)];
+    T.click('[data-show="pause"]'); await T.sleep(600); const held = { paused: a.paused, down: T.keys.down() };
+    T.click('[data-show="pause"]'); await T.sleep(200);
+    await at(105);
+    T.click('[data-show="song-stop"]'); await T.sleep(300);
+    const after = { state: sh.state, down: T.keys.down(), moved: T.keys.moved(), playing: !a.paused };
+    // performing again unloads the test part (no approved part for this song): the keys stay still
+    T.click('[data-song="perform"]'); await T.until(() => !a.paused && a.currentTime > 0.3, 20000); sh.seek(101); await T.sleep(500);
+    const again = { part: !!e.keyPlayer.part, down: T.keys.down(), moved: T.keys.moved() };
+    T.click('[data-show="song-stop"]'); await T.sleep(200);
+    return { errors, seen, held, after, again };
+  });
+  const want = [[60], [], [64], [43, 55], [60]];
+  r.seen.forEach((s, i) => expect(s.down.join() === want[i].join(), `at ${s.at} s: down ${s.down}, expected ${want[i]}`));
+  expect(!r.errors.length, 'test part refused ' + r.errors);
+  expect(r.held.paused && r.held.down.join() === '60', 'pause should hold the key ' + JSON.stringify(r.held));
+  expect(r.after.state === 'LIVE' && !r.after.down.length && !r.after.moved && !r.after.playing, 'stop ' + JSON.stringify(r.after));
+  expect(!r.again.part && !r.again.down.length && !r.again.moved, 'test part still loaded ' + JSON.stringify(r.again));
+  return r;
+});
+await test('song: plays to its end and returns to LIVE; a recording that cannot be loaded is reported, nothing plays instead', async () => {
+  const r = await run(async (base) => {
+    const e = T.a.ext, sh = e.show, a = sh.audio.song;
+    T.click('[data-song="perform"]'); await T.until(() => !a.paused && a.currentTime > 0.3, 20000);
+    sh.seek(sh.duration - 2);
+    const ended = await T.until(() => sh.state === 'LIVE', 8000);
+    const end = { ended, state: sh.state, playing: !a.paused, view: T.a.director.current, moved: T.keys.moved() };
+    sh.playSong({ ...e.picked, id: 'test/missing', title: 'Missing test recording', audio: base + 'test-output/vienna/no-such-recording.mp3' });
+    await T.until(() => sh.state === 'LIVE', 8000); await T.sleep(100);
+    return { end, missing: { state: sh.state, msg: T.msg(), playing: Object.values(sh.audio).filter(x => !x.paused).length } };
+  }, BASE);
+  expect(r.end.ended && !r.end.playing && !r.end.moved, 'end ' + JSON.stringify(r.end));
+  expect(r.missing.state === 'LIVE' && /could not be loaded/.test(r.missing.msg) && r.missing.playing === 0, 'missing ' + JSON.stringify(r.missing));
+  return r;
+});
+/* screenshots for review: the concert look (the default), the grand up, P1–P5 */
+await run(async () => { const e = T.a.ext; document.querySelector('.vz').classList.add('min'); e.setMode('CINEMATIC'); T.click('[data-cmd="up"]'); await T.until(() => e.lift.state === 'ELEVATED', 30000); });
+for (const k of ['P1', 'P2', 'P3', 'P4', 'P5']) {
+  await run(async k => { T.a.ext.pickCamera(k); await T.until(() => !T.a.director.flying, 6000); await T.sleep(2500); }, k);
+  await shot(`concert-${k}`);
+}
+await run(() => document.querySelector('.vz').classList.remove('min'));
 
 /* ----- D//0 — PIANO SESSIONS: the show on the official audio ----- */
 if (process.env.SHOW !== '0') {
@@ -603,7 +756,8 @@ await test('closing: RESTART CLOSING plays it from the top; STOP CLOSING returns
 await test('all four original recordings load and play to their end in the show', async () => {
   return run(() => {
     const sh = T.a.ext.show, r = {};
-    for (const [k, a] of Object.entries(sh.audio)) r[k] = { file: decodeURIComponent(a.src.split('/').pop()), duration: +a.duration.toFixed(3), playedToEnd: SHOWLOG.ended[k] || 0 };
+    // (the song slot is tested with the repertoire)
+    for (const [k, a] of Object.entries(sh.audio)) if (k !== 'song') r[k] = { file: decodeURIComponent(a.src.split('/').pop()), duration: +a.duration.toFixed(3), playedToEnd: SHOWLOG.ended[k] || 0 };
     if (Object.values(r).some(x => !x.playedToEnd || !(x.duration > 0))) throw new Error(JSON.stringify(r));
     return r;
   });
