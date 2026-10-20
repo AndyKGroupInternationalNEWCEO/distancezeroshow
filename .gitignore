@@ -3,3 +3,4 @@
 .DS_Store
 rehearsal-virtual-live/
 studio/media/catalog.backup-*.json
+supabase/.temp/

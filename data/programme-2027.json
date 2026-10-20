@@ -1,0 +1,72 @@
+{
+  "_help": [
+    "DISTANCE // ZERO programme 2027. The only file to edit when an episode is announced.",
+    "Every Friday, Saturday and Sunday from 'regularFrom' to 'until' is generated automatically from 'formats' (weekday: 5 = Friday, 6 = Saturday, 0 = Sunday).",
+    "To announce an episode, add (or edit) its date under 'episodes'. Leave out what is not confirmed: nothing is shown for it.",
+    "  title         episode title, e.g. \"DJ Andy'K: Deep Connections (Official Version)\"",
+    "  details       text about the episode: one string, or a list of paragraphs",
+    "  note          one highlighted line under the details, e.g. \"Next evening: …\"",
+    "  time          start time in VIENNA time, 24 h, e.g. \"20:00\". Melbourne time is calculated automatically, daylight saving included.",
+    "  minutes       length, needed for Add to Calendar (default 120)",
+    "  watchUrl      link to the live stream: shows WATCH LIVE",
+    "  recordingUrl  link to the recording: shows WATCH THE RECORDING",
+    "  calendar      true shows ADD TO CALENDAR (only works once 'time' is set)",
+    "  cancelled     true marks the date as cancelled",
+    "Dates are Vienna dates. Buttons only appear once their link or time is filled in."
+  ],
+  "timezone": "Europe/Vienna",
+  "secondTimezone": "Australia/Melbourne",
+  "regularFrom": "2027-01-29",
+  "until": "2027-12-31",
+  "formats": {
+    "dj": {
+      "name": "DJ SHOW",
+      "weekday": 5,
+      "where": "Live from Melbourne Underground"
+    },
+    "piano": {
+      "name": "PIANO SESSIONS",
+      "weekday": 6,
+      "where": "Live from Vienna"
+    },
+    "main": {
+      "name": "DISTANCE // ZERO MAIN SHOW",
+      "weekday": 0,
+      "where": "Vienna ↔ Melbourne"
+    }
+  },
+  "specials": [
+    {
+      "date": "2027-01-27",
+      "format": "main",
+      "name": "OPENING SHOW — REHEARSAL",
+      "title": "Opening Show — Rehearsal"
+    }
+  ],
+  "episodes": {
+    "2027-01-29": {
+      "title": "DJ Andy’K presents: DEEP CONNECTIONS (Official Version)",
+      "details": [
+        "Experience Deep Connections in its original electronic form.",
+        "DJ Andy’K revisits his 2026 house and progressive house album, bringing its rhythms, melodies and emotional atmosphere into the DISTANCE // ZERO live-show experience.",
+        "Join the conversation, discover the story behind the music and experience the album in its original sound."
+      ],
+      "note": "Next evening: Deep Connections returns in a completely different form — Piano Edition."
+    },
+    "2027-01-30": {
+      "title": "DJ Andy’K presents: DEEP CONNECTIONS (Piano Edition)",
+      "details": [
+        "One album. A completely different musical experience.",
+        "Originally created in the world of house and progressive house, Deep Connections is reimagined through the intimate sound of the piano.",
+        "DJ Andy’K hosts this special live session, sharing the stories and emotions behind the songs while a cinematic virtual grand piano brings the arrangements to life.",
+        "The full album will be presented in piano arrangements, excluding the original album intro.",
+        "Viewers can join the live chat, ask questions and discover the original recordings on djandykofficial.com or their preferred streaming platform."
+      ],
+      "note": "No original electronic recordings will be played during the piano concert."
+    },
+    "2027-01-31": {
+      "title": "Main Show",
+      "details": "The format follows the 27 January opening."
+    }
+  }
+}

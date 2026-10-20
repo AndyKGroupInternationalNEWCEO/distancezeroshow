@@ -11,6 +11,15 @@
       ]
     },
     {
+      "source": "/data/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=300, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -57,6 +66,19 @@
           "value": "camera=(self), microphone=(self), geolocation=()"
         }
       ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "trailingSlash": false,
@@ -76,6 +98,16 @@
     {
       "source": "/haftungsausschluss",
       "destination": "/disclaimer"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/featured-retention",
+      "schedule": "0 4 * * *"
     }
   ]
 }
