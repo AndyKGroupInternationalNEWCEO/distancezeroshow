@@ -14,6 +14,7 @@ import { AMBER, ICE } from '../screens.js';
 import { buildRoom, LED_PRESETS } from './room.js';
 import { buildBooth } from './booth.js';
 import { buildDjLift } from './djlift.js';
+import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
 import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, inClub, inShaft, keepInClub, xyz } from './layout.js';
 
@@ -28,9 +29,11 @@ export const MODES = {
   BLACKOUT:    { spot: [0, WHITE, 'center'], wash: [0, WHITE, 'center'], strips: [0, GOLD], accent: [0, GOLD], booth: [0.06, GOLD], led: 0, preset: 'OFF', lasers: [0, WHITE, 0], haze: 0, strobe: 0 },
 };
 const GROUPS = ['spot', 'wash', 'strips', 'accent', 'booth', 'lasers'];
-export const STROBE_MAX = 0.6;   // the strobe's level is capped here, and it never flashes more than 3 times a second
+export const STROBE_MAX = 0.6;
+// how strongly the Cycles probes show in the console, the platform and the club floor (the club stays dark)
+const PROBE = { booth: 1.0, floor: 0.8 };   // the strobe's level is capped here, and it never flashes more than 3 times a second
 
-export function melbourne({ scene, camera, controls, director, studio, quality, reducedMotion }) {
+export function melbourne({ renderer, scene, camera, controls, director, studio, quality, reducedMotion }) {
   // the director keeps cameras above the studio floor; down here the club's walls, floor and ceiling are the limits
   // (a camera dragged or zoomed hard against a wall stays in, rather than being thrown up into the studio)
   let inside = false;
@@ -65,6 +68,19 @@ export function melbourne({ scene, camera, controls, director, studio, quality, 
     else if (!quiet) say('DJ lift: ' + cmd.toUpperCase());
     return r;
   }
+
+  /* ----- reflections rendered in Cycles (GPU pod): the console and its platform reflect the club from over the
+  console, the club's floor from the middle of the room. Loaded once; until then the studio's own environment ----- */
+  const shared = new Set(Object.values(studio.M).filter(m => m?.isMaterial));
+  // the console and platform swap between two probes on the way: up in the studio (dj-booth-up), down in the club
+  // (dj-booth). Both are the same kind of texture, so the swap is a texture change, never a shader rebuild on air
+  let probesReady = null, boothMats = [], boothEnv = { up: null, down: null }, boothShows = null;
+  const probes = Promise.all([
+    applyProbe(renderer, 'dj-booth', [booth.group, djLift.platform], { intensity: PROBE.booth, shared }),
+    loadProbe(renderer, 'dj-booth-up'), loadProbe(renderer, 'dj-booth'),
+    applyProbe(renderer, 'dj-club', [room.floorMaterial], { intensity: PROBE.floor, shared }),
+  ]).then(([mats, up, down, floor]) => { boothMats = mats; boothEnv = { up, down }; boothShows = 'down'; probesReady = { booth: mats.length, floor: floor.length }; return probesReady; })
+    .catch(e => { console.warn('DJ room probes:', e.message); probesReady = false; });
 
   /* ----- light state: eased towards the preset, with the effects the operator set on top ----- */
   let mode = 'OPENING';
@@ -168,6 +184,9 @@ export function melbourne({ scene, camera, controls, director, studio, quality, 
     // the DJ lift: one step of its drive, the platform (and the booth on it) where it is
     const h = drive.step(dt);
     djLift.pose(h);
+    // the console's reflections: the studio's while it is up there, the club's once it is down in it
+    const where = h > DJ_LIFT.travel * 0.55 ? 'down' : 'up';
+    if (boothShows && where !== boothShows) { boothShows = where; for (const m of boothMats) m.envMap = boothEnv[where]; }
     runSequence(dt);
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
@@ -207,7 +226,7 @@ export function melbourne({ scene, camera, controls, director, studio, quality, 
     transition, liftCommand,
     setLiftHold(on) { liftHold = !!on; if (liftHold) { seq = null; if (drive.moving) drive.command('stop'); } say(liftHold ? 'DJ lift hold on: the lift stays where it is' : 'DJ lift hold off'); },
     get lift() { return { state: liftState(), depth: drive.height, speed: -drive.speed, moving: drive.moving, hold: liftHold, travel: DJ_LIFT.travel }; },
-    djLift,
+    djLift, get probes() { return probesReady; }, get boothReflects() { return boothShows; }, probesLoaded: () => probes,
     setMode(m) { if (!MODES[m]) return say('No such lighting preset'); mode = m; fx.preset = null; say('Lighting: ' + m); },
     setLed(p) { if (!LED_PRESETS.includes(p)) return say('No such LED preset'); fx.preset = p; say('LED walls: ' + p); },
     lasers(on, level) { fx.lasers = on === null ? null : !!on; if (level !== undefined) fx.laserLevel = Math.max(0, Math.min(1, +level)); say(`Lasers ${fx.lasers === null ? 'with the preset' : fx.lasers ? 'on' : 'off'} · ${Math.round(fx.laserLevel * 100)} %`); },

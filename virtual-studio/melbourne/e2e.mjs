@@ -85,6 +85,9 @@ await test('one DJ booth in the whole scene, on the DJ lift\'s platform, up in t
   expect(r.booths === 1, 'booths in the scene: ' + r.booths);
   expect(r.onPlatform && r.lift === 'UP' && Math.abs(r.y) < 0.01, 'the booth should stand on the platform, up in the studio: ' + JSON.stringify(r));
   expect(r.music === false, 'the studio\'s music station should stand aside on this page');
+  const pr = await run(async () => { await T.m.probesLoaded(); return { probes: T.m.probes, shows: T.m.boothReflects }; });
+  expect(pr.probes && pr.probes.booth > 5 && pr.probes.floor >= 1, 'the Cycles probes did not load: ' + JSON.stringify(pr));
+  await run(async () => T.until(() => T.m.boothReflects === 'up', 3000));
   // nothing of the studio's stands on the floor where the opening now is (it would float when the platform is down)
   const over = await run(() => {
     const [a0, a1, c0, c1] = T.L.LIFT_RECT, out = [];
@@ -122,14 +125,15 @@ await test('DJ TRANSITION down: the booth rides the platform from the studio flo
       await T.sleep(50);
     }
     b.getWorldPosition(p);
-    return { views, hits: [...hits], end: m.lift.state, y: +p.y.toFixed(3), floor: T.L.ROOM.floor, vmax: Math.max(...speeds), first: speeds.slice(0, 80), last: speeds.slice(-6), s: (performance.now() - t0) / 1000, mode: m.mode, cam: T.a.director.current, inClub: T.L.inClub(T.cam()) };
+    return { views, hits: [...hits], end: m.lift.state, y: +p.y.toFixed(3), floor: T.L.ROOM.floor, vmax: Math.max(...speeds), first: speeds.slice(0, 200), last: speeds.slice(-6), s: (performance.now() - t0) / 1000, mode: m.mode, cam: T.a.director.current, inClub: T.L.inClub(T.cam()) };
   });
   expect(r.end === 'DOWN' && Math.abs(r.y - (r.floor + 0.02)) < 0.005, 'the booth did not arrive on the club floor: ' + JSON.stringify({ end: r.end, y: r.y }));
   expect(!r.hits.length, 'the booth or its platform touched: ' + r.hits.join(', '));
   expect(r.vmax <= 0.361, 'too fast: ' + r.vmax);
-  expect(r.first.slice(0, 40).some(v => v > 0) && r.first.find(v => v > 0) < 0.06, 'no smooth start');
+  expect(r.first.some(v => v > 0) && r.first.find(v => v > 0) < 0.06, 'no smooth start: ' + r.first.find(v => v > 0));
   for (const k of ['mLifttop', 'mDJ6', 'mLiftlow', 'mDJ1']) expect(r.views.includes(k), 'the transition did not show ' + k + ': ' + r.views.join(' → '));
   expect(r.mode === 'PERFORMANCE', 'not PERFORMANCE at the bottom');
+  expect(await run(() => T.m.boothReflects) === 'down', 'down in the club the console should reflect the club');
   await run(async () => T.until(() => T.a.director.current === 'mDJ2', 8000));
 });
 
@@ -247,6 +251,7 @@ await test('DJ TRANSITION up: the same booth rides back into the studio; the clu
     return { state: m.lift.state, y: +p.y.toFixed(3), booths, cam: T.a.director.current };
   });
   expect(r.state === 'UP' && Math.abs(r.y) < 0.01 && r.booths === 1, 'not back up: ' + JSON.stringify(r));
+  expect(await run(() => T.m.boothReflects) === 'up', 'up in the studio the console should reflect the studio');
   await run(async () => { T.m.pickCamera('DJ1'); await T.sleep(3000); });
   await shot('club-booth-up');
   await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });

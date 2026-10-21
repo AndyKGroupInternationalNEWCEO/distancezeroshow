@@ -73,7 +73,8 @@ const F = ROOM.floor, B = CLUB_BOOTH;
 export const CAMS = {
   DJ1: { name: 'CAM DJ1', label: 'Master wide', long: 'DJ room · master wide', pos: xyz(-4.9, 6.0, F + 3.4), target: xyz(0.3, 0.4, F + 1.5), fov: 62, drift: 0.22 },
   DJ2: { name: 'CAM DJ2', label: 'Front booth', long: 'DJ room · front booth', pos: xyz(0.15, B.across + 3.4, F + 1.75), target: xyz(0, B.across, F + B.riser + 1.25), fov: 40, drift: 0.12 },
-  DJ3: { name: 'CAM DJ3', label: 'Side cinematic', long: 'DJ room · side cinematic', pos: xyz(4.4, B.across + 1.6, F + 1.9), target: xyz(-0.4, B.across - 0.3, F + B.riser + 1.15), fov: 36, drift: 0.16 },
+  // (0.7 m further out than first built: the lift's front guide rail then stands beside the console, not across it)
+  DJ3: { name: 'CAM DJ3', label: 'Side cinematic', long: 'DJ room · side cinematic', pos: xyz(4.4, B.across + 2.3, F + 1.9), target: xyz(-0.4, B.across - 0.3, F + B.riser + 1.15), fov: 36, drift: 0.16 },
   DJ4: { name: 'CAM DJ4', label: 'Equipment', long: 'DJ room · equipment close-up', pos: xyz(-0.9, B.across + 0.95, F + B.riser + 1.62), target: xyz(0.15, B.across - 0.05, F + B.riser + B.top), fov: 34, drift: 0.04 },
   // overhead: on the shaft's front edge, clear of the platform's path, looking steeply down at the console
   DJ5: { name: 'CAM DJ5', label: 'Overhead', long: 'DJ room · overhead', pos: xyz(0.05, B.across + 1.25, F + 4.1), target: xyz(0, B.across - 0.2, F + B.riser + 0.8), fov: 50, drift: 0.04 },

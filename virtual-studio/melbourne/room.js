@@ -348,7 +348,7 @@ export function buildRoom({ studio, scene, quality }) {
   const R = Math.hypot(ROOM.w, ROOM.d) / 2 + 1;
   const [cx, cz] = at(ROOM.along, ROOM.across);
   return {
-    root, frame, room, update, floor, mirror, glass, panes, led, heads, lasers, puffs, haze,
+    root, frame, room, update, floor, mirror, glass, panes, led, floorMaterial: roomFloor, heads, lasers, puffs, haze,
     face(camera) { cameraQuat.copy(camera.quaternion); },
     bounds: new THREE.Box3(new THREE.Vector3(cx - R, ROOM.floor - 0.1, cz - R), new THREE.Vector3(cx + R, 2.6, cz + R)),   // (up to the booth's top while it is up in the studio)
     toRoom,
