@@ -34,8 +34,9 @@ function screenPicture(deck) {
   };
 }
 
-export function buildBooth({ M, parent, at }) {
-  const g = new THREE.Group(); g.name = 'melbourne-booth'; parent.add(g); g.position.set(...at); g.position.y = ROOM.floor;
+// `floor`: the y it stands on in `parent` (the DJ lift's platform carries it: 0)
+export function buildBooth({ M, parent, at, floor = ROOM.floor }) {
+  const g = new THREE.Group(); g.name = 'melbourne-booth'; parent.add(g); g.position.set(...at); g.position.y = floor;
   const add = (geo, mat, x, y, z, p = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; p.add(m); return m; };
   const lit = [];   // { m, k, group }: lit parts, their level set by the room's light state
   const L = (color, k, group = 'booth') => { const m = glow(color); lit.push({ m, k, group }); return m; };

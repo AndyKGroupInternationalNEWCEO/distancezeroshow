@@ -1,17 +1,15 @@
 // Melbourne Underground DJ Room: the build. The studio's floor (and its mirror) get an opening in front of the studio's
-// own DJ booth; glass on a steel grid fills it, and under it is the club: LED walls all round (each surface its own
+// own DJ booth: the DJ lift's platform (djlift.js) and glass on a steel grid round it fill it, and under it is the club: LED walls all round (each surface its own
 // part of the picture), a glossy floor, a ceiling truss with moving-head spots and washes, LED strips, laser sources,
 // haze and smoke machines. The room adds no real light: it is lit by its own LED walls (emissive), the beams and the
 // studio's lights above, which reach through the glass. Its booth is booth.js.
 import * as THREE from 'three';
 import { glow, beamMaterial } from '../set.js';
 import { AMBER, ICE } from '../screens.js';
-import { BOOTH, GLASS, ROOM, CLUB_BOOTH, at } from './layout.js';
+import { BOOTH, GLASS, ROOM, CLUB_BOOTH, OPENING, LIFT_RECT, at } from './layout.js';
 
 const C = { white: new THREE.Color(1, 1, 1), gold: new THREE.Color(AMBER), silver: new THREE.Color(ICE) };
 
-// a rectangle in the Melbourne frame (centre along/across, size), as studio x, z corners
-const rect = (cAl, cAc, w, d) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => at(cAl + (a * w) / 2, cAc + (b * d) / 2));
 // the studio's floor disc with the glass's opening cut in it, in a shape's plane (x, −z), with the UVs CircleGeometry
 // gave it (the floor's own texture stays where it was)
 function discWithHole(radius, segments, hole, rotate) {
@@ -121,8 +119,8 @@ export function buildRoom({ studio, scene, quality }) {
   const [gx, gz] = at(GLASS.along, GLASS.across); frame.position.set(gx, 0, gz); frame.rotation.y = BOOTH.rotY;
   const local = (al, ac) => [al - GLASS.along, ac - GLASS.across];   // Melbourne frame → this group's x, z
 
-  /* ----- the opening in the studio floor and in its mirror ----- */
-  const glassRect = rect(GLASS.along, GLASS.across, GLASS.w, GLASS.d);
+  /* ----- the opening in the studio floor and in its mirror: the glass and the DJ lift's platform ----- */
+  const glassRect = OPENING.map(([al, ac]) => at(al, ac));
   let floor = null; studio.root.traverse(o => { if (o.isMesh && o.material === M.floor && o.geometry.type === 'CircleGeometry') floor = o; });
   if (floor) { const r = floor.geometry.parameters.radius; floor.geometry.dispose(); floor.geometry = discWithHole(r, 96, glassRect, true); }
   const mirror = scene.children.find(o => o.isReflector);
@@ -131,19 +129,35 @@ export function buildRoom({ studio, scene, quality }) {
   /* ----- the glass: panes on a steel T-grid, the slab's edge round it with a lit line ----- */
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x1a2026, metalness: 0, roughness: 0.04, transparent: true, opacity: 0.16, depthWrite: false,
     clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 0.9, side: THREE.DoubleSide });
-  const pane = mesh(new THREE.PlaneGeometry(GLASS.w, GLASS.d).rotateX(-Math.PI / 2), glass, frame); pane.position.y = 0.002; pane.renderOrder = 3;
-  pane.userData.focus = 'music';
+  // the glass round the DJ lift's platform (which takes the middle of it): panes in front and either side
+  const [la0, la1, lc0, lc1] = LIFT_RECT.map((v, i) => v - (i < 2 ? GLASS.along : GLASS.across));   // the platform, in this frame
+  const [ga0, ga1, gc0, gc1] = [-GLASS.w / 2, GLASS.w / 2, -GLASS.d / 2, GLASS.d / 2];
+  const pieces = [[ga0, ga1, lc1, gc1], [ga0, la0, gc0, lc1], [la1, ga1, gc0, lc1]].filter(([a0, a1, c0, c1]) => a1 - a0 > 0.01 && c1 - c0 > 0.01);
+  const panes = pieces.map(([a0, a1, c0, c1]) => {
+    const p = mesh(new THREE.PlaneGeometry(a1 - a0, c1 - c0).rotateX(-Math.PI / 2), glass, frame); p.position.set((a0 + a1) / 2, 0.002, (c0 + c1) / 2); p.renderOrder = 3;
+    p.userData.focus = 'music'; return p;
+  });
+  const pane = panes[0];
   const steel = new THREE.MeshStandardMaterial({ color: 0x1c1f23, metalness: 0.8, roughness: 0.38 });
+  // the steel T-grid: every line the glass has, only where there is glass (not across the platform)
+  const inLift = (a, c) => a > la0 + 0.01 && a < la1 - 0.01 && c > lc0 + 0.01 && c < lc1 - 0.01;
+  const beam = (a0, a1, c0, c1) => { const m = mesh(new THREE.BoxGeometry(Math.max(GLASS.beam, a1 - a0), 0.22, Math.max(GLASS.beam, c1 - c0)), steel, frame); m.position.set((a0 + a1) / 2, -0.11, (c0 + c1) / 2); };
   const nW = Math.round(GLASS.w / GLASS.pane), nD = Math.round(GLASS.d / GLASS.pane);
-  for (let i = 0; i <= nW; i++) mesh(new THREE.BoxGeometry(GLASS.beam, 0.22, GLASS.d), steel, frame).position.set(-GLASS.w / 2 + (i * GLASS.w) / nW, -0.11, 0);
-  for (let j = 0; j <= nD; j++) mesh(new THREE.BoxGeometry(GLASS.w, 0.22, GLASS.beam), steel, frame).position.set(0, -0.11, -GLASS.d / 2 + (j * GLASS.d) / nD);
-  // the slab's four faces round the opening (dark), a brushed rim on the studio side and a lit line inside it
+  const cuts = (lo, hi, f0, f1) => [[lo, Math.min(hi, f0)], [Math.max(lo, f1), hi]].filter(([a, b]) => b - a > 0.02);
+  for (let i = 0; i <= nW; i++) { const a = ga0 + (i * GLASS.w) / nW; for (const [c0, c1] of (a > la0 && a < la1 ? cuts(gc0, gc1, lc0, lc1) : [[gc0, gc1]])) beam(a, a, c0, c1); }
+  for (let j = 0; j <= nD; j++) { const c = gc0 + (j * GLASS.d) / nD; for (const [a0, a1] of (c > lc0 && c < lc1 ? cuts(ga0, ga1, la0, la1) : [[ga0, ga1]])) beam(a0, a1, c, c); }
+  // the platform's edge where it meets the glass: a steel beam on each side
+  beam(la0 - 0.03, la1 + 0.03, lc1 + 0.03, lc1 + 0.03); if (gc0 < lc1) { beam(la0 - 0.03, la0 - 0.03, Math.max(gc0, lc0), lc1); beam(la1 + 0.03, la1 + 0.03, Math.max(gc0, lc0), lc1); }
+  // the slab's faces round the whole opening (dark), a brushed rim on the studio side and a lit line inside it
   const rim = glow(C.silver); glows.push({ m: rim, k: 1.2, group: 'strips' });
-  for (const [cx, cz, lw, ld] of [[0, -GLASS.d / 2, GLASS.w, 0], [0, GLASS.d / 2, GLASS.w, 0], [-GLASS.w / 2, 0, 0, GLASS.d], [GLASS.w / 2, 0, 0, GLASS.d]]) {
+  const ring = OPENING.map(([al, ac]) => [al - GLASS.along, ac - GLASS.across]);
+  ring.forEach(([a0, c0], i) => {
+    const [a1, c1] = ring[(i + 1) % ring.length], lw = Math.abs(a1 - a0), ld = Math.abs(c1 - c0), cx = (a0 + a1) / 2, cz = (c0 + c1) / 2;
+    if (Math.max(lw, ld) < 0.01) return;
     mesh(new THREE.BoxGeometry(lw || 0.04, GLASS.slab, ld || 0.04), M.dark, frame).position.set(cx, -GLASS.slab / 2, cz);
     mesh(new THREE.BoxGeometry((lw || 0.05) + 0.05, 0.008, (ld || 0.05) + 0.05), M.champagne, frame).position.set(cx, 0.004, cz);
     mesh(new THREE.BoxGeometry((lw || 0.012) + 0.01, 0.012, (ld || 0.012) + 0.01), rim, frame).position.set(cx, -0.03, cz);
-  }
+  });
 
   /* ----- the club: floor, ceiling, columns, LED walls ----- */
   const [rx, rz] = local(ROOM.along, ROOM.across);
@@ -153,8 +167,7 @@ export function buildRoom({ studio, scene, quality }) {
   const fl = mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d).rotateX(-Math.PI / 2), roomFloor, room); fl.position.y = ROOM.floor; fl.receiveShadow = true;
   // the ceiling: concrete-dark, with the glass's opening (the glass's own frame is in `frame`)
   const ceil = new THREE.Shape([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector2(a * ROOM.w / 2, b * ROOM.d / 2)));
-  const [hx, hz] = [GLASS.along - ROOM.along, GLASS.across - ROOM.across];
-  ceil.holes.push(new THREE.Path([[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([a, b]) => new THREE.Vector2(hx + a * GLASS.w / 2, -(hz + b * GLASS.d / 2)))));
+  ceil.holes.push(new THREE.Path(OPENING.map(([al, ac]) => new THREE.Vector2(al - ROOM.along, -(ac - ROOM.across)))));
   const ce = mesh(new THREE.ShapeGeometry(ceil).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x07070a, roughness: 0.92, side: THREE.DoubleSide }), room); ce.position.y = ROOM.ceiling;
   // dark steel columns in the corners and between the walls' panels, with a champagne line
   const colMat = new THREE.MeshStandardMaterial({ color: 0x101114, metalness: 0.7, roughness: 0.45 });
@@ -201,7 +214,8 @@ export function buildRoom({ studio, scene, quality }) {
   const trussY = ROOM.ceiling - 0.45;
   const trussMat = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.85, roughness: 0.35 });
   const [bAl, bAc] = [CLUB_BOOTH.along - ROOM.along, CLUB_BOOTH.across - ROOM.across];
-  const trussZ = [bAc - 1.6, bAc + 1.9];
+  // (the back line clear of the DJ lift's shaft: the platform and its rails pass between the two)
+  const trussZ = [LIFT_RECT[2] - ROOM.across - 0.55, bAc + 1.9];
   for (const z of trussZ) for (const dy of [0, -0.3]) for (const dz of [-0.15, 0.15]) mesh(new THREE.CylinderGeometry(0.025, 0.025, ROOM.w - 1.6, 8).rotateZ(Math.PI / 2), trussMat, room).position.set(0, trussY + dy, z + dz);
   const heads = [], beamGeo = a => new THREE.ConeGeometry(Math.tan(a), 1, 24, 1, true).translate(0, -0.5, 0).rotateX(-Math.PI / 2);
   const spotGeo = beamGeo(0.05), washGeo = beamGeo(0.2);
@@ -249,7 +263,7 @@ export function buildRoom({ studio, scene, quality }) {
     m.position.set(-5 + ((i * 3.7) % 10), ROOM.floor + 1.6 + (i % 3) * 1.0, -3.8 + ((i * 2.3) % 7.6)); m.userData.ph = i * 1.7; haze.push(m);
   }
   const smokeTex = softDot(128, 0.85);
-  const machines = [[bAl - 2.4, bAc + 0.2], [bAl + 2.4, bAc + 0.2]].map(([x, z]) => {
+  const machines = [[bAl - 3.0, bAc + 0.2], [bAl + 3.0, bAc + 0.2]].map(([x, z]) => {   // outside the lift's footprint
     const g = new THREE.Group(); g.position.set(x, ROOM.floor, z); room.add(g);
     mesh(new THREE.BoxGeometry(0.5, 0.28, 0.32), M.dark, g).position.y = 0.14;
     mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.08, 12).rotateZ(Math.PI / 2), M.chrome, g).position.set(0, 0.18, 0.18);
@@ -334,9 +348,9 @@ export function buildRoom({ studio, scene, quality }) {
   const R = Math.hypot(ROOM.w, ROOM.d) / 2 + 1;
   const [cx, cz] = at(ROOM.along, ROOM.across);
   return {
-    root, frame, room, update, floor, mirror, glass, led, heads, lasers, puffs, haze,
+    root, frame, room, update, floor, mirror, glass, panes, led, heads, lasers, puffs, haze,
     face(camera) { cameraQuat.copy(camera.quaternion); },
-    bounds: new THREE.Box3(new THREE.Vector3(cx - R, ROOM.floor - 0.1, cz - R), new THREE.Vector3(cx + R, 0.3, cz + R)),
+    bounds: new THREE.Box3(new THREE.Vector3(cx - R, ROOM.floor - 0.1, cz - R), new THREE.Vector3(cx + R, 2.6, cz + R)),   // (up to the booth's top while it is up in the studio)
     toRoom,
   };
 }

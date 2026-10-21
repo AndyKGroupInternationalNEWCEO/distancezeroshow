@@ -53,7 +53,7 @@ if (!ok) throw new Error('the page did not start');
 await run(async () => {
   const [{ VIEWS }, L] = await Promise.all([import('./virtual-studio/views.js'), import('./virtual-studio/melbourne/layout.js')]);
   window.T = {
-    a: window.__studio, m: window.__studio.ext.melbourne, v: window.__studio.ext, VIEWS, L,
+    a: window.__studio, m: window.__studio.ext.melbourne, v: window.__studio.ext, VIEWS, L, three: await import('three'),
     sleep: ms => new Promise(r => setTimeout(r, ms)),
     async until(fn, ms = 20000) { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (fn()) return true; await T.sleep(40); } return false; },
     cam: () => window.__studio.camera.position,
@@ -75,13 +75,80 @@ async function test(name, fn) {
 }
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
-await test('DJ1–DJ5 stand in the club (below the studio floor, inside its walls); DJ6 looks down through the glass', async () => {
+await test('one DJ booth in the whole scene, on the DJ lift\'s platform, up in the studio at the start; the studio\'s small music station stands aside', async () => {
+  const r = await run(() => {
+    let booths = 0; T.a.scene.traverse(o => { if (o.name === 'melbourne-booth') booths++; });
+    const b = T.m.booth.group; let onPlatform = false; for (let o = b.parent; o; o = o.parent) if (o === T.m.djLift.platform) onPlatform = true;
+    const p = new T.three.Vector3(); b.getWorldPosition(p);
+    return { booths, onPlatform, y: +p.y.toFixed(3), lift: T.m.lift.state, music: T.a.studio.music?.visible };
+  });
+  expect(r.booths === 1, 'booths in the scene: ' + r.booths);
+  expect(r.onPlatform && r.lift === 'UP' && Math.abs(r.y) < 0.01, 'the booth should stand on the platform, up in the studio: ' + JSON.stringify(r));
+  expect(r.music === false, 'the studio\'s music station should stand aside on this page');
+  // nothing of the studio's stands on the floor where the opening now is (it would float when the platform is down)
+  const over = await run(() => {
+    const [a0, a1, c0, c1] = T.L.LIFT_RECT, out = [];
+    for (const o of T.a.studio.root.children) {
+      if (!o.visible || Math.abs(o.position.y) > 0.05 || o.name === 'melbourne-room') continue;
+      const [a, c] = T.L.toFrame(o.position.x, o.position.z);
+      if (a > a0 - 0.2 && a < a1 + 0.2 && c > c0 - 0.2 && c < c1 + 0.2) out.push(o.name || o.type);
+    }
+    return out;
+  });
+  expect(!over.length, 'studio objects standing on the lift opening: ' + over.join(', '));
+  await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });
+  await shot('booth-up-studio');
+});
+
+await test('DJ TRANSITION down: the booth rides the platform from the studio floor to the club floor, smooth start and stop, the cameras follow; nothing in its way', async () => {
+  const r = await run(async () => {
+    const m = T.m, b = m.booth.group, box = new T.three.Box3(), ob = new T.three.Box3(), p = new T.three.Vector3();
+    // what the booth and platform must never touch on the way: the glass, the club's truss heads, smoke machines, the
+    // cameras DJ1–DJ5 (as small boxes round their lenses), the club's columns
+    const obstacles = [];
+    m.room.panes.forEach((o, i) => obstacles.push(['glass ' + i, o]));
+    m.room.heads.forEach((h, i) => obstacles.push(['head ' + i, h.head]));
+    const cams = ['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5'].map(k => [k, new T.three.Vector3(...T.VIEWS['m' + k].pos)]);
+    const hits = new Set(), views = [], ys = [], speeds = [];
+    m.transition('down');
+    const t0 = performance.now();
+    while (performance.now() - t0 < 40000) {
+      const v = T.a.director.current; if (views.at(-1) !== v) views.push(v);
+      box.setFromObject(b).union(ob.setFromObject(m.djLift.platform));
+      for (const [n, o] of obstacles) if (o.visible !== false && box.intersectsBox(ob.setFromObject(o))) hits.add(n);
+      for (const [n, c] of cams) if (box.distanceToPoint(c) < 0.25) hits.add('camera ' + n);
+      b.getWorldPosition(p); ys.push(p.y); speeds.push(Math.abs(m.lift.speed));
+      if (!m.travelling && m.lift.state === 'DOWN') break;
+      await T.sleep(50);
+    }
+    b.getWorldPosition(p);
+    return { views, hits: [...hits], end: m.lift.state, y: +p.y.toFixed(3), floor: T.L.ROOM.floor, vmax: Math.max(...speeds), first: speeds.slice(0, 80), last: speeds.slice(-6), s: (performance.now() - t0) / 1000, mode: m.mode, cam: T.a.director.current, inClub: T.L.inClub(T.cam()) };
+  });
+  expect(r.end === 'DOWN' && Math.abs(r.y - (r.floor + 0.02)) < 0.005, 'the booth did not arrive on the club floor: ' + JSON.stringify({ end: r.end, y: r.y }));
+  expect(!r.hits.length, 'the booth or its platform touched: ' + r.hits.join(', '));
+  expect(r.vmax <= 0.361, 'too fast: ' + r.vmax);
+  expect(r.first.slice(0, 40).some(v => v > 0) && r.first.find(v => v > 0) < 0.06, 'no smooth start');
+  for (const k of ['mLifttop', 'mDJ6', 'mLiftlow', 'mDJ1']) expect(r.views.includes(k), 'the transition did not show ' + k + ': ' + r.views.join(' → '));
+  expect(r.mode === 'PERFORMANCE', 'not PERFORMANCE at the bottom');
+  await run(async () => T.until(() => T.a.director.current === 'mDJ2', 8000));
+});
+
+await test('DJ TRANSITION: screenshots on the way down (from the studio, through the glass, from the club floor, arrival)', async () => {
+  await run(async () => { T.m.liftCommand('reset'); await T.until(() => T.m.lift.state === 'UP', 30000); T.m.transition('down'); });
+  for (const [name, until] of [['lift-1-start', 'T.m.lift.depth > 0.4'], ['lift-2-glass', 'T.a.director.current === "mDJ6" && T.m.lift.depth > 2.0'], ['lift-3-club', 'T.a.director.current === "mLiftlow" && T.m.lift.depth > 4.2'], ['lift-4-arrived', 'T.a.director.current === "mDJ1"']]) {
+    await run(async c => { await T.until(() => eval(c), 30000); await T.sleep(300); }, until);
+    await shot(name);
+  }
+  await run(async () => T.until(() => !T.m.travelling, 10000));
+});
+
+await test('DJ1–DJ5 stand in the club (below the studio floor, inside its walls, clear of the lift); DJ6 looks down through the glass', async () => {
   const r = await run(async () => {
     const out = {};
     for (const k of ['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6']) {
       T.m.pickCamera(k); await T.sleep(3200);
       const p = T.cam(), want = T.VIEWS['m' + k].pos;
-      out[k] = { y: +p.y.toFixed(2), inClub: T.L.inClub(p), off: +Math.hypot(p.x - want[0], p.y - want[1], p.z - want[2]).toFixed(2), tally: T.VIEWS['m' + k].cam };
+      out[k] = { y: +p.y.toFixed(2), inClub: T.L.inClub(p), off: +Math.hypot(p.x - want[0], p.y - want[1], p.z - want[2]).toFixed(2) };
     }
     return out;
   });
@@ -89,33 +156,9 @@ await test('DJ1–DJ5 stand in the club (below the studio floor, inside its wall
   expect(!r.DJ6.inClub && r.DJ6.y > 2, 'DJ6 should be above the glass: ' + JSON.stringify(r.DJ6));
 });
 
-await test('screenshots of DJ1–DJ6 (PERFORMANCE)', async () => {
+await test('screenshots of DJ1–DJ6 (PERFORMANCE, the booth down)', async () => {
   await run(() => T.m.setMode('PERFORMANCE'));
   for (const k of ['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6']) { await run(async k => { T.m.pickCamera(k); await T.sleep(3500); }, k); await shot('cam-' + k); }
-});
-
-await test('transition: from the main studio over the glass, through it, down into the club, ends on DJ2', async () => {
-  const r = await run(async () => {
-    T.m.setEnv('studio'); await T.sleep(2500);
-    const start = T.cam().y, seen = { above: false, shaft: false, club: false };
-    T.m.setEnv('djroom');
-    const t0 = performance.now();
-    while (T.m.travelling && performance.now() - t0 < 20000) {
-      const p = T.cam(); if (p.y > 0.35) seen.above = true; if (T.L.inShaft(p)) seen.shaft = true; if (T.L.inClub(p)) seen.club = true;
-      await T.sleep(30);
-    }
-    await T.sleep(600);
-    return { start, seen, end: T.a.director.current, inClub: T.L.inClub(T.cam()) };
-  });
-  expect(r.start > 0.35, 'did not start in the studio');
-  expect(r.seen.above && r.seen.shaft && r.seen.club, 'the camera did not travel through the glass: ' + JSON.stringify(r.seen));
-  expect(r.end === 'mDJ2' && r.inClub, 'did not end on DJ2 in the club: ' + JSON.stringify(r));
-});
-
-await test('transition: screenshots on the way down', async () => {
-  await run(async () => { T.m.setEnv('studio'); await T.sleep(2500); T.m.setEnv('djroom'); });
-  for (const s of [1, 4, 6.5, 9]) { await run(async ms => T.sleep(ms), s === 1 ? 1000 : s === 4 ? 3000 : 2500); await shot('travel-' + String(s).replace('.', '_') + 's'); }
-  await run(() => T.until(() => !T.m.travelling));
 });
 
 await test('dragging in the club keeps the camera inside it; back to the main studio is a cut, not a flight through the floor', async () => {
@@ -130,6 +173,21 @@ await test('dragging in the club keeps the camera inside it; back to the main st
   });
   expect(r.kept, 'a dragged camera left the club');
   expect(r.after > 0.35, 'back to the studio should cut above the floor, got y ' + r.after);
+});
+
+await test('DJ lift HOLD: a moving lift stops and stays; UP / DOWN / transition refused; released, it answers again', async () => {
+  const r = await run(async () => {
+    const m = T.m;
+    m.liftCommand('up'); await T.until(() => m.lift.depth < 4.0, 15000);
+    m.setLiftHold(true); await T.until(() => !m.lift.moving, 10000);
+    const held = m.lift.depth;
+    const up = m.liftCommand('up'), down = m.liftCommand('down'); m.transition('up'); await T.sleep(800);
+    const still = Math.abs(m.lift.depth - held) < 1e-6 && !m.travelling;
+    m.setLiftHold(false); const again = m.liftCommand('down'); await T.until(() => m.lift.state === 'DOWN', 30000);
+    return { state: m.lift.state, held, up: up.ok, down: down.ok, still, again: again.ok };
+  });
+  expect(!r.up && !r.down && r.still, 'hold let the lift move: ' + JSON.stringify(r));
+  expect(r.again && r.state === 'DOWN', 'after the hold the lift should answer: ' + JSON.stringify(r));
 });
 
 await test('studio wall upstairs: DJ room live from the camera picked down there; the studio programme again after the show', async () => {
@@ -178,6 +236,21 @@ await test('presenter desk monitors: the live picture while the wall shows the D
 await test('the page plays no sound for the DJ room', async () => {
   const n = await run(() => [...document.querySelectorAll('audio,video')].filter(m => !m.paused).length);
   expect(n === 0, n + ' media elements playing');
+});
+
+await test('DJ TRANSITION up: the same booth rides back into the studio; the club is left without a booth', async () => {
+  const r = await run(async () => {
+    const m = T.m; m.transition('up');
+    await T.until(() => !m.travelling && m.lift.state === 'UP', 40000);
+    const p = new T.three.Vector3(); m.booth.group.getWorldPosition(p);
+    let booths = 0; T.a.scene.traverse(o => { if (o.name === 'melbourne-booth') booths++; });
+    return { state: m.lift.state, y: +p.y.toFixed(3), booths, cam: T.a.director.current };
+  });
+  expect(r.state === 'UP' && Math.abs(r.y) < 0.01 && r.booths === 1, 'not back up: ' + JSON.stringify(r));
+  await run(async () => { T.m.pickCamera('DJ1'); await T.sleep(3000); });
+  await shot('club-booth-up');
+  await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });
+  await shot('booth-back-up-studio');
 });
 
 await test('Piano Stage platform: down, the studio floor (mirror) shows through; up, black gloss', async () => {

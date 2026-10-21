@@ -1,11 +1,11 @@
 // Melbourne Underground DJ Room: the numbers it is built from, in the studio's own coordinates (metres, y up, the
 // studio cameras at +z, Melbourne on the right at +x). No three.js here, so tests and drawings read the same values.
 //
-// Two levels. Upper: the main studio, unchanged, except that on the Melbourne side, in front of the studio's own DJ
-// booth (set.js: the music station at (5.4, 0, 0.1), turned −0.95), a section of the floor is glass. Lower: a club
-// under it, with its own booth below the glass, LED walls all round, moving heads, lasers, haze and smoke. Nothing
-// rises or descends: the room is architecture, the transition is a camera that travels from the studio through the
-// glass into the club. The Vienna Piano Stage and its lift are not touched.
+// Two levels. Upper: the main studio; on the Melbourne side, where the studio's small music station stood (set.js:
+// (5.4, 0, 0.1), turned −0.95; it steps aside on the two-level page), an opening in the floor: the DJ lift's platform
+// and glass round it. Lower: the club under it, LED walls all round, moving heads, lasers, haze and smoke. THE one DJ
+// booth stands on the DJ lift's platform and goes down into the club and back up with it (DJ_LIFT). The Vienna Piano
+// Stage and its lift are not touched.
 
 export const BOOTH = { x: 5.4, z: 0.1, rotY: -0.95 };   // the studio's music station, as set.js places it
 
@@ -37,6 +37,33 @@ export const CLUB_BOOTH = {
   riser: 0.3,               // the DJ stands on a riser
   w: 3.4, d: 0.9, top: 1.02, // the console: width, depth, height of the work top above the riser
 };
+// THE DJ LIFT: the one DJ booth (booth.js) stands on its own rectangular platform. Up, the platform's top is flush
+// with the studio floor and the booth is in the studio; down, it stands on the club's floor and the same booth is the
+// club's. Its own mechanism (four guide rails, two three-stage telescopic rams from a pit under the club floor), not
+// the Vienna piano lift's. h: how far the platform has gone down (0 … travel)
+export const DJ_LIFT = {
+  along: 0, across: 1.45,   // the platform's centre: under the booth's riser (booth.js: riser centred 0.55 behind the console)
+  w: 5.0, d: 2.8,           // along × across (the riser is 4.8 × 2.6)
+  thick: 0.14,
+  rest: 0.02,               // down: the top 2 cm proud of the club floor (a stage plate, no pit in the club floor)
+  vmax: 0.36, accel: 0.16,  // a full move about 17 s
+  rail: 0.1,                // the guide rails' section, just outside the platform's corners
+};
+DJ_LIFT.travel = -ROOM.floor - DJ_LIFT.rest;
+// the platform's top (y) for a depth h
+export const liftTop = h => -h;
+// the opening in the studio floor and the club's ceiling: the glass and the platform together, as a polygon
+// [along, across] (anticlockwise seen from above): the platform reaches 0.4 m behind the glass
+export const OPENING = (() => {
+  const g = { a0: GLASS.along - GLASS.w / 2, a1: GLASS.along + GLASS.w / 2, c0: GLASS.across - GLASS.d / 2, c1: GLASS.across + GLASS.d / 2 };
+  const p = { a0: DJ_LIFT.along - DJ_LIFT.w / 2, a1: DJ_LIFT.along + DJ_LIFT.w / 2, c0: DJ_LIFT.across - DJ_LIFT.d / 2 };
+  return [[g.a0, g.c1], [g.a1, g.c1], [g.a1, g.c0], [p.a1, g.c0], [p.a1, p.c0], [p.a0, p.c0], [p.a0, g.c0], [g.a0, g.c0]];
+})();
+// the studio's on-air beacon on the Melbourne side, moved off the opening to just in front of it
+export const BEACON = xyz(-0.89, 4.35, 0);
+// the platform's footprint [along0, along1, across0, across1]
+export const LIFT_RECT = [DJ_LIFT.along - DJ_LIFT.w / 2, DJ_LIFT.along + DJ_LIFT.w / 2, DJ_LIFT.across - DJ_LIFT.d / 2, DJ_LIFT.across + DJ_LIFT.d / 2];
+
 // the DJ's two near-field monitors on stands either side of the console, turned in to the DJ's head
 export const MONITORS = { along: 2.05, across: -0.2, height: 1.35, toe: 0.5 };
 
@@ -48,16 +75,15 @@ export const CAMS = {
   DJ2: { name: 'CAM DJ2', label: 'Front booth', long: 'DJ room · front booth', pos: xyz(0.15, B.across + 3.4, F + 1.75), target: xyz(0, B.across, F + B.riser + 1.25), fov: 40, drift: 0.12 },
   DJ3: { name: 'CAM DJ3', label: 'Side cinematic', long: 'DJ room · side cinematic', pos: xyz(4.4, B.across + 1.6, F + 1.9), target: xyz(-0.4, B.across - 0.3, F + B.riser + 1.15), fov: 36, drift: 0.16 },
   DJ4: { name: 'CAM DJ4', label: 'Equipment', long: 'DJ room · equipment close-up', pos: xyz(-0.9, B.across + 0.95, F + B.riser + 1.62), target: xyz(0.15, B.across - 0.05, F + B.riser + B.top), fov: 34, drift: 0.04 },
-  DJ5: { name: 'CAM DJ5', label: 'Overhead', long: 'DJ room · overhead', pos: xyz(0.05, B.across + 0.35, F + 4.4), target: xyz(0, B.across - 0.1, F + B.riser + 0.8), fov: 52, drift: 0.05 },
+  // overhead: on the shaft's front edge, clear of the platform's path, looking steeply down at the console
+  DJ5: { name: 'CAM DJ5', label: 'Overhead', long: 'DJ room · overhead', pos: xyz(0.05, B.across + 1.25, F + 4.1), target: xyz(0, B.across - 0.2, F + B.riser + 0.8), fov: 50, drift: 0.04 },
   DJ6: { name: 'CAM DJ6', label: 'Glass floor', long: 'Upper studio · through the glass floor', pos: xyz(-1.0, GLASS.across + 3.6, 3.1), target: xyz(0, GLASS.across - 0.4, F + 1.2), fov: 50, drift: 0.12 },
 };
-// the transition: from the upper studio, over the glass, through it and down into the club (camera keyframes, s)
-export const DESCENT = [
-  { t: 0, pos: xyz(-2.2, 7.5, 2.6), target: xyz(0, GLASS.across, 0) },
-  { t: 3.5, pos: xyz(-0.6, GLASS.across + 1.4, 2.2), target: xyz(0, GLASS.across - 0.2, F + 1.0) },
-  { t: 6.5, pos: xyz(0, GLASS.across + 0.4, -0.2), target: xyz(0, B.across, F + 1.2) },
-  { t: 9.5, pos: xyz(0.1, B.across + 3.6, F + 2.2), target: xyz(0, B.across, F + B.riser + 1.2) },
-];
+// the DJ transition's own cameras: they follow the moving platform (index.js aims them at the booth every frame)
+export const LIFT_CAMS = {
+  top: { name: 'CAM DJ6', label: 'Lift · studio', long: 'DJ lift · from the studio', pos: xyz(-3.4, 6.2, 2.4), look: [0, B.across - 0.2], fov: 44 },
+  low: { name: 'CAM DJ1', label: 'Lift · club', long: 'DJ lift · from the club floor', pos: xyz(3.9, 5.6, F + 0.75), look: [0, B.across], fov: 46 },
+};
 
 // where a camera may be down here (the studio's director keeps every other camera above the studio floor): inside the
 // club, clear of its walls, floor and ceiling; or in the glass's column on the way down (the transition)
