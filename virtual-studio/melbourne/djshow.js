@@ -33,9 +33,25 @@ export const DJ_OPENING = {
   ],
 };
 
+// Opening 1, the short one: "Distance // Zero (opening)", 1:39. Measured 2026-10-21: the big entry at 0:54 (+5 dB),
+// the end fading from 1:36. The booth sets off at 0:35 and lands on 0:54; DROP there, CLOSING light as it fades
+export const DJ_OPENING_SHORT = {
+  audio: 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
+  duration: 99.16, bpm: null, lift: 54.0,
+  cues: [
+    { t: 0, mode: 'OPENING', led: 'LOGO', view: 'djwide', say: 'short opening: the studio, the booth up' },
+    { t: 12, liftView: 'top' },
+    { t: 35.0, transition: 'down', say: 'the booth sets off (lands on 0:54)' },
+    { t: 54.0, mode: 'DROP', show: 'live', led: 'PULSE', cam: 'DJ1', say: 'the entry: the booth is down' },
+    { t: 62, auto: true }, { t: 70, mode: 'PERFORMANCE' }, { t: 80, mode: 'BREAKDOWN' }, { t: 88, mode: 'PERFORMANCE' },
+    { t: 95, mode: 'CLOSING', auto: false, cam: 'DJ2' },
+  ],
+};
+
 // `api`: what the opening drives in the DJ Room (index.js): mode, led, view (a studio view), liftView, transition,
 // show, auto, cam (a cut that keeps the automatic sequence), tempo, say, liftReady() (booth up, cover open, arms in)
-export function createDjShow({ api, url }) {
+export function createDjShow({ api, url, script = DJ_OPENING }) {
+  const S = script;
   const audio = new Audio(); audio.preload = 'metadata'; audio.src = url; audio.crossOrigin = 'anonymous';
   let state = 'IDLE', next = 0, error = null;
   audio.addEventListener('ended', () => { if (state !== 'IDLE') { state = 'ENDED'; api.say('DJ opening: ended'); } });
@@ -53,25 +69,25 @@ export function createDjShow({ api, url }) {
   }
   // after a jump: the state the script has reached at `t` (light, LEDs), without re-running moves or cuts
   function catchUp(t) {
-    let mode = null, led = null; for (const c of DJ_OPENING.cues) { if (c.t > t) break; mode = c.mode || mode; led = c.led || led; }
+    let mode = null, led = null; for (const c of S.cues) { if (c.t > t) break; mode = c.mode || mode; led = c.led || led; }
     if (mode) api.mode(mode); if (led) api.led(led);
-    next = DJ_OPENING.cues.findIndex(c => c.t > t); if (next < 0) next = DJ_OPENING.cues.length;
+    next = S.cues.findIndex(c => c.t > t); if (next < 0) next = S.cues.length;
   }
   return {
-    get state() { return state; }, get time() { return audio.currentTime; }, get duration() { return DJ_OPENING.duration; }, get error() { return error; }, audio,
+    get state() { return state; }, get time() { return audio.currentTime; }, get duration() { return S.duration; }, get error() { return error; }, audio,
     start() {
       if (!api.liftReady()) return { ok: false, reason: 'The booth must be up in the studio (cover open, arms in): Return ↑ first' };
-      audio.currentTime = 0; next = 0; error = null; state = 'PLAYING'; api.tempo(DJ_OPENING.bpm);
+      audio.currentTime = 0; next = 0; error = null; state = 'PLAYING'; if (S.bpm) api.tempo(S.bpm);
       audio.play().catch(e => { error = e.message; state = 'IDLE'; api.say('DJ opening: the browser would not play the audio'); });
       return { ok: true };
     },
     pause() { if (state === 'PLAYING') { audio.pause(); state = 'PAUSED'; } else if (state === 'PAUSED') { audio.play(); state = 'PLAYING'; } return { ok: true }; },
     stop() { audio.pause(); state = 'IDLE'; api.auto(false); return { ok: true }; },
-    seek(t) { if (state === 'IDLE' || state === 'ENDED') return { ok: false, reason: 'not playing' }; audio.currentTime = Math.max(0, Math.min(DJ_OPENING.duration - 0.1, +t)); catchUp(audio.currentTime); return { ok: true }; },
+    seek(t) { if (state === 'IDLE' || state === 'ENDED') return { ok: false, reason: 'not playing' }; audio.currentTime = Math.max(0, Math.min(S.duration - 0.1, +t)); catchUp(audio.currentTime); return { ok: true }; },
     update() {
       if (state !== 'PLAYING') return;
       const t = audio.currentTime;
-      while (next < DJ_OPENING.cues.length && DJ_OPENING.cues[next].t <= t) fire(DJ_OPENING.cues[next++]);
+      while (next < S.cues.length && S.cues[next].t <= t) fire(S.cues[next++]);
     },
   };
 }

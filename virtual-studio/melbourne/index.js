@@ -16,7 +16,7 @@ import { buildBooth } from './booth.js';
 import { buildDjLift } from './djlift.js';
 import { buildClubFx } from './clubfx.js';
 import { buildCover } from './cover.js';
-import { createDjShow, DJ_OPENING } from './djshow.js';
+import { createDjShow, DJ_OPENING, DJ_OPENING_SHORT } from './djshow.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
 import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, inClub, inShaft, keepInClub, xyz } from './layout.js';
@@ -224,14 +224,18 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   }
 
   /* ----- the DJ Room's opening (djshow.js): the official show song, the booth landing in the club on its first entry ----- */
-  const opening = createDjShow({ url: new URL('../../' + DJ_OPENING.audio, import.meta.url).href, api: {
+  const showApi = {
     mode: m => api.setMode(m), led: p => { fx.preset = p; },
     view: v => { env = 'studio'; director.setAuto(false); director.go(v, { instant: true }); program = null; },
     liftView: k => liftView(k), transition: d => transition(d), show: st => api.setShow(st),
     auto: on => { auto = !!on; autoNext = beat; }, cam: k => { env = 'djroom'; cut(k, { instant: true }); },
     tempo: b => { bpm = b; }, say: text => say(text),
     liftReady: () => liftState() === 'UP' && cover.state === 'OPEN' && booth.arms.state === 'STOWED',
-  } });
+  };
+  // opening 2 (the official show song, 5:49) and opening 1 (the short one, 1:39); `opening` is the one last started
+  const openings = { big: createDjShow({ url: new URL('../../' + DJ_OPENING.audio, import.meta.url).href, api: showApi, script: DJ_OPENING }),
+    short: createDjShow({ url: new URL('../../' + DJ_OPENING_SHORT.audio, import.meta.url).href, api: showApi, script: DJ_OPENING_SHORT }) };
+  let opening = openings.big;
 
   /* ----- what the room shows; and culling ----- */
   const frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
@@ -248,7 +252,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     const where = h > DJ_LIFT.travel * 0.55 ? 'down' : 'up';
     if (boothShows && where !== boothShows) { boothShows = where; for (const m of boothMats) m.envMap = boothEnv[where]; }
     runSequence(dt);
-    opening.update();
+    openings.big.update(); openings.short.update();
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
     // comes up with the booth
@@ -286,8 +290,9 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     // the DJ lift: 'down' / 'up' (the DJ TRANSITION with its cameras and light), or the bare lift commands
     transition, liftCommand, coverCommand, armsCommand, cover,
     // the DJ Room's opening: 'start' | 'pause' (pause / resume) | 'stop' | 'seek' (seconds)
-    djOpening(cmd, t) { const r = cmd === 'start' ? opening.start() : cmd === 'pause' ? opening.pause() : cmd === 'stop' ? opening.stop() : cmd === 'seek' ? opening.seek(t) : { ok: false, reason: 'No such command' }; if (!r.ok) say('DJ opening: ' + r.reason); else if (cmd !== 'seek') say('DJ opening: ' + cmd); return r; },
-    opening,
+    // which: 'big' (opening 2, default) or 'short' (opening 1); the other one stops when one starts
+    djOpening(cmd, t, which) { if (cmd === 'start') { const other = which === 'short' ? openings.big : openings.short; other.stop(); opening = which === 'short' ? openings.short : openings.big; } const r = cmd === 'start' ? opening.start() : cmd === 'pause' ? opening.pause() : cmd === 'stop' ? opening.stop() : cmd === 'seek' ? opening.seek(t) : { ok: false, reason: 'No such command' }; if (!r.ok) say('DJ opening: ' + r.reason); else if (cmd !== 'seek') say('DJ opening: ' + cmd); return r; },
+    get opening() { return opening; }, openings,
     setSfx(on, volume) { cover.sound.set(on, volume); booth.arms.sound.set(on, volume); say(on ? 'Set sounds on' : 'Set sounds off'); },
     setLiftHold(on) { liftHold = !!on; if (liftHold) { seq = null; if (drive.moving) drive.command('stop'); } say(liftHold ? 'DJ lift hold on: the lift stays where it is' : 'DJ lift hold off'); },
     get lift() { return { state: liftState(), depth: drive.height, speed: -drive.speed, moving: drive.moving, hold: liftHold, travel: DJ_LIFT.travel }; },
@@ -450,7 +455,7 @@ function panel(api) {
       <div class="row">${btn('travel', 'down', 'Transition ↓')}${btn('travel', 'up', 'Return ↑')}${btn('lift', 'down', 'Down')}${btn('lift', 'up', 'Up')}${btn('lift', 'stop', 'Stop')}${btn('lifthold', '1', 'Hold')}</div>
       <div class="row">${btn('cover', 'close', 'Cover close')}${btn('cover', 'open', 'Cover open')}${btn('arms', 'deploy', 'Arms out')}${btn('arms', 'retract', 'Arms in')}</div>
       <h3>DJ opening <small>(official show song)</small></h3>
-      <div class="row">${btn('opening', 'start', 'Opening ▶')}${btn('opening', 'pause', 'Pause')}${btn('opening', 'stop', 'Stop')}</div>
+      <div class="row">${btn('opening', 'short', 'Opening 1 ▶')}${btn('opening', 'start', 'Opening 2 ▶')}${btn('opening', 'pause', 'Pause')}${btn('opening', 'stop', 'Stop')}</div>
       <h3>DJ show</h3>
       <div class="row">${btn('show', 'live', 'Live')}${btn('show', 'break', 'Break')}${btn('show', 'ended', 'Ended')}</div>
       <h3>Studio wall upstairs</h3>
@@ -491,7 +496,7 @@ function panel(api) {
     else if (d.cam) { if (api.env !== 'djroom') api.setEnv('djroom', { transition: false }); api.pickCamera(d.cam); }
     else if (d.auto) api.setAuto(!api.auto);
     else if (d.show) api.setShow(d.show);
-    else if (d.opening) api.djOpening(d.opening);
+    else if (d.opening) api.djOpening(d.opening === 'short' ? 'start' : d.opening, undefined, d.opening === 'short' ? 'short' : 'big');
     else if (d.wall) api.setWall(d.wall);
     else if (d.wallauto) api.setWallAuto(!api.report().wallAuto);
     else if (d.desk) api.setDeskMonitors(!api.report().deskMonitors);

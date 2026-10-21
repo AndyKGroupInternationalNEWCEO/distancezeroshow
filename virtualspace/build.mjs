@@ -38,7 +38,7 @@ const FILES = [
   ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes'].map(f => `virtual-studio/melbourne/${f}.js`),
   ...['dj-booth', 'dj-booth-up', 'dj-club'].map(f => `assets/probes/${f}.f16`),
   // the DJ Room's opening: the official show song (git-ignored: copied from the master, see virtual-studio/melbourne/djshow.js)
-  'assets/audio/dj-room/dz-dj-room-opening.wav',
+  'assets/audio/dj-room/dz-dj-room-opening.wav', 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
   'virtual-studio/melbourne/djshow.js',
 ];
 
