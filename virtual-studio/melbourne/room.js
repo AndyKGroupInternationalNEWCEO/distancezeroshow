@@ -154,9 +154,12 @@ export function buildRoom({ studio, scene, quality }) {
   ring.forEach(([a0, c0], i) => {
     const [a1, c1] = ring[(i + 1) % ring.length], lw = Math.abs(a1 - a0), ld = Math.abs(c1 - c0), cx = (a0 + a1) / 2, cz = (c0 + c1) / 2;
     if (Math.max(lw, ld) < 0.01) return;
-    mesh(new THREE.BoxGeometry(lw || 0.04, GLASS.slab, ld || 0.04), M.dark, frame).position.set(cx, -GLASS.slab / 2, cz);
+    // the platform's back edge is the shaft cover's slot (cover.js): the panel runs through it just under the floor
+    const slot = ld < 0.01 && Math.abs(c0 - lc0) < 1e-6, SLOT = 0.3;
+    if (slot) mesh(new THREE.BoxGeometry(lw, GLASS.slab - SLOT, 0.04), M.dark, frame).position.set(cx, -SLOT - (GLASS.slab - SLOT) / 2, cz);
+    else mesh(new THREE.BoxGeometry(lw || 0.04, GLASS.slab, ld || 0.04), M.dark, frame).position.set(cx, -GLASS.slab / 2, cz);
     mesh(new THREE.BoxGeometry((lw || 0.05) + 0.05, 0.008, (ld || 0.05) + 0.05), M.champagne, frame).position.set(cx, 0.004, cz);
-    mesh(new THREE.BoxGeometry((lw || 0.012) + 0.01, 0.012, (ld || 0.012) + 0.01), rim, frame).position.set(cx, -0.03, cz);
+    if (!slot) mesh(new THREE.BoxGeometry((lw || 0.012) + 0.01, 0.012, (ld || 0.012) + 0.01), rim, frame).position.set(cx, -0.03, cz);
   });
 
   /* ----- the club: floor, ceiling, columns, LED walls ----- */
@@ -249,9 +252,15 @@ export function buildRoom({ studio, scene, quality }) {
     mesh(new THREE.PlaneGeometry(0.2, 0.03), aperture, unit).position.z = 0.131;
     const fan = new THREE.Group(); unit.add(fan); fan.position.z = 0.14;
     const mat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    // each beam: a bright core and a faint glow round it (the beam seen through haze)
+    const halo = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const rays = [];
-    for (let i = 0; i < 10; i++) { const r = mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 1, 4).translate(0, 0.5, 0).rotateX(Math.PI / 2), mat, fan); r.scale.z = 11; rays.push(r); }
-    lasers.push({ unit, fan, mat, rays, k: lasers.length });
+    for (let i = 0; i < (lite ? 10 : 16); i++) {
+      const r = mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 4).translate(0, 0.5, 0).rotateX(Math.PI / 2), mat, fan); r.scale.z = 11; r.castShadow = false;
+      const h = mesh(new THREE.CylinderGeometry(0.011, 0.011, 1, 6).translate(0, 0.5, 0).rotateX(Math.PI / 2), halo, r); h.castShadow = false;
+      rays.push(r);
+    }
+    lasers.push({ unit, fan, mat, halo, rays, k: lasers.length });
   }
 
   /* ----- haze (continuous, density adjustable) and smoke (bursts from two machines either side of the booth) ----- */
@@ -270,7 +279,7 @@ export function buildRoom({ studio, scene, quality }) {
     return g;
   });
   const puffs = [];
-  for (let i = 0; i < (lite ? 24 : 48); i++) {
+  for (let i = 0; i < (lite ? 32 : 72); i++) {
     const m = mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: smokeTex, color: 0x000000, transparent: true, depthWrite: false, opacity: 0 }), room);
     m.visible = false; puffs.push({ m, life: 0, vel: new THREE.Vector3() });
   }
@@ -308,12 +317,15 @@ export function buildRoom({ studio, scene, quality }) {
       const s = L.lasers, open = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 0.4 + l.k));
       l.fan.rotation.x = -0.12 - 0.28 * (0.5 + 0.5 * Math.sin((beat / 4) * Math.PI * 2 + l.k));
       l.fan.rotation.y = (l.k < 2 ? (l.k ? -0.35 : 0.35) : 0) + 0.15 * Math.sin(t * 0.3 + l.k);
-      l.rays.forEach((r, i) => { r.rotation.y = (i / (l.rays.length - 1) - 0.5) * open; });
+      // the pattern: a fan (spread across), a scan (the fan sweeping wide on the bar), or a tunnel (a turning cone)
+      const pat = s.pattern || 'fan', nR = l.rays.length;
+      if (pat === 'tunnel') { l.fan.rotation.x = -0.2; l.rays.forEach((r, i) => { const a = (i / nR) * Math.PI * 2 + t * 1.2 * (l.k % 2 ? 1 : -1); r.rotation.set(Math.sin(a) * 0.16, Math.cos(a) * 0.16, 0); }); }
+      else { if (pat === 'scan') l.fan.rotation.y += Math.sin((beat / 8) * Math.PI * 2 + l.k) * 0.45; l.rays.forEach((r, i) => { r.rotation.set(0, (i / (nR - 1) - 0.5) * open, 0); }); }
       // a beam ends at the club's ceiling (the underside of the studio floor): it never shows up in the studio above
       l.fan.updateMatrixWorld(true);
       for (const r of l.rays) { r.getWorldDirection(rayDir); r.getWorldPosition(rayAt); r.scale.z = rayDir.y > 0.001 ? Math.min(11, (ROOM.ceiling - 0.03 - rayAt.y) / rayDir.y) : 11; }
       const on = s.level * (s.pulse ? ((beat * 2) % 1 < 0.55 ? 1 : 0.1) : 1);
-      l.mat.color.copy(s.color).multiplyScalar(1.8 * on);
+      l.mat.color.copy(s.color).multiplyScalar(1.8 * on); l.halo.color.copy(s.color).multiplyScalar(0.22 * on * (0.25 + 0.75 * L.haze.level));
       l.fan.visible = on > 0.002;
     }
     // haze: slow drift, lit by what is in the air
@@ -339,8 +351,8 @@ export function buildRoom({ studio, scene, quality }) {
       p.m.position.addScaledVector(p.vel, dt);
       const life = p.life / 5;   // five seconds
       if (life >= 1) { p.m.visible = false; continue; }
-      p.m.scale.setScalar(0.5 + life * 2.6); p.m.quaternion.copy(camQ);
-      p.m.material.opacity = 0.42 * Math.sin(Math.PI * Math.min(1, life * 1.4)) * (1 - life);
+      p.m.scale.setScalar(0.6 + life * 3.4); p.m.quaternion.copy(camQ);
+      p.m.material.opacity = 0.55 * Math.sin(Math.PI * Math.min(1, life * 1.4)) * (1 - life);
       p.m.material.color.copy(L.wash.color).lerp(C.white, 0.7).multiplyScalar(0.35 + 0.6 * Math.max(L.wash.level, L.spot.level));
     }
   }

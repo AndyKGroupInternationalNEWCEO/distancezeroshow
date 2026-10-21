@@ -58,6 +58,7 @@ await run(async () => {
     async until(fn, ms = 20000) { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (fn()) return true; await T.sleep(40); } return false; },
     cam: () => window.__studio.camera.position,
     feeds: 0, loops: 0,
+    async openCover() { T.m.armsCommand('retract'); await T.until(() => T.m.booth.arms.state === 'STOWED', 12000); T.m.coverCommand('open'); return T.until(() => T.m.cover.state === 'OPEN', 12000); },
   };
   // count the wall's renders of the DJ room, and check each one: never a picture of a picture
   const f = T.m.feed, shotFn = f.shot, before = f.before;
@@ -99,8 +100,14 @@ await test('one DJ booth in the whole scene, on the DJ lift\'s platform, up in t
     return out;
   });
   expect(!over.length, 'studio objects standing on the lift opening: ' + over.join(', '));
+  const low = await run(() => {
+    const top = T.m.booth.group.localToWorld(new T.three.Vector3(0, T.L.CLUB_BOOTH.riser + T.L.CLUB_BOOTH.top, 0)).y;
+    return { state: T.m.booth.arms.state, over: T.m.booth.arms.arms.map(a => new T.three.Box3().setFromObject(a.cab).max.y - top) };
+  });
+  expect(low.state === 'STOWED' && low.over.every(v => v < 0), 'stowed, the monitors should stay under the console\'s top: ' + JSON.stringify(low));
   await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });
   await shot('booth-up-studio');
+  for (const v of ['floor', 'djwide']) { await run(async v => { T.a.director.go(v, { instant: true }); await T.sleep(2500); }, v); await shot('up-' + v); }
 });
 
 await test('DJ TRANSITION down: the booth rides the platform from the studio floor to the club floor, smooth start and stop, the cameras follow; nothing in its way', async () => {
@@ -138,7 +145,7 @@ await test('DJ TRANSITION down: the booth rides the platform from the studio flo
 });
 
 await test('DJ TRANSITION: screenshots on the way down (from the studio, through the glass, from the club floor, arrival)', async () => {
-  await run(async () => { T.m.liftCommand('reset'); await T.until(() => T.m.lift.state === 'UP', 30000); T.m.transition('down'); });
+  await run(async () => { await T.until(() => T.m.cover.state === 'CLOSED', 12000); await T.openCover(); T.m.liftCommand('reset'); await T.until(() => T.m.lift.state === 'UP', 30000); T.m.transition('down'); });
   for (const [name, until] of [['lift-1-start', 'T.m.lift.depth > 0.4'], ['lift-2-glass', 'T.a.director.current === "mDJ6" && T.m.lift.depth > 2.0'], ['lift-3-club', 'T.a.director.current === "mLiftlow" && T.m.lift.depth > 4.2'], ['lift-4-arrived', 'T.a.director.current === "mDJ1"']]) {
     await run(async c => { await T.until(() => eval(c), 30000); await T.sleep(300); }, until);
     await shot(name);
@@ -181,6 +188,56 @@ await test('the gear moves on data only: still without it; a playing deck turns 
   await run(() => { clearInterval(T.levels); });
 });
 
+await test('shaft cover: with the booth down it slides in and rises flush with the glass floor, closing the whole opening; the lift is locked while it is not open; it will not close over a booth that is up; it sounds while it moves', async () => {
+  const r = await run(async () => {
+    const m = T.m, c = m.cover;
+    await T.until(() => c.state === 'CLOSED', 15000);            // it closed by itself after the descent
+    const auto = c.state === 'CLOSED';
+    await T.openCover(); c.group.updateMatrixWorld(true);
+    const close = m.coverCommand('close'); await T.sleep(400);
+    const moving = auto && close.ok && c.state === 'CLOSING', sound = c.sound.playing || !c.sound.on;
+    await T.until(() => c.state === 'CLOSED', 12000);
+    const box = new T.three.Box3().setFromObject(c.group.children[0]);   // the glass
+    const [a0, a1, c0, c1] = T.L.LIFT_RECT, corners = [[a0, c0], [a1, c0], [a0, c1], [a1, c1]].map(([a, cc]) => T.L.at(a, cc));
+    const inside = corners.every(([x, z]) => x >= box.min.x - 0.02 && x <= box.max.x + 0.02 && z >= box.min.z - 0.02 && z <= box.max.z + 0.02);
+    const flush = Math.abs(box.max.y - 0.002) < 0.003;
+    const lockedUp = m.liftCommand('up').ok === false && m.lift.state === 'DOWN';
+    return { moving, sound, state: c.state, inside, flush, lockedUp };
+  });
+  expect(r.moving && r.sound, 'the cover did not close by itself after the descent, with its sound: ' + JSON.stringify(r));
+  expect(r.state === 'CLOSED' && r.inside && r.flush, 'the cover does not close the opening flush: ' + JSON.stringify(r));
+  expect(r.lockedUp, 'the lift moved with the cover closed');
+  await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });
+  await shot('cover-closed-studio');
+  await run(async () => { T.m.pickCamera('DJ6'); await T.sleep(3000); });
+  await shot('cover-closed-DJ6');
+  await run(async () => { T.m.pickCamera('DJ1'); await T.sleep(2500); });
+});
+
+await test('monitor arms: out with the booth down (carriage, column, boom), each monitor turned to the DJ, clear of the console and the lift\'s rails; the lift is locked until they are in', async () => {
+  const r = await run(async () => {
+    const m = T.m, A = m.booth.arms;
+    const auto = m.report().arms;                               // (the cover test before took them in to open the cover)
+    m.armsCommand('deploy'); await T.until(() => A.state === 'DEPLOYED', 15000);
+    const console_ = new T.three.Box3(), b = new T.three.Box3(), ear = m.booth.group.localToWorld(new T.three.Vector3(0, T.L.CLUB_BOOTH.riser + 1.62, -0.55));
+    m.booth.group.updateMatrixWorld(true);
+    // the console's cabinet: its first mesh after the riser
+    console_.setFromObject(m.booth.group.children[2]);
+    const out = A.arms.map(a => { b.setFromObject(a.cab); const c = b.getCenter(new T.three.Vector3()); const fwd = new T.three.Vector3(0, 0, 1).applyQuaternion(a.cab.getWorldQuaternion(new T.three.Quaternion()));
+      return { hitsConsole: b.intersectsBox(console_), facing: +fwd.dot(ear.clone().sub(c).normalize()).toFixed(2), dist: +c.distanceTo(ear).toFixed(2) }; });
+    const locked = m.liftCommand('up').ok === false;
+    return { state: A.state, out, locked };
+  });
+  expect(r.state === 'DEPLOYED', 'the arms did not come out');
+  for (const a of r.out) expect(!a.hitsConsole && a.facing > 0.8 && a.dist < 2.1, 'a monitor is not placed for the DJ: ' + JSON.stringify(a));
+  expect(r.locked, 'the lift moved with the arms out');
+  await run(async () => { T.m.pickCamera('DJ2'); await T.sleep(3000); });
+  await shot('arms-DJ2');
+  await run(async () => { T.m.pickCamera('DJ1'); await T.sleep(2500); });
+  await shot('arms-DJ1');
+  for (const v of ['floor', 'djwide']) { await run(async v => { T.a.director.go(v, { instant: true }); await T.sleep(2500); }, v); await shot('down-' + v); }
+});
+
 await test('DJ1–DJ5 stand in the club (below the studio floor, inside its walls, clear of the lift); DJ6 looks down through the glass', async () => {
   const r = await run(async () => {
     const out = {};
@@ -217,6 +274,7 @@ await test('dragging in the club keeps the camera inside it; back to the main st
 await test('DJ lift HOLD: a moving lift stops and stays; UP / DOWN / transition refused; released, it answers again', async () => {
   const r = await run(async () => {
     const m = T.m;
+    await T.until(() => m.cover.state === 'CLOSED', 12000); await T.openCover();
     m.liftCommand('up'); await T.until(() => m.lift.depth < 4.0, 15000);
     m.setLiftHold(true); await T.until(() => !m.lift.moving, 10000);
     const held = m.lift.depth;
@@ -286,6 +344,8 @@ await test('DJ TRANSITION up: the same booth rides back into the studio; the clu
     return { state: m.lift.state, y: +p.y.toFixed(3), booths, cam: T.a.director.current };
   });
   expect(r.state === 'UP' && Math.abs(r.y) < 0.01 && r.booths === 1, 'not back up: ' + JSON.stringify(r));
+  const cv = await run(() => ({ state: T.m.cover.state, close: T.m.coverCommand('close').ok }));
+  expect(cv.state === 'OPEN' && cv.close === false, 'the cover should be open and refuse to close over the booth up: ' + JSON.stringify(cv));
   expect(await run(() => T.m.boothReflects) === 'up', 'up in the studio the console should reflect the studio');
   await run(async () => { T.m.pickCamera('DJ1'); await T.sleep(3000); });
   await shot('club-booth-up');

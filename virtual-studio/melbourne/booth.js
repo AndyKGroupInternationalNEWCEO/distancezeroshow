@@ -1,13 +1,14 @@
 // THE DJ booth (the one booth: it rides the DJ lift between the studio and the club): a riser, a long console with
 // the D//0 mark lit in its front, the gear on its work top (gear.js: four media players and a four-channel mixer at
-// real sizes, headphones, a talkback mic), the booth monitors on stands, and the cables down the back. Nothing here
+// real sizes, headphones, a talkback mic), the booth monitors on mechanical arms (arms.js), and the cables down the back. Nothing here
 // plays or mixes audio (that is the Broadcast Studio's and OBS's); the gear moves only on data it is sent.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { glow } from '../set.js';
 import { AMBER, ICE } from '../screens.js';
-import { CLUB_BOOTH as B, MONITORS, ROOM } from './layout.js';
+import { CLUB_BOOTH as B, ROOM } from './layout.js';
 import { buildGear, DECK_X } from './gear.js';
+import { buildArms } from './arms.js';
 
 const GOLD = new THREE.Color(AMBER), SILVER = new THREE.Color(ICE);
 
@@ -50,20 +51,8 @@ export function buildBooth({ M, parent, at, floor = ROOM.floor }) {
   });
   add(new RoundedBoxGeometry(0.3, 0.1, 0.18, 1, 0.01), panel, 0, B.riser + 0.05, back - 0.25);   // the floor box
 
-  /* ----- the booth monitors on stands, turned in to the DJ's head ----- */
-  const ear = new THREE.Vector3(0, B.riser + 1.62, -0.55);
-  for (const s of [-1, 1]) {
-    const st = new THREE.Group(); st.position.set(s * MONITORS.along, B.riser, MONITORS.across); g.add(st);
-    add(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 24), black, 0, 0.01, 0, st);
-    add(new THREE.CylinderGeometry(0.02, 0.02, MONITORS.height - 0.25, 12), panel, 0, (MONITORS.height - 0.25) / 2, 0, st);
-    const box = new THREE.Group(); box.position.y = MONITORS.height; st.add(box);
-    box.rotation.set(0, Math.atan2(ear.x - st.position.x, ear.z - st.position.z), 0);   // its front (+z) at the DJ
-    add(new RoundedBoxGeometry(0.3, 0.46, 0.32, 2, 0.02), black, 0, 0, 0, box);
-    add(new THREE.CircleGeometry(0.105, 32), rubber, 0, -0.07, 0.161, box);
-    add(new THREE.TorusGeometry(0.107, 0.006, 6, 32), M.chrome, 0, -0.07, 0.162, box);
-    add(new THREE.CircleGeometry(0.032, 24), new THREE.MeshStandardMaterial({ color: 0x777b82, metalness: 0.9, roughness: 0.3 }), 0, 0.13, 0.161, box);
-    add(new THREE.BoxGeometry(0.06, 0.008, 0.002), L(GOLD, 0.8), 0, -0.2, 0.161, box);
-  }
+  /* ----- the booth monitors on their mechanical arms (arms.js): stowed low behind the DJ, deployed in the club ----- */
+  const arms = buildArms({ parent: g, riser: B.riser, M, glow, black, rubber });
 
   /* ----- per frame: the console's own lights from the room's light state; the gear from its data (gear.js) ----- */
   function update(t, dt, Ls) {
@@ -73,6 +62,7 @@ export function buildBooth({ M, parent, at, floor = ROOM.floor }) {
       else l.m.color.copy(l.m.userData.base).multiplyScalar(s.level * l.k);
     }
     gear.update(t, dt, Ls);
+    arms.update(dt);
   }
-  return { group: g, update, gear };
+  return { group: g, update, gear, arms };
 }

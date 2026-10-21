@@ -14,19 +14,25 @@ import { AMBER, ICE } from '../screens.js';
 import { buildRoom, LED_PRESETS } from './room.js';
 import { buildBooth } from './booth.js';
 import { buildDjLift } from './djlift.js';
+import { buildClubFx } from './clubfx.js';
+import { buildCover } from './cover.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
-import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, inClub, inShaft, keepInClub, xyz } from './layout.js';
+import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, inClub, inShaft, keepInClub, xyz } from './layout.js';
 
 const GOLD = AMBER, SILVER = ICE, WHITE = '#fff4e8', WARM = '#ffd9b0', VIOLET = '#8a5cff', MAGENTA = '#ff3fa4', CYAN = '#3fd8ff';
 // each group: [level, colour, (heads) pattern | pulse]. Gold, silver and black by default; club colours in the
 // performance. `effects` are the presets' own suggestion for lasers, haze and strobe (the panel can override each)
 export const MODES = {
-  OPENING:     { spot: [0.6, SILVER, 'up'], wash: [0.35, GOLD, 'center'], strips: [0.5, GOLD], accent: [0.8, GOLD], booth: [0.9, GOLD], led: 0.55, preset: 'LOGO', lasers: [0, SILVER, 0], haze: 0.7, strobe: 0 },
-  PERFORMANCE: { spot: [1, WHITE, 'beat', 1], wash: [0.8, VIOLET, 'sweep'], strips: [1, MAGENTA], accent: [0.7, GOLD], booth: [1, GOLD], led: 1, preset: 'PULSE', lasers: [0.9, CYAN, 1], haze: 0.85, strobe: 0 },
-  BREAKDOWN:   { spot: [0.45, SILVER, 'sweep'], wash: [0.5, '#3b5bff', 'fan'], strips: [0.45, SILVER], accent: [0.5, SILVER], booth: [0.8, SILVER], led: 0.6, preset: 'WAVES', lasers: [0.45, SILVER, 0], haze: 1, strobe: 0 },
-  CLOSING:     { spot: [0.35, WARM, 'center'], wash: [0.4, GOLD, 'center'], strips: [0.35, GOLD], accent: [0.6, GOLD], booth: [0.8, GOLD], led: 0.45, preset: 'TRACK', lasers: [0, GOLD, 0], haze: 0.5, strobe: 0 },
-  BLACKOUT:    { spot: [0, WHITE, 'center'], wash: [0, WHITE, 'center'], strips: [0, GOLD], accent: [0, GOLD], booth: [0.06, GOLD], led: 0, preset: 'OFF', lasers: [0, WHITE, 0], haze: 0, strobe: 0 },
+  OPENING:     { spot: [0.6, SILVER, 'up'], wash: [0.35, GOLD, 'center'], strips: [0.5, GOLD], accent: [0.8, GOLD], booth: [0.9, GOLD], led: 0.55, preset: 'LOGO', lasers: [0, SILVER, 0], haze: 0.7, strobe: 0, disco: 0.7 },
+  PERFORMANCE: { spot: [1, WHITE, 'beat', 1], wash: [0.8, VIOLET, 'sweep'], strips: [1, MAGENTA], accent: [0.7, GOLD], booth: [1, GOLD], led: 1, preset: 'PULSE', lasers: [0.9, CYAN, 1], haze: 0.85, strobe: 0, disco: 0.35 },
+  BREAKDOWN:   { spot: [0.45, SILVER, 'sweep'], wash: [0.5, '#3b5bff', 'fan'], strips: [0.45, SILVER], accent: [0.5, SILVER], booth: [0.8, SILVER], led: 0.6, preset: 'WAVES', lasers: [0.45, SILVER, 0], haze: 1, strobe: 0, disco: 1 },
+  // BUILD-UP: the performance light rising over 16 bars, lasers scanning, the strobe creeping in at the end;
+  // DROP: everything at once on the drop, a fog burst, a short capped strobe, the laser tunnel, the LED pulse
+  'BUILD-UP':  { spot: [0.8, WHITE, 'sweep'], wash: [0.6, '#3b5bff', 'fan'], strips: [0.8, CYAN], accent: [0.5, SILVER], booth: [0.9, SILVER], led: 0.8, preset: 'TUNNEL', lasers: [0.8, CYAN, 1], laserPattern: 'scan', haze: 0.9, strobe: 0, disco: 0.25, ramp: 16 },
+  DROP:        { spot: [1, WHITE, 'beat', 1], wash: [1, MAGENTA, 'sweep'], strips: [1, MAGENTA], accent: [1, GOLD], booth: [1, GOLD], led: 1, preset: 'PULSE', lasers: [1, '#40ff8a', 1], laserPattern: 'tunnel', haze: 1, strobe: 0, disco: 0.2, drop: true },
+  CLOSING:     { spot: [0.35, WARM, 'center'], wash: [0.4, GOLD, 'center'], strips: [0.35, GOLD], accent: [0.6, GOLD], booth: [0.8, GOLD], led: 0.45, preset: 'TRACK', lasers: [0, GOLD, 0], haze: 0.5, strobe: 0, disco: 0.8 },
+  BLACKOUT:    { spot: [0, WHITE, 'center'], wash: [0, WHITE, 'center'], strips: [0, GOLD], accent: [0, GOLD], booth: [0.06, GOLD], led: 0, preset: 'OFF', lasers: [0, WHITE, 0], haze: 0, strobe: 0, disco: 0 },
 };
 const GROUPS = ['spot', 'wash', 'strips', 'accent', 'booth', 'lasers'];
 export const STROBE_MAX = 0.6;
@@ -46,10 +52,28 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   // THE one DJ booth, on the DJ lift's platform: it rides with it, up in the studio or down in the club. The studio's
   // own small music station steps aside on this page (it is not deleted: the public studio page keeps it)
   const djLift = buildDjLift({ M: studio.M, frame: room.frame });
+  const club = buildClubFx({ room: room.room, M: studio.M, lite: !quality?.reflections });
+  // the shaft cover: closes the opening upstairs once the booth is down, clears it before the booth comes up
+  const cover = buildCover({ M: studio.M, frame: room.frame, glass: room.glass });
   const booth = buildBooth({ M: studio.M, parent: djLift.platform, at: [CLUB_BOOTH.along - DJ_LIFT.along, 0, CLUB_BOOTH.across - DJ_LIFT.across], floor: 0 });
   if (studio.music) studio.music.visible = false;
   // the studio's on-air beacon on this side stood where the lift's opening now is: it moves just in front of it, on
   // solid floor (found by its place in set.js: (2.75, 0, 0.9))
+  // the studio's camera 3, its contact shadow and its cable move clear of the booth (CAM3); it aims at Andy'K as before
+  const cam3 = studio.cams[2]?.group, from3 = cam3?.position.clone();
+  if (cam3) {
+    const d = new THREE.Vector3(...CAM3).sub(from3);
+    studio.root.traverse(o => {
+      if (!o.isMesh || o.parent !== studio.root) return;
+      const near = Math.hypot(o.position.x - from3.x, o.position.z - from3.z) < 1e-3 && o.position.y < 0.01;   // its contact shadow
+      const tube = o.geometry?.type === 'TubeGeometry' && o.geometry.parameters.path?.getPoint(0).distanceTo(new THREE.Vector3(from3.x, 0.02, from3.z)) < 1e-3;   // its cable
+      if (near) o.position.add(d); else if (tube) o.position.add(d);
+    });
+    const yaw = cam3.rotation.y, aim = new THREE.Vector3(from3.x + Math.sin(yaw) * 6, 0, from3.z + Math.cos(yaw) * 6);   // where it looked
+    cam3.position.set(...CAM3); cam3.rotation.y = Math.atan2(aim.x - CAM3[0], aim.z - CAM3[2]);
+  }
+  Object.assign(VIEWS.floor, STUDIO_SHOTS.floor);
+  VIEWS.djwide = { ...STUDIO_SHOTS.djwide, tally: 2 };
   studio.root.traverse(o => { if (o.isGroup && o.parent === studio.root && Math.abs(o.position.x - 2.75) < 1e-3 && Math.abs(o.position.z - 0.9) < 1e-3 && o.position.y === 0) o.position.set(...BEACON); });
   // the drive: the Vienna lift's controller (its own instance). Its height is the depth: 0 = up in the studio
   const drive = createLift(DJ_LIFT);
@@ -62,6 +86,9 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     const name = { down: 'up', up: 'down', stop: 'stop', reset: 'reset' }[cmd];
     if (!name) return { ok: false, reason: 'No such lift command' };
     if (liftHold && cmd !== 'stop') { if (!quiet) say('DJ lift hold: the lift stays where it is (release the hold first)'); return { ok: false, reason: 'Lift hold' }; }
+    // interlock: the lift moves only while the shaft cover is fully open
+    if (cmd !== 'stop' && booth.arms.state !== 'STOWED') { if (!quiet) say('Monitor arms out: the lift waits until they are stowed'); return { ok: false, reason: 'Arms not stowed' }; }
+    if (cmd !== 'stop' && cover.state !== 'OPEN') { if (!quiet) say('Shaft cover ' + cover.state.toLowerCase() + ': the lift waits until it is open'); return { ok: false, reason: 'Cover not open' }; }
     if (cmd === 'stop' || cmd === 'reset') seq = null;
     const r = drive.command(name);
     if (!r.ok) { r.reason = REASON[r.reason] || r.reason; if (!quiet) say('DJ lift: ' + r.reason); }
@@ -78,31 +105,37 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   const probes = Promise.all([
     applyProbe(renderer, 'dj-booth', [booth.group, djLift.platform], { intensity: PROBE.booth, shared }),
     loadProbe(renderer, 'dj-booth-up'), loadProbe(renderer, 'dj-booth'),
-    applyProbe(renderer, 'dj-club', [room.floorMaterial], { intensity: PROBE.floor, shared }),
+    applyProbe(renderer, 'dj-club', [room.floorMaterial, club.mirrorMat], { intensity: PROBE.floor, shared }),
   ]).then(([mats, up, down, floor]) => { boothMats = mats; boothEnv = { up, down }; boothShows = 'down'; probesReady = { booth: mats.length, floor: floor.length }; return probesReady; })
     .catch(e => { console.warn('DJ room probes:', e.message); probesReady = false; });
 
   /* ----- light state: eased towards the preset, with the effects the operator set on top ----- */
   let mode = 'OPENING';
-  const fx = { lasers: null, laserLevel: 1, haze: null, strobe: 0, preset: null };   // null: follow the preset
-  const L = { led: { level: 0 }, haze: { level: 0 }, strobe: { level: 0 }, screens: { level: 1 }, pads: { level: 1 }, meters: { level: 1 }, preset: 'LOGO', track: null, smokeRequest: 0 };
+  const fx = { lasers: null, laserLevel: 1, haze: null, strobe: 0, preset: null, disco: null, discoSpeed: 1 };   // null: follow the preset
+  let modeBeat = 0, dropUntil = -1;   // the beat the mode was taken on (BUILD-UP's ramp); DROP's strobe until this beat
+  const L = { disco: { level: 0, speed: 1 }, fogFloor: { level: 0 }, led: { level: 0 }, haze: { level: 0 }, strobe: { level: 0 }, screens: { level: 1 }, pads: { level: 1 }, meters: { level: 1 }, preset: 'LOGO', track: null, smokeRequest: 0 };
   for (const g of GROUPS) L[g] = { level: 0, color: new THREE.Color(), pattern: 'center', pulse: 0 };
   const goal = new THREE.Color();
   let master = 0;   // the room as a whole: 1 while the DJ Room is the environment, a glow through the glass otherwise
   function ease(dt) {
-    const m = MODES[mode], k = 1 - Math.exp(-dt * 2.0);
+    const m = MODES[mode], k = 1 - Math.exp(-dt * (m.drop && beat < modeBeat + 2 ? 8 : 2.0));   // the drop lands at once
+    const ramp = m.ramp ? Math.min(1, 0.3 + 0.7 * (beat - modeBeat) / (4 * m.ramp)) : 1;
     for (const g of GROUPS) {
       const [level, color, extra, pulse] = m[g];
       let lvl = level;
       if (g === 'lasers') { lvl = fx.lasers === null ? level : fx.lasers ? Math.max(level, 0.8) : 0; lvl *= fx.laserLevel; }
-      L[g].level += (lvl * master - L[g].level) * k;
+      L[g].level += (lvl * ramp * master - L[g].level) * k;
       L[g].color.lerp(goal.set(color), k);
       if (g === 'spot' || g === 'wash') { L[g].pattern = extra; L[g].pulse = pulse || 0; }
-      if (g === 'lasers') L[g].pulse = extra;
+      if (g === 'lasers') { L[g].pulse = extra; L[g].pattern = m.laserPattern || 'fan'; }
     }
     L.led.level += (m.led * Math.max(master, 0.25) - L.led.level) * k;
     L.haze.level += ((fx.haze ?? m.haze) * master - L.haze.level) * k;
-    L.strobe.level = Math.min(STROBE_MAX, fx.strobe) * master;
+    // the strobe: the operator's level; BUILD-UP's last four bars creep in; DROP's two bars (all capped, ≤ 3 flashes/s)
+    const auto = m.ramp && ramp > 0.8 ? 0.25 * (ramp - 0.8) / 0.2 : beat < dropUntil ? STROBE_MAX : 0;
+    L.strobe.level = Math.min(STROBE_MAX, Math.max(fx.strobe, auto)) * master;
+    L.disco.level += ((fx.disco === null ? m.disco ?? 0 : fx.disco ? 1 : 0) * master - L.disco.level) * k; L.disco.speed = fx.discoSpeed;
+    L.fogFloor.level = Math.max(0, L.fogFloor.level - dt / 14);   // the ground fog fades over about 14 s
     L.preset = fx.preset || m.preset;
     for (const g of ['screens', 'pads', 'meters']) L[g].level = Math.max(0.2, L.booth.level);
   }
@@ -143,6 +176,19 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     if (dir === 'down') { env = 'djroom'; mode = 'OPENING'; fx.preset = null; liftView('top'); if (wall.auto && show !== 'live') api.setShow('live'); say('DJ transition: the booth goes down'); }
     else { mode = 'CLOSING'; fx.preset = null; liftView('low'); say('DJ transition: the booth goes up'); }
   }
+  // the cover: CLOSE only over a lift standing down; OPEN whenever it is not open (never while the lift moves: it is
+  // locked then anyway, the lift only moves while the cover is open)
+  function coverCommand(cmd, { quiet = false } = {}) {
+    if (liftHold) { if (!quiet) say('DJ lift hold: the shaft cover stays where it is'); return { ok: false, reason: 'Lift hold' }; }
+    if (cmd === 'close' && (liftState() !== 'DOWN' || drive.moving)) { if (!quiet) say('The shaft cover closes only once the booth is down'); return { ok: false, reason: 'Lift not down' }; }
+    const r = cover.command(cmd); if (!quiet && r.ok) say('Shaft cover: ' + cmd); return r;
+  }
+  // the monitor arms: out only with the booth standing down in the club; in at any time (the lift waits for them)
+  function armsCommand(cmd, { quiet = false } = {}) {
+    if (liftHold) { if (!quiet) say('DJ lift hold: the monitor arms stay where they are'); return { ok: false, reason: 'Lift hold' }; }
+    if (cmd === 'deploy' && (liftState() !== 'DOWN' || drive.moving)) { if (!quiet) say('The monitor arms come out only once the booth is down'); return { ok: false, reason: 'Lift not down' }; }
+    const r = booth.arms.command(cmd); if (!quiet && r.ok) say('Monitor arms: ' + cmd); return r;
+  }
   function runSequence(dt) {
     if (!seq) return;
     seq.t += dt;
@@ -151,9 +197,11 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
       if (seq.step === 0 && seq.t >= 2.5) { seq.step = 1; if (!liftCommand('down', { quiet: true }).ok) { seq = null; return; } }
       else if (seq.step === 1 && h >= 1.3) { seq.step = 2; cut('DJ6', { instant: true }); }
       else if (seq.step === 2 && h >= 3.3) { seq.step = 3; liftView('low'); }
-      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; mode = 'PERFORMANCE'; cut('DJ1', { instant: true }); say('DJ room: the booth is down · PERFORMANCE'); }
+      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; mode = 'PERFORMANCE'; modeBeat = beat; cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
       else if (seq.step === 4 && seq.t >= seq.end) { seq = null; cut('DJ2', { instant: true }); }
     } else {
+      if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,
+      if (seq.step === 0 && cover.state !== 'OPEN') { if (cover.state !== 'OPENING') coverCommand('open', { quiet: true }); seq.t = 0; return; }   // then the cover clears
       if (seq.step === 0 && seq.t >= 1.5) { seq.step = 1; if (!liftCommand('up', { quiet: true }).ok) { seq = null; return; } }
       else if (seq.step === 1 && h <= 2.2) { seq.step = 2; liftView('top'); }
       else if (seq.step === 2 && s === 'UP') { seq = null; env = 'studio'; say('The booth is up in the studio'); }
@@ -184,6 +232,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     // the DJ lift: one step of its drive, the platform (and the booth on it) where it is
     const h = drive.step(dt);
     djLift.pose(h);
+    cover.update(dt);
     // the console's reflections: the studio's while it is up there, the club's once it is down in it
     const where = h > DJ_LIFT.travel * 0.55 ? 'down' : 'up';
     if (boothShows && where !== boothShows) { boothShows = where; for (const m of boothMats) m.envMap = boothEnv[where]; }
@@ -210,28 +259,38 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     desk.apply();
     const seen = frustum.intersectsBox(room.bounds) || feedWanted();
     room.root.visible = seen;
-    if (seen) { room.face(camera); room.update(t, dt, L, beat); booth.update(t, dt, L, beat); }
-    ui?.show({ lift: liftState(), hold: liftHold, mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null, show, wall: wallName(), wallAuto: wall.auto, desk: desk.on });
+    if (seen) { room.face(camera); room.update(t, dt, L, beat); booth.update(t, dt, L, beat); club.update(t, dt, L); }
+    ui?.show({ cover: cover.state, lift: liftState(), hold: liftHold, mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null, show, wall: wallName(), wallAuto: wall.auto, desk: desk.on });
   }
 
   /* ----- the controls (the panel uses these; the Broadcast Studio's bridge will use the same) ----- */
   const api = {
-    update, room, booth, L, MODES,
+    update, room, booth, club, L, MODES,
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
     get travelling() { return !!seq; },
     setEnv,
     pickCamera(k) { if (!CAMS[k]) return say('No such camera'); seq = null; auto = false; env = 'djroom'; cut(k); say('DJ room: ' + CAMS[k].name); },
     setAuto(on) { auto = !!on; autoNext = beat; say(auto ? 'Automatic camera sequence on (8 bars a shot)' : 'Automatic camera sequence off'); },
     // the DJ lift: 'down' / 'up' (the DJ TRANSITION with its cameras and light), or the bare lift commands
-    transition, liftCommand,
+    transition, liftCommand, coverCommand, armsCommand, cover,
+    setSfx(on, volume) { cover.sound.set(on, volume); booth.arms.sound.set(on, volume); say(on ? 'Set sounds on' : 'Set sounds off'); },
     setLiftHold(on) { liftHold = !!on; if (liftHold) { seq = null; if (drive.moving) drive.command('stop'); } say(liftHold ? 'DJ lift hold on: the lift stays where it is' : 'DJ lift hold off'); },
     get lift() { return { state: liftState(), depth: drive.height, speed: -drive.speed, moving: drive.moving, hold: liftHold, travel: DJ_LIFT.travel }; },
     djLift, get probes() { return probesReady; }, get boothReflects() { return boothShows; }, probesLoaded: () => probes,
-    setMode(m) { if (!MODES[m]) return say('No such lighting preset'); mode = m; fx.preset = null; say('Lighting: ' + m); },
+    setMode(m) {
+      if (!MODES[m]) return say('No such lighting preset');
+      mode = m; fx.preset = null; modeBeat = beat;
+      if (MODES[m].drop) { dropUntil = beat + 8; api.fog(3); }
+      say('Lighting: ' + m);
+    },
+    // D//0 DISCO ZERO: on, off or with the preset (null); its speed (1 = about two turns a minute)
+    disco(on, speed) { fx.disco = on === null || on === undefined ? null : !!on; if (speed !== undefined) fx.discoSpeed = Math.max(0, Math.min(3, +speed)); say(`Disco ball ${fx.disco === null ? 'with the preset' : fx.disco ? 'on' : 'off'}`); },
+    // a FOG burst: the machines puff for `seconds`, then ground fog spreads and fades (HAZE is the steady air: haze())
+    fog(seconds = 3) { L.smokeRequest = Math.max(0.5, Math.min(8, +seconds)); L.fogFloor.level = Math.min(1, L.fogFloor.level + 0.35 + seconds * 0.12); say('Fog burst: ' + L.smokeRequest + ' s'); },
     setLed(p) { if (!LED_PRESETS.includes(p)) return say('No such LED preset'); fx.preset = p; say('LED walls: ' + p); },
     lasers(on, level) { fx.lasers = on === null ? null : !!on; if (level !== undefined) fx.laserLevel = Math.max(0, Math.min(1, +level)); say(`Lasers ${fx.lasers === null ? 'with the preset' : fx.lasers ? 'on' : 'off'} · ${Math.round(fx.laserLevel * 100)} %`); },
     haze(density) { fx.haze = density === null ? null : Math.max(0, Math.min(1, +density)); say(`Haze ${fx.haze === null ? 'with the preset' : Math.round(fx.haze * 100) + ' %'}`); },
-    smoke(seconds = 2.5) { L.smokeRequest = Math.max(0.5, Math.min(6, +seconds)); say('Smoke: a burst of ' + L.smokeRequest + ' s'); },
+    smoke(seconds = 2.5) { api.fog(seconds); },
     strobe(level) { fx.strobe = Math.max(0, Math.min(STROBE_MAX, +level)); say(fx.strobe ? `Strobe ${Math.round((fx.strobe / STROBE_MAX) * 100)} % (max 3 flashes a second)` : 'Strobe off'); },
     setTrack(tr) { L.track = tr?.title ? { title: String(tr.title).slice(0, 60), artist: String(tr.artist || '').slice(0, 60) } : null; say(L.track ? 'Track: ' + L.track.title : 'Track cleared'); },
     // THE GEAR (gear.js), from the Broadcast Studio's data only: decks 1–4, the mixer, the meters, the talkback mic.
@@ -258,7 +317,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     setDeskMonitors(on) { desk.on = !!on; desk.apply(); say(desk.on ? 'Presenter monitors: DJ room live' : 'Presenter monitors off'); },
     feed: { shot: c => feedShot(c), wanted: () => feedWanted(), before: c => feedBefore(c), after: (r, rt) => overlay.render(r, rt) },
     linkWall(set, get, texture) { wall.setSource = set; wall.getSource = get; wall.texture = texture; },
-    report() { return { gear: booth.gear.report(), lift: liftState(), liftDepth: +drive.height.toFixed(3), liftHold, env, mode, program, auto, show, wall: wallName(), wallAuto: wall.auto, shown, deskMonitors: desk.on, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!seq, view: director.current }; },
+    report() { return { gear: booth.gear.report(), cover: cover.state, arms: booth.arms.state, lift: liftState(), liftDepth: +drive.height.toFixed(3), liftHold, env, mode, program, auto, show, wall: wallName(), wallAuto: wall.auto, shown, deskMonitors: desk.on, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!seq, view: director.current }; },
   };
   ui = panel(api);
   return api;
@@ -278,7 +337,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     const v = VIEWS[id(shown)];
     c.position.set(...v.pos); c.lookAt(...v.target); c.fov = v.fov;
   }
-  function feedBefore(c) { room.root.visible = true; room.face(c); room.update(t, 0, L, beat); booth.update(t, 0, L, beat); }
+  function feedBefore(c) { room.root.visible = true; room.face(c); room.update(t, 0, L, beat); booth.update(t, 0, L, beat); club.update(t, 0, L); }
 }
 
 // the studio's wall upstairs and its box (taken before anything is routed to it)
@@ -374,6 +433,7 @@ function panel(api) {
       <div class="row">${btn('env', 'studio', 'Main studio')}${btn('env', 'djroom', 'DJ room')}</div>
       <h3>DJ lift <small data-k="lift"></small></h3>
       <div class="row">${btn('travel', 'down', 'Transition ↓')}${btn('travel', 'up', 'Return ↑')}${btn('lift', 'down', 'Down')}${btn('lift', 'up', 'Up')}${btn('lift', 'stop', 'Stop')}${btn('lifthold', '1', 'Hold')}</div>
+      <div class="row">${btn('cover', 'close', 'Cover close')}${btn('cover', 'open', 'Cover open')}${btn('arms', 'deploy', 'Arms out')}${btn('arms', 'retract', 'Arms in')}</div>
       <h3>DJ show</h3>
       <div class="row">${btn('show', 'live', 'Live')}${btn('show', 'break', 'Break')}${btn('show', 'ended', 'Ended')}</div>
       <h3>Studio wall upstairs</h3>
@@ -391,7 +451,8 @@ function panel(api) {
       <div class="row">${btn('lasers', 'preset', 'Lasers: preset')}${btn('lasers', 'on', 'On')}${btn('lasers', 'off', 'Off')}</div>
       <label>Laser intensity <input type="range" min="0" max="1" step="0.05" value="1" data-k="laserLevel"></label>
       <label>Haze density <input type="range" min="0" max="1" step="0.05" value="0.7" data-k="haze"></label>
-      <div class="row">${btn('haze', 'preset', 'Haze: preset')}${btn('smoke', '1', 'Smoke burst')}</div>
+      <div class="row">${btn('haze', 'preset', 'Haze: preset')}${btn('smoke', '1', 'Fog burst')}</div>
+      <div class="row">${btn('disco', 'preset', 'Disco ball: preset')}${btn('disco', 'on', 'On')}${btn('disco', 'off', 'Off')}</div>
       <label>Strobe (capped, max 3 flashes/s) <input type="range" min="0" max="${STROBE_MAX}" step="0.05" value="0" data-k="strobe"></label>
       <label>Tempo clock (BPM — not audio-reactive) <input type="number" min="60" max="200" step="1" value="128" data-k="bpm"></label>
       <p class="msg" data-k="msg" role="status" aria-live="polite"></p>
@@ -407,6 +468,8 @@ function panel(api) {
     if (d.env) api.setEnv(d.env);
     else if (d.travel) api.transition(d.travel);
     else if (d.lift) api.liftCommand(d.lift);
+    else if (d.cover) api.coverCommand(d.cover);
+    else if (d.arms) api.armsCommand(d.arms);
     else if (d.lifthold) api.setLiftHold(!api.lift.hold);
     else if (d.cam) { if (api.env !== 'djroom') api.setEnv('djroom', { transition: false }); api.pickCamera(d.cam); }
     else if (d.auto) api.setAuto(!api.auto);
@@ -419,7 +482,8 @@ function panel(api) {
     else if (d.track) api.setTrack(d.track === 'set' ? { title: q('title').value, artist: q('artist').value } : null);
     else if (d.lasers) api.lasers(d.lasers === 'preset' ? null : d.lasers === 'on');
     else if (d.haze) api.haze(null);
-    else if (d.smoke) api.smoke();
+    else if (d.smoke) api.fog(3);
+    else if (d.disco) api.disco(d.disco === 'preset' ? null : d.disco === 'on');
   });
   el.addEventListener('input', e => {
     const k = e.target.dataset.k;
@@ -435,7 +499,7 @@ function panel(api) {
   return {
     msg: q('msg'),
     show(s) {
-      liftLabel.textContent = s.lift;
+      liftLabel.textContent = s.lift + ' · cover ' + s.cover;
       const key = [s.lift, s.hold, s.mode, s.env, s.program, s.auto, s.preset, s.fx.lasers, s.fx.haze === null, s.view, s.show, s.wall, s.wallAuto, s.desk].join('|');
       if (key === last) return; last = key;
       press('[data-env]', b => b.dataset.env === s.env);

@@ -59,6 +59,16 @@ export const OPENING = (() => {
   const p = { a0: DJ_LIFT.along - DJ_LIFT.w / 2, a1: DJ_LIFT.along + DJ_LIFT.w / 2, c0: DJ_LIFT.across - DJ_LIFT.d / 2 };
   return [[g.a0, g.c1], [g.a1, g.c1], [g.a1, g.c0], [p.a1, g.c0], [p.a1, p.c0], [p.a0, p.c0], [p.a0, g.c0], [g.a0, g.c0]];
 })();
+// the studio's camera 3 (set.js: (5.1, 0, 3.85)) stood 0.6 m from the booth's front corner once the booth is the big one
+// up in the studio: on the two-level page it stands 0.9 m further left and 1 m further back, aimed as before
+export const CAM3 = [4.2, 0, 4.9];
+// the studio's views that change with the booth up here: 'floor' (behind camera 3) further left, back and higher, so
+// the booth no longer fills half of it; and a wide DJ shot: the booth, the studio and the open floor in front of the
+// booth for the audience (about 30 people)
+export const STUDIO_SHOTS = {
+  floor: { pos: [3.4, 2.6, 8.7], target: [-0.3, 1.1, -2.1], fov: 36 },
+  djwide: { label: 'DJ wide', long: 'DJ booth, studio and audience floor', pos: [-2.9, 4.6, 11.2], target: [2.9, 0.8, 1.4], fov: 46, drift: 0.16 },
+};
 // the studio's on-air beacon on the Melbourne side, moved off the opening to just in front of it
 export const BEACON = xyz(-0.89, 4.35, 0);
 // the platform's footprint [along0, along1, across0, across1]
