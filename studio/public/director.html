@@ -534,6 +534,20 @@
   </section>
 </main>
 
+<div class="switchdlg" id="switchDlg" hidden role="alertdialog" aria-modal="true" aria-labelledby="swTitle" aria-describedby="swList">
+  <div>
+    <span class="label">Switch show</span>
+    <h2 id="swTitle"></h2>
+    <ul class="sw-list" id="swList"></ul>
+    <p class="sw-note" id="swNote"></p>
+    <div class="sw-actions">
+      <button class="b primary sw-end" type="button" id="swEnd"></button>
+      <button class="b" type="button" id="swGo" hidden></button>
+      <button class="b quiet" type="button" id="swStay"></button>
+    </div>
+  </div>
+</div>
+
 <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div>
     <div class="row"><h2 class="label grow" id="helpTitle">Keyboard</h2><button class="b sm quiet" type="button" id="helpClose">Close</button></div>

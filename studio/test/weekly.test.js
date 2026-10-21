@@ -133,7 +133,9 @@ test('SATURDAY playlist: piano arrangements without the intro; no piano master =
   const S = await fresh(d, s => s.showId === 'saturday' && s.playlist?.viaStage);
   assert.deepEqual(S.playlist.tracks.map(t => t.title), ['Game', 'In My Veins', 'Perfume', 'Midnight Drive', 'Mask', 'Stone']);
   assert.ok(S.playlist.tracks.every(t => !t.available && /PIANO MASTER MISSING/.test(t.missing)));
-  assert.equal(S.rundown.segments[1].cues.stage, 'start');
+  // the opening: 1 film → 2 host welcome → 3 cinematic transition → 4 piano performance (one GO each)
+  assert.deepEqual(S.rundown.segments.slice(1, 5).map(x => [x.cues.scene, x.cues.video, x.cues.stage || '']),
+    [['OPENING', 'V35', ''], ['HOST · PIANO', '', ''], ['PIANO STAGE · CLEAN', '', 'transition'], ['PIANO STAGE', '', 'live']]);
   assert.equal(S.rundown.segments.at(-1).cues.stage, 'closing');
   mock.log.length = 0;
   const r = await d.send({ t: 'playlist', action: 'play', index: 0 });
@@ -163,6 +165,7 @@ test('SATURDAY on the stage: PLAY / PAUSE / resume / STOP / NEXT go to the stage
     if (m.cmd === 'resume') rep.paused = false;
     if (m.cmd === 'song-stop' || m.cmd === 'live') rep = { ...rep, state: 'LIVE', segment: null, song: null, paused: false };
     if (m.cmd === 'start') rep = { ...rep, state: 'OPENING', segment: 'opening', label: 'Short opening · official ident' };
+    if (m.cmd === 'transition') { st.raw({ t: 'stage.ack', ref: m.ref, error: 'This Piano Stage has no cinematic transition yet (the Virtual Space adds ext.cinematicTransition)', say: '', r: rep }); return; }
     st.raw({ t: 'stage.report', r: rep });
     st.raw({ t: 'stage.ack', ref: m.ref, error: '', say: '', r: rep });
   });
@@ -203,14 +206,22 @@ test('SATURDAY on the stage: PLAY / PAUSE / resume / STOP / NEXT go to the stage
   // the stage's own segments, cameras and lights from the Director
   assert.equal((await d.send({ t: 'stage', cmd: 'cam', cam: 'P2' })).ok, true); assert.equal(cmds.at(-1).cam, 'P2');
   assert.equal((await d.send({ t: 'stage', cmd: 'rm -rf' })).ok, false);
-  // GO into the opening fires the stage's START with the scene
+  // STEP 1: the opening film is not delivered — GO says so and nothing stands in for it; the stage is not touched
   await d.send({ t: 'rundown', action: 'reset' });
+  const n0 = cmds.length;
   const go = await d.send({ t: 'cue.go', index: 1 });
   assert.equal(go.ok, true, JSON.stringify(go));
-  assert.equal(cmds.at(-1).cmd, 'start');
-  assert.ok(go.result.done.some(x => /PIANO STAGE START/.test(x)), JSON.stringify(go.result));
-  // (the mock OBS has the Sunday scenes only: the cue's scene is reported as missing, the stage still fires)
-  assert.ok(go.result.skipped.some(x => /SCENE PIANO STAGE · CLEAN: not in this OBS collection/.test(x)));
+  assert.ok(go.result.skipped.some(x => /V35 — PIANO SESSIONS OPENING FILM: VIDEO NOT AVAILABLE/.test(x)), JSON.stringify(go.result));
+  assert.equal(cmds.length, n0, 'no stage command in the opening film');
+  // STEP 3: the transition goes to the stage; a stage without it says so (the mock OBS has the Sunday scenes only)
+  const tr = await d.send({ t: 'cue.go', index: 3 });
+  assert.equal(cmds.at(-1).cmd, 'transition');
+  assert.ok(tr.result.skipped.some(x => /PIANO STAGE transition: This Piano Stage has no cinematic transition yet/.test(x)), JSON.stringify(tr.result));
+  assert.ok(tr.result.skipped.some(x => /SCENE PIANO STAGE · CLEAN: not in this OBS collection/.test(x)));
+  // STEP 4: LIVE PIANO; no song starts by itself
+  const lv = await d.send({ t: 'cue.go', index: 4 });
+  assert.equal(cmds.at(-1).cmd, 'live'); assert.ok(lv.result.done.some(x => /PIANO STAGE LIVE/.test(x)), JSON.stringify(lv.result));
+  assert.ok(!cmds.some(c => c.cmd === 'song' && cmds.indexOf(c) >= n0), 'no song started by the opening steps');
   await d.send({ t: 'rundown', action: 'reset' });
   st.close();
   await until(async () => !(await fresh(d, () => true)).stage.connected);

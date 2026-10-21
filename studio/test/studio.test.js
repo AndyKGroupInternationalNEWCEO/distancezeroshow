@@ -864,6 +864,50 @@ test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, stand
   d.close(); ov.close();
 });
 
+test('switching shows: instant when the show is over; otherwise it says what runs, why, and END & SWITCH ends it — never the stream or the recording', async () => {
+  const d = client(D, { cookie: directorCookie });
+  await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  assert.equal((await d.send({ t: 'show.select', show: 'friday' })).ok, true);
+  // 1. Friday is over: Friday → Sunday at once
+  const c0 = await d.send({ t: 'show.check', show: 'sunday' });
+  assert.deepEqual(c0.result.blockers, []);
+  assert.equal((await d.send({ t: 'show.select', show: 'sunday' })).ok, true);
+  assert.equal(mock.state.collection, 'DZ — Sunday Show');
+  assert.equal((await d.send({ t: 'show.select', show: 'friday' })).ok, true);
+  // 2. the show timer runs: refused with what runs, and the one fix
+  await d.send({ t: 'rundown', action: 'next' });
+  const c1 = await d.send({ t: 'show.check', show: 'sunday' });
+  assert.equal(c1.result.fromName, "FRIDAY — DJ ANDY'K"); assert.equal(c1.result.toName.startsWith('SUNDAY'), true);
+  assert.deepEqual(c1.result.blockers.map(b => [b.id, b.fix]), [['clock', true]]);
+  assert.match(c1.result.blockers[0].text, /01 FRIDAY LIVE OPENING.*started \d\d:\d\d Vienna/);
+  const r1 = await d.send({ t: 'show.select', show: 'sunday' });
+  assert.equal(r1.ok, false); assert.match(r1.error, /still active: The show timer is running/);
+  assert.deepEqual(r1.check.blockers.map(b => b.id), ['clock'], 'the refusal carries the same explanation');
+  assert.equal(mock.state.collection, "DJ Andy'K — Friday Show", 'nothing switched');
+  // 3. recording too: END & SWITCH is refused while OBS records, and the recording is not stopped
+  assert.equal((await d.send({ t: 'obs', action: 'record', on: true })).ok, true);
+  await until(() => app.obs.state.record.active);
+  const c2 = await d.send({ t: 'show.check', show: 'sunday' });
+  assert.deepEqual(c2.result.blockers.map(b => [b.id, b.fix]), [['record', false], ['clock', true]]);
+  const r2 = await d.send({ t: 'show.select', show: 'sunday', end: true });
+  assert.equal(r2.ok, false); assert.equal(mock.state.record, true, 'the switch never stops the recording');
+  await d.send({ t: 'obs', action: 'record', on: false });
+  await until(() => !app.obs.state.record.active);
+  // 4. END FRIDAY & SWITCH TO SUNDAY: the timer ends, Sunday loads
+  const r3 = await d.send({ t: 'show.select', show: 'sunday', end: true });
+  assert.equal(r3.ok, true, JSON.stringify(r3));
+  const sun = await d.next(m => m.t === 'state' && m.s.showId === 'sunday');
+  assert.equal(sun.s.rundown.index, -1); assert.equal(mock.state.collection, 'DZ — Sunday Show');
+  // 5. a break running: named, and ended by END & SWITCH
+  await d.send({ t: 'rundown', action: 'go', index: 4 });
+  const c4 = await d.send({ t: 'show.check', show: 'friday' });
+  assert.ok(c4.result.blockers.some(b => b.id === 'clock'));
+  assert.equal((await d.send({ t: 'show.select', show: 'friday', end: true })).ok, true);
+  assert.equal((await d.send({ t: 'show.select', show: 'sunday' })).ok, true, 'over: back at once');
+  d.close();
+});
+
 test('episode scripts: copy of the master, private notes, versions, reviewed import, and the T−180 lock enforced by the server', async () => {
   const d = client(D, { cookie: directorCookie }), hst = client(G, { cookie: hostCookie });
   await Promise.all([d.opened, hst.opened]);

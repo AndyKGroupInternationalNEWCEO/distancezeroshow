@@ -533,6 +533,18 @@
       "file": "shared-assets/virtual-studio/02-predshow/opening-prichod-FINAL.mp4",
       "embeddedAudio": true,
       "note": "Final arrival opening from Virtual Space (16 Oct 2026): ends full frame on the moving studio background."
+    },
+    {
+      "id": "V35",
+      "title": "PIANO SESSIONS OPENING FILM",
+      "category": "OPENING",
+      "shows": [
+        "saturday"
+      ],
+      "file": "shared-assets/piano-sessions/opening/PIANO SESSIONS — OPENING_1080p.mp4",
+      "embeddedAudio": true,
+      "linkedAudio": null,
+      "note": "NOT DELIVERED YET (21 Oct 2026). The new Saturday opening film: piano, logo and music, with its own sound. Plays once in OPENING on GO of \"OPENING VIDEO\"; then GO → HOST WELCOME. Drop the file here under exactly this name; nothing stands in for it."
     }
   ],
   "fx": [

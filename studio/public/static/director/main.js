@@ -120,17 +120,57 @@ try { if (localStorage.getItem('dz-mode') === 'host') ctx.setMode(true); } catch
 initLayout();
 initHelpTips('director');
 
-// selecting a show loads its OBS scene collection, rundown, microphones, standby scene, transition and graphics
+// selecting a show loads its OBS scene collection, rundown, microphones, standby scene, transition and graphics.
+// If the current show still runs, the switch dialog says what runs, why, and offers END & SWITCH or STAY.
 $('#showPick').addEventListener('change', e => {
   const id = e.target.value; if (!id) return;
-  act(null, async () => {
-    try {
-      const r = await ctx.conn.send({ t: 'show.select', show: id });
-      const notes = r?.result?.notes || r?.notes || [];
-      if (notes.length) toast(notes.join(' · '), 'warn');
-    } catch (err) { e.target.value = ctx.S?.showId || ''; throw err; }
-  }, 'Show loaded');
+  e.target.value = ctx.S?.showId || '';           // stays on the current show until the switch has really happened
+  switchTo(id);
 });
+async function switchTo(id, end = false) {
+  try {
+    const chk = end ? null : await ctx.conn.send({ t: 'show.check', show: id });
+    if (chk?.blockers?.length) return switchDialog(chk);
+    const r = await ctx.conn.send({ t: 'show.select', show: id, end });
+    const notes = r?.notes || [];
+    toast(notes.length ? notes.join(' · ') : 'Show loaded', notes.length ? 'warn' : 'ok');
+    $('#switchDlg').hidden = true;
+  } catch (err) {
+    if (err.check) return switchDialog(err.check);   // something started in between: show it again
+    toast(err.message, 'bad');
+  }
+}
+const short = n => (n || '').split(' — ')[0];
+function switchDialog(chk) {
+  const dlg = $('#switchDlg'), hard = chk.blockers.filter(b => !b.fix);
+  const from = short(chk.fromName) || 'The current show', to = short(chk.toName);
+  dlg.classList.toggle('hard', hard.length > 0);
+  $('#swTitle').textContent = `${chk.fromName || 'The current show'} is still active`;
+  $('#swList').replaceChildren(...chk.blockers.map(b => {
+    const li = document.createElement('li'); li.className = b.fix ? '' : 'hard';
+    li.append(Object.assign(document.createElement('b'), { textContent: b.title }), Object.assign(document.createElement('span'), { textContent: b.text }));
+    return li;
+  }));
+  const end = $('#swEnd'), go = $('#swGo');
+  if (hard.length) {
+    end.hidden = true;
+    const live = hard.find(b => b.id === 'stream' || b.id === 'record');
+    go.hidden = !live;
+    go.textContent = 'Open broadcast controls';
+    go.onclick = () => { dlg.hidden = true; location.hash = 'live'; document.getElementById(hard.some(b => b.id === 'stream') ? 'outStream' : 'outRec')?.scrollIntoView({ block: 'center' }); };
+    $('#swNote').textContent = live ? 'Nothing was stopped. Stream and recording are ended only by you — then choose the show again.' : 'Nothing was changed. Try again in a moment.';
+  } else {
+    end.hidden = false; go.hidden = true;
+    end.textContent = `End ${from} & switch to ${to}`;
+    end.onclick = () => { end.disabled = true; switchTo(chk.to, true).finally(() => { end.disabled = false; }); };
+    $('#swNote').textContent = 'The stream and the recording are never touched. Scripts, notes and episodes stay saved.';
+  }
+  $('#swStay').textContent = `Stay in ${from}`;
+  $('#swStay').onclick = () => { dlg.hidden = true; };
+  dlg.hidden = false;
+  (hard.length ? $('#swStay') : end).focus();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#switchDlg').hidden) $('#switchDlg').hidden = true; });
 
 $('#popout').addEventListener('click', () => {
   const w = window.open(location.pathname + '#' + ctx.ws, 'dz-' + ctx.ws, 'popup,width=1440,height=900');

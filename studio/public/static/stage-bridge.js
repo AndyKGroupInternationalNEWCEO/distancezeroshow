@@ -52,6 +52,11 @@ async function start() {
       case 'cam': if (!CAMS.has(c.cam)) throw new Error('No such camera'); ext.pickCamera(c.cam); return;
       case 'mode': if (!MODES.has(c.mode)) throw new Error('No such lighting mode'); ext.setMode(c.mode); return;
       case 'lift': if (!LIFT.has(c.lift)) throw new Error('No such lift command'); ext.command(c.lift); return;
+      // Saturday's STEP 3: the stage's own camera flight through the studio, ending in the main monitor (the Piano
+      // Stage picture) so close that it fills the frame — provided by the Virtual Space (PIANO-OPENING-HANDOFF.md)
+      case 'transition':
+        if (typeof ext.cinematicTransition !== 'function') throw new Error('This Piano Stage has no cinematic transition yet (the Virtual Space adds ext.cinematicTransition)');
+        ext.cinematicTransition(); return;
       default:
         if (!SHOW_CMDS.has(c.cmd)) throw new Error('Unknown stage command');
         ext.showCommand(c.cmd);

@@ -297,7 +297,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   const currentShow = () => shows.find(s => s.id === state.showId) || null;
   playlist.build(currentShow());
   // what the director may tell the stage directly (show segments, cameras, lighting, lift)
-  const STAGE_CMDS = new Set(['start', 'stop', 'restart', 'skip', 'live', 'between', 'between-stop', 'return-live', 'closing', 'closing-stop', 'closing-restart', 'cam', 'mode', 'lift', 'seek']);
+  const STAGE_CMDS = new Set(['start', 'stop', 'restart', 'skip', 'live', 'between', 'between-stop', 'return-live', 'closing', 'closing-stop', 'closing-restart', 'cam', 'mode', 'lift', 'seek', 'transition']);
   async function stageAction(msg) {
     if (!STAGE_CMDS.has(msg.cmd)) throw new Error('Unknown stage command');
     const r = await stage.send({ cmd: msg.cmd, cam: str(msg.cam, 4), mode: str(msg.mode, 20), lift: str(msg.lift, 8), time: Math.max(0, Number(msg.time) || 0) });
@@ -482,7 +482,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         err => {
           log.warn(`[studio] ${role} ${msg.t}${msg.action ? '/' + msg.action : ''}: ${err.message}`);
           if (role === 'director') logEvent('warn', `${msg.t}${msg.action ? ' ' + msg.action : ''}: ${err.message}`);
-          if (msg.id) client.send({ t: 'ack', id: msg.id, ok: false, error: err.message });
+          if (msg.id) client.send({ t: 'ack', id: msg.id, ok: false, error: err.message, ...(err.check ? { check: err.check } : {}) });
         },
       );
     });
@@ -533,6 +533,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'reminder': return reminderAction(msg);
       case 'settings': return settingsAction(msg);
       case 'gfx': return gfxAction(msg);
+      case 'show.check': return switchCheck(str(msg.show, 30));
       case 'show.select': return selectShow(msg);
       case 'episode.new': return episodeNew(msg);
       case 'episode.open': return episodeOpen(msg);
@@ -1278,12 +1279,60 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     return { savedAt: Date.now() };
   }
 
+  /* SWITCHING SHOWS: what still runs in the current show, each with why it stops the switch and what ends it.
+     fix: true  → "END <SHOW> & SWITCH" ends it (show clock and break, playlist, stage song, jingle/video, guest seat)
+     fix: false → never ended by the switch: the YouTube stream and the OBS recording are ended by hand only. */
+  function switchCheck(to) {
+    const x = shows.find(s => s.id === to); if (!x) throw new Error('No such show');
+    const from = currentShow(), o = obs.state, out = [];
+    const add = (id, title, text, fix) => out.push({ id, title, text, fix });
+    if (to === state.showId) return { from: from?.id || '', fromName: from?.name || '', to, toName: x.name, blockers: [] };
+    if (o.stream.active) add('stream', 'The YouTube stream is LIVE', 'Viewers are watching. The switch never ends the stream: end it yourself in Live Control → Broadcast (END STREAM, hold), then switch.', false);
+    if (o.record.active) add('record', 'OBS is recording', 'The switch never stops the recording: stop it in Live Control → Broadcast (Record), then switch.', false);
+    if (state.brk.active) add('break', 'A break is running', `Break "${rundown.segments[state.pos.index]?.title || ''}" is on. Ending the show ends the break${state.brk.muted?.length ? `; ${state.brk.muted.join(', ')} stay muted until you unmute them` : ''}.`, true);
+    if (state.pos.showStartedAt) {
+      const seg = rundown.segments[state.pos.index];
+      add('clock', 'The show timer is running', `${from?.name || 'The show'} is at ${seg ? `${String(state.pos.index + 1).padStart(2, '0')} ${seg.title}` : 'its start'}, started ${new Date(state.pos.showStartedAt).toLocaleTimeString('en-GB', { timeZone: 'Europe/Vienna', hour: '2-digit', minute: '2-digit' })} Vienna. Ending it resets the timer; the script, its notes and the episode stay saved.`, true);
+    }
+    const pl = playlist.view();
+    if (pl && ['playing', 'paused'].includes(pl.status)) add('music', pl.status === 'playing' ? 'Music is playing' : 'A track is paused', `${pl.tracks[pl.index]?.title || 'The playlist'} (${pl.viaStage ? 'Vienna Piano Stage' : pl.player}). Ending the show stops it.`, true);
+    const sr = stage.report();
+    if (sr && ['OPENING', 'THEME', 'BETWEEN', 'CLOSING'].includes(sr.state)) add('stage', 'The Piano Stage is playing', `${sr.label || sr.state}. Ending the show stops the stage's sound.`, true);
+    if (state.mediaAir.video || state.mediaAir.audio) add('media', 'A video or jingle is on air', `${[state.mediaAir.video?.title, state.mediaAir.audio?.title].filter(Boolean).join(' + ')}. Ending the show stops it.`, true);
+    const g = guestActive();
+    if (g && g.status === 'onair') add('guest', `Guest ${g.name} is ON AIR`, 'Ending the show takes the guest off air (back to the waiting room; the invitation stays).', true);
+    if (o.transitioning) add('transition', 'OBS is in a transition', 'Wait a second until the transition has finished, then switch.', false);
+    if (rundown.episode?.format !== x.id && locked()) add('locked', 'This episode is locked for broadcast', `${rundown.episode?.id || 'The episode'} stays saved exactly as it is; ${x.name} opens its own episode. Use this only when ${from?.name || 'this show'} is over or not today.`, true);
+    return { from: from?.id || '', fromName: from?.name || '', to, toName: x.name, blockers: out };
+  }
+
+  // END <SHOW> & SWITCH: ends only what switchCheck marks fix: true; the stream and the recording are never touched
+  async function endForSwitch(blockers) {
+    const ids = new Set(blockers.map(b => b.id));
+    if (ids.has('music')) await playlist.action({ action: 'stop' }).catch(e => logEvent('warn', `Switch: playlist stop — ${e.message}`));
+    if (ids.has('stage')) await stage.send({ cmd: 'stop' }).catch(e => logEvent('warn', `Switch: Piano Stage stop — ${e.message}`));
+    if (ids.has('media')) await mediaStop({}).catch(e => logEvent('warn', `Switch: media stop — ${e.message}`));
+    if (ids.has('guest')) await guestOffAir().catch(e => logEvent('warn', `Switch: guest off air — ${e.message}`));
+    if (ids.has('clock') || ids.has('break')) {
+      if (state.brk.active) logEvent('warn', `Show ended during a break: ${state.brk.muted?.join(', ') || 'no microphones'} stay muted until you unmute them`);
+      const p = state.pos; p.index = -1; p.segmentStartedAt = null; p.showStartedAt = null; state.brk = { active: false };
+    }
+    logEvent('ok', `Show ended for the switch: ${blockers.map(b => b.title).join(' · ')}`);
+  }
+
   async function selectShow(msg) {
     const x = shows.find(s => s.id === msg.show);
     if (!x) throw new Error('No such show');
     const o = obs.state;
-    if (o.stream.active || o.record.active) throw new Error('Not while streaming or recording. End them first.');
-    if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first, then select the show.');
+    const chk = switchCheck(x.id);
+    if (chk.blockers.length) {
+      const hard = chk.blockers.filter(b => !b.fix);
+      if (hard.length || msg.end !== true) {
+        const e = new Error(`${chk.fromName || 'The current show'} is still active: ${chk.blockers.map(b => b.title).join(' · ')}`);
+        e.check = chk; throw e;
+      }
+      await endForSwitch(chk.blockers);
+    }
     const notes = [];
     // 1. OBS: the show's own scene collection (sources, scenes, layout). The studio never builds or deletes one here.
     if (o.connected && x.obs?.sceneCollection) {
@@ -1299,7 +1348,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     // the episode: stays if it already belongs to this show; otherwise the latest episode of this show, or a new copy
     // of its master script. A locked episode is never swapped out.
     if (rundown.episode?.format !== x.id) {
-      if (locked()) throw new Error('The current episode is locked for broadcast: it cannot be replaced by another show');
+      // a locked episode stays saved as it is (episodes/<id>.json); the switch opens another one only after END & SWITCH
       const latest = episodeList().find(e => e.format === x.id && !e.locked);
       if (latest) episodeOpen({ episode: latest.id });
       else { rundown = episodeFromMaster(x.id); saveRundown(); }

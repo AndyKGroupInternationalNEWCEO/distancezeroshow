@@ -85,11 +85,12 @@ Close the Terminal window (or press Ctrl+C in it). The studio and Georgie's link
     Piano masters go to `shared-assets/piano-sessions/deep-connections/` (names in `shows/albums/deep-connections.json`); select the show again to see them.
   - **TALK** opens the show's microphone and takes the music down under the voice; TALK again closes it. No other playlist button touches the microphone.
   - **INFO** shows each track's official Song Information for the host.
+  - Saturday's opening, one GO each: **1 OPENING VIDEO** (film V35 — not delivered yet; GO says so) → **2 HOST WELCOME** (your camera full screen, TALK) → **3 CINEMATIC STUDIO TRANSITION** (the stage's flight into the main monitor — waits for the Virtual Space, see `PIANO-OPENING-HANDOFF.md`) → **4 PIANO PERFORMANCE** (piano big, your camera small at the bottom; songs only on PLAY).
   - Saturday also: the stage's **Opening** (official short opening → DISTANCE // ZERO piano version → live piano), **Live piano**, **Between songs**, **Closing**, cameras **P1–P5** and light.
 - **Runbook** — the show's PDF scenario: sections on the left, the page as it looks, its text, and your own notes per section (saved apart; the PDF is never changed). **⧉ Window** opens it on its own for a second screen; **Open PDF** shows the original.
 
 **OBS, once (asks before nothing else changes; backs up first):**
-- Saturday: `npm run obs-setup -- saturday`, then `npm run obs-setup -- saturday --players`. Scenes: STANDBY, OPENING, PIANO STAGE (your camera small, top left, clear of the keyboard), PIANO STAGE · CLEAN, CLOSING. The browser source **Piano Stage** shows `/piano-stage/` (the local Vienna Piano Stage worktree) with its sound only through the OBS mixer.
+- Saturday: `npm run obs-setup -- saturday`, then `npm run obs-setup -- saturday --players`. Scenes: STANDBY, OPENING, HOST · PIANO (your camera full screen), PIANO STAGE (your camera small, bottom left), PIANO STAGE · CLEAN, CLOSING. The browser source **Piano Stage** shows `/piano-stage/` (the local Vienna Piano Stage worktree) with its sound only through the OBS mixer.
 - Friday: `npm run obs-setup -- friday --players` adds the **Music Player**. In OBS set **DJ Mixer** to the mixer's own device — never the microphone's (the same device twice doubles the voice).
 
 **Tests:** `npm test` (mock OBS) · `node test/stage-e2e.mjs` (the real Vienna Piano Stage page in Chrome, ~2 min; screenshots of P1–P5 with the camera box in `test-output/stage/`).

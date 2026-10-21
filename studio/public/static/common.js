@@ -63,7 +63,7 @@ export function connect({ query = '', onStatus = () => {} } = {}) {
       if (m.t === 'ack') {
         const p = pending.get(m.id); if (!p) return;
         pending.delete(m.id);
-        return m.ok ? p.resolve(m.result) : p.reject(new Error(m.error || 'Failed'));
+        return m.ok ? p.resolve(m.result) : p.reject(Object.assign(new Error(m.error || 'Failed'), m.check ? { check: m.check } : {}));
       }
       emit(m.t, m);
     };

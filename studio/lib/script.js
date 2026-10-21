@@ -5,7 +5,7 @@ export const LOCK_MINUTES = 180;
 export const TZ = 'Europe/Vienna';
 
 const str = (v, max = 4000) => String(v ?? '').slice(0, max);
-export const STAGE_CUES = ['start', 'live', 'between', 'return-live', 'closing', 'stop'];
+export const STAGE_CUES = ['start', 'live', 'between', 'return-live', 'closing', 'stop', 'transition'];
 
 // the instant of a wall-clock time in a time zone (DST-safe)
 export function zoned(tz, y, mo, d, h, mi) {

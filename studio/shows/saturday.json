@@ -45,30 +45,16 @@
         "questions": []
       },
       {
-        "title": "OPENING — PIANO SESSIONS",
+        "title": "OPENING VIDEO — PIANO SESSIONS",
         "kind": "VT",
-        "minutes": 1,
+        "minutes": 1.5,
         "lead": "andrej",
         "presenters": "",
         "script": "",
         "talkingPoints": "",
-        "director": "Runbook cue 01. GO starts the Vienna Piano Stage: the official short Piano Sessions opening (44 s, lift reveal), then DISTANCE // ZERO (Piano Version) in full, then LIVE PIANO by itself. Host mic muted. The approved opening FILM has not been delivered: when it is, put it on this cue (Video Player in OPENING).",
+        "director": "STEP 1 · PLAY OPENING VIDEO. GO plays the Piano Sessions opening film (V35, its own sound) full screen in OPENING. Host mic muted. Nothing else starts. The film has NOT been delivered yet: until it is, GO reports VIDEO NOT AVAILABLE and nothing plays — then run the stage's official short opening by hand (Show Control → Playlist → Piano Stage: Opening; 44 s + DISTANCE // ZERO Piano Version) or go straight on. When the film has ended: GO → HOST WELCOME.",
         "closing": "",
-        "cues": { "scene": "PIANO STAGE · CLEAN", "jingle": "", "video": "", "mode": "once", "audioMode": "video", "music": "", "stage": "start" },
-        "guest": { "name": "", "details": "" },
-        "questions": []
-      },
-      {
-        "title": "DISTANCE // ZERO (PIANO VERSION)",
-        "kind": "MUSIC",
-        "minutes": 5.5,
-        "lead": "andrej",
-        "presenters": "",
-        "script": "",
-        "talkingPoints": "",
-        "director": "Runbook cue 02. Full track (5:29), it follows the opening by itself: GO here only moves the show clock. Piano stage cameras P1–P5 and lights run with the music. Wait for LIVE PIANO before the welcome.",
-        "closing": "",
-        "cues": { "scene": "", "jingle": "", "video": "", "mode": "once", "audioMode": "video", "music": "DISTANCE // ZERO (Piano Version)" },
+        "cues": { "scene": "OPENING", "jingle": "", "video": "V35", "mode": "once", "audioMode": "video", "music": "" },
         "guest": { "name": "", "details": "" },
         "questions": []
       },
@@ -80,9 +66,37 @@
         "presenters": "ANDY'K",
         "script": "ANDY'K: Good evening, everyone, and welcome to DISTANCE // ZERO Piano Sessions. I'm DJ Andy'K, joining you live from Vienna. You've just heard the piano interpretation of our DISTANCE // ZERO theme — a piece about bringing distant worlds closer through music.",
         "talkingPoints": "",
-        "director": "Runbook cue 03. Small live host camera (PIANO STAGE), never over the keyboard. Open the mic (TALK).",
+        "director": "STEP 2 · HOST WELCOME. GO puts your own camera full screen (HOST · PIANO): you at your piano. Open the mic with TALK. No song starts here — the playlist plays only on PLAY. After the welcome: TALK off, then GO → CINEMATIC TRANSITION.",
         "closing": "",
-        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "cues": { "scene": "HOST · PIANO", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "CINEMATIC STUDIO TRANSITION",
+        "kind": "VT",
+        "minutes": 0.5,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "STEP 3 · START CINEMATIC TRANSITION. GO cuts to the stage picture (PIANO STAGE · CLEAN, no host camera) and starts the stage's camera flight: the whole studio — architecture, lights, the piano, the big monitors — then back to the main monitor, which shows the Piano Stage, closer and closer until its picture fills the frame. No black, no jump. Mic closed. Needs the stage's cinematic transition from the Virtual Space (PIANO-OPENING-HANDOFF.md): until the stage has it, GO says so and the stage picture stays. When the picture is the Piano Stage: GO → PIANO PERFORMANCE.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE · CLEAN", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "", "stage": "transition" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "PIANO PERFORMANCE — LIVE STAGE",
+        "kind": "MUSIC",
+        "minutes": 1,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "STEP 4 · ENTER PIANO PERFORMANCE. GO switches to PIANO STAGE: the piano stays big, your camera appears small at the bottom. The stage goes to LIVE PIANO (its own sound stops). During a song the stage's cameras P1–P5 and lights follow the music. No song starts by itself: PLAY in the Playlist when you are ready. Then GO → ALBUM INTRODUCTION.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "", "stage": "live" },
         "guest": { "name": "", "details": "" },
         "questions": []
       },
@@ -197,11 +211,19 @@
       ]
     },
     {
+      "name": "HOST · PIANO",
+      "role": "host-full",
+      "items": [
+        ["Cam // Andrej", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    },
+    {
       "name": "PIANO STAGE",
       "role": "host1",
       "items": [
         ["Piano Stage", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
-        ["Cam // Andrej", { "x": 40, "y": 40, "w": 384, "h": 216 }],
+        ["Cam // Andrej", { "x": 40, "y": 824, "w": 384, "h": 216 }],
         ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
       ]
     },
