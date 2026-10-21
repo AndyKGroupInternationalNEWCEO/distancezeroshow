@@ -130,6 +130,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   /* ----- the Piano Show (show.js): official opening → piano theme → live; it drives the same cuts, lights and lift ----- */
   let frozen = false;   // the lift holds still while the show is paused
+  // LIFT HOLD: the lift stays where it is, whatever plays. The Piano Show plays, lights and cuts as usual but never
+  // moves it; the lift's buttons and the cinematic sequence are refused until the director releases the hold
+  let liftHold = false;
   const show = createShow({ rise: RISE, api: {
     cut: k => cut(k, { instant: true }),
     lights(m, c = {}) {
@@ -139,8 +142,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
       if (c.set) Object.assign(override, c.set);
       if (c.master !== undefined) masterGoal = c.master;
     },
-    lift: c => lift.command(c),
+    lift: c => liftHold ? { ok: false, reason: 'Lift hold' } : lift.command(c),
     liftState: () => lift.state,
+    liftHeld: () => liftHold,
     freezeLift: on => { frozen = on; },
     say: text => say(text),
   } });
@@ -151,6 +155,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   /* ----- commands (the panel's buttons) ----- */
   function command(name) {
+    if (liftHold && name !== 'stop') return say('Lift hold: the lift stays where it is (release the hold first)');
     if (name === 'cinematic') return cinematic();
     // the lift's own buttons always work, also during the Piano Show (which then leaves the lift to the operator)
     show.manual('lift'); frozen = false;
@@ -159,6 +164,11 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     if (!r.ok) say(r.reason);
     else if (name === 'reset') { mode = 'WARM PIANO'; override = {}; say('Reset: platform returning to the deck'); }
     else if (name !== 'stop') say('');
+  }
+  function setLiftHold(on) {
+    liftHold = !!on;
+    if (liftHold) { abortSequence('Lift hold: sequence cancelled'); if (lift.moving) lift.command('stop'); }
+    say(liftHold ? `Lift hold on: the lift stays ${lift.moving ? 'where it stops' : 'where it is'}` : 'Lift hold off: the lift answers its buttons and the show again');
   }
   function setMode(name) {
     mode = name; masterGoal = 1;
@@ -257,7 +267,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const performSong = () => { abortSequence('Cinematic sequence cancelled'); keyPlayer.load(parts[picked.id] || null); show.playSong(picked); };
   const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
   const seekSong = f => show.seek(f * show.duration);
-  const ui = panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video, pickSong, performSong, seekSong });
+  const ui = panel({ setLiftHold, command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video, pickSong, performSong, seekSong });
   ui.song(picked, parts[picked.id]);
 
   /* ----- per frame ----- */
@@ -301,18 +311,18 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     look.update(dt, !!VIEWS[director.current]?.vienna, L.frame);
     stage.update(t, dt, h, L, seen, active);   // the grand and the studio's piano lights always; the rig only while seen
     renderFeed(t);
-    ui.show({ look: look.on, state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: seq && `${seq.t.toFixed(1)} / ${OPENING.duration} s · ${seq.clock === 'jingle' ? 'jingle' : 'own clock'}`, key: stage.key,
+    ui.show({ hold: liftHold, look: look.on, state: lift.state, h, mode, view: VIEWS[director.current]?.vienna || null, program, source, seq: seq && `${seq.t.toFixed(1)} / ${OPENING.duration} s · ${seq.clock === 'jingle' ? 'jingle' : 'own clock'}`, key: stage.key,
       show: { state: show.state, paused: show.paused, label: show.label, t: show.time, d: show.duration, clock: show.clock, video: show.videoShown } });
   }
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, lift, command, setLiftHold, get liftHold() { return liftHold; }, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 
 /* ---------- the stage's control panel (built here, so the studio page only has to load this module) ---------- */
-function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video, pickSong, performSong, seekSong }) {
+function panel({ setLiftHold, command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video, pickSong, performSong, seekSong }) {
   // the song list: the piano repertoire first, then every album of the library
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const songOptions = () => {
@@ -372,7 +382,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
       <div class="bar"><i data-k="bar"></i></div>
       <small data-k="seq"></small>
       <h3>Piano lift</h3>
-      <div class="row">${btn('cmd', 'up', 'Up')}${btn('cmd', 'stop', 'Stop')}${btn('cmd', 'down', 'Down')}${btn('cmd', 'reset', 'Reset')}${btn('cmd', 'cinematic', 'Cinematic')}</div>
+      <div class="row">${btn('cmd', 'up', 'Up')}${btn('cmd', 'stop', 'Stop')}${btn('cmd', 'down', 'Down')}${btn('cmd', 'reset', 'Reset')}${btn('cmd', 'cinematic', 'Cinematic')}${btn('hold', '1', 'Lift hold')}</div>
       <h3>Cameras</h3>
       <div class="row">${Object.entries(CAMS).map(([k, c]) => btn('cam', k, k, `title="${c.long}"`)).join('')}</div>
       <h3>Lighting</h3>
@@ -395,6 +405,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
     if (b.classList.contains('min-btn')) { const min = el.classList.toggle('min'); b.setAttribute('aria-expanded', String(!min)); b.textContent = min ? '+' : '–'; return; }
     if (b.dataset.song) performSong();
     else if (b.dataset.show) showCommand(b.dataset.show);
+    else if (b.dataset.hold) setLiftHold(b.getAttribute('aria-pressed') !== 'true');
     else if (b.dataset.cmd) command(b.dataset.cmd);
     else if (b.dataset.cam) pickCamera(b.dataset.cam);
     else if (b.dataset.mode) setMode(b.dataset.mode);
@@ -429,7 +440,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
     msg: q('msg'),
     show(s) {
       const sh = s.show, mmss = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
-      const key = [s.look, s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
+      const key = [s.hold, s.look, s.state, s.h.toFixed(2), s.mode, s.view, s.program, s.source, s.seq, s.key, sh.state, sh.paused, Math.floor(sh.t * 4), sh.clock, sh.video].join('|');
       if (key === last) return;
       last = key;
       q('showState').textContent = ({ BETWEEN: 'BETWEEN SONGS', ENDED: 'SHOW ENDED', LIVE: 'LIVE PIANO', SONG: 'LIVE PIANO · SONG' }[sh.state] || sh.state) + (sh.paused ? ' · PAUSED' : '');
@@ -451,6 +462,7 @@ function panel({ command, setMode, pickCamera, setSource, setKey, setLook, showC
       press('[data-mode]', b => b.dataset.mode === s.mode);
       press('[data-src]', b => b.dataset.src === s.source);
       press('[data-cmd="cinematic"]', () => !!s.seq);
+      press('[data-hold]', () => s.hold);
       press('[data-key]', b => (b.dataset.key === 'on') === s.key);
       press('[data-look]', b => (b.dataset.look === 'concert') === s.look);
       for (const b of el.querySelectorAll('[data-cam]')) b.textContent = b.dataset.cam + (b.dataset.cam === s.program ? ' ●' : '');

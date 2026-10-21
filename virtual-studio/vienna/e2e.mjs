@@ -353,6 +353,31 @@ await test('cinematic refused unless lowered; manual camera and light overrides 
   });
 });
 
+await test('lift hold: buttons and cinematic refused, the Piano Show plays (opening, theme) without moving the lift; STOP brakes a moving lift; released, UP works', async () => {
+  return run(async () => {
+    const e = T.a.ext, sh = e.show;
+    e.setLiftHold(true); await T.sleep(100);
+    T.click('[data-cmd="up"]'); const upMsg = T.msg();
+    T.click('[data-cmd="cinematic"]'); await T.sleep(200);
+    if (e.lift.state !== 'LOWERED' || e.running || !/Lift hold/.test(upMsg)) throw new Error('hold let the lift or the sequence go: ' + upMsg);
+    if (document.querySelector('.vz [data-hold]').getAttribute('aria-pressed') !== 'true') throw new Error('hold button not shown pressed');
+    e.showCommand('start'); await T.sleep(1500);
+    const opening = sh.state;
+    e.showCommand('skip'); await T.sleep(2500);                 // the theme asks for the platform up: refused by the hold
+    const theme = { state: sh.state, lift: e.lift.state, h: e.lift.height };
+    e.showCommand('stop'); await T.sleep(300);
+    if (opening !== 'OPENING' || theme.state !== 'THEME' || theme.lift !== 'LOWERED' || theme.h !== 0) throw new Error('show under hold: ' + JSON.stringify({ opening, theme }));
+    // a lift already moving when the hold goes on stops where it is
+    e.setLiftHold(false); T.click('[data-cmd="up"]'); await T.until(() => e.lift.height > 0.6);
+    e.setLiftHold(true); await T.until(() => !e.lift.moving, 10000);
+    const held = { state: e.lift.state, h: e.lift.height };
+    T.click('[data-cmd="down"]'); await T.sleep(500);
+    if (held.state !== 'STOPPED' || Math.abs(e.lift.height - held.h) > 1e-6) throw new Error('hold did not keep the lift still: ' + JSON.stringify(held));
+    e.setLiftHold(false); T.click('[data-cmd="reset"]'); await T.until(() => e.lift.state === 'LOWERED', 30000);
+    return { upMsg, theme, held };
+  });
+});
+
 /* LED wall routing */
 await test('LED wall routing: main / Vienna live / selected camera / off; disabled sources inert; no picture of a picture', async () => {
   const r = await run(async () => {

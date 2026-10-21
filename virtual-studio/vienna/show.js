@@ -96,7 +96,7 @@ export function identScript(map, cfg, { dim = false } = {}) {
 }
 
 // `api`: what the show drives on the stage (index.js): cut(cam), lights(mode, { hold, release, set, master }),
-// lift(cmd), liftState(), freezeLift(on), say(text)
+// lift(cmd), liftState(), liftHeld() (lift hold: the show never moves the lift), freezeLift(on), say(text)
 export function createShow({ api, rise }) {
   const media = {
     opening: { cfg: SHOW.opening, map: AUDIO_MAP.opening, script: openingScript(AUDIO_MAP.opening, rise), state: 'OPENING', next: 'theme' },
@@ -176,7 +176,7 @@ export function createShow({ api, rise }) {
   function start() {
     stopAll(); showVideo(false);
     liftOwned = true; seg = null; paused = false; api.freezeLift(false);
-    if (api.liftState() === 'LOWERED') return begin('opening');
+    if (api.liftState() === 'LOWERED' || api.liftHeld?.()) return begin('opening');   // (lift hold: the opening plays where the lift stands)
     state = 'PREPARING'; api.lift('reset'); then = 'opening';
     api.say('Piano Show: lowering the platform for the opening');
   }
