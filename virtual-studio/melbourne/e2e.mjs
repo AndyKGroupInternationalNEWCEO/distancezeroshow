@@ -146,6 +146,41 @@ await test('DJ TRANSITION: screenshots on the way down (from the studio, through
   await run(async () => T.until(() => !T.m.travelling, 10000));
 });
 
+await test('the gear moves on data only: still without it; a playing deck turns its jog, counts its time and shows its track; pause stops it; mixer, meters and mic follow what is sent', async () => {
+  const r = await run(async () => {
+    const m = T.m, gear = m.booth.gear, jog = gear.decks[1].jog;
+    const r0 = jog.rotation.y; await T.sleep(1000);
+    const still = Math.abs(jog.rotation.y - r0) < 1e-9 && gear.decks.every(d => d.data.state === 'stop' && !d.data.title);
+    const cap0 = gear.strips[1].cap.position.z;
+    m.setDeck(2, { title: 'Deep Connections', artist: "DJ Andy'K", bpm: 124, key: '8A', duration: 300, position: 10, state: 'play' });
+    const a0 = jog.rotation.y; await T.sleep(1000);
+    const turned = Math.abs(jog.rotation.y - a0), pos = m.report().gear.decks[1].position;
+    m.setDeck(2, { state: 'pause' }); const p0 = jog.rotation.y; await T.sleep(600);
+    const paused = Math.abs(jog.rotation.y - p0) < 1e-9 && Math.abs(m.report().gear.decks[1].position - pos) < 0.7;
+    m.setMixer({ ch: [{}, { fader: 1, hi: 0.2 }], xfader: 0.2 }); await T.sleep(100);
+    const capMoved = Math.abs(gear.strips[1].cap.position.z - cap0) > 0.05;
+    m.setLevels({ ch: [0, 0.8, 0, 0], master: [0.7, 0.7] }); await T.sleep(50);
+    const lit = gear.strips[1].segs.filter(x => x.color.r + x.color.g + x.color.b > 0.3).length, dark = gear.strips[0].segs.filter(x => x.color.r + x.color.g + x.color.b > 0.3).length;
+    m.setMic(true);
+    return { still, turned, pos, paused, capMoved, lit, dark, bpm: m.bpm, track: m.L.track?.title };
+  });
+  expect(r.still, 'the gear moved without data');
+  expect(r.turned > 2.5 && r.turned < 4.5, '33⅓ rpm is about 3.5 rad a second; turned ' + r.turned);
+  expect(r.pos > 10.5 && r.pos < 11.6, 'position should count from 10 s: ' + r.pos);
+  expect(r.paused && r.capMoved, 'pause or the mixer did not follow: ' + JSON.stringify(r));
+  expect(r.lit >= 10 && r.dark === 0, 'meters should follow the levels sent: ' + JSON.stringify({ lit: r.lit, dark: r.dark }));
+  expect(r.bpm === 124 && r.track === 'Deep Connections', 'the deck\'s BPM and title should reach the lights and walls');
+  await run(async () => { T.m.setDeck(2, { state: 'play' }); T.m.setDeck(3, { title: 'Cycles', artist: "DJ Andy'K", bpm: 124, duration: 280, position: 95, state: 'pause' }); T.m.setMixer({ ch: [{ fader: 0 }, { fader: 0.9 }, { fader: 0.6 }, { fader: 0 }], xfader: 0.5 });
+    const k = setInterval(() => T.m.setLevels({ ch: [0, 0.55 + Math.random() * 0.3, 0.2, 0], master: [0.7, 0.68] }), 80); T.levels = k;
+    T.m.pickCamera('DJ4'); await T.sleep(3500); });
+  await shot('gear-DJ4');
+  await run(async () => { T.m.pickCamera('DJ5'); await T.sleep(3500); });
+  await shot('gear-DJ5');
+  await run(async () => { T.m.pickCamera('DJ2'); await T.sleep(3500); });
+  await shot('gear-DJ2');
+  await run(() => { clearInterval(T.levels); });
+});
+
 await test('DJ1–DJ5 stand in the club (below the studio floor, inside its walls, clear of the lift); DJ6 looks down through the glass', async () => {
   const r = await run(async () => {
     const out = {};

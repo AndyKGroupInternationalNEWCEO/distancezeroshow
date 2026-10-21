@@ -234,6 +234,18 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     smoke(seconds = 2.5) { L.smokeRequest = Math.max(0.5, Math.min(6, +seconds)); say('Smoke: a burst of ' + L.smokeRequest + ' s'); },
     strobe(level) { fx.strobe = Math.max(0, Math.min(STROBE_MAX, +level)); say(fx.strobe ? `Strobe ${Math.round((fx.strobe / STROBE_MAX) * 100)} % (max 3 flashes a second)` : 'Strobe off'); },
     setTrack(tr) { L.track = tr?.title ? { title: String(tr.title).slice(0, 60), artist: String(tr.artist || '').slice(0, 60) } : null; say(L.track ? 'Track: ' + L.track.title : 'Track cleared'); },
+    // THE GEAR (gear.js), from the Broadcast Studio's data only: decks 1–4, the mixer, the meters, the talkback mic.
+    // A deck that plays with a BPM sets the light's tempo clock; its title goes to the LED walls
+    setDeck(n, d = {}) {
+      if (!booth.gear.setDeck(n - 1, d)) return say('No such deck');
+      const o = booth.gear.decks[n - 1].data;
+      if (o.state === 'play' && o.bpm) bpm = Math.max(60, Math.min(200, o.bpm * (1 + o.pitch)));
+      if (o.state === 'play' && o.title) L.track = { title: o.title.slice(0, 60), artist: (o.artist || '').slice(0, 60) };
+      say(`Deck ${n}: ${o.state}${o.title ? ' · ' + o.title : ''}`);
+    },
+    setMixer: d => booth.gear.setMixer(d),
+    setLevels: d => booth.gear.setLevels(d),
+    setMic(on) { booth.gear.setMic(on); say(on ? 'Talkback mic ON' : 'Talkback mic off'); },
     setTempo(b) { const v = +b; if (!(v >= 60 && v <= 200)) return say('Tempo: 60–200 BPM'); bpm = v; say(`Tempo ${bpm} BPM`); },
     // the studio's LED wall upstairs: 'djroom' (this room live, from the camera it shows), 'main' (the studio's own
     // programme) or 'off'; `auto`: the wall follows the show (setShow)
@@ -246,7 +258,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     setDeskMonitors(on) { desk.on = !!on; desk.apply(); say(desk.on ? 'Presenter monitors: DJ room live' : 'Presenter monitors off'); },
     feed: { shot: c => feedShot(c), wanted: () => feedWanted(), before: c => feedBefore(c), after: (r, rt) => overlay.render(r, rt) },
     linkWall(set, get, texture) { wall.setSource = set; wall.getSource = get; wall.texture = texture; },
-    report() { return { lift: liftState(), liftDepth: +drive.height.toFixed(3), liftHold, env, mode, program, auto, show, wall: wallName(), wallAuto: wall.auto, shown, deskMonitors: desk.on, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!seq, view: director.current }; },
+    report() { return { gear: booth.gear.report(), lift: liftState(), liftDepth: +drive.height.toFixed(3), liftHold, env, mode, program, auto, show, wall: wallName(), wallAuto: wall.auto, shown, deskMonitors: desk.on, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!seq, view: director.current }; },
   };
   ui = panel(api);
   return api;
