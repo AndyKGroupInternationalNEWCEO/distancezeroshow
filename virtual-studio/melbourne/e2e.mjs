@@ -21,7 +21,7 @@ const BASE = `http://127.0.0.1:${server.address().port}/`;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'dz-mel-'));
 const debugPort = 9000 + Math.floor(Math.random() * 400);
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, '--use-angle=metal', '--enable-gpu',
-  '--ignore-gpu-blocklist', '--no-first-run', '--mute-audio', '--window-size=1600,900', 'about:blank'], { stdio: 'ignore' });
+  '--ignore-gpu-blocklist', '--no-first-run', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--window-size=1600,900', 'about:blank'], { stdio: 'ignore' });
 let page;
 for (let i = 0; i < 50 && !page; i++) {
   await new Promise(r => setTimeout(r, 200));
@@ -351,6 +351,30 @@ await test('DJ TRANSITION up: the same booth rides back into the studio; the clu
   await shot('club-booth-up');
   await run(async () => { T.a.director.go('music', { instant: true }); await T.sleep(2500); });
   await shot('booth-back-up-studio');
+});
+
+await test('DJ opening: the official show song drives it; the booth sets off at 0:41 and lands in the club on the first entry (1:00); BUILD-UP before and DROP on 2:47; pause holds everything; stop', async () => {
+  const r = await run(async () => {
+    const m = T.m, o = m.opening;
+    const started = m.djOpening('start').ok; await T.until(() => o.time > 0.3, 15000);
+    const playing = o.state === 'PLAYING', first = T.a.director.current;
+    m.djOpening('seek', 38); await T.until(() => m.lift.state === 'DESCENDING', 8000);
+    const setOff = +o.time.toFixed(2);
+    await T.until(() => m.lift.state === 'DOWN', 30000);
+    const landed = +o.time.toFixed(2), mode60 = m.mode;
+    m.djOpening('seek', 160); await T.sleep(300); const build = m.mode;
+    await T.until(() => m.mode === 'DROP', 12000); const drop = +o.time.toFixed(2);
+    m.djOpening('pause'); const p0 = o.time; await T.sleep(1000); const held = Math.abs(o.time - p0) < 0.05 && o.state === 'PAUSED';
+    m.djOpening('pause'); await T.sleep(500); const resumed = o.state === 'PLAYING';
+    m.djOpening('stop');
+    return { started, playing, first, setOff, landed, mode60, build, drop, held, resumed, state: o.state };
+  });
+  expect(r.started && r.playing && r.first === 'djwide', 'the opening did not start on the wide studio shot: ' + JSON.stringify(r));
+  expect(r.setOff >= 40.9 && r.setOff <= 43.8, 'the booth should set off at 0:41 (+2.5 s of light): ' + r.setOff);
+  expect(Math.abs(r.landed - 60) < 1.2 && r.mode60 === 'PERFORMANCE', 'the booth should land on 1:00 in PERFORMANCE: ' + JSON.stringify(r));
+  expect(r.build === 'BUILD-UP' && Math.abs(r.drop - 167) < 0.6, 'BUILD-UP then the DROP on 2:47: ' + JSON.stringify(r));
+  expect(r.held && r.resumed && r.state === 'IDLE', 'pause / resume / stop: ' + JSON.stringify(r));
+  await run(async () => { T.m.transition('up'); await T.until(() => !T.m.travelling && T.m.lift.state === 'UP', 60000); });
 });
 
 await test('Piano Stage platform: down, the studio floor (mirror) shows through; up, black gloss', async () => {
