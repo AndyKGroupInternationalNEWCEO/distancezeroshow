@@ -32,3 +32,12 @@ jobs:
       - run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
       - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
       - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      # Tell Bing, Yandex, Seznam and the other IndexNow search engines that the sitemap pages changed.
+      # The key file 3bca9f3d7c9aebab9f32847f9d1cadf2.txt sits at the site root. Never fails the deploy.
+      - name: Notify search engines (IndexNow)
+        continue-on-error: true
+        run: |
+          urls=$(grep -oE '<loc>[^<]+' sitemap.xml | sed 's/<loc>//' | jq -R . | jq -sc .)
+          curl -sS -o /dev/null -w "IndexNow: HTTP %{http_code}\n" -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            -d "{\"host\":\"distancezeroshow.com\",\"key\":\"3bca9f3d7c9aebab9f32847f9d1cadf2\",\"keyLocation\":\"https://distancezeroshow.com/3bca9f3d7c9aebab9f32847f9d1cadf2.txt\",\"urlList\":$urls}"

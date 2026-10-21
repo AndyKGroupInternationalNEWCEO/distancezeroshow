@@ -74,3 +74,15 @@ test('data file stays editable by hand: valid JSON with the expected keys', () =
   for (const k of ['timezone', 'secondTimezone', 'regularFrom', 'until', 'formats', 'episodes']) assert.ok(k in DATA, k);
   Object.keys(DATA.episodes).forEach(k => assert.match(k, /^2027-\d{2}-\d{2}$/));
 });
+
+test('search engines get one Event per announced, not cancelled broadcast', () => {
+  const url = 'https://distancezeroshow.com/', ld = P.schema(P.build(DATA), url);
+  assert.deepEqual(ld.map(e => e.startDate), ['2027-01-27', '2027-01-29', '2027-01-30', '2027-01-31'], 'date only while the time is TBA');
+  ld.shift();
+  assert.equal(ld[0].name, 'DISTANCE // ZERO — DJ SHOW: DJ Andy’K presents: DEEP CONNECTIONS (Official Version)');
+  assert.equal(ld[0].location.url, url + '#p-2027-01-29'); assert.ok(!ld[0].endDate);
+  const d = clone(); Object.assign(d.episodes['2027-01-29'], { time: '20:00', minutes: 90 }); d.episodes['2027-01-30'].cancelled = true;
+  const timed = P.schema(P.build(d), url);
+  assert.equal(timed.length, 3);
+  assert.equal(timed[1].startDate, '2027-01-29T19:00:00.000Z'); assert.equal(timed[1].endDate, '2027-01-29T20:30:00.000Z');
+});

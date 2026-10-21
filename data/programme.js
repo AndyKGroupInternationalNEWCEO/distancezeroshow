@@ -61,6 +61,20 @@
       'DESCRIPTION:' + x(e.details.concat(e.note || [], e.watchUrl || url).join('\n\n')), 'URL:' + (e.watchUrl || url), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n') + '\r\n';
   }
 
-  const api = { build, ics, zoned, local };
+  /* schema.org Events for search engines: announced, not cancelled broadcasts only (date alone until the time is confirmed) */
+  function schema(all, url) {
+    return all.filter(e => e.announced && !e.cancelled).map(e => {
+      const ev = { '@context': 'https://schema.org', '@type': 'Event', name: 'DISTANCE // ZERO — ' + e.name + (e.title ? ': ' + e.title : ''),
+        startDate: e.start ? e.start.toISOString() : e.date, eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode', location: { '@type': 'VirtualLocation', url: e.watchUrl || url + '#p-' + e.date },
+        image: url + 'assets/keyvisual.jpg', isAccessibleForFree: true, organizer: { '@type': 'Organization', name: 'DISTANCE // ZERO', url } };
+      const text = e.details.concat(e.note || []).join(' ');
+      if (text) ev.description = text;
+      if (e.start) ev.endDate = new Date(e.start.getTime() + e.minutes * 60000).toISOString();
+      return ev;
+    });
+  }
+
+  const api = { build, ics, schema, zoned, local };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.DZProgramme = api;
 })(typeof self !== 'undefined' ? self : this);
