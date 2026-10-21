@@ -1546,6 +1546,11 @@ liveCheck(); setInterval(liveCheck, 15000);
     const ms = months(), deep = /^#p-(\d{4}-\d{2}-\d{2})$/.exec(location.hash), today = new Date().toISOString().slice(0, 10);
     const target = deep && all.find(e => e.date === deep[1]) || all.find(e => e.date >= today) || all[0];
     month = Math.max(0, ms.indexOf(target.date.slice(0, 7))); sel = target; render();
+    /* dates that already have a hand-written Event above (the first show) are not listed twice */
+    const fixed = [...document.querySelectorAll('script[type="application/ld+json"]')].map(s => { try { return JSON.parse(s.textContent); } catch { return {}; } })
+      .filter(j => j['@type'] === 'Event').map(j => String(j.startDate).slice(0, 10));
+    const ld = DZProgramme.schema(all, 'https://distancezeroshow.com/').filter(e => !fixed.includes(e.startDate.slice(0, 10)));
+    if (ld.length) { const s = document.createElement('script'); s.type = 'application/ld+json'; s.textContent = JSON.stringify(ld); document.head.append(s); }
     if (deep) $('#programme').scrollIntoView();
   }).catch(() => { grid.innerHTML = ''; const p = document.createElement('p'); p.className = 'cal-msg';
     p.textContent = t('The programme could not be loaded. Please reload the page.'); grid.append(p); });
