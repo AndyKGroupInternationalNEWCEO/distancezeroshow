@@ -198,7 +198,8 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
       if (seq.step === 0 && seq.t >= 2.5) { seq.step = 1; if (!liftCommand('down', { quiet: true }).ok) { seq = null; return; } }
       else if (seq.step === 1 && h >= 1.3) { seq.step = 2; cut('DJ6', { instant: true }); }
       else if (seq.step === 2 && h >= 3.3) { seq.step = 3; liftView('low'); }
-      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; mode = 'PERFORMANCE'; modeBeat = beat; cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
+      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
+        cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
       else if (seq.step === 4 && seq.t >= seq.end) { seq = null; cut('DJ2', { instant: true }); }
     } else {
       if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,

@@ -16,7 +16,7 @@ export const DJ_OPENING = {
     { t: 14, view: 'floor' },
     { t: 27, liftView: 'top', say: 'the booth in the studio' },
     { t: 41.0, transition: 'down', say: 'the booth sets off (lands on 1:00)' },
-    { t: 60.0, show: 'live', led: 'PULSE', say: 'first entry: the booth is down' },
+    { t: 60.0, mode: 'PERFORMANCE', show: 'live', led: 'PULSE', say: 'first entry: the booth is down' },
     { t: 64, auto: true },
     { t: 70, mode: 'BREAKDOWN' }, { t: 74, mode: 'PERFORMANCE' },
     { t: 98, mode: 'BREAKDOWN', led: 'WAVES' }, { t: 126, mode: 'PERFORMANCE', led: 'PULSE' },

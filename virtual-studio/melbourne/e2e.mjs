@@ -377,6 +377,25 @@ await test('DJ opening: the official show song drives it; the booth sets off at 
   await run(async () => { T.m.transition('up'); await T.until(() => !T.m.travelling && T.m.lift.state === 'UP', 60000); });
 });
 
+await test('DJ opening 1 (short): the booth sets off at 0:35 and lands on the entry at 0:54 with the DROP; starting it stops opening 2', async () => {
+  const r = await run(async () => {
+    const m = T.m;
+    m.djOpening('start', undefined, 'big'); await T.until(() => m.openings.big.time > 0.3, 15000);
+    m.djOpening('start', undefined, 'short'); await T.until(() => m.openings.short.time > 0.3, 15000);
+    const bigStopped = m.openings.big.state === 'IDLE', o = m.openings.short;
+    m.djOpening('seek', 32); await T.until(() => m.lift.state === 'DESCENDING', 8000);
+    const setOff = +o.time.toFixed(2);
+    await T.until(() => m.lift.state === 'DOWN', 30000);
+    const landed = +o.time.toFixed(2); await T.sleep(300); const mode = m.mode;
+    m.djOpening('stop');
+    return { bigStopped, setOff, landed, mode, state: o.state };
+  });
+  expect(r.bigStopped, 'opening 2 should stop when opening 1 starts');
+  expect(r.setOff >= 34.9 && r.setOff <= 37.8, 'the booth should set off at 0:35 (+2.5 s of light): ' + r.setOff);
+  expect(Math.abs(r.landed - 54) < 1.2 && r.mode === 'DROP', 'the booth should land on 0:54 with the DROP: ' + JSON.stringify(r));
+  await run(async () => { T.m.transition('up'); await T.until(() => !T.m.travelling && T.m.lift.state === 'UP', 60000); });
+});
+
 await test('Piano Stage platform: down, the studio floor (mirror) shows through; up, black gloss', async () => {
   const r = await run(async () => {
     const ext = T.v; ext.command('reset'); await T.until(() => ext.lift.state === 'LOWERED', 30000);
