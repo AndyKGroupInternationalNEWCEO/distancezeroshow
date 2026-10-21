@@ -196,7 +196,10 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     if (source === 'off') { wallMat.emissiveMap = feed.black; return; }
     if (t - feed.at < 1 / 15) return;                     // 15 pictures a second: a wall seen across the room, and a whole extra render each
     feed.at = t;
-    if (source === 'vienna') {
+    const extra = sources[source];
+    if (extra && !extra.wanted()) return;                 // a later stage's feed renders only while its picture is seen
+    if (extra) extra.shot(feed.cam);
+    else if (source === 'vienna') {
       shot(program, eased[program], feedShot.pos, feedShot.target);
       feed.cam.position.copy(feedShot.pos); feed.cam.lookAt(feedShot.target);
       // the shot is framed for 16:9: the wall is wider, so keep the height and show more at the sides
@@ -211,12 +214,21 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const shown = reflectors.map(o => o.visible), auto = renderer.shadowMap.autoUpdate, before = renderer.getRenderTarget();
     reflectors.forEach(o => { o.visible = false; }); renderer.shadowMap.autoUpdate = false;
     wallMat.emissiveMap = studio.wall.texture;
+    extra?.before?.(feed.cam);
     renderer.setRenderTarget(feed.rt); renderer.render(scene, feed.cam);
+    extra?.after?.(renderer, feed.rt);
     renderer.setRenderTarget(before);
     reflectors.forEach((o, i) => { o.visible = shown[i]; }); renderer.shadowMap.autoUpdate = auto;
     wallMat.emissiveMap = feed.rt.texture;
   }
   function setSource(name) { source = name; feed.at = -1; if (wallMat && name === 'main') wallMat.emissiveMap = studio.wall.texture; }
+  // a later stage on the same page (the Melbourne DJ room) adds its own live feed for the wall:
+  // { shot(cam): pose the feed camera, wanted(): render now?, before(cam) / after(renderer, target): around the render }
+  const sources = {};
+  function addSource(name, provider) {
+    sources[name] = provider;
+    const b = document.querySelector(`.vz [data-src="${name}"]`); if (b) { b.disabled = false; b.removeAttribute('title'); }
+  }
 
   /* ----- only draw the stage while it can be seen ----- */
   const frustum = new THREE.Frustum(), pv = new THREE.Matrix4();
@@ -295,7 +307,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setMode, pickCamera, setSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, lift, command, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 

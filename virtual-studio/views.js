@@ -29,6 +29,9 @@ const TOUR = ['studio', 'desk', 'andy', 'georgie', 'guest', 'crane', 'wall', 'sl
 const HOLD = 8.5;
 
 // the backstage lounge's box (behind the LED wall, see LOUNGE in set.js)
+// rooms a stage module adds below the studio floor (the Melbourne DJ room): { has(p), keep(p, target) }. The director
+// leaves a camera inside one to that room's own limits instead of keeping it above the studio floor
+export const ZONES = [];
 export const inLounge = p => p.z < -7.35 && Math.abs(p.x) < 3.5 && p.y < 3;
 // the way there, behind the LED wall's Vienna end: the lounge must be drawn from here on
 export const nearLounge = p => p.x < -2.8 && p.x > -8.5 && p.z < -4 && p.z > -12;
@@ -140,6 +143,8 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
       go(TOUR[tourIndex]);
     }
     const t = controls.target, p = camera.position;
+    const zone = ZONES.find(z => z.has(p));
+    if (zone) { zone.keep(p, t); return; }
     // in the lounge: stay within its walls
     if (inLounge(p)) {
       p.x = THREE.MathUtils.clamp(p.x, -3.3, 3.3); p.y = THREE.MathUtils.clamp(p.y, 0.4, 2.7); p.z = THREE.MathUtils.clamp(p.z, -11.0, -7.45);

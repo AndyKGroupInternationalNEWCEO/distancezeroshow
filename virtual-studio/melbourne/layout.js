@@ -13,6 +13,8 @@ export const BOOTH = { x: 5.4, z: 0.1, rotY: -0.95 };   // the studio's music st
 const AL = [Math.cos(BOOTH.rotY), -Math.sin(BOOTH.rotY)], AC = [Math.sin(BOOTH.rotY), Math.cos(BOOTH.rotY)];
 export const at = (along, across) => [+(BOOTH.x + along * AL[0] + across * AC[0]).toFixed(3), +(BOOTH.z + along * AL[1] + across * AC[1]).toFixed(3)];
 export const xyz = (along, across, y) => { const [x, z] = at(along, across); return [x, y, z]; };
+// studio x, z → the Melbourne frame's [along, across]
+export const toFrame = (x, z) => { const dx = x - BOOTH.x, dz = z - BOOTH.z; return [dx * AL[0] + dz * AL[1], dx * AC[0] + dz * AC[1]]; };
 
 // the glass in the studio floor: panes on a steel grid, in front of the studio booth (which stays on solid floor)
 export const GLASS = {
@@ -56,3 +58,23 @@ export const DESCENT = [
   { t: 6.5, pos: xyz(0, GLASS.across + 0.4, -0.2), target: xyz(0, B.across, F + 1.2) },
   { t: 9.5, pos: xyz(0.1, B.across + 3.6, F + 2.2), target: xyz(0, B.across, F + B.riser + 1.2) },
 ];
+
+// where a camera may be down here (the studio's director keeps every other camera above the studio floor): inside the
+// club, clear of its walls, floor and ceiling; or in the glass's column on the way down (the transition)
+const WALL_GAP = 0.35;
+export function inClub(p) {
+  const [al, ac] = toFrame(p.x, p.z);
+  return p.y < ROOM.ceiling && Math.abs(al - ROOM.along) < ROOM.w / 2 && Math.abs(ac - ROOM.across) < ROOM.d / 2;
+}
+export function inShaft(p) {
+  const [al, ac] = toFrame(p.x, p.z);
+  return p.y < 0.35 && p.y >= ROOM.ceiling && Math.abs(al - GLASS.along) < GLASS.w / 2 && Math.abs(ac - GLASS.across) < GLASS.d / 2;
+}
+// a point (camera or target) kept inside the club, in place
+export function keepInClub(p, gap = WALL_GAP) {
+  const [al, ac] = toFrame(p.x, p.z);
+  const a = Math.max(ROOM.along - ROOM.w / 2 + gap, Math.min(ROOM.along + ROOM.w / 2 - gap, al));
+  const c = Math.max(ROOM.across - ROOM.d / 2 + gap, Math.min(ROOM.across + ROOM.d / 2 - gap, ac));
+  if (a !== al || c !== ac) { const [x, z] = at(a, c); p.x = x; p.z = z; }
+  p.y = Math.max(ROOM.floor + 0.3, Math.min(ROOM.ceiling - 0.25, p.y));
+}

@@ -8,11 +8,11 @@
 // the Broadcast Studio later), not the music itself; music, microphones and the mix stay with the Broadcast Studio
 // and OBS.
 import * as THREE from 'three';
-import { VIEWS } from '../views.js';
+import { VIEWS, ZONES } from '../views.js';
 import { AMBER, ICE } from '../screens.js';
 import { buildRoom, LED_PRESETS } from './room.js';
 import { buildBooth } from './booth.js';
-import { CAMS, DESCENT, CLUB_BOOTH, GLASS } from './layout.js';
+import { CAMS, DESCENT, CLUB_BOOTH, GLASS, inClub, inShaft, keepInClub } from './layout.js';
 
 const GOLD = AMBER, SILVER = ICE, WHITE = '#fff4e8', WARM = '#ffd9b0', VIOLET = '#8a5cff', MAGENTA = '#ff3fa4', CYAN = '#3fd8ff';
 // each group: [level, colour, (heads) pattern | pulse]. Gold, silver and black by default; club colours in the
@@ -27,7 +27,15 @@ export const MODES = {
 const GROUPS = ['spot', 'wash', 'strips', 'accent', 'booth', 'lasers'];
 export const STROBE_MAX = 0.6;   // the strobe's level is capped here, and it never flashes more than 3 times a second
 
-export function melbourne({ scene, camera, director, studio, quality, reducedMotion }) {
+export function melbourne({ scene, camera, controls, director, studio, quality, reducedMotion }) {
+  // the director keeps cameras above the studio floor; down here the club's walls, floor and ceiling are the limits
+  // (a camera dragged or zoomed hard against a wall stays in, rather than being thrown up into the studio)
+  let inside = false;
+  const ours = () => !director.flying && (!director.current || (!!VIEWS[director.current]?.melbourne && VIEWS[director.current].pos[1] < 0));
+  ZONES.push({
+    has: p => inClub(p) || inShaft(p) || (inside && ours()),
+    keep(p, target) { inside = !inShaft(p) || inClub(p); if (inside) { keepInClub(p); keepInClub(target, 0.1); } },
+  });
   const room = buildRoom({ studio, scene, quality });
   const [bx, bz] = [CLUB_BOOTH.along - GLASS.along, CLUB_BOOTH.across - GLASS.across];
   const booth = buildBooth({ M: studio.M, parent: room.frame, at: [bx, 0, bz] });
@@ -57,6 +65,12 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
     for (const g of ['screens', 'pads', 'meters']) L[g].level = Math.max(0.2, L.booth.level);
   }
 
+  /* ----- the studio's wall upstairs: linked to the Vienna stage's wall routing by withVienna ----- */
+  const wallBox = wallOf(studio), overlay = wallOverlay(L);
+  const wall = { auto: true, setSource: null, getSource: null, texture: null, set(name) { wall.setSource?.(name); } };
+  const desk = deskMonitors(studio);
+  desk.apply = () => { const want = desk.on && wallLive() && !!wall.texture; if (want === desk.shown) return; desk.shown = want; if (want) desk.show(wall.texture); else desk.hide(); };
+
   /* ----- the tempo clock ----- */
   let bpm = 128, beat = 0;
 
@@ -65,7 +79,10 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
   for (const k of keys) { const c = CAMS[k]; VIEWS[id(k)] = { label: c.label, long: c.long, pos: [...c.pos], target: [...c.target], fov: c.fov, drift: reducedMotion ? 0 : c.drift, tally: 0, cam: c.name, free: true, melbourne: k }; }
   VIEWS.mTravel = { label: 'Transition', long: 'Main studio → DJ room', pos: [...DESCENT[0].pos], target: [...DESCENT[0].target], fov: 50, drift: 0, tally: 0, cam: 'CAM DJ6', free: true, melbourne: 'travel' };
   let program = null, auto = false, autoNext = 0, autoI = 0, travel = null, env = 'studio';
-  const cut = (k, { instant = false } = {}) => { program = k; director.setAuto(false); director.go(id(k), { instant }); };
+  let show = 'ended', shown = 'DJ2';   // the DJ room camera the studio's LED wall shows (follows every cut down here; the operator can pick it alone)
+  // a camera that is not yet in the club (or one on the glass, DJ6) cuts: a flight would pass through the floor
+  const below = k => CAMS[k].pos[1] < 0;
+  const cut = (k, { instant = false } = {}) => { program = k; shown = k; director.setAuto(false); director.go(id(k), { instant: instant || below(k) !== inClub(camera.position) }); };
   const AUTO = ['DJ1', 'DJ2', 'DJ3', 'DJ5', 'DJ2', 'DJ4', 'DJ1', 'DJ3'];   // calm cuts, every 8 bars
   // the travel: through DESCENT's keyframes on a smooth curve, eased in and out, then the master wide
   const path = { pos: new THREE.CatmullRomCurve3(DESCENT.map(d => new THREE.Vector3(...d.pos)), false, 'centripetal'), target: new THREE.CatmullRomCurve3(DESCENT.map(d => new THREE.Vector3(...d.target)), false, 'centripetal') };
@@ -82,10 +99,11 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
     if (name === 'djroom') {
       env = 'djroom';
       if (transition && !reducedMotion) startTravel(); else cut('DJ1', { instant: true });
+      if (wall.auto && show !== 'live') api.setShow('live');
       say('Environment: DJ room');
     } else if (name === 'studio') {
       env = 'studio'; travel = null; auto = false; program = null;
-      director.go('studio'); say('Environment: main studio');
+      director.go('studio', { instant: inClub(camera.position) || inShaft(camera.position) }); say('Environment: main studio');
     }
   }
 
@@ -96,20 +114,26 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
   function update(dt) {
     t += dt; beat += dt * bpm / 60;
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
-    master += ((env === 'djroom' ? 1 : 0.35) - master) * (1 - Math.exp(-dt * 1.2));
+    // (and full while the studio's wall shows the DJ room live: the show is on down there)
+    master += ((env === 'djroom' || wallLive() ? 1 : 0.35) - master) * (1 - Math.exp(-dt * 1.2));
     ease(dt);
+    // another stage's shot taken from down here (a Vienna camera, a studio view): a cut, never a flight through the floor
+    if (director.flying && inClub(camera.position) && !VIEWS[director.current]?.melbourne) director.go(director.current, { instant: true });
+    if (!inClub(camera.position) && !inShaft(camera.position) && !ours()) inside = false;
     if (travel) {
       travel.t += dt;
       const u = Math.min(1, travel.t / travelTime), e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
       path.pos.getPoint(e, pv).toArray(VIEWS.mTravel.pos); path.target.getPoint(e, tv).toArray(VIEWS.mTravel.target);
+      camera.position.copy(pv); controls.target.copy(tv); camera.lookAt(tv);   // the director does not follow a moving shot
       if (u >= 1) { travel = null; cut('DJ2', { instant: true }); say('DJ room: CAM DJ2'); }
     }
-    if (auto && env === 'djroom' && !travel && beat >= autoNext) { autoNext = beat + 32; cut(AUTO[autoI++ % AUTO.length]); }
+    if (auto && !travel && beat >= autoNext) { autoNext = beat + 32; const k = AUTO[autoI++ % AUTO.length]; if (env === 'djroom') cut(k); else shown = k; }
     camera.updateMatrixWorld(); pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
-    const seen = frustum.intersectsBox(room.bounds);
+    desk.apply();
+    const seen = frustum.intersectsBox(room.bounds) || feedWanted();
     room.root.visible = seen;
     if (seen) { room.face(camera); room.update(t, dt, L, beat); booth.update(t, dt, L, beat); }
-    ui?.show({ mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null });
+    ui?.show({ mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null, show, wall: wallName(), wallAuto: wall.auto, desk: desk.on });
   }
 
   /* ----- the controls (the panel uses these; the Broadcast Studio's bridge will use the same) ----- */
@@ -118,7 +142,7 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
     get travelling() { return !!travel; },
     setEnv,
-    pickCamera(k) { if (!CAMS[k]) return say('No such camera'); travel = null; auto = false; cut(k); say('DJ room: ' + CAMS[k].name); },
+    pickCamera(k) { if (!CAMS[k]) return say('No such camera'); travel = null; auto = false; env = 'djroom'; cut(k); say('DJ room: ' + CAMS[k].name); },
     setAuto(on) { auto = !!on; autoNext = beat; travel = null; say(auto ? 'Automatic camera sequence on (8 bars a shot)' : 'Automatic camera sequence off'); },
     transition: startTravel,
     setMode(m) { if (!MODES[m]) return say('No such lighting preset'); mode = m; fx.preset = null; say('Lighting: ' + m); },
@@ -129,10 +153,94 @@ export function melbourne({ scene, camera, director, studio, quality, reducedMot
     strobe(level) { fx.strobe = Math.max(0, Math.min(STROBE_MAX, +level)); say(fx.strobe ? `Strobe ${Math.round((fx.strobe / STROBE_MAX) * 100)} % (max 3 flashes a second)` : 'Strobe off'); },
     setTrack(tr) { L.track = tr?.title ? { title: String(tr.title).slice(0, 60), artist: String(tr.artist || '').slice(0, 60) } : null; say(L.track ? 'Track: ' + L.track.title : 'Track cleared'); },
     setTempo(b) { const v = +b; if (!(v >= 60 && v <= 200)) return say('Tempo: 60–200 BPM'); bpm = v; say(`Tempo ${bpm} BPM`); },
-    report() { return { env, mode, program, auto, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!travel, view: director.current }; },
+    // the studio's LED wall upstairs: 'djroom' (this room live, from the camera it shows), 'main' (the studio's own
+    // programme) or 'off'; `auto`: the wall follows the show (setShow)
+    setWall(w) { const name = { djroom: 'melbourne', main: 'main', off: 'off' }[w]; if (!name) return say('No such wall source'); wall.set(name); say('Studio wall: ' + w); },
+    // the DJ show's state as the Broadcast Studio runs it: live ⇒ the wall shows the room; a break or the end ⇒ the
+    // studio's own programme again (only while the wall follows the show)
+    setShow(state) { if (!['live', 'break', 'ended'].includes(state)) return say('No such show state'); show = state; if (wall.auto) wall.set(state === 'live' ? 'melbourne' : 'main'); say('DJ show: ' + state); },
+    setWallAuto(on) { wall.auto = !!on; say(wall.auto ? 'Studio wall follows the DJ show' : 'Studio wall by hand'); },
+    showOnWall(k) { if (!CAMS[k]) return say('No such camera'); shown = k; say('Studio wall: ' + CAMS[k].name); },
+    setDeskMonitors(on) { desk.on = !!on; desk.apply(); say(desk.on ? 'Presenter monitors: DJ room live' : 'Presenter monitors off'); },
+    feed: { shot: c => feedShot(c), wanted: () => feedWanted(), before: c => feedBefore(c), after: (r, rt) => overlay.render(r, rt) },
+    linkWall(set, get, texture) { wall.setSource = set; wall.getSource = get; wall.texture = texture; },
+    report() { return { env, mode, program, auto, show, wall: wallName(), wallAuto: wall.auto, shown, deskMonitors: desk.on, bpm, preset: L.preset, track: L.track, lasers: fx.lasers, laserLevel: fx.laserLevel, haze: fx.haze, strobe: fx.strobe, travelling: !!travel, view: director.current }; },
   };
   ui = panel(api);
   return api;
+
+  /* ----- the studio's LED wall (and the presenters' desk monitors) showing this room live ----- */
+  // The picture is rendered by the Vienna stage's wall routing (vienna/index.js, source 'melbourne'): the same render
+  // target, the same rule against a picture of a picture. It is a picture only: no sound goes with it.
+  function wallName() { const s = wall.getSource?.(); return s === 'melbourne' ? 'djroom' : s || 'main'; }
+  function wallLive() { return wall.getSource?.() === 'melbourne'; }
+  // worth a render only while someone upstairs can see the wall or a desk monitor (never from down here)
+  function feedWanted() {
+    if (!wallLive() || inClub(camera.position) || inShaft(camera.position)) return false;
+    camera.updateMatrixWorld(); pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
+    return frustum.intersectsBox(wallBox) || (desk.on && desk.screens.some(m => frustum.intersectsObject(m)));
+  }
+  function feedShot(c) {
+    const v = VIEWS[id(shown)];
+    c.position.set(...v.pos); c.lookAt(...v.target); c.fov = v.fov;
+  }
+  function feedBefore(c) { room.root.visible = true; room.face(c); room.update(t, 0, L, beat); }
+}
+
+// the studio's wall upstairs and its box (taken before anything is routed to it)
+function wallOf(studio) {
+  let mesh = null; studio.root.traverse(o => { if (o.isMesh && o.material?.emissiveMap === studio.wall.texture) mesh = o; });
+  return mesh ? new THREE.Box3().setFromObject(mesh) : new THREE.Box3();
+}
+
+// the presenters' slim desk monitors (set.js): dark until the DJ room is live, then its picture (centre of the wide
+// feed, the right way round: the feed texture is drawn mirrored for the curved wall)
+function deskMonitors(studio) {
+  const screens = [];
+  studio.root.traverse(o => { const p = o.geometry?.parameters; if (o.isMesh && p && p.width === 0.32 && p.height === 0.19 && o.material?.color?.getHex() === 0x1a2230) screens.push(o); });
+  const geo = screens[0]?.geometry, live = geo?.clone(), mat = new THREE.MeshBasicMaterial({ toneMapped: false });
+  if (live) {
+    const span = (0.32 / 0.19) / (2048 / 860), uv = live.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, 0.5 + (0.5 - uv.getX(i)) * span);   // mirrored back, cropped to the monitor
+  }
+  const own = screens.map(m => m.material);
+  return {
+    screens, on: true, shown: false,
+    show(texture) { if (!live) return; mat.map = texture; mat.needsUpdate = true; screens.forEach(m => { m.geometry = live; m.material = mat; }); },
+    hide() { screens.forEach((m, i) => { m.geometry = geo; m.material = own[i]; }); },
+  };
+}
+
+// what the wall's live picture carries: DJ Andy'K, the track, and the official D//0 artwork (assets/logo-do-1k.webp)
+function wallOverlay(L) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 430;
+  const x = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const logo = new Image(); logo.src = new URL('../../assets/logo-do-1k.webp', import.meta.url).href;
+  const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthTest: false })));
+  let drawn = null;
+  function draw() {
+    const key = (L.track?.title || '') + '|' + (L.track?.artist || '') + '|' + logo.complete;
+    if (key === drawn) return; drawn = key;
+    x.clearRect(0, 0, 1024, 430);
+    const g = x.createLinearGradient(0, 300, 0, 430); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.7)');
+    x.fillStyle = g; x.fillRect(0, 300, 1024, 130);
+    if (logo.complete && logo.naturalWidth) { const h = 44, w = h * logo.naturalWidth / logo.naturalHeight; x.drawImage(logo, 1024 - 32 - w, 24, w, h); }
+    x.fillStyle = '#f2a650'; x.font = '700 15px Archivo, Arial, sans-serif'; x.fillText("DJ ANDY'K  ·  LIVE FROM THE DJ ROOM", 32, 368);
+    if (L.track?.title) {
+      x.fillStyle = '#f3f5f8'; x.font = '600 26px Archivo, Arial, sans-serif'; x.fillText(L.track.title, 32, 400);
+      if (L.track.artist) { const w = x.measureText(L.track.title).width; x.fillStyle = 'rgba(243,245,248,0.7)'; x.font = '500 17px Archivo, Arial, sans-serif'; x.fillText('—  ' + L.track.artist, 32 + w + 16, 400); }
+    }
+    tex.needsUpdate = true;
+  }
+  return {
+    render(renderer, target) {
+      draw();
+      const clear = renderer.autoClear; renderer.autoClear = false;
+      renderer.setRenderTarget(target); renderer.render(scene, cam);
+      renderer.autoClear = clear;
+    },
+  };
 }
 
 // the Vienna Piano Stage and the DJ room on one page: Vienna's controls stay exactly as they are (window.__studio.ext
@@ -142,6 +250,7 @@ export function withVienna(vienna) {
     const v = vienna(ctx), m = melbourne(ctx), u = v.update;
     v.update = (dt, t) => { u(dt, t); m.update(dt, t); };
     v.melbourne = m;
+    v.addSource('melbourne', m.feed); m.linkWall(v.setSource, () => v.source, v.feedTarget.texture);
     return v;
   };
 }
@@ -169,6 +278,10 @@ function panel(api) {
     <div class="body">
       <h3>Environment</h3>
       <div class="row">${btn('env', 'studio', 'Main studio')}${btn('env', 'djroom', 'DJ room')}${btn('travel', '1', 'Transition')}</div>
+      <h3>DJ show</h3>
+      <div class="row">${btn('show', 'live', 'Live')}${btn('show', 'break', 'Break')}${btn('show', 'ended', 'Ended')}</div>
+      <h3>Studio wall upstairs</h3>
+      <div class="row">${btn('wall', 'djroom', 'DJ room live')}${btn('wall', 'main', 'Main studio')}${btn('wall', 'off', 'Off')}${btn('wallauto', '1', 'Follow show')}${btn('desk', '1', 'Desk monitors')}</div>
       <h3>Cameras</h3>
       <div class="row">${Object.entries(CAMS).map(([k, c]) => `<button class="b" type="button" data-cam="${k}" title="${c.long}">${k}</button>`).join('')}${btn('auto', '1', 'Auto')}</div>
       <h3>Lighting</h3>
@@ -199,6 +312,10 @@ function panel(api) {
     else if (d.travel) { api.setEnv('djroom'); }
     else if (d.cam) { if (api.env !== 'djroom') api.setEnv('djroom', { transition: false }); api.pickCamera(d.cam); }
     else if (d.auto) api.setAuto(!api.auto);
+    else if (d.show) api.setShow(d.show);
+    else if (d.wall) api.setWall(d.wall);
+    else if (d.wallauto) api.setWallAuto(!api.report().wallAuto);
+    else if (d.desk) api.setDeskMonitors(!api.report().deskMonitors);
     else if (d.mode) api.setMode(d.mode);
     else if (d.led) api.setLed(d.led);
     else if (d.track) api.setTrack(d.track === 'set' ? { title: q('title').value, artist: q('artist').value } : null);
@@ -219,11 +336,15 @@ function panel(api) {
   return {
     msg: q('msg'),
     show(s) {
-      const key = [s.mode, s.env, s.program, s.auto, s.preset, s.fx.lasers, s.fx.haze === null, s.view].join('|');
+      const key = [s.mode, s.env, s.program, s.auto, s.preset, s.fx.lasers, s.fx.haze === null, s.view, s.show, s.wall, s.wallAuto, s.desk].join('|');
       if (key === last) return; last = key;
       press('[data-env]', b => b.dataset.env === s.env);
       press('[data-cam]', b => b.dataset.cam === s.view);
       press('[data-auto]', () => s.auto);
+      press('[data-show]', b => b.dataset.show === s.show);
+      press('[data-wall]', b => b.dataset.wall === s.wall);
+      press('[data-wallauto]', () => s.wallAuto);
+      press('[data-desk]', () => s.desk);
       press('[data-mode]', b => b.dataset.mode === s.mode);
       press('[data-led]', b => b.dataset.led === s.preset);
       press('[data-lasers]', b => (b.dataset.lasers === 'preset' && s.fx.lasers === null) || (b.dataset.lasers === 'on' && s.fx.lasers === true) || (b.dataset.lasers === 'off' && s.fx.lasers === false));

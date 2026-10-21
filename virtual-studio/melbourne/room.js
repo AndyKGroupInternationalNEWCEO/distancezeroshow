@@ -226,6 +226,7 @@ export function buildRoom({ studio, scene, quality }) {
 
   /* ----- lasers: four sources (two behind the DJ, high; one on each side wall), each a fan of fine beams ----- */
   const lasers = [];
+  const rayDir = new THREE.Vector3(), rayAt = new THREE.Vector3();
   const laserSrc = [[-2.6, ROOM.floor + 3.9, -ROOM.d / 2 + 0.35, 0], [2.6, ROOM.floor + 3.9, -ROOM.d / 2 + 0.35, 0], [-ROOM.w / 2 + 0.35, ROOM.floor + 3.4, bAc + 0.4, Math.PI / 2], [ROOM.w / 2 - 0.35, ROOM.floor + 3.4, bAc + 0.4, -Math.PI / 2]];
   for (const [x, y, z, ry] of laserSrc) {
     const unit = new THREE.Group(); unit.position.set(x, y, z); unit.rotation.y = ry; room.add(unit);
@@ -294,6 +295,9 @@ export function buildRoom({ studio, scene, quality }) {
       l.fan.rotation.x = -0.12 - 0.28 * (0.5 + 0.5 * Math.sin((beat / 4) * Math.PI * 2 + l.k));
       l.fan.rotation.y = (l.k < 2 ? (l.k ? -0.35 : 0.35) : 0) + 0.15 * Math.sin(t * 0.3 + l.k);
       l.rays.forEach((r, i) => { r.rotation.y = (i / (l.rays.length - 1) - 0.5) * open; });
+      // a beam ends at the club's ceiling (the underside of the studio floor): it never shows up in the studio above
+      l.fan.updateMatrixWorld(true);
+      for (const r of l.rays) { r.getWorldDirection(rayDir); r.getWorldPosition(rayAt); r.scale.z = rayDir.y > 0.001 ? Math.min(11, (ROOM.ceiling - 0.03 - rayAt.y) / rayDir.y) : 11; }
       const on = s.level * (s.pulse ? ((beat * 2) % 1 < 0.55 ? 1 : 0.1) : 1);
       l.mat.color.copy(s.color).multiplyScalar(1.8 * on);
       l.fan.visible = on > 0.002;

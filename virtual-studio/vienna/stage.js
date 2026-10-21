@@ -59,7 +59,14 @@ export function buildStage({ studio, scene }) {
 
   const platform = add(new THREE.Group()); platform.position.set(STAGE.x, 0, STAGE.z);
   const deckTop = M.riser.clone(); deckTop.color.setHex(0x0a0a0c);
-  const disc = mesh(new THREE.CylinderGeometry(LIFT.r, LIFT.r, LIFT.thick, 128), deckTop, platform); disc.position.y = 0.004 - LIFT.thick / 2;
+  // the platform's top: down, the studio's own floor shows through it (its tiles and the mirror under them, so the
+  // grand and the concert light reflect in it exactly as round it); up, black lacquer with a clear coat, the studio
+  // floor's colour, which carries the light and the room in its gloss (no mirror up there)
+  const deckGloss = new THREE.MeshPhysicalMaterial({ color: 0x0b0c0f, metalness: 0.2, roughness: 0.22, roughnessMap: M.floor.roughnessMap,
+    clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.9 });
+  const disc = mesh(new THREE.CylinderGeometry(LIFT.r, LIFT.r, LIFT.thick, 128), [deckTop, deckGloss, deckTop], platform); disc.position.y = 0.004 - LIFT.thick / 2;
+  // down, with the mirror floor on: the top and the pit's cover stand aside, the studio floor is the platform's top
+  const flush = top => { const through = top < 0.001 && M.floor.transparent; deckGloss.visible = !through; pit.visible = !through; };
   disc.receiveShadow = true; disc.castShadow = true;
   mesh(new THREE.CylinderGeometry(LIFT.r + 0.006, LIFT.r + 0.006, 0.03, 128, 1, true), M.champagne, platform).position.y = -0.012;   // brushed edge band
   const underMat = glow(C.amber); glows.push({ m: underMat, k: 2.2, group: 'under' });
@@ -101,6 +108,7 @@ export function buildStage({ studio, scene }) {
     }
     topFrame.position.y = top - LIFT.thick - TOP_FRAME / 2;
     platform.position.y = top;
+    flush(top);
     piano.position.y = pianoY0 + top;                     // the studio's grand rides on the platform
     return len;
   }
