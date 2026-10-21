@@ -990,3 +990,40 @@ body[data-status=onair] .g-status strong{color:var(--red)}
 .vc-msg.vc-show b{color:var(--amber)}
 .vc-hint{padding:0 14px 12px}
 #vchatShow{margin-top:var(--gap)}
+
+/* ---------- PLAYLIST (Show Control → Playlist) and the Vienna Piano Stage controls ---------- */
+.pl-now{margin:10px 0 6px;color:var(--chrome-hi)}
+.pl-now b{font-stretch:112%;letter-spacing:.06em;text-transform:uppercase}
+.pl-bar{height:4px;background:var(--line-2);margin-top:6px;overflow:hidden}
+.pl-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--chrome-hi))}
+.row.transport{gap:8px;flex-wrap:wrap}
+.row.wrap{flex-wrap:wrap;gap:6px}
+.pl-list li{padding:8px 0;border-top:1px solid var(--line)}
+.pl-list li .row{gap:8px;align-items:center}
+.pl-list li.cur{box-shadow:inset 3px 0 0 var(--amber);padding-left:8px}
+.pl-list li.na b{color:var(--dim)}
+.pl-story{margin:6px 0 2px;font-size:.84rem;line-height:1.5;color:var(--chrome)}
+.pl-stage{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-2)}
+
+/* ---------- SHOW RUNBOOK (Show Control → Runbook, and its own window) ---------- */
+.rb-head{margin-bottom:10px}
+.rb-head .row{gap:8px;align-items:center}
+.rb-body{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:14px}
+.rb-nav{list-style:none;padding:0;max-height:70vh;overflow:auto;border-right:1px solid var(--line)}
+.rb-nav li button{background:none;border:0;text-align:left;width:100%;padding:6px 8px;color:var(--chrome);font-size:.74rem;letter-spacing:.04em}
+.rb-nav li.l2 button{padding-left:20px;color:var(--dim);font-size:.7rem}
+.rb-nav li.cur button{color:var(--amber);box-shadow:inset 3px 0 0 var(--amber)}
+.rb-nav li .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:6px}
+.rb-nav li.pages{display:flex;flex-wrap:wrap;gap:4px;padding:10px 6px}
+.rb-main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;min-width:0}
+.rb-page img{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--line-2)}
+.rb-side{display:flex;flex-direction:column;gap:8px;min-width:0}
+.rb-title{font-size:.9rem;letter-spacing:.08em;color:var(--chrome-hi);text-transform:uppercase;margin-top:4px}
+.rb-text{white-space:pre-wrap;font-family:var(--wide);font-size:.86rem;line-height:1.55;color:var(--chrome);max-height:48vh;overflow:auto;background:var(--raise);padding:10px 12px;border:1px solid var(--line)}
+.side-r .rb-body{grid-template-columns:1fr}
+.side-r .rb-nav{max-height:180px;border-right:0;border-bottom:1px solid var(--line)}
+.side-r .rb-main{grid-template-columns:1fr}
+body.rb-window main{padding:var(--pad)}
+@media (max-width:700px){.rb-body,.rb-main{grid-template-columns:1fr}.rb-nav{max-height:200px;border-right:0}}
+.rb-head b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-r .rb-head .row{flex-wrap:wrap}.side-r .rb-head b{flex-basis:100%}

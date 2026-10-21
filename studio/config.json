@@ -40,6 +40,10 @@
   "virtualSpace": {
     "url": "https://virtualspace.distancezeroshow.com/"
   },
+  "pianoStage": {
+    "_about": "The Vienna Piano Stage for the Saturday Piano Sessions: the local worktree of branch feature/vienna-piano-stage (read only, its latest local state), served at /piano-stage/ on the Director port for the OBS browser source \"Piano Stage\".",
+    "root": "../../virtual-space-vienna"
+  },
   "call": {
     "iceServers": []
   }

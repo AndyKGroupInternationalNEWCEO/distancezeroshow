@@ -5,6 +5,7 @@ export const LOCK_MINUTES = 180;
 export const TZ = 'Europe/Vienna';
 
 const str = (v, max = 4000) => String(v ?? '').slice(0, max);
+export const STAGE_CUES = ['start', 'live', 'between', 'return-live', 'closing', 'stop'];
 
 // the instant of a wall-clock time in a time zone (DST-safe)
 export function zoned(tz, y, mo, d, h, mi) {
@@ -42,7 +43,9 @@ export function cleanScript(s = {}) {
       // then play, in order, after the video (e.g. closing → end credits → thank you); each once
       thenVideos: (Array.isArray(c.thenVideos) ? c.thenVideos : []).map(x => str(x, 4)).filter(Boolean).slice(0, 4),
       // after the last video: this background loops (muted) until the next GO / RETURN TO LIVE (breaks, closing)
-      loopAfter: str(c.loopAfter, 4) },
+      loopAfter: str(c.loopAfter, 4),
+      // Saturday: what the Vienna Piano Stage does on GO (its opening → piano theme → live, between songs, closing)
+      stage: STAGE_CUES.includes(c.stage) ? c.stage : '' },
     director: str(s.director, 4000), closing: str(s.closing, 2000),
   };
 }
@@ -85,7 +88,7 @@ export function renderHtml(rundown, mediaTitle = id => id) {
     const sc = cleanScript(s), t = tl[i];
     const cue = [sc.cues.scene && `OBS SCENE: ${esc(sc.cues.scene)}`, sc.cues.jingle && `JINGLE: ${esc(mediaTitle(sc.cues.jingle))}`,
       sc.cues.video && `VIDEO: ${[sc.cues.video, ...sc.cues.thenVideos].map(id => esc(mediaTitle(id))).join(' → ')}${sc.cues.mode === 'loop' ? ' (LOOP)' : ''}`, sc.cues.music && `MUSIC: ${esc(sc.cues.music)}`,
-      sc.cues.returnJingle && `RETURN JINGLE: ${esc(mediaTitle(sc.cues.returnJingle))}`, sc.cues.returnVideo && `RETURN VIDEO: ${esc(mediaTitle(sc.cues.returnVideo))}`].filter(Boolean);
+      sc.cues.stage && `PIANO STAGE: ${esc(sc.cues.stage.toUpperCase())}`, sc.cues.returnJingle && `RETURN JINGLE: ${esc(mediaTitle(sc.cues.returnJingle))}`, sc.cues.returnVideo && `RETURN VIDEO: ${esc(mediaTitle(sc.cues.returnVideo))}`].filter(Boolean);
     return `<section><h2>SEGMENT ${String(i + 1).padStart(2, '0')} — ${esc(s.title)}</h2>
 <p class="meta">PLANNED ${hms(t.start)}–${hms(t.end)} · ${s.minutes} MIN · ${esc(s.kind)}${sc.presenters ? ' · ' + esc(sc.presenters) : ''}</p>
 ${sc.guest.name ? `<p><b>GUEST:</b> ${esc(sc.guest.name)}${sc.guest.details ? ' — ' + esc(sc.guest.details) : ''}</p>` : ''}

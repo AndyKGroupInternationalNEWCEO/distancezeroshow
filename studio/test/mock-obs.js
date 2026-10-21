@@ -41,6 +41,9 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { inputName: 'Jingle Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 5000, settings: {} },
     { inputName: 'Video Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 30000, settings: {} },
     { inputName: 'FX Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 3000, settings: {} },
+    // Friday's playlist player and Saturday's Vienna Piano Stage page (its sound through the OBS mixer)
+    { inputName: 'Music Player', inputKind: 'ffmpeg_source', audio: true, muted: false, media: 4000, settings: {} },
+    { inputName: 'Piano Stage', inputKind: 'browser_source', audio: true, muted: false, settings: {} },
   ];
   for (const i of inputs) if (i.audio) i.volumeDb = 0;
   // German names on purpose: the real Vienna OBS runs in German, and the studio must find "Cut" by kind
@@ -49,7 +52,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     { transitionName: 'Überblende', transitionKind: 'fade_transition', transitionFixed: false, transitionConfigurable: true },
     { transitionName: 'Stinger // D//0', transitionKind: 'obs_stinger_transition', transitionFixed: true, transitionConfigurable: true },
   ];
-  const st = { collection: 'Unbenannt', collections: ['Unbenannt', 'DZ — Sunday Show', "DJ Andy'K — Friday Show"], program: 'STANDBY', preview: 'OPENING', studioMode: false, stream: false, record: false, streamStart: 0, recordStart: 0,
+  const st = { collection: 'Unbenannt', collections: ['Unbenannt', 'DZ — Sunday Show', "DJ Andy'K — Friday Show", 'DZ — Saturday Piano Sessions'], program: 'STANDBY', preview: 'OPENING', studioMode: false, stream: false, record: false, streamStart: 0, recordStart: 0,
     transition: 'Überblende', duration: 300, media: {} };
   const PALETTE = { STANDBY: ['#1b1e24', '#07080a'], OPENING: ['#3a2a16', '#07080a'], VIENNA: ['#4a3016', '#111317'], MELBOURNE: ['#1d2c40', '#0b1018'],
     'SPLIT // BOTH': ['#3a2a16', '#1d2c40'], GUEST: ['#2a2230', '#0b0b10'], MUSIC: ['#16302a', '#07080a'], CREDITS: ['#202020', '#000'] };
@@ -67,6 +70,7 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
   const mediaStatus = i => {
     const m = st.media[i.inputName];
     if (!m) return { mediaState: 'OBS_MEDIA_STATE_STOPPED', mediaDuration: i.media, mediaCursor: 0 };
+    if (m.pausedAt) return { mediaState: 'OBS_MEDIA_STATE_PAUSED', mediaDuration: i.media, mediaCursor: m.pausedAt - m.start };
     const cur = Date.now() - m.start;
     if (cur >= i.media) { delete st.media[i.inputName]; return { mediaState: 'OBS_MEDIA_STATE_ENDED', mediaDuration: i.media, mediaCursor: i.media }; }
     return { mediaState: 'OBS_MEDIA_STATE_PLAYING', mediaDuration: i.media, mediaCursor: cur };
@@ -173,8 +177,14 @@ export function startMockObs({ port = 4455, host = '127.0.0.1', password = 'mock
     TriggerMediaInputAction: d => {
       const i = inputs.find(x => x.inputName === d.inputName && x.media);
       if (!i) throw [604, 'Not a media input'];
-      if (/RESTART|PLAY$/.test(d.mediaAction)) { st.media[i.inputName] = { start: Date.now() }; event('MediaInputPlaybackStarted', { inputName: i.inputName }); }
-      else { delete st.media[i.inputName]; event('MediaInputPlaybackEnded', { inputName: i.inputName }); }
+      const m = st.media[i.inputName];
+      // like OBS: PAUSE holds the position, PLAY carries on from it, RESTART starts again from the top, and a file that
+      // plays to its end reports MediaInputPlaybackEnded by itself
+      const endAt = (x, ms) => { clearTimeout(x.timer); x.timer = setTimeout(() => { if (st.media[i.inputName] === x) { delete st.media[i.inputName]; event('MediaInputPlaybackEnded', { inputName: i.inputName }); } }, ms); };
+      if (/PAUSE$/.test(d.mediaAction)) { if (m && !m.pausedAt) { m.pausedAt = Date.now(); clearTimeout(m.timer); } event('MediaInputActionTriggered', { inputName: i.inputName, mediaAction: d.mediaAction }); }
+      else if (/PLAY$/.test(d.mediaAction) && m?.pausedAt) { m.start += Date.now() - m.pausedAt; delete m.pausedAt; endAt(m, i.media - (Date.now() - m.start)); event('MediaInputActionTriggered', { inputName: i.inputName, mediaAction: d.mediaAction }); }
+      else if (/RESTART|PLAY$/.test(d.mediaAction)) { if (m) clearTimeout(m.timer); const x = st.media[i.inputName] = { start: Date.now() }; endAt(x, i.media); event('MediaInputPlaybackStarted', { inputName: i.inputName }); }
+      else { if (m) clearTimeout(m.timer); delete st.media[i.inputName]; event('MediaInputPlaybackEnded', { inputName: i.inputName }); }
       return {};
     },
     GetStreamStatus: () => ({ outputActive: st.stream, outputReconnecting: false, outputTimecode: tc(st.streamStart), outputDuration: 0,

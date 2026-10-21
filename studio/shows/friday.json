@@ -24,6 +24,16 @@
   "mics": [
     "Mic // Andrej"
   ],
+  "playlist": {
+    "_about": "DEEP CONNECTIONS — Official Version: the original album as the DJ set, through OBS's Music Player (in AUDIO // ALL). NEXT fades the running track out over fadeMs. TALK opens the mic and takes the music down to duckDb under the voice. The DJ Mixer input stays available for a set mixed live on the hardware.",
+    "album": "deep-connections",
+    "version": "original",
+    "skipIntro": false,
+    "player": "Music Player",
+    "fadeMs": 4000,
+    "levelDb": 0,
+    "duckDb": -14
+  },
   "rundown": {
     "master": "FRIDAY_MASTER_SCRIPT",
     "title": "DJ Andy'K — Friday DJ Show",
@@ -235,7 +245,11 @@
     },
     "DJ Mixer": {
       "kind": "mixer",
-      "note": "choose the DJ mixer's audio device in OBS once"
+      "note": "choose the DJ mixer's audio device in OBS once (NOT the microphone's device: the same device twice would double the voice)"
+    },
+    "Music Player": {
+      "kind": "player",
+      "note": "the Studio's playlist loads the album's tracks into it"
     },
     "Jingle // DJ Andy'K Short": {
       "kind": "audio",
@@ -440,6 +454,7 @@
   "audioOnly": [
     "Mic // Andrej",
     "DJ Mixer",
+    "Music Player",
     "Jingle // DJ Andy'K Short",
     "Jingle // SOU Clean",
     "Jingle // SOU Club",

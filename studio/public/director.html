@@ -143,6 +143,8 @@
         <div class="col side-r">
           <nav class="subtabs" role="tablist" aria-label="Side panels" id="sideTabs">
             <button type="button" role="tab" data-p="plan" aria-selected="true">Plan</button>
+            <button type="button" role="tab" data-p="playlist" aria-selected="false" id="plTab" hidden>Playlist</button>
+            <button type="button" role="tab" data-p="runbook" aria-selected="false">Runbook</button>
             <button type="button" role="tab" data-p="audio" aria-selected="false">Audio</button>
             <button type="button" role="tab" data-p="video" aria-selected="false">Video</button>
             <button type="button" role="tab" data-p="gfx" aria-selected="false">Graphics</button>
@@ -156,6 +158,18 @@
             <ol class="ro ro-ro" id="ro"></ol>
             <div class="total" id="roTotal"></div>
           </section>
+          </div>
+          <div class="sidep" data-p="playlist" hidden>
+            <section class="card key" aria-labelledby="hPl" id="plCard" hidden>
+              <div class="card-h"><h2 id="hPl">Playlist</h2><div class="aside"><span class="badge" id="plBadge">—</span></div></div>
+              <div class="card-b" id="plBody"></div>
+            </section>
+          </div>
+          <div class="sidep" data-p="runbook" hidden>
+            <section class="card key" aria-labelledby="hRb">
+              <div class="card-h"><h2 id="hRb">Show runbook</h2><div class="aside"><select class="in sm" id="rbShow" aria-label="Runbook of show"></select><span class="badge" id="rbBadge">—</span></div></div>
+              <div class="card-b" id="rbBody"></div>
+            </section>
           </div>
           <div class="sidep" data-p="audio" hidden>
             <section class="card" aria-labelledby="hFx">

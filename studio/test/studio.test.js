@@ -385,7 +385,7 @@ test('faders and the jingle cart', async () => {
   const d = client(D, { cookie: directorCookie });
   await d.opened;
   const { s } = await d.next(m => m.t === 'state' && m.s.obs.media.length);
-  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player', 'FX Player']);
+  assert.deepEqual(s.obs.media.map(m => m.name), ['Jingle // D//0 Sting', 'Jingle // Ösi vs Aussie', 'Bed // Talk Underscore', 'Jingle Player', 'Video Player', 'FX Player', 'Music Player']);
   assert.equal((await d.send({ t: 'obs', action: 'volume', input: 'DJ Mixer', db: -6 })).ok, true);
   assert.equal(mock.inputs.find(i => i.inputName === 'DJ Mixer').volumeDb, -6);
   await d.next(m => m.t === 'state' && m.s.obs.audio.find(a => a.name === 'DJ Mixer').volumeDb === -6);
@@ -831,7 +831,7 @@ test('show presets: SELECT SHOW loads OBS scene collection, rundown, mics, stand
   await Promise.all([d.opened, ov.opened]);
   await d.send({ t: 'rundown', action: 'reset' });
   const st0 = await d.next(m => m.t === 'state' && Array.isArray(m.s.shows));
-  assert.deepEqual(st0.s.shows.map(x => x.id), ['sunday', 'friday']);
+  assert.deepEqual(st0.s.shows.map(x => x.id), ['sunday', 'saturday', 'friday']);
   // Sunday
   assert.equal((await d.send({ t: 'show.select', show: 'sunday' })).ok, true);
   const sun = await d.next(m => m.t === 'state' && m.s.showId === 'sunday');

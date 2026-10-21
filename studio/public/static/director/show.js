@@ -10,6 +10,8 @@ import { createLibrary } from './media.js';
 import * as guestPanel from './guest.js';
 import * as preshowPanel from './preshow.js';
 import * as fxPanel from './fx.js';
+import * as playlistPanel from './playlist.js';
+import * as runbookPanel from './runbook.js';
 import { createViewerChatCard } from '../vchat.js';
 
 let mons, clk, script, brk, lib;
@@ -26,6 +28,8 @@ export function init(ctx) {
     audioStop: $('#jaStop'), videoStop: $('#vvStop'), videoPreview: $('#vvPrev'), audioBadge: $('#jaAir'), videoBadge: $('#vvAir') });
 
   fxPanel.init(ctx);
+  playlistPanel.init(ctx);
+  runbookPanel.init(ctx);
   const rd = (action, extra) => ctx.conn.send({ t: 'rundown', action, ...extra });
   $('#goBtn').addEventListener('click', e => go(ctx, e.currentTarget));
   $('#advance').addEventListener('click', e => act(e.currentTarget, () => rd('next')));
@@ -142,6 +146,8 @@ export function render(ctx) {
   guestPanel.render(ctx);
   preshowPanel.render(ctx);
   fxPanel.render(ctx);
+  playlistPanel.render(ctx);
+  runbookPanel.render(ctx);
   tick(ctx);
   renderRundown(ctx);
   renderSide(ctx);

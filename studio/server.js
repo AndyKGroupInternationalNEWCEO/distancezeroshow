@@ -18,6 +18,7 @@ import { loadSecrets, codeMatches, sameSecret, makeSession, checkSession, cookie
 import { Obs, isLoopbackUrl } from './lib/obs.js';
 import { createStudio } from './lib/studio.js';
 import { createMedia } from './lib/media.js';
+import { createStagePage, STAGE_TYPES } from './lib/stage.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -37,15 +38,17 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
   '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.json': 'application/json' };
 
 export async function startStudio({ config = loadConfig(), dataDir = path.join(ROOT, 'data'), obsPassword = process.env.OBS_WEBSOCKET_PASSWORD || '',
-  rotate = false, log = console } = {}) {
+  rotate = false, log = console, dzRoot = path.resolve(ROOT, '..', '..') } = {}) {
   if (!isLoopbackUrl(config.obs.url) && !config.obs.allowRemote) {
     throw new Error(`obs.url ${config.obs.url} is not on this machine. OBS control stays local; set obs.allowRemote only if you know why.`);
   }
   const store = createStore(dataDir);
   const secrets = loadSecrets(store, { rotate });
   const obs = new Obs({ url: config.obs.url, password: obsPassword, micPattern: config.emergency.micPattern, micInputs: config.emergency.micInputs, log });
-  const media = createMedia({ root: ROOT, dzRoot: path.resolve(ROOT, '..', '..') });
-  const studio = createStudio({ config, store, secrets, obs, media, sampleRundownPath: path.join(ROOT, 'rundown.sample.json'), log });
+  const media = createMedia({ root: ROOT, dzRoot });
+  const studio = createStudio({ config, store, secrets, obs, media, dzRoot, sampleRundownPath: path.join(ROOT, 'rundown.sample.json'), log });
+  // the Vienna Piano Stage worktree (read only), served on the Director port for OBS
+  const stagePage = config.pianoStage?.root ? createStagePage({ root: path.resolve(ROOT, config.pianoStage.root) }) : null;
 
   const loginLimit = limiter(10, 10 * 60 * 1000);
   // one sign-in page for both people: the Director code typed on the PUBLIC page does not open the Director Studio
@@ -94,6 +97,24 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
         send(req, res, 200, TYPES[path.extname(abs)] || 'application/octet-stream', buf);
       });
     }
+    // a file with byte ranges (long WAVs and videos must be able to seek); `own` replaces the page headers (the stage page)
+    function ranged(req, res, abs, type, own = null) {
+      let size; try { size = fs.statSync(abs).size; } catch { return send(req, res, 404, 'text/plain', 'Not found'); }
+      const base = own || headers(req, type);
+      const r = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+      if (r) {
+        const start = r[1] === '' ? size - Number(r[2]) : Number(r[1]), end = Math.min(r[1] !== '' && r[2] !== '' ? Number(r[2]) : size - 1, size - 1);
+        if (!(start >= 0 && start <= end)) { res.writeHead(416, { ...base, 'Content-Range': `bytes */${size}` }); return res.end(); }
+        res.writeHead(206, { ...base, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+        return fs.createReadStream(abs, { start, end }).pipe(res);
+      }
+      res.writeHead(200, { ...base, 'Accept-Ranges': 'bytes', 'Content-Length': size });
+      fs.createReadStream(abs).pipe(res);
+    }
+    // the stage page runs the Virtual Space's own scripts (an inline module among them): not under the studio's CSP,
+    // but never framed, never sniffed, and only on this Mac
+    const stageHeaders = type => ({ 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+      'X-Frame-Options': 'DENY', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()' });
     function within(base, rel) {
       const abs = path.resolve(base, '.' + path.posix.normalize('/' + rel));
       return abs.startsWith(base + path.sep) ? abs : null;
@@ -218,6 +239,60 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
         return send(req, res, 200, rep[2] === 'html' ? 'text/html; charset=utf-8' : 'application/json', rep[2] === 'html' ? studio.renderReport(r) : JSON.stringify(r, null, 2),
           { 'Content-Disposition': `attachment; filename="${name}"` });
       }
+      // VIENNA PIANO STAGE for OBS (Director port, this Mac only): the page, its files and the piano masters
+      if (role === 'director' && req.method === 'GET' && (p === '/piano-stage' || p.startsWith('/piano-stage/'))) {
+        if (proxied(req)) return send(req, res, 403, 'text/plain', 'No');
+        if (!stagePage?.exists) return send(req, res, 404, 'text/plain; charset=utf-8', 'The Vienna Piano Stage worktree was not found (config.json → pianoStage.root)');
+        if (p === '/piano-stage') return send(req, res, 302, 'text/plain', '', { Location: '/piano-stage/' + url.search });
+        const mm = /^\/piano-stage\/master\/([a-z0-9-]{1,60})$/.exec(p);
+        if (mm) {
+          // a delivered piano master of tonight's playlist, for the stage page (it carries the stage key)
+          if (!sameSecret(url.searchParams.get('k'), secrets.overlayKey)) return send(req, res, 403, 'text/plain', 'No');
+          const f = studio.pianoMaster(mm[1]);
+          return f ? ranged(req, res, f, STAGE_TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream', stageHeaders(STAGE_TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream')) : send(req, res, 404, 'text/plain', 'No piano master for this track');
+        }
+        if (p === '/piano-stage/' || p === '/piano-stage/index.html') {
+          return stagePage.html().then(html => { res.writeHead(200, stageHeaders('text/html; charset=utf-8')); res.end(html); },
+            e => send(req, res, 500, 'text/plain; charset=utf-8', e.message));
+        }
+        const f = stagePage.file(p.slice('/piano-stage'.length));
+        if (!f) return send(req, res, 404, 'text/plain', 'Not found');
+        const type = STAGE_TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream';
+        return ranged(req, res, f, type, stageHeaders(type));
+      }
+      // SHOW RUNBOOKS (Director, this Mac): upload a show's PDF, the PDF itself, the picture of a page, the reader window
+      if (role === 'director' && (p.startsWith('/runbook') )) {
+        if (proxied(req) || !authed(req)) return send(req, res, 403, 'text/plain', 'No');
+        if (req.method === 'POST' && p === '/runbook/upload') {
+          const show = String(url.searchParams.get('show') || '');
+          if (!studio.showIds().includes(show)) return send(req, res, 404, 'application/json', JSON.stringify({ ok: false, error: 'No such show' }));
+          const chunks = []; let size = 0, big = false;
+          req.on('data', c => { size += c.length; if (size > 25 * 1024 * 1024) { big = true; req.destroy(); } else chunks.push(c); });
+          req.on('end', async () => {
+            if (big) return;
+            try {
+              const m = await studio.runbooks.upload(show, Buffer.concat(chunks), String(url.searchParams.get('name') || ''));
+              studio.runbookUploaded(show, m);
+              send(req, res, 200, 'application/json', JSON.stringify({ ok: true, pages: m.pages, sections: m.sections.length, sha256: m.sha256 }));
+            } catch (e) { send(req, res, 422, 'application/json', JSON.stringify({ ok: false, error: e.message })); }
+          });
+          return;
+        }
+        const pm = req.method === 'GET' && /^\/runbook\/([a-z0-9-]{1,30})\.pdf$/.exec(p);
+        if (pm) {
+          const f = studio.runbooks.pdfPath(pm[1]);
+          if (!f) return send(req, res, 404, 'text/plain', 'No runbook for this show');
+          return ranged(req, res, f, 'application/pdf', { 'Content-Type': 'application/pdf', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'no-referrer', 'Content-Disposition': `inline; filename="${pm[1]}-runbook.pdf"` });
+        }
+        const im = req.method === 'GET' && /^\/runbook\/([a-z0-9-]{1,30})\/page\/(\d{1,3})\.png$/.exec(p);
+        if (im) {
+          const f = studio.runbooks.pagePath(im[1], im[2]);
+          return f ? file(req, res, f) : send(req, res, 404, 'text/plain', 'No such page');
+        }
+        if (req.method === 'GET' && p === '/runbook-view') return file(req, res, path.join(PUBLIC, 'runbook.html'));
+        return send(req, res, 404, 'text/plain', 'Not found');
+      }
       if (req.method === 'GET' && p === '/') {
         return authed(req) ? file(req, res, path.join(PUBLIC, page)) : send(req, res, 302, 'text/plain', '', { Location: '/login' });
       }
@@ -260,7 +335,9 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
       let as = null, guestId = '';
       const asGuest = role === 'host' && url.searchParams.get('as') === 'guest';   // the guest page: only the guest session counts
       const asOverlay = url.searchParams.has('overlay');                              // the overlay: only its key counts, never a cookie
+      const asStage = url.searchParams.has('stage');                                  // the Vienna Piano Stage page: the same local key
       if (asOverlay) { if (role === 'director' && sameSecret(url.searchParams.get('overlay'), secrets.overlayKey)) as = 'overlay'; }
+      else if (asStage) { if (role === 'director' && sameSecret(url.searchParams.get('stage'), secrets.overlayKey)) as = 'stage'; }
       else if (!asGuest && authed(req)) as = role;
       else if (role === 'host') {
         const v = String(parseCookies(req.headers.cookie).dz_guest || ''), gid = v.split('.')[0];
@@ -287,6 +364,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
     director: `http://${config.director.host}:${director.port}/login#code=${secrets.directorCode}`,
     host: `http://${config.guest.host}:${guest.port}/login#code=${secrets.hostCode}`,
     overlay: `http://${config.director.host}:${director.port}/overlay?key=${secrets.overlayKey}`,
+    pianoStage: `http://${config.director.host}:${director.port}/piano-stage/?quality=broadcast&stagekey=${secrets.overlayKey}`,
   });
 
   async function close() {

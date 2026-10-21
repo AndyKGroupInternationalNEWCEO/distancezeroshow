@@ -26,6 +26,9 @@ const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows
 
 const secrets = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'secrets.json'), 'utf8'));
 const overlayUrl = `http://127.0.0.1:${config.director.port}/overlay?key=${secrets.overlayKey}`;
+// the Vienna Piano Stage from this studio (lib/stage.js): the fixed 1920 × 1080 broadcast picture, never ?obs=1
+const stageUrl = `http://127.0.0.1:${config.director.port}/piano-stage/?quality=broadcast&stagekey=${secrets.overlayKey}`;
+const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
 const vdoBase = config.vdoNinja?.base || 'https://vdo.ninja/';
 const vdoView = vdoBase + '?' + new URLSearchParams({ view: secrets.vdoStream, password: secrets.vdoPassword, cleanoutput: '' }).toString().replace(/=(&|$)/g, '$1');
 
@@ -55,6 +58,11 @@ function inputFor(name, src, cam) {
     case 'virtualspace': return { kind: 'browser_source', settings: { url: 'https://virtualspace.distancezeroshow.com/?obs=1&play=video', width: 1920, height: 1080,
       fps_custom: true, fps: 30, reroute_audio: true, restart_when_active: true, shutdown: false } };   // sound through the OBS mixer, reloaded on every cut to it
     case 'overlay': return { kind: 'browser_source', settings: { url: overlayUrl, width: 1920, height: 1080, shutdown: false } };
+    // its sound only through the OBS mixer (never also out of the Mac's speakers), not reloaded on a cut, kept running
+    // off air so the piano does not restart; the frame rate the 3D stage was measured at
+    case 'stage': return { kind: 'browser_source', settings: { url: stageUrl, width: 1920, height: 1080, fps_custom: true, fps: 30, reroute_audio: true,
+      restart_when_active: false, shutdown: false } };
+    case 'player': return { kind: 'ffmpeg_source', settings: player };
     case 'mic': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' } };
     case 'mixer': return { kind: 'coreaudio_input_capture', settings: { device_id: 'default' }, muted: true };   // muted until its device is chosen
     case 'media': case 'audio': return media(src.file, src);
@@ -86,8 +94,10 @@ async function addPlayers(show, existing) {
   await switchTo('SetCurrentSceneCollection', name);
   const inputs = new Set((await req('GetInputList')).inputs.map(i => i.inputName));
   const scenes = new Set((await req('GetSceneList')).scenes.map(s => s.sceneName));
-  const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
   const done = [];
+  // the show's playlist player (Friday: Music Player), next to the jingles, so the album is live in every scene
+  const mp = show.playlist?.player;
+  if (mp && mp !== 'stage' && !inputs.has(mp)) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: mp, inputKind: 'ffmpeg_source', inputSettings: player }); done.push(mp); }
   if (!inputs.has('Jingle Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'Jingle Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('Jingle Player'); }
   // SOUND FX pads: a separate player, so an effect never cuts the jingle
   if (!inputs.has('FX Player')) { await req('CreateInput', { sceneName: 'AUDIO // ALL', inputName: 'FX Player', inputKind: 'ffmpeg_source', inputSettings: player }); done.push('FX Player'); }

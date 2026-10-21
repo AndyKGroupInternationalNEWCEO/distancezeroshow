@@ -11,6 +11,8 @@ import { debounced } from './store.js';
 import { createTalk } from './talk.js';
 import { createRehearsal } from './rehearsal.js';
 import { createViewerChat } from './viewerchat.js';
+import { createPlaylist } from './playlist.js';
+import { createRunbooks } from './runbook.js';
 
 // the build of the pages this server serves: when it changes after an update, open pages reload by themselves (outside a call)
 // measured again every 5 s, so a page update needs no studio restart
@@ -26,13 +28,16 @@ function BUILD_NOW() {
 import { watchTunnel } from './tunnel.js';
 import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, renderHtml, LOCK_MINUTES } from './script.js';
 
-const ROLES = ['director', 'host', 'overlay', 'guest'];
+const ROLES = ['director', 'host', 'overlay', 'guest', 'stage'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
 const HOST_ACTIONS = new Set(['ping', 'chat.send', 'chat.read', 'host.status', 'vchat.say',
   'call.start', 'call.accept', 'call.decline', 'call.signal', 'call.end', 'call.media', 'call.stats', 'call.resume', 'help.raise', 'help.cancel',
   'check.echo', 'check.result', 'notes.set', 'monitors',  // monitors: watching the camera/program pictures only
   'fx.play', 'fx.stop']);  // SOUND FX pads, like the Director's
 const OVERLAY_ACTIONS = new Set(['ping']);
+// the Vienna Piano Stage page (OBS browser source): it reports what it does and answers commands, nothing else
+const STAGE_ACTIONS = new Set(['ping', 'stage.report', 'stage.ack']);
+const FORMATS = { sunday: 'DZ-SUN', friday: 'DJ-FRI', saturday: 'DZ-SAT' };
 // an invited guest: their own waiting room only. No script, chat, notes, OBS, call or break conversation.
 const GUEST_ACTIONS = new Set(['ping', 'guest.check', 'guest.snapshot', 'monitors', 'fx.play']);  // fx.play: only while on air
 const CHAT_KEEP = 1000;
@@ -40,7 +45,7 @@ const LOG_KEEP = 200;
 const LEADS = ['andrej', 'georgie', 'both'];
 const str = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max);
 
-export function createStudio({ config, store, secrets, obs, media = null, sampleRundownPath, log = console }) {
+export function createStudio({ config, store, secrets, obs, media = null, sampleRundownPath, dzRoot = path.resolve(path.dirname(sampleRundownPath), '..', '..'), log = console }) {
   const clients = new Set(); // { ws, role, send, monitors }
   const saved = store.read('state.json', {});
   const state = {
@@ -121,7 +126,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   // a new episode = a copy of the show's master script (the master in studio/shows is never written)
   function episodeFromMaster(fmt, { date = '', start = '', title = '' } = {}) {
     const x = shows.find(s => s.id === fmt); if (!x) throw new Error('No such show format');
-    const tag = fmt === 'friday' ? 'DJ-FRI' : 'DZ-SUN', d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
+    const tag = FORMATS[fmt] || 'DZ-SUN', d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
     let id = d ? `${tag}-${d.replace(/-/g, '')}` : `${tag}-DRAFT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
     for (let n = 2; fs.existsSync(path.join(EP_DIR, id + '.json')); n++) id = id.replace(/(-\d+)?$/, '') + '-' + n;
     return { title: str(title, 120) || str(x.rundown?.title, 120), sample: false,
@@ -187,7 +192,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   function cleanEpisode(e) {
     if (!e || !e.id) return null;
     const startAt = startInstant(e.date, e.start);
-    return { id: str(e.id, 40), format: e.format === 'friday' ? 'friday' : 'sunday', master: str(e.master, 40), date: str(e.date, 10), start: str(e.start, 5), startAt };
+    return { id: str(e.id, 40), format: FORMATS[e.format] ? e.format : 'sunday', master: str(e.master, 40), date: str(e.date, 10), start: str(e.start, 5), startAt };
   }
 
   const vdo = (() => {
@@ -261,6 +266,50 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     ? createViewerChat({ ...config.viewerChat, log: (level, text) => logEvent(level, text), onChange: () => changed() }) : null;
   const talk = createTalk({ state, clients, obs, changed: () => changed(), logEvent, notify, hooks: rehearsal.hooks, graceMs: config.call?.graceMs });
 
+  /* ---------- VIENNA PIANO STAGE (Saturday): the stage page in OBS, driven from here ----------
+     The page (/piano-stage/, see lib/stage.js) connects with the stage key and reports twice a second. Commands go to
+     ONE page only: the OBS browser source if there is one (its browser says "OBS/"), otherwise the newest. A second
+     page (a preview tab in Chrome) is reported, because its sound would play out of this Mac's speakers. */
+  const stageClients = () => [...clients].filter(c => c.role === 'stage');
+  const stageTarget = () => { const l = stageClients(); return l.filter(c => c.report?.obs).at(-1) || l.at(-1) || null; };
+  const stageWait = new Map();
+  let stageSeq = 0;
+  const stage = {
+    connected: () => !!stageTarget(),
+    report: () => stageTarget()?.report || null,
+    masterUrl: id => `/piano-stage/master/${encodeURIComponent(id)}?k=${secrets.overlayKey}`,
+    send(cmd) {
+      const c = stageTarget();
+      if (!c) return Promise.reject(new Error('The Vienna Piano Stage page is not connected (OBS browser source "Piano Stage")'));
+      const ref = 's' + ++stageSeq;
+      c.send({ t: 'stage.cmd', ref, ...cmd });
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { stageWait.delete(ref); reject(new Error('The Vienna Piano Stage did not answer')); }, 4000);
+        stageWait.set(ref, r => { clearTimeout(timer); resolve(r); });
+      });
+    },
+  };
+  const stageView = () => {
+    const l = stageClients(), t = stageTarget();
+    return { connected: !!t, pages: l.length, obsPages: l.filter(c => c.report?.obs).length, report: t?.report || null, available: !!config.pianoStage?.root };
+  };
+  const playlist = createPlaylist({ showsDir: SHOWS_DIR, dzRoot, obs, state, stage, logEvent, changed: () => changed() });
+  const currentShow = () => shows.find(s => s.id === state.showId) || null;
+  playlist.build(currentShow());
+  // what the director may tell the stage directly (show segments, cameras, lighting, lift)
+  const STAGE_CMDS = new Set(['start', 'stop', 'restart', 'skip', 'live', 'between', 'between-stop', 'return-live', 'closing', 'closing-stop', 'closing-restart', 'cam', 'mode', 'lift', 'seek']);
+  async function stageAction(msg) {
+    if (!STAGE_CMDS.has(msg.cmd)) throw new Error('Unknown stage command');
+    const r = await stage.send({ cmd: msg.cmd, cam: str(msg.cam, 4), mode: str(msg.mode, 20), lift: str(msg.lift, 8), time: Math.max(0, Number(msg.time) || 0) });
+    if (r.error) throw new Error(r.error);
+    logEvent('ok', `PIANO STAGE ${msg.cmd}${msg.cam ? ' ' + msg.cam : ''}${msg.mode ? ' ' + msg.mode : ''}${msg.lift ? ' ' + msg.lift : ''} → ${r.r?.label || r.r?.state || ''}`);
+    return { state: r.r?.state, say: r.say };
+  }
+
+  /* ---------- SHOW RUNBOOKS: a PDF script per show (lib/runbook.js) ---------- */
+  const runbooks = createRunbooks({ dir: path.join(store.dir, 'runbooks') });
+  const runbookList = () => Object.fromEntries(shows.map(s => [s.id, runbooks.summary(s.id)]));
+
   /* ---------- switcher: the preview bus ---------- */
 
   const standbyScene = () => state.settings.standbyScene || config.emergency.standbyScene;
@@ -312,6 +361,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
           obsUrl: config.obs.url, directorPort: config.director.port, guestPort: config.guest.port, dataDir: store.dir,
         },
         vdo: { view: vdo.view, push: vdo.push }, overlayKey: secrets.overlayKey,
+        playlist: playlist.view(), stage: stageView(), runbooks: runbookList(), showMics: currentShow()?.mics || [],
         ...talk.view('director'), ice: config.call?.iceServers || [], ...rehearsal.view('director'), build: BUILD_NOW(), viewerChat: vchat?.view() || null,
       };
     }
@@ -337,6 +387,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         viewerChat: vchat && ['backstage', 'onair'].includes(g?.status) ? { ...vchat.view(), readOnly: true } : null,
         segment: rundown.segments[state.pos.index] ? { title: rundown.segments[state.pos.index].title } : null };
     }
+    if (role === 'stage') return { now: Date.now() };
     const seg = rundown.segments[state.pos.index];
     return { show: showView(), roll: state.gfx.credits ? creditRoll() : null, gfx: state.gfx, segment: seg ? { title: seg.title, kind: seg.kind } : null };
   }
@@ -345,7 +396,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
 
   const broadcastState = debounced(() => {
     const cache = {};
-    for (const c of clients) c.send({ t: 'state', s: cache[c.role] ??= view(c.role) });
+    for (const c of clients) if (c.role !== 'stage') c.send({ t: 'state', s: cache[c.role] ??= view(c.role) });
   }, 25);
   const changed = () => { broadcastState(); saveState(); };
 
@@ -441,6 +492,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       if (role === 'director' && !count('director')) { logEvent('warn', 'Director Studio disconnected', 'director-down'); notify('warn', 'director-down', 'Andrej\'s studio is reconnecting. Stay where you are.', { to: ['host'] }); }
       talk.onClose(client);
       if (role === 'overlay') logEvent('warn', 'Graphics overlay disconnected');
+      if (role === 'stage' && client.report) notify(obs.state.stream.active ? 'critical' : 'warn', 'stage-down', 'The Vienna Piano Stage page disconnected (it reconnects by itself; in OBS: Piano Stage → Refresh)', { sound: obs.state.stream.active });
       if (role === 'guest') guestPresence(false);
       broadcastState();
     });
@@ -453,6 +505,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     if (role === 'host' && !HOST_ACTIONS.has(msg.t)) throw new Error('Not allowed for the host role');
     if (role === 'overlay' && !OVERLAY_ACTIONS.has(msg.t)) throw new Error('Not allowed for the overlay role');
     if (role === 'guest' && !GUEST_ACTIONS.has(msg.t)) throw new Error('Not allowed for a guest');
+    if (role === 'stage' && !STAGE_ACTIONS.has(msg.t)) throw new Error('Not allowed for the stage page');
 
     switch (msg.t) {
       case 'ping': client.send({ t: 'pong', ts: msg.ts }); return;
@@ -516,6 +569,30 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         guestSnap = { img, at: Date.now() }; toRole('director', { t: 'guest.snap', img, at: guestSnap.at }); return;
       }
       case 'cue.fire': return cueFire(msg);
+      case 'stage.report': {
+        if (role !== 'stage') throw new Error('Not allowed');
+        // the stage page's own state; only numbers, short words and its last message are kept
+        const r = msg.r || {};
+        const was = client.report;
+        client.report = { state: str(r.state, 20), paused: !!r.paused, segment: str(r.segment, 20), label: str(r.label, 120), clock: str(r.clock, 20),
+          time: Math.max(0, Number(r.time) || 0), duration: Math.max(0, Number(r.duration) || 0), song: r.song ? str(r.song, 80) : null,
+          program: str(r.program, 4), view: str(r.view, 20), mode: str(r.mode, 20), lift: str(r.lift, 12), height: Number(r.height) || 0,
+          keys: str(r.keys, 20), say: str(r.say, 240), obs: !!r.obs, audio: r.audio ? { paused: !!r.audio.paused, muted: !!r.audio.muted, error: Number(r.audio.error) || 0 } : null, at: Date.now() };
+        if (!was) logEvent('ok', `Vienna Piano Stage connected${client.report.obs ? ' (OBS browser source)' : ' (a browser page, not OBS)'}`);
+        // the Director sees every change of segment, song, camera, light, lift or message, and the time once a second
+        const sig = x => x && JSON.stringify({ ...x, time: Math.floor(x.time), height: Math.round(x.height * 4), at: 0 });
+        if (sig(was) !== sig(client.report)) broadcastState();
+        return;
+      }
+      case 'stage.ack': { if (role !== 'stage') throw new Error('Not allowed'); const w = stageWait.get(str(msg.ref, 20)); if (w) { stageWait.delete(str(msg.ref, 20)); w({ error: str(msg.error, 240), say: str(msg.say, 240), r: msg.r || null }); } return; }
+      case 'stage': return stageAction(msg);
+      case 'playlist': return playlist.action({ ...msg, mics: currentShow()?.mics || [] });
+      case 'runbook.get': return runbooks.view(str(msg.show, 30) || state.showId);
+      case 'runbook.note': runbooks.setNote(str(msg.show, 30) || state.showId, msg.key, msg.text); return { savedAt: Date.now() };
+      case 'runbook.remove': {
+        if (msg.confirm !== true) throw new Error('Needs confirmation');
+        runbooks.remove(str(msg.show, 30)); logEvent('ok', `Runbook removed: ${str(msg.show, 30)}`); changed(); return;
+      }
       case 'break.return': return breakReturn(msg);
       case 'emergency': return emergency(msg);
       case 'tunnel.link': {
@@ -899,6 +976,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       await obs.stopFile('Video Player'); done.push(`VIDEO ${id} stopped`);
     }
     if (scene) { await obs.setProgram(scene); done.push(`SCENE ${scene}`); }
+    // Saturday: the Vienna Piano Stage's own segment (opening → piano theme → live, between songs, closing)
+    if (c.stage) {
+      if (!stage.connected()) skipped.push(`PIANO STAGE ${c.stage}: the stage page is not connected`);
+      else {
+        const r = await stage.send({ cmd: c.stage }).catch(e => ({ error: e.message }));
+        if (r.error) skipped.push(`PIANO STAGE ${c.stage}: ${r.error}`); else done.push(`PIANO STAGE ${c.stage.toUpperCase()} → ${r.r?.label || r.r?.state || ''}`);
+      }
+    }
     if (wav) {
       const videoSound = playVideo && vid.embeddedAudio;
       if (c.audioMode === 'video' || (videoSound && c.audioMode !== 'both')) skipped.push(`${wav.id} — ${wav.title}: not played, the video carries the sound`);
@@ -1120,7 +1205,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   function episodeNew(msg) {
     if (state.pos.showStartedAt) throw new Error('The show clock is running. Press Reset first.');
     if (locked()) throw new Error('The current episode is locked for broadcast. A new episode can be prepared after the show.');
-    rundown = episodeFromMaster(msg.format === 'friday' ? 'friday' : 'sunday', { date: str(msg.date, 10), start: str(msg.start, 5), title: str(msg.title, 120) });
+    rundown = episodeFromMaster(FORMATS[msg.format] ? msg.format : 'sunday', { date: str(msg.date, 10), start: str(msg.start, 5), title: str(msg.title, 120) });
     state.pos.index = -1; state.pos.segmentStartedAt = null;
     saveRundown(); logEvent('ok', `New episode ${rundown.episode.id} from ${rundown.episode.master}`); changed();
     return { id: rundown.episode.id };
@@ -1225,6 +1310,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     state.settings.standbyScene = str(x.obs?.standbyScene, 256);
     state.gfx = { ...state.gfx, tagline: str(x.overlay?.tagline, 60), clocks: !!x.overlay?.clocks, ident: false, lowerThird: { ...state.gfx.lowerThird, visible: false } };
     state.showId = x.id;
+    playlist.build(x);
     // 5. transition: by kind, because OBS names them in its own language (Fade / Überblende)
     if (o.connected && x.obs?.transition) setTimeout(async () => {
       const t = obs.state.transitions.find(tr => tr.kind === x.obs.transition + '_transition');
@@ -1330,5 +1416,8 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
     scriptHtml: () => renderHtml(rundown, id => { const m = media?.get(id); return m ? `${m.id} — ${m.title}${m.available ? '' : ' (NOT AVAILABLE)'}` : id; }),
     scriptName: () => (rundown.episode?.id || 'DISTANCE-ZERO-script'),
     guestJoin, guestValid,
+    runbooks, showIds: () => shows.map(s => s.id),
+    runbookUploaded: (id, m) => { logEvent('ok', `Runbook for ${id}: ${m.name} (${m.pages} pages, ${m.sections.length} sections) — kept unchanged, SHA-256 ${m.sha256.slice(0, 12)}…`); changed(); },
+    pianoMaster: id => playlist.stageFile(id),
   };
 }

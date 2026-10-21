@@ -1,0 +1,228 @@
+{
+  "id": "saturday",
+  "name": "SATURDAY — PIANO SESSIONS",
+  "hosts": [
+    "andrej"
+  ],
+  "obs": {
+    "sceneCollection": "DZ — Saturday Piano Sessions",
+    "standbyScene": "STANDBY",
+    "transition": "fade",
+    "transitionMs": 900
+  },
+  "overlay": {
+    "tagline": "Piano Sessions // Vienna",
+    "clocks": false
+  },
+  "mics": [
+    "Mic // Andrej"
+  ],
+  "playlist": {
+    "_about": "Deep Connections in piano arrangements, without the original intro. Played by the Vienna Piano Stage page (its song slot), started only by PLAY. Tracks without a delivered piano master cannot be played; the original recording is never used.",
+    "album": "deep-connections",
+    "version": "piano",
+    "skipIntro": true,
+    "player": "stage",
+    "stageInput": "Piano Stage",
+    "duckDb": -12
+  },
+  "rundown": {
+    "master": "SATURDAY_MASTER_SCRIPT",
+    "title": "DISTANCE // ZERO — Piano Sessions",
+    "segments": [
+      {
+        "title": "PRE-SHOW",
+        "kind": "VT",
+        "minutes": 5,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Runbook cue 00. Confirm audio, piano scene, mic, camera, chat and playlist. Mic muted. The Vienna Piano Stage page must show CONNECTED (OBS) in Show Control → Playlist.",
+        "closing": "",
+        "cues": { "scene": "STANDBY", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "OPENING — PIANO SESSIONS",
+        "kind": "VT",
+        "minutes": 1,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Runbook cue 01. GO starts the Vienna Piano Stage: the official short Piano Sessions opening (44 s, lift reveal), then DISTANCE // ZERO (Piano Version) in full, then LIVE PIANO by itself. Host mic muted. The approved opening FILM has not been delivered: when it is, put it on this cue (Video Player in OPENING).",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE · CLEAN", "jingle": "", "video": "", "mode": "once", "audioMode": "video", "music": "", "stage": "start" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "DISTANCE // ZERO (PIANO VERSION)",
+        "kind": "MUSIC",
+        "minutes": 5.5,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Runbook cue 02. Full track (5:29), it follows the opening by itself: GO here only moves the show clock. Piano stage cameras P1–P5 and lights run with the music. Wait for LIVE PIANO before the welcome.",
+        "closing": "",
+        "cues": { "scene": "", "jingle": "", "video": "", "mode": "once", "audioMode": "video", "music": "DISTANCE // ZERO (Piano Version)" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "HOST WELCOME",
+        "kind": "TALK",
+        "minutes": 3,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: Good evening, everyone, and welcome to DISTANCE // ZERO Piano Sessions. I'm DJ Andy'K, joining you live from Vienna. You've just heard the piano interpretation of our DISTANCE // ZERO theme — a piece about bringing distant worlds closer through music.",
+        "talkingPoints": "",
+        "director": "Runbook cue 03. Small live host camera (PIANO STAGE), never over the keyboard. Open the mic (TALK).",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "ALBUM INTRODUCTION",
+        "kind": "TALK",
+        "minutes": 3,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: Tonight I'd like to take you back to Deep Connections, an album I released in 2026. Its original sound belongs to house and progressive house. But tonight, we're listening differently. No drops, no heavy beats — just the piano, the melodies and the stories behind the music.\nANDY'K: The idea behind Deep Connections was simple: every track can be a bridge between two worlds. Tonight, I hope these piano versions create a bridge between us, too. And yes — the chat is open. I'll be reading your messages between songs.",
+        "talkingPoints": "Official concept: \"Connection is the core. Every track a bridge between two worlds.\"",
+        "director": "Runbook cue 04.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "ALBUM PERFORMANCES — DEEP CONNECTIONS (PIANO)",
+        "kind": "MUSIC",
+        "minutes": 35,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: Sometimes a title is all it takes to open a question. For this next piece, I'd like you to listen without trying to decide what the music means right away. Let the piano tell its own story. [01 GAME]\nANDY'K: Some melodies feel close to us before we can explain why. Here is In My Veins, reimagined for piano. I hope you hear something in it that feels personal to you. [02 IN MY VEINS]\nANDY'K: Music can bring back a feeling in an instant — much like a familiar scent. This is Perfume, heard tonight in a quieter form. [03 PERFUME]\nANDY'K: There is a certain stillness that comes with the late hours, even when the world keeps moving. This is my piano interpretation of Midnight Drive. [04 MIDNIGHT DRIVE]\nANDY'K: Sometimes the softest music leaves the most room for reflection. Our next piece is called Mask. I'll let the piano speak first. [05 MASK]\nANDY'K: For this next song, I want to leave you with the music rather than an explanation. This is Stone, in its piano version. [06 STONE]",
+        "talkingPoints": "Song Information (official album page text) — Show Control → Playlist shows it next to each track.\n01 GAME — Someone who always holds the winning hand — and you play anyway, because losing to them still feels like winning.\n02 IN MY VEINS — A love that poisons as much as it heals — a spell you can feel taking you under, and still don't want to break.\n03 PERFUME — The scent that outlasts the person — invisible, impossible to wash off, a memory living on skin long after they're gone.\n04 MIDNIGHT DRIVE — The hour the city empties out — just the two of you, the open road, and no reason left to turn back.\n05 MASK — The face we show the world — polished, fragile, never built to last, because the mirror always tells the truth it was hiding.\n06 STONE — What's left standing after the noise fades — heavy with every secret, unmoved by time, still holding the truth.",
+        "director": "Runbook cue 05. Each track: say its intro (mic on, TALK), then TALK off and PLAY in Show Control → Playlist. Host mic off during the performance. The next track starts only when you press PLAY (or NEXT). Optional: Between songs ident on the stage. Deep Connection (Intro) is not performed.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "Deep Connections — piano arrangements" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "AUDIENCE MOMENT",
+        "kind": "TALK",
+        "minutes": 4,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: I can see your messages coming in — thank you for being here. I'm curious: what changes for you when you hear a song played only on piano?\nANDY'K: If you know the original Deep Connections album, you can find it on my official website and on streaming platforms. Tonight, though, we're keeping this room entirely for the piano.",
+        "talkingPoints": "Read selected live questions. Chat is optional between songs; no mandatory interruption.",
+        "director": "Runbook cue 06. Viewer chat: Show Control (top). Do not start the next track automatically.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "CLOSING REMARKS",
+        "kind": "TALK",
+        "minutes": 3,
+        "lead": "andrej",
+        "presenters": "ANDY'K",
+        "script": "ANDY'K: Thank you for sharing this first Piano Session with me. Deep Connections began in a completely different musical world, and tonight we heard what those melodies can become when the piano takes the lead.\nANDY'K: If you'd like to discover the original versions, visit djandykofficial.com/deep-connections or find the album on your favourite streaming platform. Tell me which piano interpretation stayed with you tonight — and what you'd like to hear next.\nANDY'K: From Vienna, this is DJ Andy'K. Two worlds. One room. Music connects us. Good night.",
+        "talkingPoints": "",
+        "director": "Runbook cue 07.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE", "jingle": "", "video": "", "mode": "once", "audioMode": "wav", "music": "" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      },
+      {
+        "title": "CLOSING",
+        "kind": "VT",
+        "minutes": 1,
+        "lead": "andrej",
+        "presenters": "",
+        "script": "",
+        "talkingPoints": "",
+        "director": "Runbook cue 08. Mic off (TALK off) before GO. GO plays the stage's official closing ident (38 s): slow shots, the light comes down, SHOW ENDED. The approved closing FILM has not been delivered: when it is, put it on this cue (Video Player in CLOSING). End the stream after SHOW ENDED.",
+        "closing": "",
+        "cues": { "scene": "PIANO STAGE · CLEAN", "jingle": "", "video": "", "mode": "once", "audioMode": "video", "music": "", "stage": "closing" },
+        "guest": { "name": "", "details": "" },
+        "questions": []
+      }
+    ]
+  },
+  "sources": {
+    "Piano Stage": {
+      "kind": "stage",
+      "note": "the Vienna Piano Stage page from this studio (/piano-stage/); its sound goes through the OBS mixer only"
+    },
+    "Cam // Andrej": {
+      "kind": "camera"
+    },
+    "D//0 Overlay": {
+      "kind": "overlay"
+    },
+    "Visuals Loop": {
+      "kind": "media",
+      "file": "shared-assets/show DO/DZ - MASTER STUDIO.mov",
+      "loop": true,
+      "muted": true
+    },
+    "Mic // Andrej": {
+      "kind": "mic"
+    }
+  },
+  "scenes": [
+    {
+      "name": "STANDBY",
+      "role": "standby",
+      "items": [
+        ["Visuals Loop", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    },
+    {
+      "name": "OPENING",
+      "role": "opening",
+      "items": [
+        ["Piano Stage", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    },
+    {
+      "name": "PIANO STAGE",
+      "role": "host1",
+      "items": [
+        ["Piano Stage", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["Cam // Andrej", { "x": 40, "y": 40, "w": 384, "h": 216 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    },
+    {
+      "name": "PIANO STAGE · CLEAN",
+      "role": "music",
+      "items": [
+        ["Piano Stage", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    },
+    {
+      "name": "CLOSING",
+      "role": "ending",
+      "items": [
+        ["Piano Stage", { "x": 0, "y": 0, "w": 1920, "h": 1080 }],
+        ["D//0 Overlay", { "x": 0, "y": 0, "w": 1920, "h": 1080 }]
+      ]
+    }
+  ],
+  "audioOnly": [
+    "Mic // Andrej"
+  ]
+}

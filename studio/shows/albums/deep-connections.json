@@ -1,0 +1,87 @@
+{
+  "_about": "DEEP CONNECTIONS (DJ Andy'K, 2026, House / Progressive House). Titles, order, key, tempo, length and Song Information are copied word for word from the official album data (djandyk-landing/src/data/deep-connections-tracks.ts, read only, never changed). original = the released recording (Friday). piano = the piano arrangement master for Saturday's Piano Sessions: none has been delivered yet, so each piano slot is empty and PLAY refuses it. The original recording is never played in the Piano Sessions.",
+  "id": "deep-connections",
+  "title": "Deep Connections",
+  "artist": "DJ Andy'K",
+  "source": "djandyk-landing/src/data/deep-connections-tracks.ts",
+  "tracks": [
+    {
+      "n": 1,
+      "id": "deep-connection-intro",
+      "title": "Deep Connection (Intro)",
+      "intro": true,
+      "key": "D# minor",
+      "bpm": 122,
+      "seconds": 138,
+      "original": "../djandyk-landing/public/audio/deep-connection-intro.mp3",
+      "piano": "",
+      "story": "Before language, before names — just two heartbeats finding the same rhythm in the dark. Every sound becomes a story and every beat a pulse shared between strangers. This opening is an invitation rather than an introduction: to stop explaining and simply feel together. When did you last feel connected to someone without a single word being spoken?"
+    },
+    {
+      "n": 2,
+      "id": "game",
+      "title": "Game",
+      "key": "D# minor",
+      "bpm": 124,
+      "seconds": 171,
+      "original": "../djandyk-landing/public/audio/game.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/02-game-piano.wav",
+      "story": "Someone who always holds the winning hand — and you play anyway, because losing to them still feels like winning. Some attractions are built like games we already know we cannot win, every move pulling us deeper into someone else's rules. Why is it so hard to walk away from a game we know is rigged against us?"
+    },
+    {
+      "n": 3,
+      "id": "in-my-veins",
+      "title": "In My Veins",
+      "key": "F minor",
+      "bpm": 124,
+      "seconds": 220,
+      "original": "../djandyk-landing/public/audio/in-my-veins.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/03-in-my-veins-piano.wav",
+      "story": "A love that poisons as much as it heals — a spell you can feel taking you under, and still don't want to break. Some loves feel like fire and poison at the same time, the danger becoming part of the pull. Knowing it hurts rarely makes it easier to leave. What keeps us returning to the very thing we know is burning us?"
+    },
+    {
+      "n": 4,
+      "id": "perfume",
+      "title": "Perfume",
+      "key": "G minor",
+      "bpm": 124,
+      "seconds": 235,
+      "original": "../djandyk-landing/public/audio/perfume.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/04-perfume-piano.wav",
+      "story": "The scent that outlasts the person — invisible, impossible to wash off, a memory living on skin long after they're gone. Of all the senses, scent travels back fastest, opening a whole relationship in a single breath. A person can leave a room and still remain everywhere in it. What scent still carries someone back to you?"
+    },
+    {
+      "n": 5,
+      "id": "midnight-drive",
+      "title": "Midnight Drive",
+      "key": "G minor",
+      "bpm": 124,
+      "seconds": 266,
+      "original": "../djandyk-landing/public/audio/midnight-drive.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/05-midnight-drive-piano.wav",
+      "story": "The hour the city empties out — just the two of you, the open road, and no reason left to turn back. At night the roads seem to belong to whoever is brave enough to take them, and every mile feels like freedom. Where would you drive tonight if there were no reason to turn back?"
+    },
+    {
+      "n": 6,
+      "id": "mask",
+      "title": "Mask",
+      "key": "G minor",
+      "bpm": 124,
+      "seconds": 216,
+      "original": "../djandyk-landing/public/audio/mask.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/06-mask-piano.wav",
+      "story": "The face we show the world — polished, fragile, never built to last, because the mirror always tells the truth it was hiding. We wear masks to survive, to belong, sometimes simply to get through the day — but every mask grows heavy. Who are you when nobody is watching and there is nothing left to perform?"
+    },
+    {
+      "n": 7,
+      "id": "stone",
+      "title": "Stone",
+      "key": "Bb minor",
+      "bpm": 124,
+      "seconds": 228,
+      "original": "../djandyk-landing/public/audio/stone.mp3",
+      "piano": "shared-assets/piano-sessions/deep-connections/07-stone-piano.wav",
+      "story": "What's left standing after the noise fades — heavy with every secret, unmoved by time, still holding the truth. Stone does not forget; it carries every touch, every fire, every rain, silently keeping the shape of what happened. Which truths in your life have stayed solid long after everything around them changed?"
+    }
+  ]
+}
