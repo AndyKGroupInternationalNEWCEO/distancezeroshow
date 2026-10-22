@@ -151,9 +151,10 @@ export function spaces(v, ctx) {
   /* first person (the DJ's place, the pianist's): a cross in the middle, BACK, drag to look round, tap a control */
   .sp-pov{position:fixed;inset:0;z-index:6;pointer-events:none}
   .sp-pov[hidden]{display:none}
-  .sp-pov i{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+  .sp-pov i{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;filter:drop-shadow(0 0 2px #000)}
+  body.sp-pov-on canvas{cursor:none}
   .sp-pov i::before,.sp-pov i::after{content:"";position:absolute;background:rgba(243,245,248,.85);box-shadow:0 0 4px rgba(0,0,0,.8)}
-  .sp-pov i::before{left:10px;top:0;width:2px;height:22px} .sp-pov i::after{top:10px;left:0;width:22px;height:2px}
+  .sp-pov i::before{left:12px;top:0;width:2px;height:26px} .sp-pov i::after{top:12px;left:0;width:26px;height:2px}
   .sp-pov button{pointer-events:auto;position:absolute;top:calc(env(safe-area-inset-top,0px) + 74px);left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:999px;
     background:rgba(8,9,12,.82);border:1px solid var(--line,rgba(201,206,214,.25));color:var(--chrome-hi,#f3f5f8);font:600 .7rem var(--wide,Arial);letter-spacing:.18em;cursor:pointer}
   .sp-pov p{position:absolute;bottom:calc(var(--dock-h,140px) + 14px);left:50%;transform:translateX(-50%);margin:0;padding:5px 12px;border-radius:6px;background:rgba(4,5,7,.7);
@@ -383,7 +384,7 @@ export function spaces(v, ctx) {
       // the set plays in the club: the booth goes down if it is not there yet (an opening cut short, a jump)
       if (m.env !== 'djroom' && !m.travelling) { if (m.lift.state === 'DOWN') m.setEnv('djroom', { transition: false }); else m.transition('down'); }
       track.src = s.audio; track.currentTime = 0; dj.el = track; track.play().catch(() => {});
-      m.setTempo(s.bpm); m.setMode('PERFORMANCE'); m.setShow('live'); m.setAuto(true);
+      m.setTempo(s.bpm); m.setMode('PERFORMANCE'); m.setShow('live'); m.setAuto(!pov);
       m.setTrack({ title: s.title, artist: "DJ Andy'K" });
       // the booth plays it: decks 2 and 3 in turn (by the mixer), its channel's fader up, the crossfader to its side
       const deck = dj.deck = dj.deck === 1 ? 2 : 1, other = deck === 1 ? 2 : 1;
@@ -402,7 +403,7 @@ export function spaces(v, ctx) {
   }
   function djNext() {
     if (!dj || dj.paused || dj.done) return;
-    if (dj.el === track && performance.now() > dj.wideAt) { dj.wideAt = performance.now() + 60000 + Math.random() * 60000; director.go(WIDE[(dj.wideI = (dj.wideI || 0) + 1) % WIDE.length]); }
+    if (dj.el === track && !pov && performance.now() > dj.wideAt) { dj.wideAt = performance.now() + 60000 + Math.random() * 60000; director.go(WIDE[(dj.wideI = (dj.wideI || 0) + 1) % WIDE.length]); }
     if (dj.waitUp) { if (!m.travelling && m.lift.state === 'UP') { dj.waitUp = false; m.djOpening('start', undefined, 'short'); } return; }
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
@@ -487,16 +488,20 @@ export function spaces(v, ctx) {
     return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
   }
   function enterPov(kind) {
+    try { enterPov_(kind); } catch (e) { console.error('first person:', e); }
+  }
+  function enterPov_(kind) {
     if (pov) exitPov();
     const { eye, look } = povEye(kind), d = look.clone().sub(eye).normalize();
     pov = { kind, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
     VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
-    povUi.hidden = false; povUi.querySelector('p').textContent = kind === 'dj' ? 'Drag to look round · tap PLAY, CUE, the faders, the jogs' : 'Drag to look round · tap the keys to play';
+    povUi.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
+    povUi.querySelector('p').textContent = kind === 'dj' ? 'Aim the cross · tap PLAY, CUE · drag the jogs, the faders, the crossfader' : 'Aim the cross · tap the keys to play';
     closeMenus(); dock.classList.remove('more-open');
   }
   function exitPov() {
-    if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; ctx.controls.enabled = true;
+    if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; document.body.classList.remove('sp-pov-on'); ctx.controls.enabled = true;
     director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true });
   }
   povUi.querySelector('button').addEventListener('click', exitPov);
@@ -535,9 +540,11 @@ export function spaces(v, ctx) {
   canvas.addEventListener('pointermove', e => {
     if (!pov?.drag) return; e.stopImmediatePropagation();
     const dx = e.clientX - pov.drag.x, dy = e.clientY - pov.drag.y; pov.drag.x = e.clientX; pov.drag.y = e.clientY; pov.drag.moved += Math.abs(dx) + Math.abs(dy);
-    if (pov.drag.h?.ctl) act(pov.drag.h, 'move', dx, dy);
-    else if (!pov.drag.h?.note) { pov.yaw -= dx * 0.004; pov.pitch = Math.max(-1.35, Math.min(1.2, pov.pitch - dy * 0.004)); aim(); }
+    if (pov.drag.h?.ctl) act(pov.drag.h, 'move', dx, dy);   // the camera stays where it is: only the controls move
   }, true);
+  // the cross follows the pointer over the picture (it is the pointer here)
+  const cross = povUi.querySelector('i');
+  canvas.addEventListener('pointermove', e => { if (!pov) return; cross.style.left = e.clientX + 'px'; cross.style.top = e.clientY + 'px'; });
   canvas.addEventListener('pointerup', e => { if (!pov?.drag) return; e.stopImmediatePropagation(); if (pov.drag.h) act(pov.drag.h, 'up'); pov.drag = null; }, true);
   canvas.addEventListener('click', e => { if (pov) e.stopImmediatePropagation(); }, true);
 
