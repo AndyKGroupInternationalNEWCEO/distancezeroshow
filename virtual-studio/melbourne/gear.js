@@ -53,6 +53,7 @@ export function buildGear({ M, parent, glowMat }) {
   const alu = new THREE.MeshStandardMaterial({ color: 0xb9bcc2, metalness: 1, roughness: 0.28 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x0a0a0b, roughness: 0.9 });
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x050607, metalness: 0, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02 });
+  const screenGlass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.08, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.02 });
   const capWhite = new THREE.MeshBasicMaterial({ color: 0xe8eaee });
 
   // a knob: knurled skirt and a domed cap (lathe profile), a white pointer line; `value` 0…1 turns it −150°…+150°
@@ -90,7 +91,8 @@ export function buildGear({ M, parent, glowMat }) {
     const scr = screen(n), sm = new THREE.MeshBasicMaterial({ map: scr.tex, toneMapped: false, color: 0x000000 });
     lit.push({ m: sm, white: true, k: 1, group: 'screens' });
     const face = mesh(new THREE.PlaneGeometry(0.2, 0.125).rotateX(-Math.PI / 2).rotateY(Math.PI), sm, 0, 0.0275, 0.0, sh); face.castShadow = false;
-    mesh(new THREE.PlaneGeometry(0.205, 0.13).rotateX(-Math.PI / 2), glass, 0, 0.0278, 0, sh).material = glass;
+    // the screen's cover glass: clear, only a faint gloss over the picture (an opaque black glass had hidden the screens)
+    mesh(new THREE.PlaneGeometry(0.205, 0.13).rotateX(-Math.PI / 2), screenGlass, 0, 0.0278, 0, sh).castShadow = false;
     // the jog: aluminium rim, a touch platter with a fine groove ring, a lit ring round it, a platter marker
     const [jx, jz] = at(0, -0.03);
     const jogRing = led(tint, 1.4); mesh(new THREE.TorusGeometry(0.1065, 0.0018, 6, 96).rotateX(Math.PI / 2), jogRing, jx, 0.062, jz, p);
