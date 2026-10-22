@@ -36,6 +36,8 @@ const FILES = [
   // the shows' cards (the broadcast's jingle videos, spaces.js) and the building's CC0 surfaces and night sky (building.js)
   ...fs.readdirSync(path.join(ROOT, 'assets/video/shows')).filter(f => f.endsWith('.mp4')).map(f => `assets/video/shows/${f}`),
   ...fs.readdirSync(path.join(ROOT, 'assets/cc0')).map(f => `assets/cc0/${f}`),
+  // the songs' covers (the albums' artwork from djandykofficial.com, 192 px)
+  ...fs.readdirSync(path.join(ROOT, 'assets/covers')).filter(f => f.endsWith('.jpg')).map(f => `assets/covers/${f}`),
   // the grand's piano parts, transcribed from the recordings (production/gpu/transcribe.py, import-parts.mjs)
   ...fs.readdirSync(path.join(ROOT, 'assets/piano-parts')).filter(f => f.endsWith('.json')).map(f => `assets/piano-parts/${f}`),
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the
