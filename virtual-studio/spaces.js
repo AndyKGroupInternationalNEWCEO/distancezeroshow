@@ -307,7 +307,8 @@ export function spaces(v, ctx) {
   const cardOff = () => { cardOf = null; cardEl.pause(); wallOff(); };
 
   /* ----- the Piano Sessions, in show order ----- */
-  const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk);
+  // (the album Opus No. 1: Vienna is not part of the Piano Sessions)
+  const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk && !s.id.startsWith('opus-no-1-vienna/'));
   let piano = null;   // { steps, i }
   const pianoPlaying = () => !['IDLE', 'ENDED'].includes(v.show.state);
   function pianoNext() {
