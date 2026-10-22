@@ -485,7 +485,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     raf = requestAnimationFrame(frame);
   }
 
-  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; }, setAfterShow, get afterShow() { return after; }, panels }) : null;
+  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; }, setAfterShow, get afterShow() { return after; }, panels, sound }) : null;
 
   // warm up: draw the wall once and compile shaders before revealing
   studio.wall.set('idle');

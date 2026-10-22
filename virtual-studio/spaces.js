@@ -11,6 +11,7 @@
 // on, the wall's last card, and a slow walk round what the cameras never show). A show that ends goes there by itself.
 // The Piano Stage's and the DJ Room's own panels are for the director: shown only with ?director in the address.
 //   v: the Vienna Piano Stage (vienna/index.js) with the DJ Room as v.melbourne (melbourne/index.js, withVienna)
+import * as THREE from 'three';
 import { REPERTOIRE } from './vienna/repertoire.js';
 import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
@@ -147,6 +148,16 @@ export function spaces(v, ctx) {
   .sp-lib li img{width:40px;height:40px;border-radius:5px;object-fit:cover;flex:none}
   .sp-lib li span{display:flex;flex-direction:column;gap:2px;min-width:0}
   .sp-lib li small{color:var(--dim,#8a9099);font-size:.66rem;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* first person (the DJ's place, the pianist's): a cross in the middle, BACK, drag to look round, tap a control */
+  .sp-pov{position:fixed;inset:0;z-index:6;pointer-events:none}
+  .sp-pov[hidden]{display:none}
+  .sp-pov i{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+  .sp-pov i::before,.sp-pov i::after{content:"";position:absolute;background:rgba(243,245,248,.85);box-shadow:0 0 4px rgba(0,0,0,.8)}
+  .sp-pov i::before{left:10px;top:0;width:2px;height:22px} .sp-pov i::after{top:10px;left:0;width:22px;height:2px}
+  .sp-pov button{pointer-events:auto;position:absolute;top:calc(env(safe-area-inset-top,0px) + 74px);left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:999px;
+    background:rgba(8,9,12,.82);border:1px solid var(--line,rgba(201,206,214,.25));color:var(--chrome-hi,#f3f5f8);font:600 .7rem var(--wide,Arial);letter-spacing:.18em;cursor:pointer}
+  .sp-pov p{position:absolute;bottom:calc(var(--dock-h,140px) + 14px);left:50%;transform:translateX(-50%);margin:0;padding:5px 12px;border-radius:6px;background:rgba(4,5,7,.7);
+    color:var(--chrome,#c9ced6);font:500 .62rem var(--wide,Arial);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
   .air.sp-air{z-index:4} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
   body.sp-min .sp-air .air-bottom{bottom:110px} body.sp-min .sp-air .air-ticker{bottom:66px}
   .dock:not(.more-open) .sp-row{display:none}
@@ -458,12 +469,83 @@ export function spaces(v, ctx) {
     djStep();
   }
 
+  /* ----- FIRST PERSON: standing at the DJ console / sitting at the grand. The camera is where the eyes are; drag to
+     look round (left, right, up to the ceiling, down to the floor); a tap works the control under it: the decks'
+     PLAY and CUE, a jog (drag: scrub), the channel faders and the crossfader (drag), the EQ knobs (drag); at the grand,
+     its keys play. BACK returns to the camera before ----- */
+  const povUi = document.createElement('div'); povUi.className = 'sp-pov'; povUi.hidden = true;
+  povUi.innerHTML = '<i></i><button type="button">BACK</button><p></p>'; document.body.appendChild(povUi);
+  const canvas = ctx.renderer.domElement, ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  let pov = null;   // { kind, eye, yaw, pitch, before, drag }
+  function povEye(kind) {
+    if (kind === 'dj') {
+      const g = m.booth.gear.group; g.updateMatrixWorld(true);
+      return { eye: g.localToWorld(new THREE.Vector3(0, 0.62, -0.62)), look: g.localToWorld(new THREE.Vector3(0, 0.02, 0.22)) };
+    }
+    const p = ctx.studio.piano; p.updateMatrixWorld(true);
+    return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
+  }
+  function enterPov(kind) {
+    if (pov) exitPov();
+    const { eye, look } = povEye(kind), d = look.clone().sub(eye).normalize();
+    pov = { kind, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
+    VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
+    director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
+    povUi.hidden = false; povUi.querySelector('p').textContent = kind === 'dj' ? 'Drag to look round · tap PLAY, CUE, the faders, the jogs' : 'Drag to look round · tap the keys to play';
+    closeMenus(); dock.classList.remove('more-open');
+  }
+  function exitPov() {
+    if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; ctx.controls.enabled = true;
+    director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true });
+  }
+  povUi.querySelector('button').addEventListener('click', exitPov);
+  const aim = () => { const c = Math.cos(pov.pitch); ctx.controls.target.copy(pov.eye).add(new THREE.Vector3(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.position.copy(pov.eye); ctx.camera.lookAt(ctx.controls.target); VIEWS.pov.target = ctx.controls.target.toArray(); };
+  function hit(e) {
+    const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, ctx.camera);
+    const root = pov.kind === 'dj' ? m.booth.gear.group : ctx.studio.piano;
+    for (const h of ray.intersectObject(root, true)) {
+      if (pov.kind === 'piano' && h.object.isInstancedMesh) { const note = ctx.studio.piano.userData.keyboard.noteAt(h.object, h.instanceId); if (note) return { note }; }
+      for (let o = h.object; o; o = o.parent) if (o.userData.ctl) return { ctl: o.userData.ctl, point: h.point };
+    }
+    return null;
+  }
+  // the decks: deck 2 and 3 (index 1, 2) are the set's; the deck that plays now is the set's current one
+  const deckOn = () => (dj?.el === track ? dj.deck : -1);
+  const chGain = ch => { const mx = m.booth.gear.mix, s = m.booth.gear.strips[ch]?.value; const side = ch < 2 ? 1 - mx.xfader : mx.xfader; return (s?.fader ?? 0.85) * Math.min(1, side * 2); };
+  const applyVolume = () => { const d = deckOn(); if (d >= 0) track.volume = Math.max(0, Math.min(1, chGain(d))); };
+  function act(h, phase, dx = 0, dy = 0) {
+    if (h.note) { const kb = ctx.studio.piano.userData.keyboard; if (phase === 'down') { ctx.sound?.noteOn?.(h.note, 0.8); kb.press(h.note, 1); } else if (phase === 'up') { ctx.sound?.noteOff?.(h.note); kb.press(h.note, 0); } return; }
+    const c = h.ctl, gear = m.booth.gear;
+    if (c.act === 'play' && phase === 'up') {
+      if (c.deck === deckOn()) pauseDj();
+      else { const pool = djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS; if (dj && !dj.done) dj.deck = c.deck === 1 ? 2 : 1; playTrackNow(pick(pool, 1)[0]); }
+    } else if (c.act === 'cue' && phase === 'up' && c.deck === deckOn()) { track.currentTime = 0; if (!dj.paused) pauseDj(); m.setDeck(c.deck + 1, { state: 'pause', position: 0 }); }
+    else if (c.act === 'jog' && phase === 'move' && c.deck === deckOn()) { track.currentTime = Math.max(0, track.currentTime + dx * 0.02); m.setDeck(c.deck + 1, { position: track.currentTime }); }
+    else if (c.act === 'fader' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch].fader = Math.max(0, Math.min(1, ch[c.ch].fader - dy * 0.006)); gear.setMixer({ ch }); applyVolume(); }
+    else if (c.act === 'xfader' && phase === 'move') { gear.setMixer({ xfader: Math.max(0, Math.min(1, gear.mix.xfader + dx * 0.004)) }); applyVolume(); }
+    else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); }
+  }
+  canvas.addEventListener('pointerdown', e => {
+    if (!pov) return; e.stopImmediatePropagation(); canvas.setPointerCapture?.(e.pointerId);
+    const h = hit(e); pov.drag = { x: e.clientX, y: e.clientY, h, moved: 0 };
+    if (h) act(h, 'down');
+  }, true);
+  canvas.addEventListener('pointermove', e => {
+    if (!pov?.drag) return; e.stopImmediatePropagation();
+    const dx = e.clientX - pov.drag.x, dy = e.clientY - pov.drag.y; pov.drag.x = e.clientX; pov.drag.y = e.clientY; pov.drag.moved += Math.abs(dx) + Math.abs(dy);
+    if (pov.drag.h?.ctl) act(pov.drag.h, 'move', dx, dy);
+    else if (!pov.drag.h?.note) { pov.yaw -= dx * 0.004; pov.pitch = Math.max(-1.35, Math.min(1.2, pov.pitch - dy * 0.004)); aim(); }
+  }, true);
+  canvas.addEventListener('pointerup', e => { if (!pov?.drag) return; e.stopImmediatePropagation(); if (pov.drag.h) act(pov.drag.h, 'up'); pov.drag = null; }, true);
+  canvas.addEventListener('click', e => { if (pov) e.stopImmediatePropagation(); }, true);
+
   /* ----- ⋯ at the Piano Stage and in the DJ Room: the space's own controls ----- */
   // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
   const CONTROLS = {
     piano: [
       [() => (piano || pianoPlaying() ? 'Finish Piano show' : 'Simulate Piano show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
-      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')]]],
+      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano')]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Concert look', () => v.setLook(true)], ['Studio look', () => v.setLook(false)], ['Key light on', () => v.setKey(true)], ['Key light off', () => v.setKey(false)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
       ['Video', [['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
@@ -473,7 +555,7 @@ export function spaces(v, ctx) {
     ],
     dj: [
       [() => (dj && !dj.done ? 'Finish DJ show' : 'Simulate DJ show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
-      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')]]],
+      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
@@ -526,7 +608,7 @@ export function spaces(v, ctx) {
       if (typeof label === 'function') dynamic.push([b, label]);
       if (Array.isArray(what)) {
         const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
-        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { if (label === 'Camera') wallHold = false; fn(); closeMenus(); }); pop.appendChild(x); }
+        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { if (label === 'Camera') { wallHold = false; if (!/first person/.test(l)) exitPov(); } fn(); closeMenus(); }); pop.appendChild(x); }
         dock.insertBefore(pop, ctrl); pops.push(pop);
         b.setAttribute('aria-expanded', 'false'); b.insertAdjacentHTML('beforeend', '<i class="chev" aria-hidden="true"></i>');
         b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });

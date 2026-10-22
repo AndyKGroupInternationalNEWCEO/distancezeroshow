@@ -128,6 +128,8 @@ export function grandPiano(M) {
       k.mesh.instanceMatrix.needsUpdate = true;
     },
     depth: note => keyMap.get(note)?.depth ?? null,
+    // the note a pointer hit (the key instance a raycast found)
+    noteAt(object, instanceId) { for (const [n, k] of keyMap) if (k.mesh === object && k.i === instanceId) return n; return null; },
   };
   add(new THREE.BoxGeometry(1.24, 0.07, 0.17), satin, 0, KEY_Y - 0.06, front - 0.08);       // key bed
   add(new RoundedBoxGeometry(1.25, 0.05, 0.022, 2, 0.006), lacquer, 0, KEY_Y - 0.03, front + 0.006); // key slip

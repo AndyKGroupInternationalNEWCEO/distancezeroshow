@@ -96,7 +96,7 @@ export function buildGear({ M, parent, glowMat }) {
     // the jog: aluminium rim, a touch platter with a fine groove ring, a lit ring round it, a platter marker
     const [jx, jz] = at(0, -0.03);
     const jogRing = led(tint, 1.4); mesh(new THREE.TorusGeometry(0.1065, 0.0018, 6, 96).rotateX(Math.PI / 2), jogRing, jx, 0.062, jz, p);
-    const jog = new THREE.Group(); jog.position.set(jx, 0.061, jz); p.add(jog);
+    const jog = new THREE.Group(); jog.position.set(jx, 0.061, jz); p.add(jog); jog.userData.ctl = { deck: n, act: 'jog' };
     mesh(new THREE.CylinderGeometry(0.103, 0.103, 0.014, 96), alu, 0, 0.007, 0, jog);
     const grooves = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'); x.fillStyle = '#101113'; x.fillRect(0, 0, 512, 512);
       for (let r = 40; r < 250; r += 2.2) { x.strokeStyle = `rgba(255,255,255,${0.035 + (r % 9 < 2 ? 0.03 : 0)})`; x.lineWidth = 1; x.beginPath(); x.arc(256, 256, r, 0, Math.PI * 2); x.stroke(); }
@@ -106,7 +106,7 @@ export function buildGear({ M, parent, glowMat }) {
     const centre = led(tint, 0.35, 'screens'); mesh(new THREE.TorusGeometry(0.026, 0.0016, 6, 48).rotateX(Math.PI / 2), centre, 0, 0.0185, 0, jog);   // the jog's centre display: a thin lit ring
     // play / cue: big round buttons with lit rims; the hot-cue pads; loop, sync; the tempo fader; the browse knob
     const play = led(new THREE.Color(0.25, 1, 0.45), 1.2), cue = led(GOLD, 1.2);
-    for (const [v, m] of [[-0.185, play], [-0.13, cue]]) { const [x, z] = at(-0.115, v); mesh(new THREE.CylinderGeometry(0.0165, 0.0165, 0.008, 40), satin, x, 0.064, z, p); mesh(new THREE.TorusGeometry(0.0168, 0.0016, 6, 40).rotateX(Math.PI / 2), m, x, 0.068, z, p); }
+    for (const [v, m] of [[-0.185, play], [-0.13, cue]]) { const [x, z] = at(-0.115, v); mesh(new THREE.CylinderGeometry(0.0165, 0.0165, 0.008, 40), satin, x, 0.064, z, p).userData.ctl = { deck: n, act: v < -0.15 ? 'play' : 'cue' }; mesh(new THREE.TorusGeometry(0.0168, 0.0016, 6, 40).rotateX(Math.PI / 2), m, x, 0.068, z, p); }
     const hot = [];
     for (let i = 0; i < 8; i++) { const m = led(tint, 0.35, 'pads'); const [x, z] = at(-0.1225 + i * 0.035, 0.095); mesh(new RoundedBoxGeometry(0.028, 0.007, 0.016, 1, 0.003), m, x, 0.063, z, p); hot.push(m); }
     for (const u of [-0.142, -0.108, 0.12]) { const [x, z] = at(u, u > 0 ? 0.075 : 0.058); mesh(new RoundedBoxGeometry(0.022, 0.006, 0.012, 1, 0.002), satin, x, 0.0625, z, p); }
@@ -136,12 +136,12 @@ export function buildGear({ M, parent, glowMat }) {
   mesh(fp.geo, new THREE.MeshStandardMaterial({ map: fp.tex, metalness: 0.5, roughness: 0.42 }), 0, 0.0955, 0, mx);
   const KNOBS = ['trim', 'hi', 'mid', 'low', 'filter'], KV = [0.185, 0.135, 0.095, 0.055, 0.012];
   const strips = CHU.map((u, i) => {
-    const knobs = KNOBS.map((name, k) => { const kn = knob(mx, u, KV[k], k === 0 || k === 4 ? smallKnobGeo : knobGeo); kn.position.y = 0.0955; return kn; });
+    const knobs = KNOBS.map((name, k) => { const kn = knob(mx, u, KV[k], k === 0 || k === 4 ? smallKnobGeo : knobGeo); kn.position.y = 0.0955; kn.userData.ctl = { ch: i, act: 'knob', name }; return kn; });
     const cueM = led(GOLD, 0.9, 'pads'); { const [x, z] = at(u, -0.04); mesh(new RoundedBoxGeometry(0.024, 0.007, 0.012, 1, 0.003), cueM, x, 0.099, z, mx); }
     const segs = [];   // a 15-segment meter beside the fader
     for (let s = 0; s < 15; s++) { const c = s > 12 ? new THREE.Color(1, 0.25, 0.2) : s > 9 ? GOLD : SILVER, m = led(c, 1.1, 'meters'); const [x, z] = at(u + 0.021, -0.145 + s * 0.0048); mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.0034), m, x, 0.0965, z, mx); segs.push(m); }
     const [fx, fz] = at(u, -0.11);
-    const cap = mesh(new RoundedBoxGeometry(0.016, 0.016, 0.026, 1, 0.004), satin, fx, 0.104, fz, mx);
+    const cap = mesh(new RoundedBoxGeometry(0.016, 0.016, 0.026, 1, 0.004), satin, fx, 0.104, fz, mx); cap.userData.ctl = { ch: i, act: 'fader' };
     mesh(new THREE.BoxGeometry(0.0022, 0.0006, 0.022), capWhite, 0, 0.0082, 0, cap);
     return { u, knobs, cueM, segs, cap, value: { ...REST }, level: 0 };
   });
@@ -149,7 +149,7 @@ export function buildGear({ M, parent, glowMat }) {
   for (const [side, du] of [[0, -0.008], [1, 0.008]]) for (let s = 0; s < 15; s++) { const c = s > 12 ? new THREE.Color(1, 0.25, 0.2) : s > 9 ? GOLD : SILVER, m = led(c, 1.1, 'meters'); const [x, z] = at(MASTER_U + du, -0.145 + s * 0.0048); mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.0034), m, x, 0.0965, z, mx); master.segs[side].push(m); }
   const micLed = led(new THREE.Color(1, 0.18, 0.12), 1.4); { const [x, z] = at(MASTER_U, 0.05); mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.003, 16), micLed, x, 0.097, z, mx); }
   { const [x, z] = at(0, -0.19); mesh(new THREE.BoxGeometry(0.11, 0.003, 0.004), rubber, x, 0.0962, z, mx); }
-  const xfCap = mesh(new RoundedBoxGeometry(0.024, 0.016, 0.016, 1, 0.004), satin, 0, 0.104, -0.19 - 0.0, mx); xfCap.position.z = -0.19;
+  const xfCap = mesh(new RoundedBoxGeometry(0.024, 0.016, 0.016, 1, 0.004), satin, 0, 0.104, -0.19 - 0.0, mx); xfCap.position.z = -0.19; xfCap.userData.ctl = { act: 'xfader' };
   const mix = { xfader: 0.5, master: 0.7, phones: 0.5 };
 
   /* ================= headphones (the console's left end) and the talkback mic (its right end) ================= */
@@ -239,7 +239,7 @@ export function buildGear({ M, parent, glowMat }) {
   const WORK = 6.5;
 
   return {
-    group: g, update, decks, strips, work, setDeck, setMixer, setLevels, setMic(on) { micState = !!on; },
+    group: g, update, decks, strips, work, setDeck, setMixer, setLevels, get mix() { return mix; }, setMic(on) { micState = !!on; },
     report() { return { decks: decks.map(k => ({ ...k.data, position: +position(k.data).toFixed(2), waveform: k.data.waveform ? k.data.waveform.length : 0 })), mixer: { ch: strips.map(s => ({ ...s.value, level: +s.level.toFixed(3) })), ...mix }, mic: micState }; },
   };
 }
