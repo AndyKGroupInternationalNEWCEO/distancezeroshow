@@ -64,12 +64,15 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const c = CAMS[k], top = platformTop(h), d = reducedMotion ? 0 : c.drift || 0;
     pos.set(c.pos[0] + Math.sin(t * 0.13) * d, c.pos[1] + c.rise * h + Math.sin(t * 0.09) * d * 0.35, c.pos[2] + Math.cos(t * 0.11) * d * 0.6);
     target.set(c.target[0], c.targetRise !== undefined ? c.target[1] + c.targetRise * h : top + c.target[1], c.target[2]);
+    // the cinematic lens: a longer focal length, the camera stepped back so the shot keeps the same framing (as the
+    // 4K high-speed camera's look: compressed, calm, the grand standing out of the room)
+    if (c.lens) pos.sub(target).multiplyScalar(Math.tan((c.fov * Math.PI) / 360) / Math.tan((c.fov * c.lens * Math.PI) / 360)).add(target);
     return { pos, target };
   };
   for (const k of keys) {
     const c = CAMS[k], s = shot(k, 0);
     // solo: the studio goes down round the stage, as on the studio's own piano shot (main.js), not quite as far
-    VIEWS[id(k)] = { label: c.label, long: c.long, pos: s.pos.toArray(), target: s.target.toArray(), fov: c.fov, drift: 0, tally: 0, cam: c.name, free: true, vienna: k, solo: 0.6, ...(k === 'P6' ? { slow: 0.3 } : {}) };
+    VIEWS[id(k)] = { label: c.label, long: c.long, pos: s.pos.toArray(), target: s.target.toArray(), fov: c.fov * (c.lens || 1), drift: 0, tally: 0, cam: c.name, free: true, vienna: k, solo: 0.6, ...(k === 'P6' ? { slow: 0.3 } : {}) };
   }
   // the studio's own piano shot (key 9) follows the grand up as well; with the lift down it is exactly as before
   const studioPiano = { pos: [...VIEWS.piano.pos], target: [...VIEWS.piano.target] };
@@ -215,7 +218,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
       shot(program, eased[program], feedShot.pos, feedShot.target);
       feed.cam.position.copy(feedShot.pos); feed.cam.lookAt(feedShot.target);
       // the shot is framed for 16:9: the wall is wider, so keep the height and show more at the sides
-      feed.cam.fov = CAMS[program].fov;
+      feed.cam.fov = CAMS[program].fov * (CAMS[program].lens || 1);
     } else {                                              // 'selected': the operator's own camera
       feed.cam.position.copy(camera.position); feed.cam.quaternion.copy(camera.quaternion); feed.cam.fov = camera.fov;
     }

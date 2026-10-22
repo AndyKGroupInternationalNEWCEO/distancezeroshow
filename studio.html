@@ -474,7 +474,7 @@ function tier() {
   const dpr = window.devicePixelRatio || 1;
   return mobile
     ? { mobile: true, ao: false, dpr: Math.min(dpr, 1.5), shadowSize: 1024, shadows2: false, reflections: false, glass: false, bloomScale: 0.5, wall: { width: 1280, height: 538 }, wallFps: 20 }
-    : { mobile: false, ao: true, dpr: Math.min(dpr, 1.75), shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };
+    : { mobile: false, ao: true, dpr: Math.min(dpr, 2), msaa: 4, shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };   // edges smoothed (4× MSAA) on desktops; the frame-rate watch lowers it on slow machines
 }
 
 if (!webgl2()) fallback();
