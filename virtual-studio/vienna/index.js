@@ -37,7 +37,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const lift = createLift(LIFT);
 
   /* ----- light state: eased towards the mode (plus any per-group override from the sequence) ----- */
-  let mode = 'WARM PIANO', override = {}, masterGoal = 1;
+  let mode = 'CINEMATIC', override = {}, masterGoal = 1;   // the stage's default: the cinematic light (the grand shows best in it)
   const L = { haze: 0, frame: 0, master: 1 };   // master: an overall fader (the Piano Show's closing takes it down slowly)
   for (const g of GROUPS) L[g] = { level: 0, color: new THREE.Color(), pattern: 'center', pulse: 0 };
   const goalColor = new THREE.Color();
@@ -167,7 +167,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     if (name === 'stop' || name === 'reset') abortSequence(name === 'stop' ? 'Stopped: sequence cancelled' : 'Reset: sequence cancelled');
     const r = lift.command(name);
     if (!r.ok) say(r.reason);
-    else if (name === 'reset') { mode = 'WARM PIANO'; override = {}; say('Reset: platform returning to the deck'); }
+    else if (name === 'reset') { mode = 'CINEMATIC'; override = {}; say('Reset: platform returning to the deck'); }
     else if (name !== 'stop') say('');
   }
   function setLiftHold(on) {

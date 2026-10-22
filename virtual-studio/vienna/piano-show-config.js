@@ -23,7 +23,7 @@ export const SHOW = {
   between: {
     label: 'Between songs · official ident',
     audio: 'assets/audio/piano-sessions/dz-piano-between-songs.wav',
-    lights: 'WARM PIANO', cams: ['P2', 'P3', 'P2', 'P5'], last: 'P1', minShot: 5,
+    lights: 'CINEMATIC', cams: ['P2', 'P3', 'P2', 'P5'], last: 'P1', minShot: 5,
   },
   // closing: slow shots, the light coming down step by step, the last shot on the grand in a soft light with the
   // DISTANCE // ZERO logo behind it; when the recording has died away, SHOW ENDED
@@ -33,12 +33,12 @@ export const SHOW = {
     cams: ['P5', 'P3', 'P4', 'P2'], last: 'P1', minShot: 7,
     dimTo: 0.35,                 // the light level the closing ends on (1 = the mode's full level)
   },
-  ended: { label: 'Show ended', lights: 'WARM PIANO' },
+  ended: { label: 'Show ended', lights: 'CINEMATIC' },
 
   // the theme's camera script, made from the measured sections: how long a shot lasts and which cameras a section
   // of that energy uses, in turn (never the same camera twice in a row); cuts snap to a measured onset within `snap` s
   shots: {
-    quiet: { length: 12, cams: ['P2', 'P3', 'P1'], lights: 'WARM PIANO' },
+    quiet: { length: 12, cams: ['P2', 'P3', 'P1'], lights: 'CINEMATIC' },
     mid: { length: 10, cams: ['P1', 'P3', 'P5', 'P2'], lights: 'CINEMATIC' },
     loud: { length: 8, cams: ['P4', 'P1', 'P5', 'P3'], lights: 'CINEMATIC' },
     climax: { lights: 'PERFORMANCE' },   // the loudest loud section
