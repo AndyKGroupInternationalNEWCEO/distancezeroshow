@@ -11,9 +11,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from '../../virtual-studio/vienna/serve.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-// the booth's place: 'down' (in the club, default) or 'up' (in the studio): cache/ or cache-up/
-const STATE = process.argv[2] === 'up' ? 'up' : 'down';
-const OUT = path.join(ROOT, 'production', 'gpu', STATE === 'up' ? 'cache-up' : 'cache');
+// the booth's place: 'down' (in the club, default) or 'up' (in the studio): cache/ or cache-up/; 'studio': the public
+// studio page (studio.html, no DJ room), its probes for the whole studio and the grand: cache-studio/
+const STATE = ['up', 'studio'].includes(process.argv[2]) ? process.argv[2] : 'down';
+const OUT = path.join(ROOT, 'production', 'gpu', { down: 'cache', up: 'cache-up', studio: 'cache-studio' }[STATE]);
 fs.mkdirSync(OUT, { recursive: true });
 const server = createServer(ROOT);
 await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -29,18 +30,19 @@ ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id
 const send = (method, params = {}) => new Promise(r => { const id = ++seq; pending.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
 const run = async src => { const r = await send('Runtime.evaluate', { expression: src, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text); return r.result.result.value; };
 await send('Runtime.enable'); await send('Page.enable');
-await send('Page.navigate', { url: BASE + 'melbourne-dev.html' });
+await send('Page.navigate', { url: BASE + (STATE === 'studio' ? 'studio.html' : 'melbourne-dev.html') });
 await run(`(async () => { for (let i = 0; i < 300; i++) { if (window.__studio) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('no studio'); })()`);
 
 const out = await run(`(async () => {
-  const a = window.__studio, m = a.ext.melbourne, THREE = await import('three');
+  const a = window.__studio, studioOnly = ${JSON.stringify(STATE === 'studio')}, m = studioOnly ? null : a.ext.melbourne, THREE = await import('three');
   const L = await import('./virtual-studio/melbourne/layout.js');
   const { GLTFExporter } = await import('./production/blender/vendor/GLTFExporter.js');
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   // the booth down, the club in its performance light
   const up = ${JSON.stringify(STATE === 'up')};
-  if (!up) { m.transition('down'); for (let i = 0; i < 600 && (m.travelling || m.lift.state !== 'DOWN'); i++) await sleep(100); m.setMode('PERFORMANCE'); m.setEnv('djroom', { transition: false }); }
-  m.setWall('main'); await sleep(4000);
+  if (!up && !studioOnly) { m.transition('down'); for (let i = 0; i < 600 && (m.travelling || m.lift.state !== 'DOWN'); i++) await sleep(100); m.setMode('PERFORMANCE'); m.setEnv('djroom', { transition: false }); }
+  if (!studioOnly) m.setWall('main');
+  await sleep(4000);
   // what Cycles cannot take from the real-time picture: additive glows standing in for light in the air (beams, haze,
   // smoke, light pools, lasers), the floor's real-time mirror, shader-only parts. Hidden for the export only
   const hidden = [], bad = [];
@@ -56,10 +58,13 @@ const out = await run(`(async () => {
   const emptied = [];
   a.scene.traverse(o => { for (const mat of [].concat(o.material || [])) for (const k of slots) { const t = mat[k]; if (t && !ok(t.image)) { emptied.push([mat, k, t]); mat[k] = null; } } });
   // the probes: where the live scene will use a rendered reflection (studio metres)
-  const b = new THREE.Vector3(); m.booth.group.getWorldPosition(b);
+  // the studio: from the middle of the round room at eye height (every lit material's reflections), and over the
+  // grand's open lid (its lacquer)
+  const pianoAt = new THREE.Vector3(); if (studioOnly) a.studio.piano.getWorldPosition(pianoAt);
+  const b = new THREE.Vector3(); if (!studioOnly) m.booth.group.getWorldPosition(b);
   const [cx, cz] = L.at(L.ROOM.along, L.ROOM.across);
   const over = L.xyz(L.CLUB_BOOTH.along, L.CLUB_BOOTH.across, b.y + L.CLUB_BOOTH.riser + L.CLUB_BOOTH.top + 0.35);   // just over the console's work top
-  const probes = up ? { 'booth-up': over } : {
+  const probes = studioOnly ? { studio: [0, 1.6, 1], 'studio-piano': [+pianoAt.x.toFixed(3), 2.1, +pianoAt.z.toFixed(3)] } : up ? { 'booth-up': over } : {
     booth: over,
     club: [cx, L.ROOM.floor + 2.4, cz],                                // the middle of the club (the disco ball hangs here)
   };

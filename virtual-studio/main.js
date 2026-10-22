@@ -11,6 +11,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { buildStudio } from './set.js';
+import { applyProbe, loadProbe } from './melbourne/probes.js';
 import { createDirector, VIEWS, ORDER, inLounge, nearLounge } from './views.js';
 import { createSound } from './sound.js';
 import { createPanels } from './panels.js';
@@ -102,6 +103,14 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   /* ----- the set ----- */
   const studio = buildStudio({ scene, quality, logo: new URLSearchParams(location.search).get('logo') || 'image' });
   progress(0.7);
+
+  // reflections rendered in Cycles (production/gpu, cache-studio): the studio seen from its middle at eye height
+  // becomes every material's environment, the grand's lacquer reflects the studio from over its open lid. Loaded
+  // once, in the background; until then (and with ?real=0) the generic studio environment above
+  const studioProbes = !REAL ? Promise.resolve(false) : Promise.all([
+    loadProbe(renderer, 'studio').then(env => { scene.environment = env; }),
+    applyProbe(renderer, 'studio-piano', [studio.piano], { intensity: 1.8, shared: new Set(Object.values(studio.M).filter(m => m?.isMaterial)) }),
+  ]).then(() => true).catch(e => { console.warn('studio probes:', e.message); return false; });
 
   let mirror = null;
   if (quality.reflections) {
@@ -498,5 +507,5 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air, ext };
+  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air, ext, studioProbes };
 }

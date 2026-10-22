@@ -18,5 +18,6 @@ for c in "${CACHES[@]}"; do
   ssh "${SSH[@]}" -p "$PORT" "root@$HOST" "cd /workspace/dz && s=\$(date +%s); DZ_CACHE=$c DZ_SAMPLES=\${DZ_SAMPLES:-1024} /workspace/blender/blender -b -P probes.py > $c.log 2>&1; echo \"$c: \$(( \$(date +%s) - s )) s\"; grep -E 'probe |Error|Traceback' $c.log | tail -5"
   mkdir -p "$HERE/out"; scp "${SSH[@]}" -P "$PORT" "root@$HOST:/workspace/dz/$c/probe-*" "$HERE/out/"
 done
-for f in "$HERE"/out/probe-*.f16; do n=$(basename "$f" .f16); cp "$f" "$ROOT/assets/probes/dj-${n#probe-}.f16"; done
+# the studio's own probes keep their names (studio, studio-piano); the DJ room's get dj-
+for f in "$HERE"/out/probe-*.f16; do n=$(basename "$f" .f16); n=${n#probe-}; case $n in studio*) cp "$f" "$ROOT/assets/probes/$n.f16";; *) cp "$f" "$ROOT/assets/probes/dj-$n.f16";; esac; done
 ls -la "$ROOT/assets/probes"
