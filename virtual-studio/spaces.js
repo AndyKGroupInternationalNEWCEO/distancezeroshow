@@ -287,7 +287,12 @@ export function spaces(v, ctx) {
   }
   function djStep() {
     const step = dj.steps[dj.i++];
-    if (!step) { m.setShow('ended'); m.setAuto(false); m.setMusicSource(null); dj.over = true; dj.el = null; dj.done = true; return; }
+    if (!step) {
+      m.setShow('ended'); m.setAuto(false); m.setMusicSource(null); dj.over = true; dj.el = null; dj.done = true;
+      // the show is over: the booth rides back up into the studio (and AFTERSHOW follows there)
+      if ((m.lift.state !== 'UP' || m.env === 'djroom') && !m.travelling) m.transition('up');
+      return;
+    }
     if (step.opening) {
       dj.el = null;
       // the opening starts with the booth up in the studio: after an earlier show it rides back up first
