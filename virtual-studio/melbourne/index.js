@@ -265,7 +265,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     openings.big.update(); openings.short.update();
     // the playing opening's music (null otherwise): the light follows it (ease), the pulses take its kick (room.js),
     // and the mixer's meters show its level, as a console's meters show what plays
-    L.music = opening.music();
+    L.music = opening.music() || musicSource?.(dt) || null;
     if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); booth.gear.setLevels({ ch: [lv, 0, 0, 0], master: [lv, lv * 0.97] }); }
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
@@ -294,8 +294,10 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   }
 
   /* ----- the controls (the panel uses these; the Broadcast Studio's bridge will use the same) ----- */
+  let musicSource = null;   // another recording the light follows (the DJ show's tracks: spaces.js, live-music.js)
   const api = {
     update, room, booth, club, L, MODES,
+    setMusicSource(fn) { musicSource = fn || null; },
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
     get travelling() { return !!seq; },
     setEnv,

@@ -37,7 +37,7 @@ const FILES = [
   ...fs.readdirSync(path.join(ROOT, 'assets/piano-parts')).filter(f => f.endsWith('.json')).map(f => `assets/piano-parts/${f}`),
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the
   // reflection probes rendered in Cycles (production/gpu)
-  ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map'].map(f => `virtual-studio/melbourne/${f}.js`),
+  ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music'].map(f => `virtual-studio/melbourne/${f}.js`),
   ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano'].map(f => `assets/probes/${f}.f16`),
   // the DJ Room's opening: the official show song (git-ignored: copied from the master, see virtual-studio/melbourne/djshow.js)
   'assets/audio/dj-room/dz-dj-room-opening.wav', 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
@@ -87,7 +87,7 @@ const hashes = [...new Set([page].flatMap(page => [...page.matchAll(/<script(?: 
   .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`)))];
 const csp = [
   "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`, "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
-  "font-src 'self'", "connect-src 'self'", "media-src 'self' https://distancezeroshow.com https://www.djandykofficial.com", // the soundtrack streams from the main site, DJ Andy'K's releases from his
+  "font-src 'self'", "connect-src 'self' https://distancezeroshow.com", "media-src 'self' https://distancezeroshow.com https://www.djandykofficial.com", // the soundtrack streams from the main site, DJ Andy'K's releases from his
   "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 ].join('; ');
 // studio.distancezeroshow.com is only a door: this project's free HTTPS certificate answers for it and sends

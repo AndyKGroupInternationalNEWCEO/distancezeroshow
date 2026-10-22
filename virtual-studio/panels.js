@@ -20,6 +20,7 @@ const mmss = s => (isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 
 
 /* DJ Andy'K: a curated selection; the tracks stream from the official site (no audio copied here), see sound.js */
 const ANDYK = 'https://www.djandykofficial.com';
+const PROGRAMME = 'https://distancezeroshow.com/data/programme-2027.json';   // the main site's programme (CORS open)
 const RELEASES = [
   { title: 'This Is Trance, Hear the Call', genre: 'Trance · feat. Aria Noir', note: 'A trance anthem built around one unpolished rehearsal take, in three interpretations.', path: '/this-is-trance-hear-the-call' },
   { title: 'Opus No. 1: Vienna', genre: 'Fortepiano · Orchestra · Progressive Trance', note: 'Four movements composed in Vienna: fortepiano and orchestra turned into progressive trance.', path: '/opus-no-1-vienna' },
@@ -68,14 +69,21 @@ export function createPanels({ sound, el, onMusicStart }) {
     if (current === 'station') {
       title.textContent = 'Music station';
       tabs.hidden = false;
-      tabs.replaceChildren(...[['soundtrack', 'Soundtrack'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]].map(([id, label]) =>
+      // only the tabs of the space the visitor is in (spaces.js sets body[data-space]): the show's music in the studio,
+      // the piano at the Piano Stage, the booth in the DJ Room
+      const all = [['soundtrack', 'Soundtrack'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]];
+      const only = { studio: ['soundtrack', 'andyk'], piano: ['piano'], dj: ['dj'] }[document.body.dataset.space];
+      const shown = only ? all.filter(([id]) => only.includes(id)) : all;
+      if (!shown.some(([id]) => id === tab)) tab = shown[0][0];
+      tabs.replaceChildren(...shown.map(([id, label]) =>
         h('button', { type: 'button', role: 'tab', class: 'tab', 'aria-selected': String(tab === id), text: label, onclick: () => { tab = id; render(); } })));
       body.replaceChildren(tab === 'soundtrack' ? soundtrack() : tab === 'dj' ? booth() : tab === 'piano' ? piano() : andyk());
     } else {
       title.textContent = 'Broadcast schedule';
       tabs.hidden = true;
-      body.replaceChildren(schedule());
-      timer = setInterval(() => { if (current === 'schedule') body.replaceChildren(schedule()); }, 1000);
+      const draw = () => body.replaceChildren(programme.data ? fromProgramme() : schedule());
+      draw(); loadProgramme().then(() => { if (current === 'schedule') draw(); });
+      timer = setInterval(() => { if (current === 'schedule') draw(); }, 1000);
     }
   }
 
@@ -250,7 +258,40 @@ export function createPanels({ sound, el, onMusicStart }) {
     return root;
   }
 
-  /* ---------- the real schedule ---------- */
+  /* ---------- the programme, read from the main site (the one file it is edited in), so both always agree ---------- */
+  const programme = { data: null, tried: 0 };
+  function loadProgramme() {
+    if (programme.data || Date.now() - programme.tried < 60e3) return Promise.resolve();
+    programme.tried = Date.now();
+    return fetch(PROGRAMME, { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).then(d => { if (d?.formats) programme.data = d; }).catch(() => {});
+  }
+  // the next shows of the space's format (all formats in the studio), with what the site has announced for each
+  function fromProgramme() {
+    const P = programme.data, fmtOf = { piano: 'piano', dj: 'dj' }[document.body.dataset.space] || null;
+    const vienna = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna' }), today = vienna.format(new Date());
+    const dates = [];
+    for (const sp of P.specials || []) dates.push({ date: sp.date, format: sp.format, name: sp.name });
+    for (let d = new Date(P.regularFrom + 'T12:00:00Z'); d <= new Date(P.until + 'T12:00:00Z') && dates.length < 400; d.setUTCDate(d.getUTCDate() + 1)) {
+      const k = Object.entries(P.formats).find(([, f]) => f.weekday === d.getUTCDay());
+      if (k) dates.push({ date: d.toISOString().slice(0, 10), format: k[0], name: k[1].name });
+    }
+    const list = dates.filter(x => x.date >= today && (!fmtOf || x.format === fmtOf)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+    const fmt = (iso, o) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', ...o }).format(new Date(iso + 'T12:00:00Z'));
+    const row = x => {
+      const ep = P.episodes?.[x.date] || {}, f = P.formats[x.format] || {};
+      return h('div', { class: 'when' },
+        h('div', {}, h('span', { class: 'city ' + (x.format === 'dj' ? 'm' : 'v'), text: x.name }), h('span', { text: fmt(x.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + (ep.time ? ' · ' + ep.time + ' Vienna' : '') })),
+        ep.title ? h('div', {}, h('span', { text: ep.title })) : null,
+        h('div', {}, h('span', { class: 'city', text: f.where || '' }), ep.cancelled ? h('span', { text: 'cancelled' }) : null));
+    };
+    return h('div', { class: 'pane' },
+      h('p', { class: 'grp', text: fmtOf ? 'Next ' + P.formats[fmtOf].name : 'Programme' }), ...list.map(row),
+      h('p', { class: 'pnote', text: 'From the programme on distancezeroshow.com. Broadcast times are announced there.' }),
+      h('div', { class: 'ctl left' }, ext(SHOW.livePage.replace('#live', '#programme'), 'Full programme', 'pbtn')),
+      h('div', { class: 'simnote' }, h('b', { text: 'Not the same thing: ' }), '“Simulate on air” in this studio plays a full-screen simulation on this page. It is a simulation, not the show, and nothing is broadcast.'));
+  }
+
+  /* ---------- the real schedule (the built-in rule: while the programme cannot be read) ---------- */
   function schedule() {
     const now = Date.now(), live = onAirNow(now), next = upcoming(now, 3);
     const fmt = (t, tz, o) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, ...o }).format(new Date(t));
