@@ -41,6 +41,8 @@ jobs:
           curl -sf https://distancezeroshow.com/sitemap.xml -o "$RUNNER_TEMP/live-sitemap.xml" || true
           node scripts/sitemap-dates.js "$RUNNER_TEMP/live-sitemap.xml" > "$RUNNER_TEMP/changed.txt"
           cat "$RUNNER_TEMP/changed.txt"
+      # /de as its own page with the German <head> (canonical /de), so it is not read as a copy of the homepage
+      - run: node scripts/de-page.js
       - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
       - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
       # Tell Bing, Yandex, Seznam and the other IndexNow search engines which sitemap pages changed.
