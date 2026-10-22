@@ -13,8 +13,9 @@ import { createServer } from '../../virtual-studio/vienna/serve.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 // the booth's place: 'down' (in the club, default) or 'up' (in the studio): cache/ or cache-up/; 'studio': the public
 // studio page (studio.html, no DJ room), its probes for the whole studio and the grand: cache-studio/
-const STATE = ['up', 'studio'].includes(process.argv[2]) ? process.argv[2] : 'down';
-const OUT = path.join(ROOT, 'production', 'gpu', { down: 'cache', up: 'cache-up', studio: 'cache-studio' }[STATE]);
+// 'places': the main page with the building, the reception and the backstage lounge, their probes: cache-places/
+const STATE = ['up', 'studio', 'places'].includes(process.argv[2]) ? process.argv[2] : 'down';
+const OUT = path.join(ROOT, 'production', 'gpu', { down: 'cache', up: 'cache-up', studio: 'cache-studio', places: 'cache-places' }[STATE]);
 fs.mkdirSync(OUT, { recursive: true });
 const server = createServer(ROOT);
 await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -34,7 +35,8 @@ await send('Page.navigate', { url: BASE + (STATE === 'studio' ? 'studio.html' : 
 await run(`(async () => { for (let i = 0; i < 300; i++) { if (window.__studio) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('no studio'); })()`);
 
 const out = await run(`(async () => {
-  const a = window.__studio, studioOnly = ${JSON.stringify(STATE === 'studio')}, m = studioOnly ? null : a.ext.melbourne, THREE = await import('three');
+  const a = window.__studio, places = ${JSON.stringify(STATE === 'places')}, studioOnly = ${JSON.stringify(STATE === 'studio')} || places, m = studioOnly ? null : a.ext.melbourne, THREE = await import('three');
+  if (places) { const st = await a.ext.spaces.place(); st.group.visible = true; }
   const L = await import('./virtual-studio/melbourne/layout.js');
   const { GLTFExporter } = await import('./production/blender/vendor/GLTFExporter.js');
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -64,7 +66,9 @@ const out = await run(`(async () => {
   const b = new THREE.Vector3(); if (!studioOnly) m.booth.group.getWorldPosition(b);
   const [cx, cz] = L.at(L.ROOM.along, L.ROOM.across);
   const over = L.xyz(L.CLUB_BOOTH.along, L.CLUB_BOOTH.across, b.y + L.CLUB_BOOTH.riser + L.CLUB_BOOTH.top + 0.35);   // just over the console's work top
-  const probes = studioOnly ? { studio: [0, 1.6, 1], 'studio-piano': [+pianoAt.x.toFixed(3), 2.1, +pianoAt.z.toFixed(3)] } : up ? { 'booth-up': over } : {
+  // the places: the backstage lounge (behind the LED wall), the middle of the reception, the pavement in front
+  const probes = places ? { backstage: [0, 1.5, -9.2], reception: [0, 1.6, 29], street: [0, 1.6, 40] }
+    : studioOnly ? { studio: [0, 1.6, 1], 'studio-piano': [+pianoAt.x.toFixed(3), 2.1, +pianoAt.z.toFixed(3)] } : up ? { 'booth-up': over } : {
     booth: over,
     club: [cx, L.ROOM.floor + 2.4, cz],                                // the middle of the club (the disco ball hangs here)
   };

@@ -482,5 +482,5 @@ export function spaces(v, ctx) {
     }
   }
   show();
-  return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow };
+  return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow, place };
 }

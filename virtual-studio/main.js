@@ -421,6 +421,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   const wallStep = 1 / quality.wallFps;
   const lerp = (a, b, k) => a + (b - a) * k;
 
+  let avgDt = 1 / 60;
   function frame(now) {
     const dt = Math.min(0.1, (now - clock.last) / 1000);
     clock.last = now;
@@ -458,8 +459,10 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
     bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 
-    // the camera moves on at most 1/30 s a frame: after a slow frame it carries on smoothly instead of jumping ahead
-    director.update(Math.min(dt, 1 / 30), now);
+    // a single slow frame (a hitch) is not passed on to the camera in full: it carries on smoothly instead of jumping
+    // ahead. A machine that is slow all the time keeps its own pace (its average), so moves never turn slow motion
+    avgDt += (dt - avgDt) * 0.05;
+    director.update(Math.min(dt, avgDt * 2), now);
     if (director.walking) camera.lookAt(controls.target); else controls.update(dt);   // walking: no orbit limits, just look ahead
     // the slow-mo shot is the robot's own camera: the picture follows its lens through the programme of moves
     if (robotShot) { camera.position.copy(studio.robot.shot.pos); controls.target.copy(studio.robot.shot.target); camera.lookAt(controls.target); }

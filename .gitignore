@@ -14,6 +14,7 @@ assets/audio/piano-sessions/*.wav
 production/gpu/cache/
 production/gpu/cache-up/
 production/gpu/cache-studio/
+production/gpu/cache-places/
 production/gpu/out/
 assets/audio/dj-room/*.wav
 production/gpu/parts/

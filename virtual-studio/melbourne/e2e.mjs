@@ -424,4 +424,5 @@ const passed = results.filter(r => r.ok).length;
 fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify({ date: new Date().toISOString(), results, problems }, null, 2));
 console.log(`\n${passed}/${results.length} passed\nreport and screenshots: test-output/melbourne/`);
 chrome.kill(); server.close();
+process.on('exit', () => { try { fs.rmSync(profile, { recursive: true, force: true }); } catch {} });   // the profile is large: never left behind
 process.exit(passed === results.length ? 0 : 1);
