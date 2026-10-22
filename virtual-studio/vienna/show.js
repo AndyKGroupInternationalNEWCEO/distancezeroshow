@@ -88,7 +88,7 @@ export function identScript(map, cfg, { dim = false } = {}) {
   if (dim) {
     cues[0].lights = 'CINEMATIC'; cues[0].master = 1; cues[0].say = 'closing';
     cues.forEach((c, i) => { if (i) c.master = +(1 - (1 - cfg.dimTo) * (c.t / map.tail)).toFixed(3); });
-    Object.assign(cues.at(-1), { lights: 'CINEMATIC', set: { spot: 0.6 }, say: 'closing · last shot' });   // the grand in a soft light, the logo behind
+    Object.assign(cues.at(-1), { lights: 'WARM PIANO', set: { spot: 0.6 }, say: 'closing · last shot' });   // the grand in a soft light, the logo behind
     cues.push({ t: map.tail, master: cfg.dimTo, say: 'closing · dying away' });
   } else {
     Object.assign(cues[0], { lights: cfg.lights, master: 1, say: 'between songs' });
