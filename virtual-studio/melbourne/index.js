@@ -122,19 +122,27 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   function ease(dt) {
     const m = MODES[mode], k = 1 - Math.exp(-dt * (m.drop && beat < modeBeat + 2 ? 8 : 2.0));   // the drop lands at once
     const ramp = m.ramp ? Math.min(1, 0.3 + 0.7 * (beat - modeBeat) / (4 * m.ramp)) : 1;
+    // while an opening plays, its recording leads the light (djshow.js music(), measured on the pod): each group rises
+    // and falls with its band of the music, fast, on top of the section's level
+    const mu = L.music, kMu = 1 - Math.exp(-dt * 14);
+    const BAND = { spot: 'low', strips: 'low', wash: 'mid', accent: 'mid', lasers: 'high' };
     for (const g of GROUPS) {
       const [level, color, extra, pulse] = m[g];
       let lvl = level;
       if (g === 'lasers') { lvl = fx.lasers === null ? level : fx.lasers ? Math.max(level, 0.8) : 0; lvl *= fx.laserLevel; }
-      L[g].level += (lvl * ramp * master - L[g].level) * k;
+      const follow = mu && BAND[g];
+      if (follow) lvl *= 0.3 + 0.7 * Math.min(1, mu[BAND[g]] * 1.15);
+      L[g].level += (lvl * ramp * master - L[g].level) * (follow ? Math.max(k, kMu) : k);
       L[g].color.lerp(goal.set(color), k);
       if (g === 'spot' || g === 'wash') { L[g].pattern = extra; L[g].pulse = pulse || 0; }
       if (g === 'lasers') { L[g].pulse = extra; L[g].pattern = m.laserPattern || 'fan'; }
     }
-    L.led.level += (m.led * Math.max(master, 0.25) - L.led.level) * k;
+    L.led.level += (m.led * Math.max(master, 0.25) * (mu ? 0.45 + 0.55 * mu.low : 1) - L.led.level) * (mu ? Math.max(k, kMu) : k);
     L.haze.level += ((fx.haze ?? m.haze) * master - L.haze.level) * k;
     // the strobe: the operator's level; BUILD-UP's last four bars creep in; DROP's two bars (all capped, ≤ 3 flashes/s)
-    const auto = m.ramp && ramp > 0.8 ? 0.25 * (ramp - 0.8) / 0.2 : beat < dropUntil ? STROBE_MAX : 0;
+    let auto = m.ramp && ramp > 0.8 ? 0.25 * (ramp - 0.8) / 0.2 : beat < dropUntil ? STROBE_MAX : 0;
+    // the recording's big hits flash the strobe in the loud sections (capped like every strobe here)
+    if (mu?.hit && (m.drop || mode === 'PERFORMANCE' || m.ramp)) auto = Math.max(auto, STROBE_MAX * mu.hit);
     L.strobe.level = Math.min(STROBE_MAX, Math.max(fx.strobe, auto)) * master;
     L.disco.level += ((fx.disco === null ? m.disco ?? 0 : fx.disco ? 1 : 0) * master - L.disco.level) * k; L.disco.speed = fx.discoSpeed;
     L.fogFloor.level = Math.max(0, L.fogFloor.level - dt / 14);   // the ground fog fades over about 14 s
@@ -255,6 +263,10 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     if (boothShows && where !== boothShows) { boothShows = where; for (const m of boothMats) m.envMap = boothEnv[where]; }
     runSequence(dt);
     openings.big.update(); openings.short.update();
+    // the playing opening's music (null otherwise): the light follows it (ease), the pulses take its kick (room.js),
+    // and the mixer's meters show its level, as a console's meters show what plays
+    L.music = opening.music();
+    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); booth.gear.setLevels({ ch: [lv, 0, 0, 0], master: [lv, lv * 0.97] }); }
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
     // comes up with the booth

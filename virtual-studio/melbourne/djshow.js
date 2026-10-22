@@ -7,8 +7,10 @@
 // This recording is the show's opening media: the page plays it (it reaches OBS with the page's sound, like the Piano
 // Show's openings). While it plays, the Broadcast Studio's Audio Director keeps every other music source silent.
 // With LIFT HOLD on, it plays without moving the lift (the lift cues are refused, everything else runs).
+import { DJ_AUDIO_MAP } from './dj-audio-map.js';
+
 export const DJ_OPENING = {
-  audio: 'assets/audio/dj-room/dz-dj-room-opening.wav',
+  audio: 'assets/audio/dj-room/dz-dj-room-opening.wav', map: 'big',
   duration: 348.76, bpm: 140,
   lift: 60.0,   // the booth lands in the club here (the transition takes 19.0 s: 2.5 s of light, 16.5 s of travel)
   cues: [
@@ -36,7 +38,7 @@ export const DJ_OPENING = {
 // Opening 1, the short one: "Distance // Zero (opening)", 1:39. Measured 2026-10-21: the big entry at 0:54 (+5 dB),
 // the end fading from 1:36. The booth sets off at 0:35 and lands on 0:54; DROP there, CLOSING light as it fades
 export const DJ_OPENING_SHORT = {
-  audio: 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
+  audio: 'assets/audio/dj-room/dz-dj-room-opening-short.wav', map: 'short',
   duration: 99.16, bpm: null, lift: 54.0,
   cues: [
     { t: 0, mode: 'OPENING', led: 'LOGO', view: 'djwide', say: 'short opening: the studio, the booth up' },
@@ -52,6 +54,10 @@ export const DJ_OPENING_SHORT = {
 // show, auto, cam (a cut that keeps the automatic sequence), tempo, say, liftReady() (booth up, cover open, arms in)
 export function createDjShow({ api, url, script = DJ_OPENING }) {
   const S = script;
+  // the music map (dj-audio-map.js): the levels at the recording's current time, for the light to follow
+  const M = DJ_AUDIO_MAP[S.map], bytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+  const band = M && { low: bytes(M.low), mid: bytes(M.mid), high: bytes(M.high), kick: bytes(M.kick) };
+  const at = (a, fps, t) => (a[Math.max(0, Math.min(a.length - 1, Math.round(t * fps)))] || 0) / 255;
   const audio = new Audio(); audio.preload = 'metadata'; audio.src = url; audio.crossOrigin = 'anonymous';
   let state = 'IDLE', next = 0, error = null;
   audio.addEventListener('ended', () => { if (state !== 'IDLE') { state = 'ENDED'; api.say('DJ opening: ended'); } });
@@ -74,6 +80,12 @@ export function createDjShow({ api, url, script = DJ_OPENING }) {
     next = S.cues.findIndex(c => c.t > t); if (next < 0) next = S.cues.length;
   }
   return {
+    // what the music is doing now: low / mid / high energy, the kick, and `hit` (0…1, fading 0.25 s after a big hit)
+    music() {
+      if (!band || (state !== 'PLAYING' && state !== 'PAUSED')) return null;
+      const t = audio.currentTime, h = M.hits.reduce((x, ht) => (ht <= t && t - ht < 0.25 ? Math.max(x, 1 - (t - ht) / 0.25) : x), 0);
+      return { low: at(band.low, M.fps, t), mid: at(band.mid, M.fps, t), high: at(band.high, M.fps, t), kick: at(band.kick, M.kickFps, t), hit: h };
+    },
     get state() { return state; }, get time() { return audio.currentTime; }, get duration() { return S.duration; }, get error() { return error; }, audio,
     start() {
       if (!api.liftReady()) return { ok: false, reason: 'The booth must be up in the studio (cover open, arms in): Return ↑ first' };

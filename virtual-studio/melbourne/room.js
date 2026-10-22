@@ -306,7 +306,8 @@ export function buildRoom({ studio, scene, quality }) {
       h.aim.lookAt(v.copy(cur[h.i]).applyMatrix4(room.matrixWorld));
       const d = h.aim.getWorldPosition(w).distanceTo(v);
       h.beam.scale.set(1, 1, d);
-      const pulse = s.pulse ? 0.5 + 0.5 * Math.max(0, Math.cos(ph)) : 1;
+      // the pulse: on the recording's own kick while an opening plays (L.music), on the tempo clock otherwise
+      const pulse = s.pulse ? (L.music ? 0.3 + 0.7 * L.music.kick : 0.5 + 0.5 * Math.max(0, Math.cos(ph))) : 1;
       h.bm.uniforms.uColor.value.copy(s.color);
       h.bm.uniforms.uOpacity.value = (h.kind === 'wash' ? 0.12 : 0.34) * s.level * (0.25 + 0.75 * L.haze.level) * pulse;
       const pool = pools[h.i]; pool.position.set(cur[h.i].x, ROOM.floor + 0.004, cur[h.i].z); pool.visible = cur[h.i].y < ROOM.floor + 0.5;
@@ -324,7 +325,7 @@ export function buildRoom({ studio, scene, quality }) {
       // a beam ends at the club's ceiling (the underside of the studio floor): it never shows up in the studio above
       l.fan.updateMatrixWorld(true);
       for (const r of l.rays) { r.getWorldDirection(rayDir); r.getWorldPosition(rayAt); r.scale.z = rayDir.y > 0.001 ? Math.min(11, (ROOM.ceiling - 0.03 - rayAt.y) / rayDir.y) : 11; }
-      const on = s.level * (s.pulse ? ((beat * 2) % 1 < 0.55 ? 1 : 0.1) : 1);
+      const on = s.level * (s.pulse ? (L.music ? 0.1 + 0.9 * L.music.kick : (beat * 2) % 1 < 0.55 ? 1 : 0.1) : 1);
       l.mat.color.copy(s.color).multiplyScalar(1.8 * on); l.halo.color.copy(s.color).multiplyScalar(0.22 * on * (0.25 + 0.75 * L.haze.level));
       l.fan.visible = on > 0.002;
     }
