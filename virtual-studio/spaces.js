@@ -26,7 +26,7 @@ const AFTER = {
 };
 const AFTER_TOUR = ['aWide', 'aCams', 'aTruss', 'securityLounge', 'backstage'];
 // CCTV: the security monitor, switching by itself between the cameras of the studio, backstage, reception and entrance
-const CCTV = ['security', 'securityLounge', 'secReception', 'secBuilding'];
+const CCTV = ['security', 'secClub', 'securityLounge', 'secReception', 'secBuilding'];
 // the building and its reception (building.js, the arrival's set): a place of its own, reached by a cut; loaded the
 // first time it is asked for. The front faces +z at FZ = 34
 const FZ = 34;
@@ -94,7 +94,7 @@ export function spaces(v, ctx) {
   // sight so the shot keeps its framing. As far as the room allows: in the studio within its round wall, in the club
   // within the club. The Piano Stage's cameras have theirs already (vienna/layout.js: lens), the security cameras,
   // the robot, the lift's own cameras and the places keep theirs
-  const SKIP = /^(security|securityLounge|backstage|slowmo|robot|onWall|building|reception|secReception|secBuilding|v.*|mHS|mLift.*)$/;
+  const SKIP = /^(security|securityLounge|secClub|backstage|slowmo|robot|onWall|building|reception|secReception|secBuilding|v.*|mHS|mLift.*)$/;
   for (const [k, view] of Object.entries(VIEWS)) {
     if (SKIP.test(k) || view.lensed || !view.pos || !view.target || !view.fov) continue;
     const p = view.pos, t = view.target, club = !!view.melbourne;
@@ -207,6 +207,13 @@ export function spaces(v, ctx) {
     const px = hdr.image.data; for (let i = 0; i < px.length; i++) if ((i & 3) !== 3) px[i] = Math.min(px[i], 1.6);   // as the arrival: lamps as glints
     const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; hdr.dispose(); pm.dispose();
     const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
+    // the security cameras out there, where their views are: high in the lobby, on a pole across from the entrance
+    const { securityCam } = await import('./set.js');
+    for (const k of ['secReception', 'secBuilding']) {
+      const view = VIEWS[k], cam = securityCam(ctx.studio.M, placeAnim), at2 = new THREE.Vector3(...view.target), from = new THREE.Vector3(...view.pos);
+      cam.position.copy(from).addScaledVector(at2.clone().sub(from).normalize(), -0.3); cam.lookAt(at2); st.group.add(cam);
+      if (k === 'secBuilding') { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, view.pos[1], 12), ctx.studio.M.graphite); pole.position.set(cam.position.x, view.pos[1] / 2, cam.position.z - 0.25); st.group.add(pole); }
+    }
     // the reflections rendered in Cycles (production/gpu, cache-places): inside the doors the reception's, outside the
     // street's. Without the files the materials keep their own environment
     const lobby = [], street = [], at = new THREE.Vector3();
@@ -214,6 +221,7 @@ export function spaces(v, ctx) {
     applyProbe(ctx.renderer, 'street', street).then(() => applyProbe(ctx.renderer, 'reception', lobby)).catch(() => {});
     return st;
   })());
+  const placeAnim = [];   // the place's security cameras' REC lamps
   const outside = () => ctx.camera.position.z > 15;
   let shownOut = null, studioFog = null;
 
@@ -594,6 +602,7 @@ export function spaces(v, ctx) {
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
     pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx();
+    for (const f of placeAnim) f(performance.now() / 1000);
     for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
     // the cards, by what the shows are doing
     const P = v.show;

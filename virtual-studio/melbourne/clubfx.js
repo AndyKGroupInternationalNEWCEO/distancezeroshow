@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { beamMaterial } from '../set.js';
 import { ROOM } from './layout.js';
+import { cloudTex, hazyBeam } from './room.js';
 
 const W = ROOM.w / 2, D = ROOM.d / 2, FLOOR = ROOM.floor, CEIL = ROOM.ceiling;
 export const BALL = { x: 0, z: 3.2, y: CEIL - 1.05, r: 0.34 };   // over the dance floor, 1.2 m in front of the DJ lift's shaft
@@ -45,7 +46,7 @@ export function buildClubFx({ room, M, lite }) {
     room.updateMatrixWorld(true); head.lookAt(room.localToWorld(new THREE.Vector3(BALL.x, BALL.y, BALL.z)));
     mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.18, 20).rotateX(Math.PI / 2), dark, 0, 0, 0, head);
     const lens = new THREE.MeshBasicMaterial({ color: 0x000000 }); mesh(new THREE.CircleGeometry(0.035, 20), lens, 0, 0, 0.091, head);
-    const bm = beamMaterial(new THREE.Color(1, 0.95, 0.88)), dist = p.distanceTo(new THREE.Vector3(BALL.x, BALL.y, BALL.z));
+    const bm = hazyBeam(new THREE.Color(1, 0.95, 0.88)), dist = p.distanceTo(new THREE.Vector3(BALL.x, BALL.y, BALL.z));
     const beam = mesh(new THREE.ConeGeometry(Math.tan(0.035) * dist, dist, 20, 1, true).translate(0, -dist / 2, 0).rotateX(-Math.PI / 2), bm, 0, 0, 0, head); beam.castShadow = false;
     return { p, lens, bm };
   });
@@ -111,9 +112,9 @@ export function buildClubFx({ room, M, lite }) {
   }
 
   /* ================= ground fog: low layers that spread over the floor after a burst and fade ================= */
-  const fogTex = tex(256, 256, (x, w) => { const gr = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, w); });
+  const fogTexes = [cloudTex(256, 21, 0.6), cloudTex(256, 34, 0.6), cloudTex(256, 55, 0.6)];   // torn, billowing layers
   const layers = Array.from({ length: lite ? 6 : 12 }, (_, i) => {
-    const m = mesh(new THREE.PlaneGeometry(4.2, 4.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: fogTex, color: 0x000000, transparent: true, depthWrite: false, opacity: 1 }), ((i * 3.3) % 10) - 5, FLOOR + 0.08 + (i % 4) * 0.09, ((i * 2.1) % 7) - 1.5);
+    const m = mesh(new THREE.PlaneGeometry(4.2, 4.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: fogTexes[i % 3], color: 0x000000, transparent: true, depthWrite: false, opacity: 1 }), ((i * 3.3) % 10) - 5, FLOOR + 0.08 + (i % 4) * 0.09, ((i * 2.1) % 7) - 1.5);
     m.castShadow = m.receiveShadow = false; m.renderOrder = 4; m.userData.ph = i * 1.3; return m;
   });
 

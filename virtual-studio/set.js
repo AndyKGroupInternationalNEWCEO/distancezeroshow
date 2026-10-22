@@ -1486,7 +1486,7 @@ function armchair(M, L) {
 
 // a small bullet security camera on a wall arm: white housing with a sun hood, dark glass, IR ring and a red
 // recording lamp that pulses but never goes out (security records all the time). Lens along local +z (use lookAt).
-function securityCam(M, anim) {
+export function securityCam(M, anim) {
   const g = new THREE.Group();
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   const white = new THREE.MeshStandardMaterial({ color: 0xd9dbdd, metalness: 0.1, roughness: 0.45 });

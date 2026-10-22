@@ -30,6 +30,45 @@ function softDot(size = 128, edge = 0.55) {
   return new THREE.CanvasTexture(c);
 }
 
+// a beam seen in the club's haze: only where there is smoke, and the smoke moves. The light in the cone is uneven and
+// drifts (3D noise in world space, slowly rising), strongest at the lens and thinning out along the throw; the edges
+// soft. One shared clock (hazeTime) drives every beam; same blending as the studio's beams
+export const hazeTime = { value: 0 };
+export function hazyBeam(color) {
+  const m = beamMaterial(color);
+  m.uniforms.uTime = hazeTime;
+  m.vertexShader = m.vertexShader.replace('varying float vV;', 'varying float vV; varying vec3 vW;').replace('vV = uv.y;', 'vV = uv.y; vW = (modelMatrix * vec4(position, 1.0)).xyz;');
+  m.fragmentShader = `uniform float uTime; varying vec3 vW;
+    float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+    float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+                 mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+    ` + m.fragmentShader.replace('gl_FragColor = vec4(uColor * a, a);',
+      `vec3 q = vW * 0.9 + vec3(0.0, -uTime * 0.18, uTime * 0.05);
+        float smoke = 0.55 * n3(q) + 0.3 * n3(q * 2.3 + 7.0) + 0.15 * n3(q * 5.1 + 3.0);
+        a *= (0.35 + 1.15 * smoke) * (0.75 + 0.5 * pow(clamp(vV, 0.0, 1.0), 3.0));
+        gl_FragColor = vec4(uColor * a, a);`);
+  return m;
+}
+
+// a puff of smoke: many soft blobs piled into a billow, thick in the middle and torn at the edges (as real stage smoke),
+// never a round dot. `seed` gives each of the few textures its own shape
+export function cloudTex(size = 256, seed = 1, density = 0.5) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'); let s = seed * 9301 + 49297; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 90; i++) {
+    const a = rnd() * Math.PI * 2, d = Math.pow(rnd(), 0.7) * size * 0.32, r = size * (0.06 + rnd() * 0.16);
+    const px = size / 2 + Math.cos(a) * d, py = size / 2 + Math.sin(a) * d * 0.85, g = x.createRadialGradient(px, py, 0, px, py, r);
+    const k = density * (0.10 + rnd() * 0.16) * (1 - d / (size * 0.36));
+    g.addColorStop(0, `rgba(255,255,255,${k})`); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, 2 * r, 2 * r);
+  }
+  // fine grain: the smoke's texture up close
+  const img = x.getImageData(0, 0, size, size), d = img.data;
+  for (let i = 3; i < d.length; i += 4) d[i] = Math.max(0, Math.min(255, d[i] * (0.78 + rnd() * 0.44)));
+  x.putImageData(img, 0, 0);
+  return new THREE.CanvasTexture(c);
+}
+
 /* ---------- the LED walls' pictures ---------- */
 // One canvas per surface (back wall behind the DJ, the two side walls, the front wall), drawn together at up to
 // 24 frames a second from the same clock and preset, so they are coordinated but not identical:
@@ -233,7 +272,7 @@ export function buildRoom({ studio, scene, quality }) {
       mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.3, 20).rotateX(Math.PI / 2), M.dark, aim);
       const lens = glow(C.white); glows.push({ m: lens, k: 2.2, group: kind });
       mesh(new THREE.CircleGeometry(kind === 'wash' ? 0.1 : 0.06, 24), lens, aim).position.z = 0.152;
-      const bm = beamMaterial(C.white), beam = mesh(kind === 'wash' ? washGeo : spotGeo, bm, aim);
+      const bm = hazyBeam(C.white), beam = mesh(kind === 'wash' ? washGeo : spotGeo, bm, aim);
       heads.push({ kind, head, aim, beam, bm, i: heads.length, row });
     }
   });
@@ -264,14 +303,14 @@ export function buildRoom({ studio, scene, quality }) {
   }
 
   /* ----- haze (continuous, density adjustable) and smoke (bursts from two machines either side of the booth) ----- */
-  const hazeTex = softDot(128, 0.5);
+  const hazeTexes = [cloudTex(256, 3, 0.35), cloudTex(256, 7, 0.35), cloudTex(256, 11, 0.35)];
   const haze = [];
   const hazeN = lite ? 6 : 14;
   for (let i = 0; i < hazeN; i++) {
-    const m = mesh(new THREE.PlaneGeometry(7, 3.2), new THREE.MeshBasicMaterial({ map: hazeTex, color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), room);
+    const m = mesh(new THREE.PlaneGeometry(7, 3.2), new THREE.MeshBasicMaterial({ map: hazeTexes[i % 3], color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), room);
     m.position.set(-5 + ((i * 3.7) % 10), ROOM.floor + 1.6 + (i % 3) * 1.0, -3.8 + ((i * 2.3) % 7.6)); m.userData.ph = i * 1.7; haze.push(m);
   }
-  const smokeTex = softDot(128, 0.85);
+  const smokeTexes = [1, 2, 4, 5, 8, 13].map(k => cloudTex(256, k, 0.9));
   const machines = [[bAl - 3.0, bAc + 0.2], [bAl + 3.0, bAc + 0.2]].map(([x, z]) => {   // outside the lift's footprint
     const g = new THREE.Group(); g.position.set(x, ROOM.floor, z); room.add(g);
     mesh(new THREE.BoxGeometry(0.5, 0.28, 0.32), M.dark, g).position.y = 0.14;
@@ -280,16 +319,18 @@ export function buildRoom({ studio, scene, quality }) {
   });
   const puffs = [];
   for (let i = 0; i < (lite ? 32 : 72); i++) {
-    const m = mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: smokeTex, color: 0x000000, transparent: true, depthWrite: false, opacity: 0 }), room);
-    m.visible = false; puffs.push({ m, life: 0, vel: new THREE.Vector3() });
+    const m = mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: smokeTexes[i % smokeTexes.length], color: 0x000000, transparent: true, depthWrite: false, opacity: 0 }), room);
+    m.visible = false; puffs.push({ m, life: 0, vel: new THREE.Vector3(), rot: 0, spin: 0, size: 1, span: 7 });
   }
   let smokeLeft = 0, smokeNext = 0, smokeAt = 0;
 
   /* ----- per frame ----- */
   const camQ = new THREE.Quaternion(), v = new THREE.Vector3(), w = new THREE.Vector3(), boothWorld = new THREE.Vector3();
+  const spinQ = new THREE.Quaternion(), zAxis = new THREE.Vector3(0, 0, 1);
   const goals = heads.map(() => new THREE.Vector3()), cur = heads.map(() => new THREE.Vector3(bAl, ROOM.floor, bAc + 1.5));
   const toRoom = new THREE.Matrix4();
   function update(t, dt, L, beat) {
+    hazeTime.value = t;
     for (const g of glows) { const s = L[g.group]; if (!s) continue; g.m.color.copy(s.color).multiplyScalar(s.level * g.k); }
     for (const m of walls) m.color.setScalar(L.led.level > 0.001 ? 1 : 0);
     led.draw(t, beat, { preset: L.preset, energy: L.led.level, strobe: L.strobe.level, track: L.track, fps: lite ? 12 : 24 });
@@ -332,7 +373,7 @@ export function buildRoom({ studio, scene, quality }) {
     // haze: slow drift, lit by what is in the air
     camQ.copy(cameraQuat);
     const air = 0.04 * L.haze.level * (0.3 + L.spot.level + 0.6 * L.wash.level + 0.4 * L.led.level);
-    for (const m of haze) { m.position.x += Math.sin(t * 0.05 + m.userData.ph) * dt * 0.08; m.quaternion.copy(camQ); m.material.color.copy(L.wash.color).lerp(C.white, 0.5).multiplyScalar(air); m.visible = air > 0.0005; }
+    for (const m of haze) { m.position.x += Math.sin(t * 0.05 + m.userData.ph) * dt * 0.08; m.quaternion.copy(camQ).multiply(spinQ.setFromAxisAngle(zAxis, Math.sin(t * 0.03 + m.userData.ph) * 0.6)); m.material.color.copy(L.wash.color).lerp(C.white, 0.5).multiplyScalar(air); m.visible = air > 0.0005; }
     // smoke: a burst is a few seconds of puffs from both machines, which rise, spread and fade
     if (L.smokeRequest) { smokeLeft = L.smokeRequest; L.smokeRequest = 0; }
     if (smokeLeft > 0) {
@@ -342,18 +383,22 @@ export function buildRoom({ studio, scene, quality }) {
         for (const mach of machines) {
           const p = puffs.find(q => !q.m.visible); if (!p) break;
           p.m.visible = true; p.life = 0; p.m.position.set(mach.position.x, ROOM.floor + 0.2, mach.position.z + 0.22);
-          p.vel.set((Math.random() - 0.5) * 0.4, 0.35 + Math.random() * 0.25, 0.9 + Math.random() * 0.5);
+          // a jet out of the nozzle: fast at first, then it slows, swells, rises and turns slowly, and lingers
+          p.vel.set((Math.random() - 0.5) * 0.5, 0.25 + Math.random() * 0.3, 2.2 + Math.random() * 1.2);
+          p.rot = Math.random() * Math.PI * 2; p.spin = (Math.random() - 0.5) * 0.5; p.size = 0.7 + Math.random() * 0.6; p.span = 6 + Math.random() * 4;
         }
       }
     }
     for (const p of puffs) {
       if (!p.m.visible) continue;
-      p.life += dt; p.vel.multiplyScalar(1 - dt * 0.45);
+      p.life += dt; p.vel.multiplyScalar(1 - dt * 0.9); p.vel.y += dt * 0.06;   // the jet loses its push; warm smoke rises
       p.m.position.addScaledVector(p.vel, dt);
-      const life = p.life / 5;   // five seconds
+      p.m.position.y = Math.max(ROOM.floor + 0.25, p.m.position.y);
+      const life = p.life / p.span;   // 6–10 seconds
       if (life >= 1) { p.m.visible = false; continue; }
-      p.m.scale.setScalar(0.6 + life * 3.4); p.m.quaternion.copy(camQ);
-      p.m.material.opacity = 0.55 * Math.sin(Math.PI * Math.min(1, life * 1.4)) * (1 - life);
+      p.rot += p.spin * dt;
+      p.m.scale.setScalar(p.size * (0.5 + Math.sqrt(life) * 4.2)); p.m.quaternion.copy(camQ).multiply(spinQ.setFromAxisAngle(zAxis, p.rot));
+      p.m.material.opacity = 0.62 * Math.min(1, life * 8) * Math.pow(1 - life, 1.6);
       p.m.material.color.copy(L.wash.color).lerp(C.white, 0.7).multiplyScalar(0.35 + 0.6 * Math.max(L.wash.level, L.spot.level));
     }
   }

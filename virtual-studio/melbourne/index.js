@@ -20,7 +20,8 @@ import { createDjShow, DJ_OPENING, DJ_OPENING_SHORT } from './djshow.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
 import { spaces } from '../spaces.js';
-import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, inClub, inShaft, keepInClub, xyz } from './layout.js';
+import { securityCam } from '../set.js';
+import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, ROOM, inClub, inShaft, keepInClub, xyz } from './layout.js';
 
 const GOLD = AMBER, SILVER = ICE, WHITE = '#fff4e8', WARM = '#ffd9b0', VIOLET = '#8a5cff', MAGENTA = '#ff3fa4', CYAN = '#3fd8ff';
 // each group: [level, colour, (heads) pattern | pulse]. Gold, silver and black by default; club colours in the
@@ -51,6 +52,10 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     keep(p, target) { inside = !inShaft(p) || inClub(p); if (inside) { keepInClub(p); keepInClub(target, 0.1); } },
   });
   const room = buildRoom({ studio, scene, quality });
+  // the club's security camera, high in a corner over the floor, watching the booth (in the CCTV round: SEC 5)
+  const secAnim = [], secPos = xyz(-6.0, 6.0, ROOM.ceiling - 0.35), secAim = xyz(CLUB_BOOTH.along, CLUB_BOOTH.across, ROOM.floor + 1.0);
+  const secCam = securityCam(studio.M, secAnim); secCam.position.set(...secPos); secCam.lookAt(...secAim); scene.add(secCam);
+  VIEWS.secClub = { label: 'Security', long: 'Security · DJ room', pos: new THREE.Vector3(...secAim).sub(new THREE.Vector3(...secPos)).setLength(0.3).add(new THREE.Vector3(...secPos)).toArray(), target: secAim, fov: 78, drift: 0, tally: 0, cctv: 'SEC 5 · DJ ROOM', melbourne: 'secClub', free: true };
   // THE one DJ booth, on the DJ lift's platform: it rides with it, up in the studio or down in the club. The studio's
   // own small music station steps aside on this page (it is not deleted: the public studio page keeps it)
   const djLift = buildDjLift({ M: studio.M, frame: room.frame });
@@ -266,6 +271,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     openings.big.update(); openings.short.update();
     // the playing opening's music (null otherwise): the light follows it (ease), the pulses take its kick (room.js),
     // and the mixer's meters show its level, as a console's meters show what plays
+    for (const f of secAnim) f(t);
     L.music = opening.music() || musicSource?.(dt) || null;
     // the opening plays on the booth as a track does: deck 2 loaded with it, its time, its tempo, the platter turning,
     // channel 2's fader up (the DJ set's own tracks take the decks over: spaces.js)
