@@ -135,6 +135,21 @@ export function spaces(v, ctx) {
   body.dz-public .vz,body.dz-public .mz{display:none}
   .sp-card{display:none}
   /* the shows' own on-air graphics (as the studio's simulation): above the controls, never in their way */
+  /* the library: the space's songs or tracks, with covers, filtered by genre; a click plays one now */
+  .sp-lib{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dock-h,140px) + 10px);z-index:7;width:min(720px,calc(100vw - 32px));max-height:min(58vh,560px);
+    display:flex;flex-direction:column;background:rgba(8,9,12,.94);border:1px solid var(--line,rgba(201,206,214,.16));border-radius:16px;backdrop-filter:blur(12px);overflow:hidden}
+  .sp-lib[hidden]{display:none}
+  .sp-lib header{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line,rgba(201,206,214,.16));flex-wrap:wrap}
+  .sp-lib header b{font:600 .72rem var(--wide,Arial);letter-spacing:.2em;text-transform:uppercase;margin-right:auto;color:var(--chrome-hi,#f3f5f8)}
+  .sp-lib .tab{font:500 .62rem var(--wide,Arial);letter-spacing:.12em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--line,rgba(201,206,214,.16));background:none;color:var(--chrome,#c9ced6);cursor:pointer}
+  .sp-lib .tab[aria-pressed=true]{border-color:var(--ice,#a9c8ee);color:var(--chrome-hi,#f3f5f8);background:rgba(169,200,238,.14)}
+  .sp-lib .x{background:none;border:0;color:var(--chrome,#c9ced6);font-size:1.2rem;cursor:pointer;padding:0 4px}
+  .sp-lib ol{list-style:none;margin:0;padding:6px;overflow:auto}
+  .sp-lib li button{display:flex;align-items:center;gap:12px;width:100%;padding:7px 8px;border:0;border-radius:10px;background:none;color:var(--chrome-hi,#f3f5f8);text-align:left;cursor:pointer;font:500 .8rem var(--wide,Arial)}
+  .sp-lib li button:hover,.sp-lib li button[aria-current=true]{background:rgba(255,255,255,.07)}
+  .sp-lib li img{width:40px;height:40px;border-radius:5px;object-fit:cover;flex:none}
+  .sp-lib li span{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .sp-lib li small{color:var(--dim,#8a9099);font-size:.66rem;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .air.sp-air{z-index:4} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
   body.sp-min .sp-air .air-bottom{bottom:110px} body.sp-min .sp-air .air-ticker{bottom:66px}
   .dock:not(.more-open) .sp-row{display:none}
@@ -393,6 +408,53 @@ export function spaces(v, ctx) {
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
   }
 
+  /* ----- the library: the piano songs or the DJ's tracks, a click plays one now ----- */
+  const lib = document.createElement('section'); lib.className = 'sp-lib'; lib.hidden = true; lib.setAttribute('aria-label', 'Library');
+  document.body.appendChild(lib);
+  let libKind = null, libGenre = 'All';
+  function openLibrary(kind) {
+    if (!lib.hidden && libKind === kind) { lib.hidden = true; return; }
+    libKind = kind; lib.hidden = false; drawLibrary();
+  }
+  function drawLibrary() {
+    const piano_ = libKind === 'piano', all = piano_ ? PIANO_SONGS : DJ_TRACKS;
+    const genres = piano_ ? [] : ['All', ...GENRES.filter(g => all.some(s => genresOf(s).includes(g)))];
+    const list = piano_ || libGenre === 'All' ? all : all.filter(s => genresOf(s).includes(libGenre));
+    const now = piano_ ? (v.show.state === 'SONG' ? v.show.song?.id : null) : dj?.el === track ? dj.steps[dj.i - 1]?.track?.id : null;
+    lib.innerHTML = `<header><b>${piano_ ? 'Piano songs' : 'DJ library · ' + list.length + ' tracks'}</b>${genres.map(g => `<button class="tab" type="button" data-g="${g}" aria-pressed="${g === libGenre}">${g}</button>`).join('')}<button class="x" type="button" aria-label="Close">×</button></header>
+      <ol>${list.map(s => `<li><button type="button" data-id="${s.id}" aria-current="${s.id === now}"><img src="${cover(s)}" alt="" loading="lazy"><span>${s.title}<small>${s.album}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''}${s.key ? ' · ' + s.key : ''}${piano_ ? '' : ' · ' + genresOf(s).join(', ')}</small></span></button></li>`).join('')}</ol>`;
+  }
+  lib.addEventListener('click', e => {
+    const tab = e.target.closest('[data-g]'), row = e.target.closest('[data-id]');
+    if (e.target.closest('.x')) { lib.hidden = true; return; }
+    if (tab) { libGenre = tab.dataset.g; djGenre = libGenre === 'All' ? null : libGenre; drawLibrary(); return; }
+    if (!row) return;
+    const s = (libKind === 'piano' ? PIANO_SONGS : DJ_TRACKS).find(x => x.id === row.dataset.id);
+    if (s) (libKind === 'piano' ? playSongNow : playTrackNow)(s);
+    drawLibrary();
+  });
+  // a piano song now: the show goes to LIVE (the openings stop) and the song is next in its order
+  function playSongNow(s) {
+    afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
+    stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
+    const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = s.audio;
+    unlockAll(pianoPlayers());
+    if (!piano) piano = { i: 0, steps: [] };
+    piano.soon = false; cardOff();
+    piano.steps.splice(piano.i, 0, { song: s });
+    v.showCommand('live');
+  }
+  // a DJ track now: it plays at once (the opening or the track before it stops), the set goes on after it
+  function playTrackNow(s) {
+    afterShow.stop(); cctv.stop(); ended = null; active = 'dj'; document.body.dataset.space = 'dj';
+    stopPiano(); unlock();
+    if (!dj || dj.done) dj = { i: 0, el: null, paused: false, steps: [{ jingle: 'end' }] };
+    if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
+    dj.el?.pause(); dj.waitUp = false; dj.paused = false;
+    dj.steps.splice(dj.i, 0, { track: s }, { jingle: 'between' });
+    djStep();
+  }
+
   /* ----- ⋯ at the Piano Stage and in the DJ Room: the space's own controls ----- */
   // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
   const CONTROLS = {
@@ -403,6 +465,7 @@ export function spaces(v, ctx) {
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
       ['Video', [['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
       ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
+      ['Songs', () => openLibrary('piano')],
       ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
     ],
     dj: [
@@ -412,7 +475,8 @@ export function spaces(v, ctx) {
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
       ['Jingles', [['DJ transition', () => playJingle('between')], ['Friday closing', () => playJingle('end')]]],
-      ['Library', [['All genres', () => { djGenre = null; if (!dj || dj.done) simulate('dj'); }], ...GENRES.filter(g => DJ_TRACKS.some(s => genresOf(s).includes(g))).map(g => [g, () => setGenre(g)])]],
+      ['Library', () => openLibrary('dj')],
+      ['Genre', [['All genres', () => { djGenre = null; libGenre = 'All'; if (!dj || dj.done) simulate('dj'); }], ...GENRES.filter(g => DJ_TRACKS.some(s => genresOf(s).includes(g))).map(g => [g, () => { libGenre = g; setGenre(g); }])]],
       ['FX drops', FX.map(([id, l]) => [l, () => playFx(id)])],
       ['Next track', () => nextTrack()],
       ['♪ DJ booth', () => document.getElementById('musicBtn')?.click()],
