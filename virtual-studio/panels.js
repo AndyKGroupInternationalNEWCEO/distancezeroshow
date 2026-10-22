@@ -71,13 +71,13 @@ export function createPanels({ sound, el, onMusicStart }) {
       tabs.hidden = false;
       // only the tabs of the space the visitor is in (spaces.js sets body[data-space]): the show's music in the studio,
       // the piano at the Piano Stage, the booth in the DJ Room
-      const all = [['soundtrack', 'Soundtrack'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]];
-      const only = { studio: ['soundtrack', 'andyk'], piano: ['piano'], dj: ['dj'] }[document.body.dataset.space];
+      const all = [['soundtrack', 'Soundtrack'], ['songs', 'Songs'], ['library', 'Library'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]].filter(([id]) => !['songs', 'library'].includes(id) || extra.has(id));
+      const only = { studio: ['soundtrack', 'andyk'], piano: ['songs', 'piano'], dj: ['library', 'dj'] }[document.body.dataset.space];
       const shown = only ? all.filter(([id]) => only.includes(id)) : all;
       if (!shown.some(([id]) => id === tab)) tab = shown[0][0];
       tabs.replaceChildren(...shown.map(([id, label]) =>
         h('button', { type: 'button', role: 'tab', class: 'tab', 'aria-selected': String(tab === id), text: label, onclick: () => { tab = id; render(); } })));
-      body.replaceChildren(tab === 'soundtrack' ? soundtrack() : tab === 'dj' ? booth() : tab === 'piano' ? piano() : andyk());
+      body.replaceChildren(extra.has(tab) ? extra.get(tab)() : tab === 'soundtrack' ? soundtrack() : tab === 'dj' ? booth() : tab === 'piano' ? piano() : andyk());
     } else {
       title.textContent = 'Broadcast schedule';
       tabs.hidden = true;
@@ -313,5 +313,7 @@ export function createPanels({ sound, el, onMusicStart }) {
       h('div', { class: 'simnote' }, h('b', { text: 'Not the same thing: ' }), '“Simulate on air” in this studio plays a full-screen simulation on this page. It is a simulation, not the show, and nothing is broadcast.'));
   }
 
-  return { open, close: hide, get current() { return current; } };
+  // tabs a stage adds (spaces.js: the piano songs, the DJ library): id → a function that returns the tab's content
+  const extra = new Map();
+  return { open, close: hide, get current() { return current; }, get tab() { return tab; }, addTab(id, render) { extra.set(id, render); }, refresh() { if (current === 'station') render(); } };
 }
