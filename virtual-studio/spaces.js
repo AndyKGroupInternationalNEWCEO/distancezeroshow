@@ -15,6 +15,7 @@ import { REPERTOIRE } from './vienna/repertoire.js';
 import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
 import { applyProbe } from './melbourne/probes.js';
+import { inClub } from './melbourne/layout.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -89,6 +90,23 @@ export function spaces(v, ctx) {
   if (!dock || !ctrl) return null;
   document.body.classList.toggle('dz-public', !directorMode);
 
+  // every camera with the 4K look (as the high-speed ones): a longer lens, the camera stepped back along its line of
+  // sight so the shot keeps its framing. As far as the room allows: in the studio within its round wall, in the club
+  // within the club. The Piano Stage's cameras have theirs already (vienna/layout.js: lens), the security cameras,
+  // the robot, the lift's own cameras and the places keep theirs
+  const SKIP = /^(security|securityLounge|backstage|slowmo|robot|onWall|building|reception|secReception|secBuilding|v.*|mHS|mLift.*)$/;
+  for (const [k, view] of Object.entries(VIEWS)) {
+    if (SKIP.test(k) || view.lensed || !view.pos || !view.target || !view.fov) continue;
+    const p = view.pos, t = view.target, club = !!view.melbourne;
+    const ok = q => club ? inClub({ x: q[0], y: q[1], z: q[2] }) : Math.hypot(q[0], q[2] - 1) < 11.2 && q[1] > 0.4 && q[1] < 7.6;
+    for (const lens of [0.75, 0.8, 0.85, 0.9, 0.95]) {
+      const kf = Math.tan((view.fov * Math.PI) / 360) / Math.tan((view.fov * lens * Math.PI) / 360);
+      const q = p.map((x, i) => t[i] + (x - t[i]) * kf);
+      if (ok(q)) { view.pos = q; view.fov *= lens; break; }
+    }
+    view.lensed = true;
+  }
+
   const css = `
   .spaces{display:flex;justify-content:center;align-items:stretch;gap:12px;margin:0 auto 8px}
   .spaces .sp{display:flex;flex-direction:column;align-items:center;gap:4px;width:156px;padding:10px 12px 9px;border-radius:16px;
@@ -116,6 +134,9 @@ export function spaces(v, ctx) {
   body.obs .edge,body.panel-open .edge{display:none}
   body.dz-public .vz,body.dz-public .mz{display:none}
   .sp-card{display:none}
+  /* the shows' own on-air graphics (as the studio's simulation): above the controls, never in their way */
+  .air.sp-air{z-index:4} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
+  body.sp-min .sp-air .air-bottom{bottom:110px} body.sp-min .sp-air .air-ticker{bottom:66px}
   .dock:not(.more-open) .sp-row{display:none}
   /* minimised: only a small button to bring the controls back; nothing else over the picture */
   body.sp-min .dock .row,body.sp-min .dock .pop,body.sp-min .dock .fine,body.sp-min .edge,body.sp-min .spaces > :not(.min){display:none!important}
@@ -207,6 +228,30 @@ export function spaces(v, ctx) {
     update() { if (this.on && performance.now() > this.next) this.step(); },
   };
   let ended = null;   // when a show ended: AFTERSHOW follows a few seconds later
+
+  /* ----- the on-air graphics of the Piano and DJ shows: ON AIR, the logo, the lower third, camera, clocks, ticker ----- */
+  const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km', 'Opening Show Wednesday 27 January 2027',
+    'Every Friday · DJ Show · Live from Melbourne Underground', 'Every Saturday · Piano Sessions · Live from Vienna', 'Every Sunday · The Live Show', 'distancezeroshow.com'];
+  const gfx = document.createElement('div'); gfx.className = 'air sp-air'; gfx.hidden = true; gfx.setAttribute('aria-hidden', 'true');
+  gfx.innerHTML = `<div class="air-gfx"><div class="air-top"><div class="air-onair"><i></i><b>ON AIR</b><small>Simulation</small></div><div><img class="air-bug" src="${asset('assets/logo-do.webp')}" alt="" width="327" height="160"></div></div>
+    <div class="air-bottom"><div class="air-l3"><b></b><span></span></div><div class="air-meta"><span class="air-cam"></span><span class="air-clock">VIE <b class="v"></b> · MEL <b class="m"></b></span></div></div>
+    <div class="air-ticker"><div class="air-track">${[0, 1].map(() => TICKER.map(t => `<span>${t}</span><i>//</i>`).join('')).join('')}</div></div></div>`;
+  document.body.appendChild(gfx);
+  const g = { t: gfx.querySelector('.air-l3 b'), s: gfx.querySelector('.air-l3 span'), cam: gfx.querySelector('.air-cam'), v: gfx.querySelector('.v'), m: gfx.querySelector('.m') };
+  const hm = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+  function airGfx() {
+    const P = v.show, pianoOn = active === 'piano' && (piano || pianoPlaying()), djOn = active === 'dj' && dj && !dj.done;
+    gfx.hidden = !(pianoOn || djOn);
+    if (gfx.hidden) return;
+    const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null;
+    const [title, sub] = pianoOn
+      ? (P.state === 'SONG' ? [P.song?.title || '', 'Piano Sessions · Live from Vienna'] : piano?.soon ? ['PIANO SESSIONS', 'Starting soon'] : ['PIANO SESSIONS', P.label || 'Live from Vienna'])
+      : (djSong ? [djSong.title, "DJ Andy'K · DJ Show · Live from Melbourne Underground"] : ['DJ SHOW', !dj.el ? 'Opening · Live from Melbourne Underground' : 'Live from Melbourne Underground']);
+    if (g.t.textContent !== title) g.t.textContent = title;
+    if (g.s.textContent !== sub) g.s.textContent = sub;
+    const cam = VIEWS[director.current]?.cam || VIEWS[director.current]?.label || 'CAM'; if (g.cam.textContent !== cam) g.cam.textContent = cam;
+    g.v.textContent = hm('Europe/Vienna'); g.m.textContent = hm('Australia/Melbourne');
+  }
 
   /* ----- the cards: one video element, full screen, faded in and out ----- */
   const cardEl = document.createElement('video');
@@ -488,7 +533,7 @@ export function spaces(v, ctx) {
 
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
-    pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel();
+    pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx();
     for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
     // the cards, by what the shows are doing
     const P = v.show;
