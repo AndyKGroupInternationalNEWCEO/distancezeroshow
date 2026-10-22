@@ -209,10 +209,13 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
 
   /* ----- state: look, on/off air (simulation only) ----- */
   let look = 'broadcast', onAir = false, sim = false, countdownTimer = 0, programmeAt = 0, programmeIndex = 0;
+  let after = false;   // AFTERSHOW (spaces.js): the show is over, the work light is on, the wall says so
   // a* = what the studio "hears" (soundtrack and piano), 0 when silent
   const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0, djOn: 0, djA: 0, djB: 0, djVA: 0.85, djVB: 0.85, djX: 0.5 };
   const target = () => {
     const base = { ...LOOKS[look] };
+    // after the show: the stage light down to a glow, the house work light up full, nothing on air
+    if (after) return { ...base, key: 0.12, rim: 0.08, accent: 0.22, fins: 0.15, beams: 0, wall: 0.35, house: 2.6, onAir: 0, music: 0, solo: 0 };
     const goal = onAir ? { ...base, ...ON }
       : { ...base, key: base.key * OFF.key, rim: base.rim * OFF.rim, accent: base.accent * OFF.accent, fins: base.fins * OFF.fins, beams: 0, wall: OFF.wall, house: OFF.house, onAir: 0, music: base.music * 0.3 };
     goal.solo = director.current === 'piano' ? 1 : VIEWS[director.current]?.solo || 0;   // (shots of the Vienna piano stage: partly)
@@ -234,6 +237,13 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     document.getElementById('lookLabel').textContent = ui.looks.find(x => x.dataset.look === name)?.textContent || name;
     air?.look(name);
     if (onAir) setWall(name === 'music' ? 'wave' : PROGRAMME[programmeIndex][0]);
+  }
+
+  function setAfterShow(on) {
+    after = !!on;
+    if (after && onAir) setOnAir(false);
+    studio.wall.set(after ? 'ended' : 'idle');
+    ui.status.textContent = after ? 'After the show · off air' : 'Off air · studio preview';
   }
 
   function setOnAir(on) {
@@ -471,7 +481,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     raf = requestAnimationFrame(frame);
   }
 
-  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; } }) : null;
+  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; }, setAfterShow, get afterShow() { return after; } }) : null;
 
   // warm up: draw the wall once and compile shaders before revealing
   studio.wall.set('idle');

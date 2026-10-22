@@ -7,13 +7,23 @@
 //            transition jingle between them, then the Friday closing; the light follows each track (live-music.js)
 // A second press pauses (PIANO, DJ ROOM) or moves on to the next studio shot (STUDIO). Only one space plays at a time:
 // going to another stops the last. The press is also the gesture that lets Safari and the iPhone start the sound.
-// On the edge, the views that are always there: CCTV and Backstage.
+// On the edge, what is always there: CCTV, Backstage and AFTERSHOW (the studio once the show is over: the work light
+// on, the wall's last card, and a slow walk round what the cameras never show). A show that ends goes there by itself.
 // The Piano Stage's and the DJ Room's own panels are for the director: shown only with ?director in the address.
 //   v: the Vienna Piano Stage (vienna/index.js) with the DJ Room as v.melbourne (melbourne/index.js, withVienna)
 import { REPERTOIRE } from './vienna/repertoire.js';
 import { liveMusic } from './melbourne/live-music.js';
+import { VIEWS } from './views.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
+// AFTERSHOW: the views no show camera takes, walked slowly in turn
+const AFTER = {
+  aWide: { label: 'After the show', long: 'After the show · work light', pos: [9.2, 5.4, 9.4], target: [0, 1.0, -2.0], fov: 46, drift: 0.1 },
+  aCams: { label: 'After the show', long: 'Behind the cameras', pos: [1.4, 1.75, 10.6], target: [0, 1.3, 3.0], fov: 44, drift: 0.08 },
+  aTruss: { label: 'After the show', long: 'From the lighting truss', pos: [0.4, 7.4, 5.2], target: [0, 0, -1.2], fov: 62, drift: 0.05 },
+};
+const AFTER_TOUR = ['aWide', 'aCams', 'aTruss', 'securityLounge', 'backstage'];
+for (const [k, v] of Object.entries(AFTER)) VIEWS[k] ??= { tally: 0, ...v };
 const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'assets/jingles/19-friday-show-closing.m4a' };
 const asset = p => new URL('../' + p, import.meta.url).href;
 const pick = (list, n) => [...list].sort(() => Math.random() - 0.5).slice(0, n);
@@ -22,12 +32,13 @@ const ICON = {
   studio: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c8-5 28-5 36 0"/><path d="M9 33v6m30-6v6"/><rect x="15" y="9" width="13" height="9" rx="1.5"/><path d="M28 12l6-3v9l-6-3"/><path d="M21.5 18v8m-5 0h10"/></svg>',
   piano: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 30h34v-3c0-6-4-9-10-9-3 0-4-6-11-6-7 0-13 6-13 12z"/><path d="M7 30v4h34v-4"/><path d="M12 34v6m24-6v6"/><path d="M13 30v-3m4 3v-3m4 3v-3m4 3v-3m4 3v-3m4 3v-3"/></svg>',
   dj: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="17" cy="27" r="9"/><circle cx="17" cy="27" r="2"/><path d="M30 18h11v18H30z"/><path d="M33 23h5m-5 4h5m-5 4h5"/><path d="M9 14a15 15 0 0 1 30 0"/><rect x="6" y="13" width="5" height="8" rx="2"/><rect x="37" y="13" width="5" height="8" rx="2"/></svg>',
+  after: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a16 16 0 1 0 10 26A13 13 0 0 1 30 8z"/><path d="M14 40h20"/></svg>',
   cctv: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 14l26 8-3 8-26-8z"/><path d="M34 22l6 2"/><path d="M14 24l-2 10H6"/></svg>',
   backstage: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 40V8h20l4 4v28"/><path d="M8 40h32"/><circle cx="28" cy="25" r="1.5"/></svg>',
 };
 
-export function spaces(v, director) {
-  const m = v.melbourne;
+export function spaces(v, ctx) {
+  const m = v.melbourne, director = ctx.director;
   const directorMode = new URLSearchParams(location.search).has('director');
   const dock = document.getElementById('dock'), ctrl = dock?.querySelector('.row.ctrl');
   if (!dock || !ctrl) return null;
@@ -69,10 +80,24 @@ export function spaces(v, director) {
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
-  edge.innerHTML = [['security', 'cctv', 'CCTV'], ['backstage', 'backstage', 'Backstage']]
+  edge.innerHTML = [['security', 'cctv', 'CCTV'], ['backstage', 'backstage', 'Backstage'], ['after', 'after', 'Aftershow']]
     .map(([view, icon, label]) => `<button class="eb" type="button" data-view-edge="${view}" aria-pressed="false">${ICON[icon]}<span>${label}</span></button>`).join('');
   document.body.appendChild(edge);
-  edge.addEventListener('click', e => { const b = e.target.closest('[data-view-edge]'); if (!b) return; director.setAuto(false); director.go(b.dataset.viewEdge); });
+  edge.addEventListener('click', e => {
+    const b = e.target.closest('[data-view-edge]'); if (!b) return;
+    if (b.dataset.viewEdge === 'after') return afterShow.on ? afterShow.stop() : afterShow.start();
+    afterShow.stop(); director.setAuto(false); director.go(b.dataset.viewEdge);
+  });
+
+  /* ----- AFTERSHOW ----- */
+  const afterShow = {
+    on: false, i: 0, next: 0,
+    start() { stopPiano(); stopDj(); ended = null; this.on = true; this.i = 0; this.next = 0; ctx.setAfterShow?.(true); director.setAuto(false); this.step(); },
+    stop() { if (!this.on) return; this.on = false; ctx.setAfterShow?.(false); },
+    step() { director.go(AFTER_TOUR[this.i++ % AFTER_TOUR.length]); this.next = performance.now() + 9000; },
+    update() { if (this.on && performance.now() > this.next) this.step(); },
+  };
+  let ended = null;   // when a show ended: AFTERSHOW follows a few seconds later
 
   /* ----- the Piano Sessions, in show order ----- */
   const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk);
@@ -105,7 +130,7 @@ export function spaces(v, director) {
   }
   function djStep() {
     const step = dj.steps[dj.i++];
-    if (!step) { m.setShow('ended'); m.setAuto(false); m.setMusicSource(null); dj = null; return; }
+    if (!step) { m.setShow('ended'); m.setAuto(false); m.setMusicSource(null); dj.over = true; dj.el = null; dj.done = true; return; }
     if (step.opening) { dj.el = null; m.djOpening('start', undefined, 'short'); return; }
     m.djOpening('stop');
     if (step.track) {
@@ -122,7 +147,7 @@ export function spaces(v, director) {
     }
   }
   function djNext() {
-    if (!dj || dj.paused) return;
+    if (!dj || dj.paused || dj.done) return;
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
   }
@@ -160,29 +185,33 @@ export function spaces(v, director) {
       startPiano();
     },
     dj() {
-      if (active === 'dj' && dj) return pauseDj();
+      if (active === 'dj' && dj && !dj.done) return pauseDj();
       stopPiano(); unlock();
       startDj();
     },
   };
   bar.addEventListener('click', e => {
     const b = e.target.closest('[data-space]'); if (!b) return;
+    afterShow.stop(); ended = null;
     go[b.dataset.space](); active = b.dataset.space; document.body.dataset.space = active; show();
   });
   document.body.dataset.space = active;
 
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
-    pianoNext(); djNext();
+    pianoNext(); djNext(); afterShow.update();
+    // a show that has run to its end hands over to AFTERSHOW
+    const over = (active === 'piano' && v.show.state === 'ENDED' && !piano) || (active === 'dj' && dj?.over);
+    if (over && !afterShow.on) { ended ??= performance.now(); if (performance.now() - ended > 6000) afterShow.start(); }
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
-    for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(director.current === b.dataset.viewEdge));
+    for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
-    const djLabel = !dj ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
+    const djLabel = !dj || dj.done ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = active === 'studio' ? 'Next shot' : '';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
     btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : djLabel;
   }
   show();
-  return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; } };
+  return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow };
 }

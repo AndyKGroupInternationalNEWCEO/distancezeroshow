@@ -285,6 +285,16 @@ export function createWall({ width = 2048, height = 860 } = {}) {
       setFont(x, 500, 17 * S);
       spaced(x, 'VIENNA  ·  15,731 KM  ·  MELBOURNE', W / 2, H * 0.9, 8 * S);
     },
+    // after the show: what the wall says once the broadcast is over, at low level under the work light
+    ended(t) {
+      background(t * 0.3, 0.25);
+      x.fillStyle = 'rgba(243,245,248,0.85)';
+      setFont(x, 600, 46 * S);
+      spaced(x, 'THANK YOU FOR WATCHING', W / 2, H * 0.47, 22 * S);
+      x.fillStyle = 'rgba(138,144,153,0.85)';
+      setFont(x, 500, 20 * S);
+      spaced(x, 'THIS BROADCAST HAS ENDED  ·  DISTANCE // ZERO', W / 2, H * 0.58, 9 * S);
+    },
     cities(t) {
       background(t, 1);
       x.globalAlpha = 0.95;
@@ -390,7 +400,7 @@ export function createWall({ width = 2048, height = 860 } = {}) {
     },
     // a rough average colour of the current programme, for the light the wall throws onto the set
     tint() {
-      return { logo: [0.5, 0.5, 0.55], film: [0.6, 0.62, 0.7], idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9] }[state.program];
+      return { logo: [0.5, 0.5, 0.55], film: [0.6, 0.62, 0.7], idle: [0.5, 0.55, 0.65], cities: [0.95, 0.8, 0.75], presenters: [0.9, 0.85, 0.8], wave: [0.85, 0.8, 0.9], ended: [0.45, 0.47, 0.52] }[state.program];
     },
   };
 }
