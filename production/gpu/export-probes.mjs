@@ -71,9 +71,11 @@ const out = await run(`(async () => {
   const glb = await new GLTFExporter().parseAsync(a.scene, { binary: true, onlyVisible: true, maxTextureSize: 1024 });
   hidden.forEach(o => { o.visible = true; }); emptied.forEach(([mat, k, t]) => { mat[k] = t; });
   const bytes = new Uint8Array(glb); let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return { glb: btoa(s), probes, room: L.ROOM, bad };
+  // the DJ room's cameras (layout.js), for test stills of the club in Cycles (still.py)
+  const cams = studioOnly ? {} : Object.fromEntries(['DJ1', 'DJ2', 'DJ6'].map(k => [k, { pos: L.CAMS[k].pos, target: L.CAMS[k].target, fov: L.CAMS[k].fov }]));
+  return { glb: btoa(s), probes, cams, room: L.ROOM, bad };
 })()`);
 fs.writeFileSync(path.join(OUT, 'scene.glb'), Buffer.from(out.glb, 'base64'));
-fs.writeFileSync(path.join(OUT, 'probes.json'), JSON.stringify({ probes: out.probes, room: out.room }, null, 1));
+fs.writeFileSync(path.join(OUT, 'probes.json'), JSON.stringify({ probes: out.probes, cams: out.cams, room: out.room }, null, 1));
 console.log('wrote ' + path.relative(ROOT, OUT) + '/scene.glb (' + (fs.statSync(path.join(OUT, 'scene.glb')).size / 1e6).toFixed(1) + ' MB), probes.json', out.probes, 'left out (not finite):', out.bad);
 chrome.kill(); server.close(); process.exit(0);
