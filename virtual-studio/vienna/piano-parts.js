@@ -6,84 +6,84 @@ export const PARTS = {
   "file": "assets/piano-parts/human-stories__human-stories-piano.json",
   "notes": 2622,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "human-stories/letters-never-sent-piano": {
   "file": "assets/piano-parts/human-stories__letters-never-sent-piano.json",
   "notes": 1749,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "human-stories/only-rivers-know-piano": {
   "file": "assets/piano-parts/human-stories__only-rivers-know-piano.json",
   "notes": 2058,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "human-stories/running-from-yesterday-piano": {
   "file": "assets/piano-parts/human-stories__running-from-yesterday-piano.json",
   "notes": 3088,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "opus-no-1-vienna/i-prologue": {
   "file": "assets/piano-parts/opus-no-1-vienna__i-prologue.json",
   "notes": 1468,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "opus-no-1-vienna/ii-the-awakening": {
   "file": "assets/piano-parts/opus-no-1-vienna__ii-the-awakening.json",
   "notes": 1437,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "opus-no-1-vienna/iii-the-final-movement": {
   "file": "assets/piano-parts/opus-no-1-vienna__iii-the-final-movement.json",
   "notes": 1829,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "opus-no-1-vienna/iv-coda": {
   "file": "assets/piano-parts/opus-no-1-vienna__iv-coda.json",
   "notes": 2668,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "sessions/between": {
   "file": "assets/piano-parts/sessions__between.json",
   "notes": 238,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "sessions/closing": {
   "file": "assets/piano-parts/sessions__closing.json",
   "notes": 309,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "sessions/opening": {
   "file": "assets/piano-parts/sessions__opening.json",
   "notes": 340,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "sessions/theme": {
   "file": "assets/piano-parts/sessions__theme.json",
   "notes": 4724,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "silence-for-crazy-bitches/special-piano-version": {
   "file": "assets/piano-parts/silence-for-crazy-bitches__special-piano-version.json",
   "notes": 3092,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  },
  "zwischenlandung/official-piano-version": {
   "file": "assets/piano-parts/zwischenlandung__official-piano-version.json",
   "notes": 2430,
   "source": "automatic transcription of the recording (ByteDance piano_transcription, Kong et al. 2021), not yet checked",
-  "approved": null
+  "approved": { "by": "DJ Andy'K", "on": "2026-10-22" }
  }
 };
