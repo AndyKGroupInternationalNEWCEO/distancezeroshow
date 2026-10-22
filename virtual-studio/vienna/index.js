@@ -11,6 +11,7 @@ import { OPENING } from './opening.js';
 import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
 import { createKeyPlayer } from './keys.js';
+import { PARTS } from './piano-parts.js';
 import { REPERTOIRE } from './repertoire.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
@@ -259,16 +260,28 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   if (new URLSearchParams(location.search).get('look') !== 'studio') look.set(true);
 
   /* ----- the repertoire (DJ Andy'K's song library, repertoire.js) and the grand's keys (keys.js) ----- */
-  // no song has an approved piano part yet: the key player stays empty and the keys stay still until one is added
+  // the parts transcribed from the recordings (piano-parts.js): the keys follow the one that belongs to what plays,
+  // a repertoire song or a Piano Sessions recording ('sessions/opening' …). Unapproved parts play only with
+  // ?keys=preview, for DJ Andy'K to watch before he signs them off
   const keyPlayer = createKeyPlayer(studio.piano.userData.keyboard);
-  const parts = {};   // song id → approved part (none yet; see docs/vienna-stage/SCORE-IMPORT.md)
+  const preview = new URLSearchParams(location.search).get('keys') === 'preview';
+  const parts = {}, loading = new Map();   // id → the loaded part (once fetched)
+  const usable = id => PARTS[id] && (PARTS[id].approved || preview);
+  const fetchPart = id => {
+    if (!usable(id)) return null;
+    if (!loading.has(id)) loading.set(id, fetch(new URL('../../' + PARTS[id].file, import.meta.url)).then(r => r.ok ? r.json() : null)
+      .then(p => { if (p) parts[id] = { ...p, approved: PARTS[id].approved || { by: 'preview', on: 'unapproved' } }; return parts[id]; }).catch(() => null));
+    return loading.get(id);
+  };
+  const partInfo = id => usable(id) ? { kind: 'piano-part', source: PARTS[id].source + (PARTS[id].approved ? '' : ' (preview, not yet approved)') } : null;
+  let keysFor = null;   // the id whose part the key player holds
   let picked = REPERTOIRE.find(s => s.piano) || REPERTOIRE[0];
-  const pickSong = id => { picked = REPERTOIRE.find(s => s.id === id) || picked; ui.song(picked, parts[picked.id]); };
-  const performSong = () => { abortSequence('Cinematic sequence cancelled'); keyPlayer.load(parts[picked.id] || null); show.playSong(picked); };
+  const pickSong = id => { picked = REPERTOIRE.find(s => s.id === id) || picked; ui.song(picked, partInfo(picked.id)); };
+  const performSong = () => { abortSequence('Cinematic sequence cancelled'); fetchPart(picked.id); show.playSong(picked); };
   const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
   const seekSong = f => show.seek(f * show.duration);
   const ui = panel({ setLiftHold, command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video, pickSong, performSong, seekSong });
-  ui.song(picked, parts[picked.id]);
+  ui.song(picked, partInfo(picked.id));
 
   /* ----- per frame ----- */
   let settle = null, wasFlying = false, liftSeg = null, liftT = 0;
@@ -277,7 +290,10 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     t += dt;
     runSequence(dt);
     show.update(dt);
-    if (show.segment === 'song' && keyPlayer.part) keyPlayer.update(show.time); else if (keyPlayer.part) keyPlayer.stop();
+    // the keys: the part of what plays now, set from its recording's clock
+    const playing = show.segment === 'song' ? show.song?.id : show.segment ? 'sessions/' + show.segment : null;
+    if (playing !== keysFor) { keysFor = playing; keyPlayer.load(parts[playing] || null); if (!parts[playing]) fetchPart(playing)?.then(p => { if (p && keysFor === playing) keyPlayer.load(p); }); }
+    if (keyPlayer.part) keyPlayer.update(show.time);
     // while a show segment plays on its recording's clock, the lift moves by what that clock moved (frames that come
     // late, or are cut short by main.js's 0.1 s limit, cannot leave the platform behind the music); otherwise by dt
     const seg = show.segment, onAudio = seg && show.clock === 'audio' && !show.paused;

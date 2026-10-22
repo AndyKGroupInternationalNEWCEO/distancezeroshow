@@ -31,8 +31,10 @@ const FILES = [
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
   // the Vienna Piano Stage (/piano-stage): its code and the Piano Sessions' four official recordings (git-ignored:
   // copied from the masters, see docs/vienna-stage/PIANO-SHOW.md). The songs stream from djandykofficial.com
-  ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire'].map(f => `virtual-studio/vienna/${f}.js`),
+  ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire', 'piano-parts'].map(f => `virtual-studio/vienna/${f}.js`),
   ...['opening', 'theme', 'between-songs', 'closing'].map(f => `assets/audio/piano-sessions/dz-piano-${f === 'opening' || f === 'closing' ? 'sessions-' + f : f}.wav`),
+  // the grand's piano parts, transcribed from the recordings (production/gpu/transcribe.py, import-parts.mjs)
+  ...fs.readdirSync(path.join(ROOT, 'assets/piano-parts')).filter(f => f.endsWith('.json')).map(f => `assets/piano-parts/${f}`),
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the
   // reflection probes rendered in Cycles (production/gpu)
   ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes'].map(f => `virtual-studio/melbourne/${f}.js`),

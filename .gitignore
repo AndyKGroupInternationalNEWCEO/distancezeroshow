@@ -16,3 +16,5 @@ production/gpu/cache-up/
 production/gpu/cache-studio/
 production/gpu/out/
 assets/audio/dj-room/*.wav
+production/gpu/parts/
+production/gpu/out/
