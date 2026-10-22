@@ -18,3 +18,4 @@ production/gpu/out/
 assets/audio/dj-room/*.wav
 production/gpu/parts/
 production/gpu/out/
+production/gpu/dj-audio-map.json
