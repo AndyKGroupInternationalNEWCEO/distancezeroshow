@@ -159,7 +159,9 @@ export function spaces(v, ctx) {
     background:rgba(8,9,12,.82);border:1px solid var(--line,rgba(201,206,214,.25));color:var(--chrome-hi,#f3f5f8);font:600 .7rem var(--wide,Arial);letter-spacing:.18em;cursor:pointer}
   .sp-pov p{position:absolute;bottom:calc(var(--dock-h,140px) + 14px);left:50%;transform:translateX(-50%);margin:0;padding:5px 12px;border-radius:6px;background:rgba(4,5,7,.7);
     color:var(--chrome,#c9ced6);font:500 .62rem var(--wide,Arial);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
-  .air.sp-air{z-index:4} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
+  .air.sp-air{z-index:4}
+  /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
+  body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
   body.sp-min .sp-air .air-bottom{bottom:110px} body.sp-min .sp-air .air-ticker{bottom:66px}
   .dock:not(.more-open) .sp-row{display:none}
   /* minimised: only a small button to bring the controls back; nothing else over the picture */
@@ -273,7 +275,8 @@ export function spaces(v, ctx) {
   const hm = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
   function airGfx() {
     const P = v.show, pianoOn = active === 'piano' && (piano || pianoPlaying()), djOn = active === 'dj' && dj && !dj.done;
-    gfx.hidden = !(pianoOn || djOn);
+    gfx.hidden = !(pianoOn || djOn) || !!pov;
+    document.body.classList.toggle('sp-air-on', !gfx.hidden);
     if (gfx.hidden) return;
     const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null;
     const [title, sub] = pianoOn
