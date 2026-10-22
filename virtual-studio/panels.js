@@ -267,7 +267,7 @@ export function createPanels({ sound, el, onMusicStart }) {
   }
   // the next shows of the space's format (all formats in the studio), with what the site has announced for each
   function fromProgramme() {
-    const P = programme.data, fmtOf = { piano: 'piano', dj: 'dj' }[document.body.dataset.space] || null;
+    const P = programme.data, fmtOf = document.body.dataset.programme === 'all' ? null : { piano: 'piano', dj: 'dj' }[document.body.dataset.space] || null;
     const vienna = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna' }), today = vienna.format(new Date());
     const dates = [];
     for (const sp of P.specials || []) dates.push({ date: sp.date, format: sp.format, name: sp.name });

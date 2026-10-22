@@ -89,16 +89,28 @@ export function spaces(v, ctx) {
   body.obs .edge,body.panel-open .edge{display:none}
   body.dz-public .vz,body.dz-public .mz{display:none}
   .sp-card{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;z-index:4;opacity:0;pointer-events:none;transition:opacity .8s ease}
-  .sp-card.on{opacity:1}`;
+  .sp-card.on{opacity:1}
+  .dock:not(.more-open) .sp-row{display:none}
+  body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none}
+  body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj]{display:none}
+  .spaces .small{align-self:center;width:auto;height:44px;padding:0 14px;border-radius:22px;font-size:.6rem;letter-spacing:.16em;flex-direction:row}`;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
   const bar = document.createElement('div'); bar.className = 'spaces'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Spaces');
   const button = (key, label) => `<button class="sp ${key}" type="button" data-space="${key}" aria-pressed="false">${ICON[key]}<span>${label}</span><small></small></button>`;
   bar.innerHTML = button('studio', 'Studio') + button('piano', 'Piano') + button('dj', 'DJ Room')
-    + '<button class="sp more" type="button" aria-expanded="false" aria-label="More controls" title="More for this space">⋯</button>';
+    + '<button class="sp more" type="button" aria-expanded="false" aria-label="More controls" title="More for this space">⋯</button>'
+    + '<button class="sp small" type="button" data-global="programme" title="The programme, as on distancezeroshow.com">Programme</button>'
+    + '<button class="sp small" type="button" data-global="info" title="How the Virtual Space works">Info</button>';
   dock.insertBefore(bar, ctrl);
   const btn = k => bar.querySelector(`[data-space="${k}"]`), more = bar.querySelector('.more');
   more.addEventListener('click', () => { const open = dock.classList.toggle('more-open'); more.setAttribute('aria-expanded', String(open)); });
+  // PROGRAMME: the whole programme wherever the visitor is (the dates button under ⋯ shows the space's own); INFO: how it works
+  const liveBtn = document.getElementById('liveBtn');
+  let programmeAll = false;
+  liveBtn?.addEventListener('click', () => { document.body.dataset.programme = programmeAll ? 'all' : ''; programmeAll = false; }, true);
+  bar.querySelector('[data-global=programme]').addEventListener('click', () => { programmeAll = true; liveBtn?.click(); });
+  bar.querySelector('[data-global=info]').addEventListener('click', () => window.open('how-it-works', '_blank', 'noopener'));
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
@@ -159,10 +171,10 @@ export function spaces(v, ctx) {
   Object.assign(cardEl, { muted: true, playsInline: true, preload: 'auto', className: 'sp-card' });
   document.body.appendChild(cardEl);
   let cardOf = null;   // which card shows (so each plays once per moment)
-  function card(name) {
-    if (cardOf === name) return; cardOf = name;
+  function card(name, { manual = false } = {}) {
+    if (cardOf === name && !manual) return; cardOf = name;
     cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {}); cardEl.classList.add('on');
-    cardEl.onended = () => { if (!name.endsWith('End')) cardEl.classList.remove('on'); };   // a closing card stays on its last frame
+    cardEl.onended = () => { if (manual || !name.endsWith('End')) cardEl.classList.remove('on'); };   // a show's closing card stays on its last frame
   }
   const cardOff = () => { cardOf = null; cardEl.classList.remove('on'); cardEl.pause(); };
 
@@ -241,6 +253,56 @@ export function spaces(v, ctx) {
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
   }
 
+  /* ----- ⋯ at the Piano Stage and in the DJ Room: the space's own controls ----- */
+  // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
+  const CONTROLS = {
+    piano: [
+      ['Simulate Piano show', () => simulate('piano')],
+      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')]]],
+      ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Concert look', () => v.setLook(true)], ['Studio look', () => v.setLook(false)], ['Key light on', () => v.setKey(true)], ['Key light off', () => v.setKey(false)]]],
+      ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
+      ['Video', [['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
+      ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
+      ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
+    ],
+    dj: [
+      ['Simulate DJ show', () => simulate('dj')],
+      ['Camera', ['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)])],
+      ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
+      ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
+      ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
+      ['Jingles', [['DJ transition', () => playJingle('between')], ['Friday closing', () => playJingle('end')]]],
+      ['♪ DJ booth', () => document.getElementById('musicBtn')?.click()],
+    ],
+  };
+  function simulate(space) {
+    afterShow.stop(); cctv.stop(); ended = null; active = space; document.body.dataset.space = space;
+    if (space === 'piano') { stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false }); startPiano(); }
+    else { stopPiano(); unlock(); stopDj(); startDj(); }
+    closeMenus(); show();
+  }
+  function playJingle(which) { stopDj(); jingle.src = asset(JINGLE[which]); jingle.currentTime = 0; jingle.play().catch(() => {}); }
+  let discoOn = false;
+  const pops = [];
+  const closeMenus = () => { pops.forEach(p => { p.hidden = true; }); dock.querySelectorAll('.sp-row [aria-expanded]').forEach(b => b.setAttribute('aria-expanded', 'false')); };
+  for (const [space, items] of Object.entries(CONTROLS)) {
+    const row = document.createElement('div'); row.className = 'row ctrl sp-row'; row.dataset.for = space;
+    for (const [label, what] of items) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'b' + (Array.isArray(what) ? ' mbtn' : '');
+      b.textContent = label;
+      if (Array.isArray(what)) {
+        const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
+        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { fn(); closeMenus(); }); pop.appendChild(x); }
+        dock.insertBefore(pop, ctrl); pops.push(pop);
+        b.setAttribute('aria-expanded', 'false'); b.insertAdjacentHTML('beforeend', '<i class="chev" aria-hidden="true"></i>');
+        b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });
+      } else b.addEventListener('click', () => { closeMenus(); what(); });
+      row.appendChild(b);
+    }
+    dock.insertBefore(row, ctrl.nextSibling);
+  }
+  more.addEventListener('click', closeMenus);
+
   /* ----- the buttons ----- */
   let active = 'studio', shot = 0;
   const go = {
@@ -275,7 +337,7 @@ export function spaces(v, ctx) {
     dock.classList.remove('more-open'); more.setAttribute('aria-expanded', 'false'); show();
   }, true);
   bar.addEventListener('click', e => {
-    const b = e.target.closest('[data-space]'); if (!b) return;
+    const b = e.target.closest('.sp[data-space]'); if (!b) return;   // (not body[data-space]: ⋯, Programme and Info are in this bar too)
     afterShow.stop(); cctv.stop(); ended = null;
     go[b.dataset.space](); active = b.dataset.space; document.body.dataset.space = active; show();
   });
