@@ -67,17 +67,13 @@ const ld = { '@context': 'https://schema.org', '@type': 'WebApplication', name: 
   image: 'https://distancezeroshow.com/assets/keyvisual.jpg', isPartOf: { '@type': 'WebSite', name: 'DISTANCE // ZERO', url: SITE },
   creator: { '@type': 'Organization', name: "Andy'K Group International LTD" } };
 html = html.replace('</head>', `<script type="application/ld+json">${JSON.stringify(ld)}</script>\n</head>`);
-fs.writeFileSync(path.join(OUT, 'index.html'), html);
-// the Vienna Piano Stage: the same page with the stage and its control panel (noindex)
-const stage = stagePage(html, 'Vienna Piano Stage — DISTANCE // ZERO')
-  .replace(`<link rel="canonical" href="${HOST}">`, `<link rel="canonical" href="${HOST}piano-stage">`)
-  .replace(`<meta property="og:url" content="${HOST}">`, `<meta property="og:url" content="${HOST}piano-stage">`);
-fs.writeFileSync(path.join(OUT, 'piano-stage.html'), stage);
-// the two-level studio: the Piano Stage and the Underground DJ Room on one page (noindex)
-const djroom = stagePage(html, 'Underground DJ Room — DISTANCE // ZERO', { melbourne: true })
-  .replace(`<link rel="canonical" href="${HOST}">`, `<link rel="canonical" href="${HOST}dj-room">`)
-  .replace(`<meta property="og:url" content="${HOST}">`, `<meta property="og:url" content="${HOST}dj-room">`);
-fs.writeFileSync(path.join(OUT, 'dj-room.html'), djroom);
+// the page at the main address: the whole studio on one page, the Vienna Piano Stage and the Underground DJ Room under
+// it included; the studio's own title and indexing kept (stagePage marks its pages noindex). /piano-stage and
+// /dj-room, their earlier addresses, redirect here
+const page = stagePage(html, 'Virtual Studio — DISTANCE // ZERO', { melbourne: true })
+  .replace('<meta name="robots" content="noindex, nofollow">', '<meta name="robots" content="index, follow, max-image-preview:large">');
+if (!page.includes('content="index, follow')) throw new Error('the main page lost its indexing');
+fs.writeFileSync(path.join(OUT, 'index.html'), page);
 // the "How it works" page (linked in the footer), a static page of its own
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'how-it-works.html'), path.join(OUT, 'how-it-works.html'));
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT, 'dj-manual.html'));
@@ -85,7 +81,7 @@ fs.copyFileSync(path.join(ROOT, 'virtualspace', 'dj-manual.html'), path.join(OUT
 fs.copyFileSync(path.join(ROOT, 'virtualspace', 'favicon.ico'), path.join(OUT, 'favicon.ico'));   // the DJ booth's own manual
 
 // Content Security Policy: our own files only; the inline scripts of the pages (import map, boot) allowed by hash
-const hashes = [...new Set([html, stage, djroom].flatMap(page => [...page.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
+const hashes = [...new Set([page].flatMap(page => [...page.matchAll(/<script(?: type="(?:importmap|module)")?>([\s\S]*?)<\/script>/g)]
   .map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`)))];
 const csp = [
   "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`, "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
@@ -102,6 +98,8 @@ const vercel = {
   redirects: [
     { source: '/', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/', permanent: false },   // the bare address too
     { source: '/:path*', has: [{ type: 'host', value: STUDIO_HOST }], destination: STUDIO_TARGET + '/:path*', permanent: false },
+    // the earlier addresses of the Piano Stage and the DJ Room: the main page has both now
+    ...['/piano-stage', '/dj-room'].map(source => ({ source, destination: '/', permanent: false })),
   ],
   headers: [
     { source: '/assets/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
