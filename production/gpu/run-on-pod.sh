@@ -19,5 +19,5 @@ for c in "${CACHES[@]}"; do
   mkdir -p "$HERE/out"; scp "${SSH[@]}" -P "$PORT" "root@$HOST:/workspace/dz/$c/probe-*" "$HERE/out/"
 done
 # the studio's own probes keep their names (studio, studio-piano); the DJ room's get dj-
-for f in "$HERE"/out/probe-*.f16; do n=$(basename "$f" .f16); n=${n#probe-}; case $n in studio*) cp "$f" "$ROOT/assets/probes/$n.f16";; *) cp "$f" "$ROOT/assets/probes/dj-$n.f16";; esac; done
+for f in "$HERE"/out/probe-*.f16; do n=$(basename "$f" .f16); n=${n#probe-}; case $n in studio*|backstage|reception|street) cp "$f" "$ROOT/assets/probes/$n.f16";; *) cp "$f" "$ROOT/assets/probes/dj-$n.f16";; esac; done
 ls -la "$ROOT/assets/probes"

@@ -14,6 +14,7 @@
 import { REPERTOIRE } from './vienna/repertoire.js';
 import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
+import { applyProbe } from './melbourne/probes.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -148,6 +149,8 @@ export function spaces(v, ctx) {
 
   /* ----- the building and the reception: built the first time, shown only while the camera is out there ----- */
   ZONES.push({ has: p => p.z > 18, keep(p) { p.y = Math.max(0.25, p.y); } });
+  // the backstage lounge's reflections, rendered in Cycles (as the studio's): its own room in the lacquer and glass
+  applyProbe(ctx.renderer, 'backstage', [ctx.studio.lounge.group], { shared: new Set(Object.values(ctx.studio.M).filter(x => x?.isMaterial)) }).catch(() => {});
   let street = null;
   const place = () => (street ??= (async () => {
     const [{ buildStreet }, { RGBELoader }, THREE] = await Promise.all([import('./building.js'), import('three/addons/loaders/RGBELoader.js'), import('three')]);
@@ -155,6 +158,11 @@ export function spaces(v, ctx) {
     const px = hdr.image.data; for (let i = 0; i < px.length; i++) if ((i & 3) !== 3) px[i] = Math.min(px[i], 1.6);   // as the arrival: lamps as glints
     const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; hdr.dispose(); pm.dispose();
     const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
+    // the reflections rendered in Cycles (production/gpu, cache-places): inside the doors the reception's, outside the
+    // street's. Without the files the materials keep their own environment
+    const lobby = [], street = [], at = new THREE.Vector3();
+    st.group.traverse(o => { if (o.isMesh && !o.isReflector) (o.getWorldPosition(at).z < FZ - 0.1 ? lobby : street).push(o); });
+    applyProbe(ctx.renderer, 'street', street).then(() => applyProbe(ctx.renderer, 'reception', lobby)).catch(() => {});
     return st;
   })());
   const outside = () => ctx.camera.position.z > 15;

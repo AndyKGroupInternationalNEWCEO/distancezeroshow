@@ -21,8 +21,9 @@ const server = createServer(ROOT);
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const BASE = `http://127.0.0.1:${server.address().port}/`;
 const port = 9600 + Math.floor(Math.random() * 300);
-const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless=new', `--remote-debugging-port=${port}`,
-  `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'dz-probe-'))}`, '--use-angle=metal', '--no-first-run', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+// on the pod: CHROME and CHROME_ARGS (production/gpu/workhorse.sh run); on a Mac, Chrome with Metal
+const chrome = spawn(process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless=new', ...(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : []), `--remote-debugging-port=${port}`,
+  `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'dz-probe-'))}`, ...(process.env.CHROME_ARGS ? [] : ['--use-angle=metal']), '--no-first-run', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
 let page;
 for (let i = 0; i < 50 && !page; i++) { await new Promise(r => setTimeout(r, 200)); try { page = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page'); } catch {} }
 const ws = new WebSocket(page.webSocketDebuggerUrl); await new Promise(r => { ws.onopen = r; });
@@ -36,7 +37,9 @@ await run(`(async () => { for (let i = 0; i < 300; i++) { if (window.__studio) r
 
 const out = await run(`(async () => {
   const a = window.__studio, places = ${JSON.stringify(STATE === 'places')}, studioOnly = ${JSON.stringify(STATE === 'studio')} || places, m = studioOnly ? null : a.ext.melbourne, THREE = await import('three');
-  if (places) { const st = await a.ext.spaces.place(); st.group.visible = true; }
+  // the places: the camera out at the reception, so the page keeps the building shown (it hides it while the camera
+  // is in the studio)
+  if (places) { await a.ext.spaces.place(); a.director.go('reception', { instant: true }); await new Promise(r => setTimeout(r, 1500)); }
   const L = await import('./virtual-studio/melbourne/layout.js');
   const { GLTFExporter } = await import('./production/blender/vendor/GLTFExporter.js');
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -72,6 +75,8 @@ const out = await run(`(async () => {
     booth: over,
     club: [cx, L.ROOM.floor + 2.4, cz],                                // the middle of the club (the disco ball hangs here)
   };
+  // the lounge lit as when someone is in it (its lamps follow the camera otherwise), right before the scene is read
+  if (places) a.studio.lounge.light(true);
   const glb = await new GLTFExporter().parseAsync(a.scene, { binary: true, onlyVisible: true, maxTextureSize: 1024 });
   hidden.forEach(o => { o.visible = true; }); emptied.forEach(([mat, k, t]) => { mat[k] = t; });
   const bytes = new Uint8Array(glb); let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

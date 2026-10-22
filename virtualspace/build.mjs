@@ -43,7 +43,7 @@ const FILES = [
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the
   // reflection probes rendered in Cycles (production/gpu)
   ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music'].map(f => `virtual-studio/melbourne/${f}.js`),
-  ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano'].map(f => `assets/probes/${f}.f16`),
+  ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano', 'backstage', 'reception', 'street'].map(f => `assets/probes/${f}.f16`),
   // the DJ Room's opening: the official show song (git-ignored: copied from the master, see virtual-studio/melbourne/djshow.js)
   'assets/audio/dj-room/dz-dj-room-opening.wav', 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
   'virtual-studio/melbourne/djshow.js',
