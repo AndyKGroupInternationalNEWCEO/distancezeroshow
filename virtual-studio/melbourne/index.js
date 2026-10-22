@@ -19,6 +19,7 @@ import { buildCover } from './cover.js';
 import { createDjShow, DJ_OPENING, DJ_OPENING_SHORT } from './djshow.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
+import { spaces } from '../spaces.js';
 import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, inClub, inShaft, keepInClub, xyz } from './layout.js';
 
 const GOLD = AMBER, SILVER = ICE, WHITE = '#fff4e8', WARM = '#ffd9b0', VIOLET = '#8a5cff', MAGENTA = '#ff3fa4', CYAN = '#3fd8ff';
@@ -422,9 +423,12 @@ function wallOverlay(L) {
 export function withVienna(vienna) {
   return ctx => {
     const v = vienna(ctx), m = melbourne(ctx), u = v.update;
-    v.update = (dt, t) => { u(dt, t); m.update(dt, t); };
     v.melbourne = m;
     v.addSource('melbourne', m.feed); m.linkWall(v.setSource, () => v.source, v.feedTarget.texture);
+    // the visitor's three buttons (STUDIO / PIANO / DJ ROOM); their labels follow what plays, a few times a second
+    const sp = spaces(v, ctx.director); let spNext = 0;
+    v.update = (dt, t) => { u(dt, t); m.update(dt, t); if (sp && t > spNext) { spNext = t + 0.25; sp.update(); } };
+    v.spaces = sp;
     return v;
   };
 }
