@@ -48,6 +48,10 @@ const asset = p => new URL('../' + p, import.meta.url).href;
 const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
 // in the DJ set, every 1–2 minutes a look from further off: down through the glass, the studio and the stage, the crane
 const WIDE = ['mDJ6', 'djwide', 'crane'];
+// the show's cards play on the studio's LED wall, seen from in front of the desk with the wall filling the picture
+// (the hanging logo flies up out of the way, as in the studio's own simulation)
+const CARD_VIEW = 'onWall';
+VIEWS[CARD_VIEW] ??= { label: 'LED wall', long: 'The LED wall · on air', pos: [0, 1.95, 5.6], target: [0, 2.55, -6], fov: 50, drift: 0.05, tally: 2 };
 const pick = (list, n) => [...list].sort(() => Math.random() - 0.5).slice(0, n);
 
 const ICON = {
@@ -94,10 +98,7 @@ export function spaces(v, ctx) {
   .edge .eb[aria-pressed=true]{border-color:var(--red,#ff4a3d);color:var(--chrome-hi,#f3f5f8)}
   body.obs .edge,body.panel-open .edge{display:none}
   body.dz-public .vz,body.dz-public .mz{display:none}
-  .sp-card{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;z-index:4;opacity:0;pointer-events:none;transition:opacity .8s ease}
-  .sp-card.on{opacity:1}
-  body.sp-carding .dock,body.sp-carding .edge,body.sp-carding .top{opacity:.12;transition:opacity .6s}
-  body.sp-carding .dock:hover,body.sp-carding .edge:hover{opacity:1}
+  .sp-card{display:none}
   .dock:not(.more-open) .sp-row{display:none}
   /* minimised: only a small button to bring the controls back; nothing else over the picture */
   body.sp-min .dock .row,body.sp-min .dock .pop,body.sp-min .dock .fine,body.sp-min .edge,body.sp-min .spaces > :not(.min){display:none!important}
@@ -134,13 +135,15 @@ export function spaces(v, ctx) {
   document.body.appendChild(edge);
   edge.addEventListener('click', e => {
     const b = e.target.closest('[data-view-edge]'); if (!b) return;
+    wallHold = false;
     if (b.dataset.viewEdge === 'after') { cctv.stop(); return afterShow.on ? afterShow.stop() : afterShow.start(); }
     if (b.dataset.viewEdge === 'security') { afterShow.stop(); m.releaseCameras(); return cctv.on ? cctv.stop() : cctv.start(); }
     cctv.stop();
     afterShow.stop(); director.setAuto(false); m.releaseCameras();
     const view = b.dataset.viewEdge;
     if (PLACES[view]) return place().then(() => director.go(view, { instant: true }));
-    director.go(view, { instant: !!VIEWS[director.current]?.place });
+    // a cut, never a walk: the walk backstage is for the studio's own BACKSTAGE door, not for these buttons
+    director.go(view, { instant: true });
   });
 
   /* ----- the building and the reception: built the first time, shown only while the camera is out there ----- */
@@ -151,7 +154,7 @@ export function spaces(v, ctx) {
     const hdr = await new RGBELoader().setDataType(THREE.FloatType).loadAsync(asset('assets/cc0/modern_buildings_night_1k.hdr'));
     const px = hdr.image.data; for (let i = 0; i < px.length; i++) if ((i & 3) !== 3) px[i] = Math.min(px[i], 1.6);   // as the arrival: lamps as glints
     const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; hdr.dispose(); pm.dispose();
-    const st = buildStreet(env, { cc0: asset('assets/cc0/') }); ctx.scene.add(st.group); await st.ready;
+    const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
     return st;
   })());
   const outside = () => ctx.camera.position.z > 15;
@@ -186,12 +189,22 @@ export function spaces(v, ctx) {
   Object.assign(cardEl, { muted: true, playsInline: true, preload: 'auto', className: 'sp-card' });
   document.body.appendChild(cardEl);
   let cardOf = null;   // which card shows (so each plays once per moment)
+  // the card on the LED wall (the wall's own video programme, as the studio's simulation uses), the camera on the wall,
+  // the logo up; while it plays the shot stays on the wall. A show's closing card stays on its last frame
+  let wallBefore = null, onWall = false, wallHold = false;   // wallHold: the camera stays on the wall (until the visitor picks one)
   function card(name, { manual = false } = {}) {
     if (cardOf === name && !manual) return; cardOf = name;
-    cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {}); cardEl.classList.add('on'); document.body.classList.add('sp-carding');
-    cardEl.onended = () => { if (manual || !name.endsWith('End')) { cardEl.classList.remove('on'); document.body.classList.remove('sp-carding'); } };   // a show's closing card stays on its last frame
+    cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {});
+    if (!onWall) { wallBefore = v.source; onWall = true; }
+    v.setSource('main'); ctx.studio.wall.film(() => [[cardEl, 1]]); ctx.studio.wall.set('film'); ctx.studio.liftLogo(true);
+    director.setAuto(false); director.go(CARD_VIEW, { instant: true }); wallHold = true;
+    cardEl.onended = () => { if (manual || !name.endsWith('End')) wallOff(); };
   }
-  const cardOff = () => { cardOf = null; cardEl.classList.remove('on'); document.body.classList.remove('sp-carding'); cardEl.pause(); };
+  function wallOff() {
+    if (!onWall) return; onWall = false;
+    ctx.studio.wall.set('idle'); ctx.studio.liftLogo(false); if (wallBefore && wallBefore !== 'main') v.setSource(wallBefore);
+  }
+  const cardOff = () => { cardOf = null; cardEl.pause(); wallOff(); };
 
   /* ----- the Piano Sessions, in show order ----- */
   const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk);
@@ -353,7 +366,7 @@ export function spaces(v, ctx) {
       if (typeof label === 'function') dynamic.push([b, label]);
       if (Array.isArray(what)) {
         const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
-        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { fn(); closeMenus(); }); pop.appendChild(x); }
+        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { if (label === 'Camera') wallHold = false; fn(); closeMenus(); }); pop.appendChild(x); }
         dock.insertBefore(pop, ctrl); pops.push(pop);
         b.setAttribute('aria-expanded', 'false'); b.insertAdjacentHTML('beforeend', '<i class="chev" aria-hidden="true"></i>');
         b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });
@@ -368,8 +381,11 @@ export function spaces(v, ctx) {
   let active = 'studio', shot = 0;
   const go = {
     studio() {
-      if (active === 'studio') { shot = (shot + 1) % SHOTS.length; director.setAuto(false); director.go(SHOTS[shot]); return; }
+      // the studio's own simulation (onair.js) starts at once; pressed again it ends
+      const air = ctx.air;
+      if (active === 'studio' && air?.isOpen) return air.close();
       stopPiano(); stopDj(); shot = 0;
+      if (air && !air.isOpen) air.open();
       if (v.lift.state !== 'LOWERED' && !v.liftHold) v.command('reset');
       // the booth down in the club: it rides back up and the transition ends on the studio
       if (m.lift.state !== 'UP' || m.env === 'djroom') { if (!m.travelling) m.transition('up'); }
@@ -436,9 +452,11 @@ export function spaces(v, ctx) {
     if (cardOf === 'psBetween' && P.state !== 'BETWEEN') cardOf = null;
     if (cardOf === 'djBetween' && dj?.el !== jingle) cardOf = null;
     if (cardOf?.endsWith('End') && afterShow.on) cardOff();
+    // while a card plays the camera stays on the wall (the show's own cuts wait)
+    if (onWall && wallHold && !cardEl.paused && !cardEl.ended && director.current !== CARD_VIEW && !afterShow.on) director.go(CARD_VIEW, { instant: true });
     // paused with the show
     const held = (active === 'piano' && (P.paused || !!piano?.held)) || !!dj?.paused;
-    if (cardEl.classList.contains('on') && !cardEl.ended && held !== cardEl.paused) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
+    if (onWall && !cardEl.ended && held !== cardEl.paused) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
     // the building only while the camera is out there (its lights and wet street cost nothing in the studio then)
     if (street && outside() !== shownOut) {
       shownOut = outside(); street.then(st => { st.group.visible = shownOut; });
@@ -453,7 +471,7 @@ export function spaces(v, ctx) {
     const p = v.show;
     const pianoLabel = piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
     const djLabel = !dj || dj.done ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
-    btn('studio').querySelector('small').textContent = active === 'studio' ? 'Next shot' : '';
+    btn('studio').querySelector('small').textContent = ctx.air?.isOpen ? 'On air · tap to end' : 'Simulate on air';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
     btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : djLabel;
     // the cover of what plays, in place of the icon

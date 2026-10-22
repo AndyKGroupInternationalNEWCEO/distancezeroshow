@@ -20,8 +20,8 @@ const BASE = `http://127.0.0.1:${server.address().port}/`;
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'dz-mel-'));
 const debugPort = 9000 + Math.floor(Math.random() * 400);
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, '--use-angle=metal', '--enable-gpu',
-  '--ignore-gpu-blocklist', '--no-first-run', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--window-size=1600,900', 'about:blank'], { stdio: 'ignore' });
+const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, ...(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : ['--use-angle=metal', '--enable-gpu',
+  '--ignore-gpu-blocklist']), '--no-first-run', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--window-size=1600,900', 'about:blank'], { stdio: 'ignore' });
 let page;
 for (let i = 0; i < 50 && !page; i++) {
   await new Promise(r => setTimeout(r, 200));

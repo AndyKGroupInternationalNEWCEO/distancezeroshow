@@ -338,7 +338,7 @@ export function createOnAir({ studio, director, sound, live, onStart, onEnd, red
     el.hidden = false; document.body.classList.add('air-on');
     el.classList.toggle('still', !!reducedMotion);
     applySound();
-    try { if (document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch {}
+    // (not full screen any more: the studio stays in its page, as the visitor asked; the browser's own full screen is theirs)
     onStart?.();
     music = false;
     if (looks.get() === 'music') looks.set('broadcast');      // the simulation always opens with video 1

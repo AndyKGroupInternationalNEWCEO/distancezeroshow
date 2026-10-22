@@ -97,7 +97,7 @@ const WetReflector = {
 };
 
 /* ---------- the street: the building's front with its glass entrance, a canopy, the D//0 sign, wet pavement ---------- */
-export function buildStreet(nightEnv, { cc0: base } = {}) {
+export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   CC0 = base;
   const g = new THREE.Group();
   const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); m.castShadow = m.receiveShadow = true; return m; };
@@ -120,7 +120,7 @@ export function buildStreet(nightEnv, { cc0: base } = {}) {
   // a deep black reveal round the doorway
   for (const [w, h, x, y] of [[0.08, DH, -DW / 2 + 0.04, DH / 2], [0.08, DH, DW / 2 - 0.04, DH / 2], [DW, 0.08, 0, DH - 0.04]]) add(new THREE.BoxGeometry(w, h, 0.62), dark, x, y, FZ - 0.3);
   // the lobby behind: a warm, lit room with the logo on its back wall, seen through the glass
-  const logoTex = new THREE.TextureLoader().load(new URL('../../assets/logo-do-1k.webp', import.meta.url).href); logoTex.colorSpace = THREE.SRGBColorSpace;
+  const logoTex = new THREE.TextureLoader().load(new URL('../assets/logo-do-1k.webp', import.meta.url).href); logoTex.colorSpace = THREE.SRGBColorSpace;
   // the lobby: 10 × 9.6 m, warm walls, a dark polished stone floor, the corridor to backstage at the back on the left
   const lobbyWall = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.7, emissive: 0x2a1a0c, emissiveIntensity: 1 });
   const stone = cc0('concrete_floor_02', [10 / 3, 9.6 / 3]);
@@ -151,6 +151,7 @@ export function buildStreet(nightEnv, { cc0: base } = {}) {
   dAdd(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 24), deskGlass, -1.5, 1.32, -0.1);
   const lobbyLogo = add(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, alphaTest: 0.04, toneMapped: false, color: new THREE.Color(0.9, 0.9, 0.9) }), 0.9, 2.3, FZ - 9.98);
   lobbyLogo.castShadow = false;
+  if (furnish) furnishLobby({ g, add, glass, champagne, stone });
   // a warm light line along the lobby ceiling
   add(new THREE.BoxGeometry(6, 0.03, 0.06), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.6, 0.9) }), 0, 3.5, FZ - 3).castShadow = false;
   // the glass doors: two leaves that slide apart as someone comes
@@ -230,3 +231,68 @@ export function buildStreet(nightEnv, { cc0: base } = {}) {
   };
 }
 
+/* ---------- the reception, furnished (the Virtual Space; the arrival keeps its bare lobby): a polished marble floor,
+   a crystal chandelier over the room, a sofa and low table, framed show posters, and in the back wall the two ways on:
+   a sliding glass door to the studio (ON AIR over it) and a plain door to backstage, staff only ---------- */
+function furnishLobby({ g, add, glass, champagne }) {
+  const zBack = FZ - 9.99;
+  // marble, polished: the room's light and the chandelier in it
+  const marble = cc0('marble_01', [10 / 2.5, 9.6 / 2.5]);
+  add(new THREE.PlaneGeometry(9.9, 9.5).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ ...marble, color: 0x8a8378, roughness: 0.25,
+    normalScale: new THREE.Vector2(0.3, 0.3), clearcoat: 0.8, clearcoatRoughness: 0.08 }), 0, 0.052, FZ - 5.3).castShadow = false;
+  // dark oak on the side walls, to door height
+  const oak = cc0('dark_wooden_planks', [9.6 / 2, 2.6 / 2]);
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.03, 2.6, 9.5), new THREE.MeshStandardMaterial({ ...oak, color: 0x6a5240, roughness: 0.7 }), sx * 4.93, 1.35, FZ - 5.3);
+
+  // the crystal chandelier: three rings of glass rods hanging at different lengths from a champagne ring, lit warm
+  const ch = new THREE.Group(); ch.position.set(0, 3.58, FZ - 4.6); g.add(ch);
+  const rodMat = new THREE.MeshPhysicalMaterial({ color: 0xfff6ea, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, emissive: 0xffd2a0, emissiveIntensity: 0.45 });
+  const rings = [[0.75, 40, 0.9], [0.52, 30, 0.7], [0.3, 20, 0.5]], count = rings.reduce((n, r) => n + r[1], 0);
+  const rods = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.011, 0.011, 1, 8), rodMat, count), m4 = new THREE.Matrix4();
+  let i = 0, seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (const [r, n, len] of rings) for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2, l = len * (0.75 + 0.5 * rnd());
+    m4.compose(new THREE.Vector3(Math.cos(a) * r, -0.05 - l / 2, Math.sin(a) * r), new THREE.Quaternion(), new THREE.Vector3(1, l, 1)); rods.setMatrixAt(i++, m4);
+  }
+  ch.add(rods);
+  for (const [r] of rings) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012, 8, 64).rotateX(Math.PI / 2), champagne); ring.position.y = -0.04; ch.add(ring); }
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 8), champagne); ch.add(rod);
+  const glow = new THREE.PointLight(0xffd9b0, 16, 8, 2); glow.position.y = -0.55; ch.add(glow);
+
+  // the sofa and the low table, by the left wall
+  const fabric = new THREE.MeshStandardMaterial({ color: 0x2c2b30, roughness: 0.95 });
+  const sofa = new THREE.Group(); sofa.position.set(-4.2, 0.05, FZ - 4.8); sofa.rotation.y = Math.PI / 2; g.add(sofa);
+  const sAdd = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; sofa.add(m); return m; };
+  sAdd(new THREE.BoxGeometry(2.3, 0.22, 0.86), fabric, 0, 0.26, 0);
+  for (const x of [-0.56, 0.56]) sAdd(new THREE.BoxGeometry(1.1, 0.14, 0.72), fabric, x, 0.44, 0.06);    // seat cushions
+  sAdd(new THREE.BoxGeometry(2.3, 0.48, 0.2), fabric, 0, 0.6, -0.33);
+  for (const x of [-1.1, 1.1]) sAdd(new THREE.BoxGeometry(0.14, 0.42, 0.86), fabric, x, 0.43, 0);
+  for (const [x, z] of [[-1.05, -0.35], [1.05, -0.35], [-1.05, 0.35], [1.05, 0.35]]) sAdd(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 10), champagne, x, 0.075, z);
+  const table = new THREE.Group(); table.position.set(-3.0, 0.05, FZ - 4.8); g.add(table);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.02, 48), glass); top.position.y = 0.42; table.add(top);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, 0.4, 24), champagne); base.position.y = 0.2; table.add(base);
+
+  // framed show posters on the right wall
+  const loader = new THREE.TextureLoader();
+  for (const [img, z] of [['keyvisual.jpg', FZ - 3.2], ['studio-still.jpg', FZ - 6.6]]) {
+    const tex = loader.load(CC0 + '../' + img); tex.colorSpace = THREE.SRGBColorSpace;
+    const frame = add(new THREE.BoxGeometry(0.04, 1.06, 1.66), champagne, 4.9, 1.72, z);
+    const pic = add(new THREE.PlaneGeometry(1.56, 0.96), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 }), 4.875, 1.72, z); pic.rotation.y = -Math.PI / 2; pic.castShadow = false;
+    frame.castShadow = false;
+  }
+
+  // the way to the show: a sliding glass door in the corridor opening (x −4.2 … −3.0), ON AIR over it
+  for (const sx of [-1, 1]) {
+    const leaf = add(new THREE.BoxGeometry(0.6, 2.36, 0.02), glass, -3.6 + sx * 0.3, 1.23, zBack + 0.02);
+    leaf.castShadow = false;
+    add(new THREE.BoxGeometry(0.02, 2.36, 0.03), champagne, -3.6 + sx * 0.59, 1.23, zBack + 0.02);
+  }
+  add(new THREE.BoxGeometry(1.24, 0.04, 0.05), champagne, -3.6, 2.42, zBack + 0.02);
+  const onAir = add(new THREE.PlaneGeometry(0.9, 0.22), new THREE.MeshBasicMaterial({ map: text('STUDIO  ·  ON AIR', { w: 1024, h: 256, size: 110, color: '#ff4a3d' }), transparent: true, toneMapped: false }), -3.6, 2.7, zBack + 0.03);
+  onAir.castShadow = false;
+  // backstage: a plain dark door, staff only
+  add(new THREE.BoxGeometry(1.0, 2.2, 0.05), new THREE.MeshStandardMaterial({ color: 0x15130f, roughness: 0.6 }), 3.6, 1.15, zBack + 0.025);
+  add(new THREE.BoxGeometry(0.03, 0.3, 0.03), champagne, 3.2, 1.1, zBack + 0.07);
+  const staff = add(new THREE.PlaneGeometry(1.1, 0.22), new THREE.MeshBasicMaterial({ map: text('BACKSTAGE  ·  STAFF ONLY', { w: 1024, h: 200, size: 72, color: '#d8c9ac' }), transparent: true, toneMapped: false }), 3.6, 2.45, zBack + 0.03);
+  staff.castShadow = false;
+}

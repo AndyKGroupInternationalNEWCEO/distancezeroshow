@@ -458,7 +458,8 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
     bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
 
-    director.update(dt, now);
+    // the camera moves on at most 1/30 s a frame: after a slow frame it carries on smoothly instead of jumping ahead
+    director.update(Math.min(dt, 1 / 30), now);
     if (director.walking) camera.lookAt(controls.target); else controls.update(dt);   // walking: no orbit limits, just look ahead
     // the slow-mo shot is the robot's own camera: the picture follows its lens through the programme of moves
     if (robotShot) { camera.position.copy(studio.robot.shot.pos); controls.target.copy(studio.robot.shot.target); camera.lookAt(controls.target); }
@@ -488,6 +489,12 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   studio.wall.draw(0, 1);
   studio.update(0, 0, L, 2);
   await renderer.compileAsync(scene, camera);
+  // and everything that is hidden until it is needed (the DJ room below, the stage's parts, the effects): its shaders
+  // compiled now, not on the frame it first appears (that frame would stall). Lights stay as they are
+  const hiddenNow = [];
+  scene.traverse(o => { if (!o.visible && !o.isLight) { hiddenNow.push(o); o.visible = true; } });
+  try { await renderer.compileAsync(scene, camera); } catch {}
+  for (const o of hiddenNow) o.visible = false;
   progress(1);
 
   let raf = requestAnimationFrame(frame);
