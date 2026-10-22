@@ -169,7 +169,8 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   // a camera that is not yet in the club (or one on the glass, DJ6) cuts: a flight would pass through the floor
   const below = k => CAMS[k].pos[1] < 0;
   const cut = (k, { instant = false } = {}) => { program = k; shown = k; director.setAuto(false); director.go(id(k), { instant: instant || below(k) !== inClub(camera.position) }); };
-  const AUTO = ['DJ1', 'DJ2', 'DJ3', 'DJ5', 'DJ2', 'DJ4', 'DJ1', 'DJ3'];   // calm cuts, every 8 bars
+  const AUTO = ['DJ1', 'DJ2', 'DJ3', 'DJ5', 'DJ2', 'DJ4', 'HS', 'DJ1', 'DJ3'];   // calm cuts, every 8 bars (the 4K high-speed once a round)
+  VIEWS[id('HS')].slow = 0.3;   // slow motion: the club's effects move at this rate on that shot (below), the music and the lift do not
   const liftView = k => { program = 'lift'; director.setAuto(false); director.go('mLift' + k, { instant: true }); };
 
   /* ----- DJ TRANSITION: the booth goes down into the club on its lift (or back up), the cameras with it ----- */
@@ -208,7 +209,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
       else if (seq.step === 1 && h >= 1.3) { seq.step = 2; if (!seq.own) cut('DJ6', { instant: true }); }
       else if (seq.step === 2 && h >= 3.3) { seq.step = 3; if (!seq.own) liftView('low'); }
       else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
-        cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
+        if (!seq.own) cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
       else if (seq.step === 4 && seq.t >= seq.end) { const own = seq.own; seq = null; if (!own) cut('DJ2', { instant: true }); }
     } else {
       if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,
@@ -266,7 +267,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     // the playing opening's music (null otherwise): the light follows it (ease), the pulses take its kick (room.js),
     // and the mixer's meters show its level, as a console's meters show what plays
     L.music = opening.music() || musicSource?.(dt) || null;
-    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); booth.gear.setLevels({ ch: [lv, 0, 0, 0], master: [lv, lv * 0.97] }); }
+    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); const ch = [0, 0, 0, 0]; ch[musicSource ? musicCh : 0] = lv; booth.gear.setLevels({ ch, master: [lv, lv * 0.97] }); }
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
     // comes up with the booth
@@ -289,15 +290,17 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     desk.apply();
     const seen = frustum.intersectsBox(room.bounds) || feedWanted();
     room.root.visible = seen;
-    if (seen) { room.face(camera); room.update(t, dt, L, beat); booth.update(t, dt, L, beat); club.update(t, dt, L); }
+    // the 4K high-speed shot: the effects' own movement slowed (lasers, heads, fog, jogs), eased in and out like the studio's
+    fxK += ((VIEWS[director.current]?.slow ?? 1) - fxK) * (1 - Math.exp(-dt * 2.5)); const fdt = dt * fxK; fxT += fdt;
+    if (seen) { room.face(camera); room.update(fxT, fdt, L, beat); booth.update(fxT, fdt, L, beat); club.update(fxT, fdt, L); }
     ui?.show({ cover: cover.state, lift: liftState(), hold: liftHold, mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null, show, wall: wallName(), wallAuto: wall.auto, desk: desk.on });
   }
 
   /* ----- the controls (the panel uses these; the Broadcast Studio's bridge will use the same) ----- */
-  let musicSource = null;   // another recording the light follows (the DJ show's tracks: spaces.js, live-music.js)
+  let musicSource = null, musicCh = 0, fxK = 1, fxT = 0;   // another recording the light follows (the DJ show's tracks: spaces.js, live-music.js)
   const api = {
     update, room, booth, club, L, MODES,
-    setMusicSource(fn) { musicSource = fn || null; },
+    setMusicSource(fn, ch = 0) { musicSource = fn || null; musicCh = ch; },
     // the visitor took the camera elsewhere (CCTV, backstage …): a transition on its way leaves the cameras alone
     releaseCameras() { if (seq) seq.own = true; },
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
@@ -375,7 +378,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     const v = VIEWS[id(shown)];
     c.position.set(...v.pos); c.lookAt(...v.target); c.fov = v.fov;
   }
-  function feedBefore(c) { room.root.visible = true; room.face(c); room.update(t, 0, L, beat); booth.update(t, 0, L, beat); club.update(t, 0, L); }
+  function feedBefore(c) { room.root.visible = true; room.face(c); room.update(fxT, 0, L, beat); booth.update(fxT, 0, L, beat); club.update(fxT, 0, L); }
 }
 
 // the studio's wall upstairs and its box (taken before anything is routed to it)

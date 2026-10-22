@@ -68,7 +68,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   for (const k of keys) {
     const c = CAMS[k], s = shot(k, 0);
     // solo: the studio goes down round the stage, as on the studio's own piano shot (main.js), not quite as far
-    VIEWS[id(k)] = { label: c.label, long: c.long, pos: s.pos.toArray(), target: s.target.toArray(), fov: c.fov, drift: 0, tally: 0, cam: c.name, free: true, vienna: k, solo: 0.6 };
+    VIEWS[id(k)] = { label: c.label, long: c.long, pos: s.pos.toArray(), target: s.target.toArray(), fov: c.fov, drift: 0, tally: 0, cam: c.name, free: true, vienna: k, solo: 0.6, ...(k === 'P6' ? { slow: 0.3 } : {}) };
   }
   // the studio's own piano shot (key 9) follows the grand up as well; with the lift down it is exactly as before
   const studioPiano = { pos: [...VIEWS.piano.pos], target: [...VIEWS.piano.target] };

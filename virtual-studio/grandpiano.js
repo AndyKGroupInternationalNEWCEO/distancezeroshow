@@ -32,7 +32,9 @@ export function grandPiano(M) {
   const brass = new THREE.MeshStandardMaterial({ color: 0xc9a25e, metalness: 1, roughness: 0.22 });
   const spruce = new THREE.MeshStandardMaterial({ color: 0x9a7448, metalness: 0, roughness: 0.6 });
   const felt = new THREE.MeshStandardMaterial({ color: 0x4a0f12, roughness: 0.95 });
-  const ivory = new THREE.MeshPhysicalMaterial({ color: 0xf1ede4, roughness: 0.32, clearcoat: 0.35, clearcoatRoughness: 0.25 });
+  // ivory a shade below white and satin, not gloss: under the stage's spot the keys keep their edges and gaps (at 0xf1ede4,
+  // roughness 0.32 they burnt out to one white strip)
+  const ivory = new THREE.MeshPhysicalMaterial({ color: 0xcfc8ba, roughness: 0.48, clearcoat: 0.18, clearcoatRoughness: 0.35 });
   const ebony = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0b, roughness: 0.28, clearcoat: 0.6, clearcoatRoughness: 0.12 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xd8dade, metalness: 1, roughness: 0.25 });
   const copper = new THREE.MeshStandardMaterial({ color: 0xb8733f, metalness: 1, roughness: 0.3 });             // the wound bass strings

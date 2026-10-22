@@ -88,6 +88,8 @@ export const CAMS = {
   DJ4: { name: 'CAM DJ4', label: 'Equipment', long: 'DJ room · equipment close-up', pos: xyz(-0.9, B.across + 0.95, F + B.riser + 1.62), target: xyz(0.15, B.across - 0.05, F + B.riser + B.top), fov: 34, drift: 0.04 },
   // overhead: on the shaft's front edge, clear of the platform's path, looking steeply down at the console
   DJ5: { name: 'CAM DJ5', label: 'Overhead', long: 'DJ room · overhead', pos: xyz(0.05, B.across + 1.25, F + 4.1), target: xyz(0, B.across - 0.2, F + B.riser + 0.8), fov: 50, drift: 0.04 },
+  // the 4K high-speed camera: low at the console's front edge, across the decks and the DJ's hands, in slow motion
+  HS: { name: 'CAM 4K HS', label: '4K high-speed', long: 'DJ room · 4K high-speed · slow motion', pos: xyz(0.8, B.across + 0.75, F + B.riser + B.top + 0.42), target: xyz(-0.2, B.across - 0.1, F + B.riser + B.top - 0.02), fov: 32, drift: 0.03 },
   DJ6: { name: 'CAM DJ6', label: 'Glass floor', long: 'Upper studio · through the glass floor', pos: xyz(-1.0, GLASS.across + 3.6, 3.1), target: xyz(0, GLASS.across - 0.4, F + 1.2), fov: 50, drift: 0.12 },
 };
 // the DJ transition's own cameras: they follow the moving platform (index.js aims them at the booth every frame)

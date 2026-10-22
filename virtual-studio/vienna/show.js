@@ -16,7 +16,7 @@ export const STATES = ['IDLE', 'PREPARING', 'OPENING', 'THEME', 'LIVE', 'SONG', 
 
 // a song from the repertoire, performed live: calm cuts round the stage cameras, the keyboard (P2) every other shot so
 // the keys playing the recording are seen; warm light (the operator can take over)
-const SONG_SHOTS = { length: 12, cams: ['P2', 'P1', 'P2', 'P3', 'P2', 'P5'] };
+const SONG_SHOTS = { length: 12, cams: ['P2', 'P1', 'P6', 'P3', 'P2', 'P5'] };   // P6: the 4K high-speed, once a round
 
 // the opening's script, from its measured onsets: under-light on the first accent; the lift sets off so the platform
 // arrives on the biggest moment (the onset with the loudest 5 s after it, once the lift has had time to rise); the

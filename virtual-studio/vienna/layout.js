@@ -50,6 +50,8 @@ export const CAMS = {
   P2: { name: 'CAM P2', label: 'Keyboard top', long: 'Vienna · keyboard top', pos: xyz(1.66, 0, 2.55), rise: 1, target: xyz(1.04, 0, 0.72), fov: 40, drift: 0.04 },
   P3: { name: 'CAM P3', label: 'Side cinematic', long: 'Vienna · side cinematic', pos: xyz(3.1, -1.9, 1.75), rise: 1, target: xyz(0.6, 0.3, 0.85), fov: 32, drift: 0.18 },
   P4: { name: 'CAM P4', label: 'Lift reveal', long: 'Vienna · lift reveal wide', pos: [-0.8, 3.0, 7.2], rise: 0, target: [STAGE.x, 1.7, STAGE.z], targetRise: 0.5, fov: 44, drift: 0.12 },
+  // the 4K high-speed camera: low beside the keyboard's end, along the keys and the hands, in slow motion
+  P6: { name: 'CAM P6', label: '4K high-speed', long: 'Vienna · 4K high-speed · the keys in slow motion', pos: xyz(1.32, 0.86, 0.96), rise: 1, target: xyz(1.0, -0.3, 0.74), fov: 28, drift: 0.02 },
   P5: { name: 'CAM P5', label: 'Elevated tracking', long: 'Vienna · elevated tracking', pos: xyz(-3.4, 3.9, 1.4), rise: 1, target: xyz(0, 0, 0.9), fov: 38, lag: 1.6, drift: 0.2 },
 };
 // the studio's own piano shot (views.js `piano`, key 9) rides along too, so it keeps the grand in frame

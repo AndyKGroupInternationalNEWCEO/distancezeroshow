@@ -41,9 +41,13 @@ for (const [k, v] of Object.entries(AFTER)) VIEWS[k] ??= { tally: 0, ...v };
 const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'assets/jingles/19-friday-show-closing.m4a' };
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
-const CARD = { psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
+const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
   djBetween: 'assets/video/shows/dj-transition.mp4', djEnd: 'assets/video/shows/dj-closing.mp4' };
 const asset = p => new URL('../' + p, import.meta.url).href;
+// a song's cover: its album's artwork from djandykofficial.com (assets/covers, 192 px)
+const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
+// in the DJ set, every 1–2 minutes a look from further off: down through the glass, the studio and the stage, the crane
+const WIDE = ['mDJ6', 'djwide', 'crane'];
 const pick = (list, n) => [...list].sort(() => Math.random() - 0.5).slice(0, n);
 
 const ICON = {
@@ -71,7 +75,9 @@ export function spaces(v, ctx) {
     font:600 .74rem/1.1 var(--wide,Arial,sans-serif);letter-spacing:.2em;text-transform:uppercase;cursor:pointer;backdrop-filter:blur(10px);
     transition:border-color .25s,background .25s,box-shadow .25s}
   .spaces .sp svg,.edge .eb svg{width:38px;height:38px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-  .spaces .sp small{font-weight:400;font-size:.6rem;letter-spacing:.08em;text-transform:none;color:var(--dim,#8a9099);min-height:1.1em}
+  .spaces .sp small{font-weight:400;font-size:.6rem;letter-spacing:.08em;text-transform:none;color:var(--dim,#8a9099);min-height:1.1em;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .spaces .sp .art{width:38px;height:38px;border-radius:6px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+  .spaces .sp .art[hidden]{display:none}
   .spaces .sp:hover,.edge .eb:hover{border-color:rgba(243,245,248,.4)}
   .spaces .sp[aria-pressed=true]{--c:var(--chrome-hi,#f3f5f8);border-color:var(--c);box-shadow:0 0 22px -6px var(--c);background:rgba(255,255,255,.07)}
   .spaces .sp.piano[aria-pressed=true]{--c:var(--amber,#f2a650)} .spaces .sp.piano[aria-pressed=true] svg{stroke:var(--amber,#f2a650)}
@@ -90,21 +96,30 @@ export function spaces(v, ctx) {
   body.dz-public .vz,body.dz-public .mz{display:none}
   .sp-card{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;z-index:4;opacity:0;pointer-events:none;transition:opacity .8s ease}
   .sp-card.on{opacity:1}
+  body.sp-carding .dock,body.sp-carding .edge,body.sp-carding .top{opacity:.12;transition:opacity .6s}
+  body.sp-carding .dock:hover,body.sp-carding .edge:hover{opacity:1}
   .dock:not(.more-open) .sp-row{display:none}
+  /* minimised: only a small button to bring the controls back; nothing else over the picture */
+  body.sp-min .dock .row,body.sp-min .dock .pop,body.sp-min .dock .fine,body.sp-min .edge,body.sp-min .spaces > :not(.min){display:none!important}
+  body.sp-min .spaces .min{transform:rotate(180deg);opacity:.55}
+  body.sp-min .spaces .min:hover{opacity:1}
   body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none}
   body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj]{display:none}
   .spaces .small{align-self:center;width:auto;height:44px;padding:0 14px;border-radius:22px;font-size:.6rem;letter-spacing:.16em;flex-direction:row}`;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
   const bar = document.createElement('div'); bar.className = 'spaces'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Spaces');
-  const button = (key, label) => `<button class="sp ${key}" type="button" data-space="${key}" aria-pressed="false">${ICON[key]}<span>${label}</span><small></small></button>`;
+  const button = (key, label) => `<button class="sp ${key}" type="button" data-space="${key}" aria-pressed="false">${ICON[key]}<img class="art" alt="" hidden><span>${label}</span><small></small></button>`;
   bar.innerHTML = button('studio', 'Studio') + button('piano', 'Piano') + button('dj', 'DJ Room')
     + '<button class="sp more" type="button" aria-expanded="false" aria-label="More controls" title="More for this space">⋯</button>'
     + '<button class="sp small" type="button" data-global="programme" title="The programme, as on distancezeroshow.com">Programme</button>'
-    + '<button class="sp small" type="button" data-global="info" title="How the Virtual Space works">Info</button>';
+    + '<button class="sp small" type="button" data-global="info" title="How the Virtual Space works">Info</button>'
+    + '<button class="sp more min" type="button" aria-label="Hide the controls" title="Hide the controls (to watch)">▾</button>';
   dock.insertBefore(bar, ctrl);
   const btn = k => bar.querySelector(`[data-space="${k}"]`), more = bar.querySelector('.more');
   more.addEventListener('click', () => { const open = dock.classList.toggle('more-open'); more.setAttribute('aria-expanded', String(open)); });
+  const minBtn = bar.querySelector('.min');
+  minBtn.addEventListener('click', () => { const min = document.body.classList.toggle('sp-min'); minBtn.setAttribute('aria-label', min ? 'Show the controls' : 'Hide the controls'); minBtn.title = min ? 'Show the controls' : 'Hide the controls (to watch)'; });
   // PROGRAMME: the whole programme wherever the visitor is (the dates button under ⋯ shows the space's own); INFO: how it works
   const liveBtn = document.getElementById('liveBtn');
   let programmeAll = false;
@@ -173,17 +188,18 @@ export function spaces(v, ctx) {
   let cardOf = null;   // which card shows (so each plays once per moment)
   function card(name, { manual = false } = {}) {
     if (cardOf === name && !manual) return; cardOf = name;
-    cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {}); cardEl.classList.add('on');
-    cardEl.onended = () => { if (manual || !name.endsWith('End')) cardEl.classList.remove('on'); };   // a show's closing card stays on its last frame
+    cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {}); cardEl.classList.add('on'); document.body.classList.add('sp-carding');
+    cardEl.onended = () => { if (manual || !name.endsWith('End')) { cardEl.classList.remove('on'); document.body.classList.remove('sp-carding'); } };   // a show's closing card stays on its last frame
   }
-  const cardOff = () => { cardOf = null; cardEl.classList.remove('on'); cardEl.pause(); };
+  const cardOff = () => { cardOf = null; cardEl.classList.remove('on'); document.body.classList.remove('sp-carding'); cardEl.pause(); };
 
   /* ----- the Piano Sessions, in show order ----- */
   const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk);
   let piano = null;   // { steps, i }
   const pianoPlaying = () => !['IDLE', 'ENDED'].includes(v.show.state);
   function pianoNext() {
-    if (!piano || v.show.state !== 'LIVE' || v.show.paused) return;
+    if (piano?.soon && !piano.held && performance.now() > piano.soonUntil) beginPiano();
+    if (!piano || piano.soon || v.show.state !== 'LIVE' || v.show.paused) return;
     const step = piano.steps[piano.i++];
     if (!step) { piano = null; return; }
     if (step.song) { v.pickSong(step.song.id); v.performSong(); }
@@ -191,10 +207,18 @@ export function spaces(v, ctx) {
   }
   function startPiano() {
     const songs = pick(PIANO_SONGS, 4);
+    // (the song player gets its first song now, so that it can be unlocked: a player without a source cannot be)
+    const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = songs[0].audio;
+    unlockAll(pianoPlayers());
     piano = { i: 0, steps: songs.flatMap((s, k) => (k < songs.length - 1 ? [{ song: s }, { cmd: 'between' }] : [{ song: s }])).concat({ cmd: 'closing' }) };
-    v.showCommand(v.show.state === 'IDLE' || v.show.state === 'ENDED' ? 'start' : 'restart');
+    // first STARTING SOON over the studio (the card's length), then the openings
+    if (pianoPlaying()) v.showCommand('stop');
+    piano.soon = true; card('psSoon', { manual: true });
+    cardEl.addEventListener('ended', () => { if (piano?.soon) beginPiano(); }, { once: true });
+    piano.soonUntil = performance.now() + 14000;   // (in case the card cannot play)
   }
-  const stopPiano = () => { piano = null; cardOff(); if (pianoPlaying()) v.showCommand('stop'); };
+  function beginPiano() { if (!piano?.soon) return; piano.soon = false; v.showCommand(v.show.state === 'IDLE' || v.show.state === 'ENDED' ? 'start' : 'restart'); }
+  const stopPiano = () => { piano = null; cardOff(); if (pianoPlaying()) v.showCommand('stop'); };   // (also ends a STARTING SOON)
 
   /* ----- the DJ show, in show order ----- */
   const DJ_TRACKS = REPERTOIRE.filter(s => !s.piano && s.audio && s.audioOk && s.bpm);
@@ -202,8 +226,24 @@ export function spaces(v, ctx) {
   const track = new Audio(), jingle = new Audio();
   track.crossOrigin = 'anonymous'; track.preload = 'auto'; jingle.preload = 'auto';
   let dj = null;   // { steps, i, el (what plays now), paused }
+  // Safari (and the iPhone) let a page start a sound only from the visitor's click, element by element. So in that click
+  // every player the show will use later is started muted and paused at once: the openings, the idents, the songs, the
+  // DJ tracks and jingles. Later they may play on their own, on the show's clock
+  function unlockAll(list) {
+    for (const a of list) {
+      if (!a || a.dataset?.unlocked) continue;
+      if (a.dataset) a.dataset.unlocked = '1';
+      // play and pause in the same moment: that is enough for Safari, and nothing is left to pause a player the show
+      // starts a moment later
+      const was = a.muted; a.muted = true;
+      a.play()?.catch?.(() => {}); a.pause(); a.muted = was;
+    }
+  }
+  const pianoPlayers = () => Object.values(v.show.audio || {});
+  const djPlayers = () => [m.openings?.big?.audio, m.openings?.short?.audio];
   // in the visitor's click: both players unlocked for Safari (played and paused at once), the analyser started
   function unlock() {
+    unlockAll(djPlayers());
     for (const a of [track, jingle]) { if (!a.src) a.src = a === jingle ? asset(JINGLE.between) : DJ_TRACKS[0].audio; a.muted = true; a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
     live.follow(track);
   }
@@ -223,16 +263,26 @@ export function spaces(v, ctx) {
       // the set plays in the club: the booth goes down if it is not there yet (an opening cut short, a jump)
       if (m.env !== 'djroom' && !m.travelling) { if (m.lift.state === 'DOWN') m.setEnv('djroom', { transition: false }); else m.transition('down'); }
       track.src = s.audio; track.currentTime = 0; dj.el = track; track.play().catch(() => {});
-      m.setMusicSource(dt => live.read(dt)); m.setTempo(s.bpm); m.setMode('PERFORMANCE'); m.setShow('live'); m.setAuto(true);
+      m.setTempo(s.bpm); m.setMode('PERFORMANCE'); m.setShow('live'); m.setAuto(true);
       m.setTrack({ title: s.title, artist: "DJ Andy'K" });
+      // the booth plays it: decks 2 and 3 in turn (by the mixer), its channel's fader up, the crossfader to its side
+      const deck = dj.deck = dj.deck === 1 ? 2 : 1, other = deck === 1 ? 2 : 1;
+      m.setDeck(deck + 1, { title: s.title, artist: "DJ Andy'K", bpm: s.bpm, key: s.key || '', state: 'play', position: 0, duration: s.seconds || 0, pitch: 0 });
+      m.setDeck(other + 1, { state: 'stop', position: 0 });
+      const ch = [0, 1, 2, 3].map(i => ({ fader: i === deck ? 0.85 : 0, low: 0.5, mid: 0.5, hi: 0.5, filter: 0.5, trim: 0.55 }));
+      m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 });
+      m.setMusicSource(dt => live.read(dt), deck);
+      dj.wideAt = performance.now() + 60000;
     } else {
       jingle.src = asset(JINGLE[step.jingle]); jingle.currentTime = 0; dj.el = jingle; jingle.play().catch(() => {});
       m.setMusicSource(null); m.setTrack(null);
+      if (dj.deck) m.setDeck(dj.deck + 1, { state: 'pause' });
       if (step.jingle === 'end') { m.setMode('CLOSING'); m.setAuto(false); m.pickCamera('DJ2'); } else { m.setMode('BREAKDOWN'); m.setShow('break'); }
     }
   }
   function djNext() {
     if (!dj || dj.paused || dj.done) return;
+    if (dj.el === track && performance.now() > dj.wideAt) { dj.wideAt = performance.now() + 60000 + Math.random() * 60000; director.go(WIDE[(dj.wideI = (dj.wideI || 0) + 1) % WIDE.length]); }
     if (dj.waitUp) { if (!m.travelling && m.lift.state === 'UP') { dj.waitUp = false; m.djOpening('start', undefined, 'short'); } return; }
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
@@ -247,9 +297,10 @@ export function spaces(v, ctx) {
     dj.paused = !dj.paused;
     if (!dj.el) m.djOpening('pause');
     else if (dj.paused) dj.el.pause(); else dj.el.play().catch(() => {});
+    if (dj.el === track && dj.deck) m.setDeck(dj.deck + 1, { state: dj.paused ? 'pause' : 'play', position: track.currentTime });
   }
   function stopDj() {
-    if (dj) { cardOff(); track.pause(); jingle.pause(); dj = null; m.setMusicSource(null); m.setTrack(null); m.setAuto(false); }
+    if (dj) { cardOff(); track.pause(); jingle.pause(); for (const n of [2, 3]) m.setDeck(n, { state: 'stop', position: 0 }); dj = null; m.setMusicSource(null); m.setTrack(null); m.setAuto(false); }
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
   }
 
@@ -257,8 +308,8 @@ export function spaces(v, ctx) {
   // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
   const CONTROLS = {
     piano: [
-      ['Simulate Piano show', () => simulate('piano')],
-      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')]]],
+      [() => (piano || pianoPlaying() ? 'Finish Piano show' : 'Simulate Piano show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
+      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Concert look', () => v.setLook(true)], ['Studio look', () => v.setLook(false)], ['Key light on', () => v.setKey(true)], ['Key light off', () => v.setKey(false)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
       ['Video', [['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
@@ -266,8 +317,8 @@ export function spaces(v, ctx) {
       ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
     ],
     dj: [
-      ['Simulate DJ show', () => simulate('dj')],
-      ['Camera', ['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)])],
+      [() => (dj && !dj.done ? 'Finish DJ show' : 'Simulate DJ show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
+      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
@@ -281,15 +332,25 @@ export function spaces(v, ctx) {
     else { stopPiano(); unlock(); stopDj(); startDj(); }
     closeMenus(); show();
   }
+  // FINISH: the show ends cleanly and the space is put back at rest, ready for the next one: the music and the cards
+  // stop, the Piano Stage's lift goes down, the DJ booth rides back up into the studio, the light returns to the
+  // studio's, and the camera to the wide studio shot
+  function finish(space) {
+    afterShow.stop(); cctv.stop(); ended = null;
+    if (space === 'piano') { stopPiano(); if (v.lift.state !== 'LOWERED' && !v.liftHold) v.command('reset'); director.setAuto(false); director.go('studio'); }
+    else { stopDj(); m.setShow('ended'); m.setMode('CLOSING'); if (m.lift.state !== 'UP' || m.env === 'djroom') { if (!m.travelling) m.transition('up'); } else director.go('studio'); }
+    closeMenus(); show();
+  }
   function playJingle(which) { stopDj(); jingle.src = asset(JINGLE[which]); jingle.currentTime = 0; jingle.play().catch(() => {}); }
   let discoOn = false;
-  const pops = [];
+  const pops = [], dynamic = [];   // (menu labels that follow the state: Simulate / Finish)
   const closeMenus = () => { pops.forEach(p => { p.hidden = true; }); dock.querySelectorAll('.sp-row [aria-expanded]').forEach(b => b.setAttribute('aria-expanded', 'false')); };
   for (const [space, items] of Object.entries(CONTROLS)) {
     const row = document.createElement('div'); row.className = 'row ctrl sp-row'; row.dataset.for = space;
     for (const [label, what] of items) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'b' + (Array.isArray(what) ? ' mbtn' : '');
-      b.textContent = label;
+      b.textContent = typeof label === 'function' ? label() : label;
+      if (typeof label === 'function') dynamic.push([b, label]);
       if (Array.isArray(what)) {
         const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
         for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { fn(); closeMenus(); }); pop.appendChild(x); }
@@ -315,6 +376,7 @@ export function spaces(v, ctx) {
       else { director.setAuto(false); director.go('studio'); }
     },
     piano() {
+      if (active === 'piano' && piano?.soon) { piano.held = !piano.held; if (piano.held) cardEl.pause(); else { cardEl.play().catch(() => {}); piano.soonUntil = performance.now() + 14000; } return; }
       if (active === 'piano' && pianoPlaying()) return v.showCommand('pause');
       stopDj();
       if (m.env === 'djroom') m.setEnv('studio', { transition: false });
@@ -363,6 +425,7 @@ export function spaces(v, ctx) {
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
     pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel();
+    for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
     // the cards, by what the shows are doing
     const P = v.show;
     if (active === 'piano' && P.state === 'BETWEEN') card('psBetween');
@@ -374,7 +437,7 @@ export function spaces(v, ctx) {
     if (cardOf === 'djBetween' && dj?.el !== jingle) cardOf = null;
     if (cardOf?.endsWith('End') && afterShow.on) cardOff();
     // paused with the show
-    const held = (active === 'piano' && P.paused) || !!dj?.paused;
+    const held = (active === 'piano' && (P.paused || !!piano?.held)) || !!dj?.paused;
     if (cardEl.classList.contains('on') && !cardEl.ended && held !== cardEl.paused) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
     // the building only while the camera is out there (its lights and wet street cost nothing in the studio then)
     if (street && outside() !== shownOut) {
@@ -388,11 +451,17 @@ export function spaces(v, ctx) {
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
-    const pianoLabel = p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
+    const pianoLabel = piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
     const djLabel = !dj || dj.done ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = active === 'studio' ? 'Next shot' : '';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
     btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : djLabel;
+    // the cover of what plays, in place of the icon
+    const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null, pianoSong = v.show.state === 'SONG' ? v.show.song : null;
+    for (const [k, song] of [['dj', active === 'dj' && djSong], ['piano', active === 'piano' && pianoSong]]) {
+      const img = btn(k).querySelector('.art'), svg = btn(k).querySelector('svg'), src = song ? cover(song) : '';
+      if (img.dataset.src !== src) { img.dataset.src = src; if (src) img.src = src; img.hidden = !src; svg.style.display = src ? 'none' : ''; }
+    }
   }
   show();
   return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow };
