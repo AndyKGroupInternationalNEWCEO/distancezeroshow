@@ -80,17 +80,18 @@ export const MONITORS = { along: 2.05, across: -0.2, height: 1.35, toe: 0.5 };
 // the cameras DJ1–DJ6 (the tally reads CAM DJ1…), separate from the Piano Stage's P1–P5. Positions and targets in
 // studio metres (y: height above the studio floor; the club's floor is at ROOM.floor)
 const F = ROOM.floor, B = CLUB_BOOTH;
+// every camera here is 4K; all but the high-speed one hold a single fixed shot (no drift)
 export const CAMS = {
-  DJ1: { name: 'CAM DJ1', label: 'Master wide', long: 'DJ room · master wide', pos: xyz(-4.9, 6.0, F + 3.4), target: xyz(0.3, 0.4, F + 1.5), fov: 62, drift: 0.22 },
-  DJ2: { name: 'CAM DJ2', label: 'Front booth', long: 'DJ room · front booth', pos: xyz(0.15, B.across + 3.4, F + 1.75), target: xyz(0, B.across, F + B.riser + 1.25), fov: 40, drift: 0.12 },
+  DJ1: { name: 'CAM DJ1', label: 'Master wide', long: '4K · DJ room · master wide', pos: xyz(-4.9, 6.0, F + 3.4), target: xyz(0.3, 0.4, F + 1.5), fov: 62, drift: 0 },
+  DJ2: { name: 'CAM DJ2', label: 'Front booth', long: '4K · DJ room · front booth', pos: xyz(0.15, B.across + 3.4, F + 1.75), target: xyz(0, B.across, F + B.riser + 1.25), fov: 40, drift: 0 },
   // (0.7 m further out than first built: the lift's front guide rail then stands beside the console, not across it)
-  DJ3: { name: 'CAM DJ3', label: 'Side cinematic', long: 'DJ room · side cinematic', pos: xyz(4.4, B.across + 2.3, F + 1.9), target: xyz(-0.4, B.across - 0.3, F + B.riser + 1.15), fov: 36, drift: 0.16 },
-  DJ4: { name: 'CAM DJ4', label: 'Equipment', long: 'DJ room · equipment close-up', pos: xyz(-0.9, B.across + 0.95, F + B.riser + 1.62), target: xyz(0.15, B.across - 0.05, F + B.riser + B.top), fov: 34, drift: 0.04 },
+  DJ3: { name: 'CAM DJ3', label: 'Side cinematic', long: '4K · DJ room · side cinematic', pos: xyz(4.4, B.across + 2.3, F + 1.9), target: xyz(-0.4, B.across - 0.3, F + B.riser + 1.15), fov: 36, drift: 0 },
+  DJ4: { name: 'CAM DJ4', label: 'Equipment', long: '4K · DJ room · equipment close-up', pos: xyz(-0.9, B.across + 0.95, F + B.riser + 1.62), target: xyz(0.15, B.across - 0.05, F + B.riser + B.top), fov: 34, drift: 0 },
   // overhead: on the shaft's front edge, clear of the platform's path, looking steeply down at the console
-  DJ5: { name: 'CAM DJ5', label: 'Overhead', long: 'DJ room · overhead', pos: xyz(0.05, B.across + 1.25, F + 4.1), target: xyz(0, B.across - 0.2, F + B.riser + 0.8), fov: 50, drift: 0.04 },
+  DJ5: { name: 'CAM DJ5', label: 'Overhead', long: '4K · DJ room · overhead', pos: xyz(0.05, B.across + 1.25, F + 4.1), target: xyz(0, B.across - 0.2, F + B.riser + 0.8), fov: 50, drift: 0 },
   // the 4K high-speed camera: low at the console's front edge, across the decks and the DJ's hands, in slow motion
   HS: { name: 'CAM 4K HS', label: '4K high-speed', long: 'DJ room · 4K high-speed · slow motion', pos: xyz(0.8, B.across + 0.75, F + B.riser + B.top + 0.42), target: xyz(-0.2, B.across - 0.1, F + B.riser + B.top - 0.02), fov: 32, drift: 0.03 },
-  DJ6: { name: 'CAM DJ6', label: 'Glass floor', long: 'Upper studio · through the glass floor', pos: xyz(-1.0, GLASS.across + 3.6, 3.1), target: xyz(0, GLASS.across - 0.4, F + 1.2), fov: 50, drift: 0.12 },
+  DJ6: { name: 'CAM DJ6', label: 'Glass floor', long: '4K · Upper studio · through the glass floor', pos: xyz(-1.0, GLASS.across + 3.6, 3.1), target: xyz(0, GLASS.across - 0.4, F + 1.2), fov: 50, drift: 0 },
 };
 // the DJ transition's own cameras: they follow the moving platform (index.js aims them at the booth every frame)
 export const LIFT_CAMS = {

@@ -17,7 +17,7 @@ export const SHOW = {
     label: 'Long opening · official piano theme',
     audio: 'assets/audio/piano-sessions/dz-piano-theme.wav',
   },
-  live: { label: 'Live piano performance', camera: 'P1', lights: 'WARM PIANO' },
+  live: { label: 'Live piano performance', camera: 'P1', lights: 'CINEMATIC' },   // the songs in the cinematic light (it shows the grand best)
   // between songs: played by hand only (never after each song by itself), as often as wanted; back to live after it.
   // Warm light, the keyboard close-up and slow camera moves; the lift does not move
   between: {

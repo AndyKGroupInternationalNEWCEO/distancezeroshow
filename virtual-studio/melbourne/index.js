@@ -267,7 +267,18 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     // the playing opening's music (null otherwise): the light follows it (ease), the pulses take its kick (room.js),
     // and the mixer's meters show its level, as a console's meters show what plays
     L.music = opening.music() || musicSource?.(dt) || null;
-    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); const ch = [0, 0, 0, 0]; ch[musicSource ? musicCh : 0] = lv; booth.gear.setLevels({ ch, master: [lv, lv * 0.97] }); }
+    // the opening plays on the booth as a track does: deck 2 loaded with it, its time, its tempo, the platter turning,
+    // channel 2's fader up (the DJ set's own tracks take the decks over: spaces.js)
+    const os = !musicSource && (opening.state === 'PLAYING' || opening.state === 'PAUSED') ? opening.state : 'IDLE';
+    if (os !== openingOnDeck || (os === 'PLAYING' && Math.abs(booth.gear.decks[1].data.position + (performance.now() / 1000 - booth.gear.decks[1].data.at) - opening.time) > 0.5)) {
+      openingOnDeck = os;
+      if (os === 'IDLE') { if (!musicSource) booth.gear.setDeck(1, { state: 'stop', position: 0 }); }
+      else {
+        booth.gear.setDeck(1, { title: opening.title, artist: "DJ Andy'K", bpm: opening.bpm, state: os === 'PLAYING' ? 'play' : 'pause', position: opening.time, duration: opening.duration, pitch: 0 });
+        booth.gear.setMixer({ ch: [0, 1, 2, 3].map(i => ({ fader: i === 1 ? 0.85 : 0, trim: 0.55, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5 })), xfader: 0.25, master: 0.8 });
+      }
+    }
+    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); const ch = [0, 0, 0, 0]; ch[musicSource ? musicCh : 1] = lv; booth.gear.setLevels({ ch, master: [lv, lv * 0.97] }); }
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
     // comes up with the booth
@@ -297,7 +308,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   }
 
   /* ----- the controls (the panel uses these; the Broadcast Studio's bridge will use the same) ----- */
-  let musicSource = null, musicCh = 0, fxK = 1, fxT = 0;   // another recording the light follows (the DJ show's tracks: spaces.js, live-music.js)
+  let musicSource = null, musicCh = 0, fxK = 1, fxT = 0, openingOnDeck = 'IDLE';   // another recording the light follows (the DJ show's tracks: spaces.js, live-music.js)
   const api = {
     update, room, booth, club, L, MODES,
     setMusicSource(fn, ch = 0) { musicSource = fn || null; musicCh = ch; },

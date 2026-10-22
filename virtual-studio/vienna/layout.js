@@ -45,14 +45,15 @@ const xyz = (along, across, y) => { const [x, z] = at(along, across); return [x,
 // virtual cameras. `rise` is how much of the lift's height the camera rides up with (1 = on a rig that follows the
 // platform, 0 = on the floor). Targets are given above the platform top and ride with it, or by `targetRise` of the
 // lift's height. `drift`: metres of slow camera movement (a slow dolly and crane), so no shot is a still
+// every camera here is 4K; all but the high-speed one hold a single fixed shot (no drift)
 export const CAMS = {
-  P1: { name: 'CAM P1', label: 'Main front', long: 'Vienna · main front 4K', pos: xyz(-0.3, 6.0, 2.2), rise: 0.75, target: [STAGE.x, 1.2, STAGE.z], fov: 36, drift: 0.28 },
-  P2: { name: 'CAM P2', label: 'Keyboard top', long: 'Vienna · keyboard top', pos: xyz(1.66, 0, 2.55), rise: 1, target: xyz(1.04, 0, 0.72), fov: 40, drift: 0.04 },
-  P3: { name: 'CAM P3', label: 'Side cinematic', long: 'Vienna · side cinematic', pos: xyz(3.1, -1.9, 1.75), rise: 1, target: xyz(0.6, 0.3, 0.85), fov: 32, drift: 0.18 },
-  P4: { name: 'CAM P4', label: 'Lift reveal', long: 'Vienna · lift reveal wide', pos: [-0.8, 3.0, 7.2], rise: 0, target: [STAGE.x, 1.7, STAGE.z], targetRise: 0.5, fov: 44, drift: 0.12 },
+  P1: { name: 'CAM P1', label: 'Main front', long: '4K · Vienna · main front 4K', pos: xyz(-0.3, 6.0, 2.2), rise: 0.75, target: [STAGE.x, 1.2, STAGE.z], fov: 36, drift: 0 },
+  P2: { name: 'CAM P2', label: 'Keyboard top', long: '4K · Vienna · keyboard top', pos: xyz(1.66, 0, 2.55), rise: 1, target: xyz(1.04, 0, 0.72), fov: 40, drift: 0 },
+  P3: { name: 'CAM P3', label: 'Side cinematic', long: '4K · Vienna · side cinematic', pos: xyz(3.1, -1.9, 1.75), rise: 1, target: xyz(0.6, 0.3, 0.85), fov: 32, drift: 0 },
+  P4: { name: 'CAM P4', label: 'Lift reveal', long: '4K · Vienna · lift reveal wide', pos: [-0.8, 3.0, 7.2], rise: 0, target: [STAGE.x, 1.7, STAGE.z], targetRise: 0.5, fov: 44, drift: 0 },
   // the 4K high-speed camera: low beside the keyboard's end, along the keys and the hands, in slow motion
   P6: { name: 'CAM P6', label: '4K high-speed', long: 'Vienna · 4K high-speed · the keys in slow motion', pos: xyz(1.32, 0.86, 0.96), rise: 1, target: xyz(1.0, -0.3, 0.74), fov: 28, drift: 0.02 },
-  P5: { name: 'CAM P5', label: 'Elevated tracking', long: 'Vienna · elevated tracking', pos: xyz(-3.4, 3.9, 1.4), rise: 1, target: xyz(0, 0, 0.9), fov: 38, lag: 1.6, drift: 0.2 },
+  P5: { name: 'CAM P5', label: 'Elevated tracking', long: '4K · Vienna · elevated tracking', pos: xyz(-3.4, 3.9, 1.4), rise: 1, target: xyz(0, 0, 0.9), fov: 38, lag: 1.6, drift: 0 },
 };
 // the studio's own piano shot (views.js `piano`, key 9) rides along too, so it keeps the grand in frame
 export const STUDIO_PIANO_VIEW = { rise: 0.7 };

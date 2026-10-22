@@ -10,7 +10,7 @@
 import { DJ_AUDIO_MAP } from './dj-audio-map.js';
 
 export const DJ_OPENING = {
-  audio: 'assets/audio/dj-room/dz-dj-room-opening.wav', map: 'big',
+  audio: 'assets/audio/dj-room/dz-dj-room-opening.wav', map: 'big', title: 'Distance Zero (Official Show Song)',
   duration: 348.76, bpm: 140,
   lift: 60.0,   // the booth lands in the club here (the transition takes 19.0 s: 2.5 s of light, 16.5 s of travel)
   cues: [
@@ -38,7 +38,7 @@ export const DJ_OPENING = {
 // Opening 1, the short one: "Distance // Zero (opening)", 1:39. Measured 2026-10-21: the big entry at 0:54 (+5 dB),
 // the end fading from 1:36. The booth sets off at 0:35 and lands on 0:54; DROP there, CLOSING light as it fades
 export const DJ_OPENING_SHORT = {
-  audio: 'assets/audio/dj-room/dz-dj-room-opening-short.wav', map: 'short',
+  audio: 'assets/audio/dj-room/dz-dj-room-opening-short.wav', map: 'short', title: 'Distance // Zero (Opening)',
   duration: 99.16, bpm: null, lift: 54.0,
   cues: [
     { t: 0, mode: 'OPENING', led: 'LOGO', view: 'djwide', say: 'short opening: the studio, the booth up' },
@@ -86,6 +86,7 @@ export function createDjShow({ api, url, script = DJ_OPENING }) {
       const t = audio.currentTime, h = M.hits.reduce((x, ht) => (ht <= t && t - ht < 0.25 ? Math.max(x, 1 - (t - ht) / 0.25) : x), 0);
       return { low: at(band.low, M.fps, t), mid: at(band.mid, M.fps, t), high: at(band.high, M.fps, t), kick: at(band.kick, M.kickFps, t), hit: h };
     },
+    get title() { return S.title; }, get bpm() { return S.bpm || 136; },
     get state() { return state; }, get time() { return audio.currentTime; }, get duration() { return S.duration; }, get error() { return error; }, audio,
     start() {
       if (!api.liftReady()) return { ok: false, reason: 'The booth must be up in the studio (cover open, arms in): Return ↑ first' };

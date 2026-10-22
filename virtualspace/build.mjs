@@ -38,6 +38,8 @@ const FILES = [
   ...fs.readdirSync(path.join(ROOT, 'assets/cc0')).map(f => `assets/cc0/${f}`),
   // the piano songs' sheet music, as page images (the grand's desk)
   ...fs.readdirSync(path.join(ROOT, 'assets/sheets')).flatMap(d => fs.readdirSync(path.join(ROOT, 'assets/sheets', d)).map(f => `assets/sheets/${d}/${f}`)),
+  // DJ Andy'K's voice drops for the DJ set
+  ...fs.readdirSync(path.join(ROOT, 'assets/fx')).filter(f => f.endsWith('.mp3')).map(f => `assets/fx/${f}`),
   // the songs' covers (the albums' artwork from djandykofficial.com, 192 px)
   ...fs.readdirSync(path.join(ROOT, 'assets/covers')).filter(f => f.endsWith('.jpg')).map(f => `assets/covers/${f}`),
   // the grand's piano parts, transcribed from the recordings (production/gpu/transcribe.py, import-parts.mjs)

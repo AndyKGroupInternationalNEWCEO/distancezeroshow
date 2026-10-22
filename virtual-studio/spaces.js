@@ -49,6 +49,22 @@ const asset = p => new URL('../' + p, import.meta.url).href;
 const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
 // in the DJ set, every 1–2 minutes a look from further off: down through the glass, the studio and the stage, the crane
 const WIDE = ['mDJ6', 'djwide', 'crane'];
+// the DJ's library by genre: the album's genre on djandykofficial.com, and a version named in a track's title wins
+const ALBUM_GENRES = {
+  'wavelength-traces': ['Trance'], 'remembers-the-shape': ['Trance', 'Progressive'], 'six-trance-ballads': ['Trance'],
+  'before-i-forget': ['Trance', 'Progressive'], 'borrowed-sunshine': ['Trance', 'Progressive'], 'euphoria-needs-no-story': ['Trance'],
+  'this-is-trance-hear-the-call': ['Trance'], 'four-elements': ['Trance', 'Progressive'], 'little-boy-little-girl': ['Trance'],
+  'no-translation': ['Tech House', 'Progressive', 'Melodic'], 'do-not-disturb': ['House', 'Tech House'], 'back-to-eurodance': ['Eurodance'],
+  'when-later-becomes-never': ['Progressive', 'House'], 'human-stories': ['House', 'Progressive'], 'deep-connections': ['House', 'Progressive'],
+  'until-the-lights-come-on': ['Trance'], 'where-the-world-turns-gold': ['Trance'], 'zwischenlandung': ['Progressive'],
+  'turn-the-attitude-into-gratitude': ['Melodic', 'House'], 'silence-for-crazy-bitches': ['Trance'],
+};
+const TITLE_GENRES = [[/techno|tribal/i, 'Techno'], [/trance/i, 'Trance'], [/tech house/i, 'Tech House'], [/house/i, 'House'], [/progressive/i, 'Progressive'], [/eurodance/i, 'Eurodance'], [/melodic/i, 'Melodic']];
+const genresOf = s => { const t = TITLE_GENRES.filter(([re]) => re.test(s.title)).map(([, g]) => g); return t.length ? t : ALBUM_GENRES[s.id.split('/')[0]] || []; };
+export const GENRES = ['Trance', 'Progressive', 'House', 'Tech House', 'Techno', 'Melodic', 'Eurodance'];
+// DJ Andy'K's own voice drops (DR / SOU, clean, club, echo, fast), over the start of each track in the DJ set
+const FX = [['dr-clean', 'DR · Clean'], ['dr-club', 'DR · Club'], ['dr-echo', 'DR · Echo'], ['dr-fast', 'DR · Fast'],
+  ['sou-clean', 'SOU · Clean'], ['sou-club', 'SOU · Club'], ['sou-echo', 'SOU · Echo'], ['sou-fast', 'SOU · Fast'], ['short', 'Short']];
 // the show's cards play on the studio's LED wall, seen from in front of the desk with the wall filling the picture
 // (the hanging logo flies up out of the way, as in the studio's own simulation)
 const CARD_VIEW = 'onWall';
@@ -244,7 +260,8 @@ export function spaces(v, ctx) {
   /* ----- the DJ show, in show order ----- */
   const DJ_TRACKS = REPERTOIRE.filter(s => !s.piano && s.audio && s.audioOk && s.bpm);
   const live = liveMusic();
-  const track = new Audio(), jingle = new Audio();
+  const track = new Audio(), jingle = new Audio(), fxEl = new Audio();
+  fxEl.preload = 'auto';
   track.crossOrigin = 'anonymous'; track.preload = 'auto'; jingle.preload = 'auto';
   let dj = null;   // { steps, i, el (what plays now), paused }
   // Safari (and the iPhone) let a page start a sound only from the visitor's click, element by element. So in that click
@@ -264,7 +281,7 @@ export function spaces(v, ctx) {
   const djPlayers = () => [m.openings?.big?.audio, m.openings?.short?.audio];
   // in the visitor's click: both players unlocked for Safari (played and paused at once), the analyser started
   function unlock() {
-    unlockAll(djPlayers());
+    unlockAll([...djPlayers(), fxEl]);
     for (const a of [track, jingle]) { if (!a.src) a.src = a === jingle ? asset(JINGLE.between) : DJ_TRACKS[0].audio; a.muted = true; a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
     live.follow(track);
   }
@@ -294,6 +311,7 @@ export function spaces(v, ctx) {
       m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 });
       m.setMusicSource(dt => live.read(dt), deck);
       dj.wideAt = performance.now() + 60000;
+      setTimeout(() => { if (dj?.el === track && !dj.paused) playFx(FX[Math.floor(Math.random() * 8)][0]); }, 2500);
     } else {
       jingle.src = asset(JINGLE[step.jingle]); jingle.currentTime = 0; dj.el = jingle; jingle.play().catch(() => {});
       m.setMusicSource(null); m.setTrack(null);
@@ -309,7 +327,7 @@ export function spaces(v, ctx) {
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
   }
   function startDj() {
-    const tracks = pick(DJ_TRACKS, 4);
+    const tracks = pick(djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS, 4);
     dj = { i: 0, el: null, paused: false, steps: [{ opening: true }, ...tracks.flatMap((s, k) => (k < tracks.length - 1 ? [{ track: s }, { jingle: 'between' }] : [{ track: s }])), { jingle: 'end' }] };
     djStep();
   }
@@ -344,6 +362,9 @@ export function spaces(v, ctx) {
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
       ['Jingles', [['DJ transition', () => playJingle('between')], ['Friday closing', () => playJingle('end')]]],
+      ['Library', [['All genres', () => { djGenre = null; if (!dj || dj.done) simulate('dj'); }], ...GENRES.filter(g => DJ_TRACKS.some(s => genresOf(s).includes(g))).map(g => [g, () => setGenre(g)])]],
+      ['FX drops', FX.map(([id, l]) => [l, () => playFx(id)])],
+      ['Next track', () => nextTrack()],
       ['♪ DJ booth', () => document.getElementById('musicBtn')?.click()],
     ],
   };
@@ -362,8 +383,22 @@ export function spaces(v, ctx) {
     else { stopDj(); m.setShow('ended'); m.setMode('CLOSING'); if (m.lift.state !== 'UP' || m.env === 'djroom') { if (!m.travelling) m.transition('up'); } else director.go('studio'); }
     closeMenus(); show();
   }
+  // a voice drop over the music, the track ducked under it
+  function playFx(id) {
+    fxEl.src = asset('assets/fx/' + id + '.mp3'); fxEl.currentTime = 0; fxEl.play().catch(() => {});
+    if (!track.paused) { track.volume = 0.55; fxEl.onended = () => { track.volume = 1; }; }
+  }
+  // the set's genre: the next tracks come from it (now, if a set plays; otherwise the set starts with it)
+  function setGenre(g) {
+    djGenre = g;
+    const pool = DJ_TRACKS.filter(s => genresOf(s).includes(g));
+    if (!pool.length) return;
+    if (dj && !dj.done) { const left = dj.steps.slice(dj.i); let k = 0; const songs = pick(pool, left.filter(x => x.track).length); for (const st of left) if (st.track) st.track = songs[k++] || st.track; }
+    else simulate('dj');
+  }
+  function nextTrack() { if (dj?.el === track) { track.currentTime = Math.max(0, (track.duration || 1) - 0.2); } }
   function playJingle(which) { stopDj(); jingle.src = asset(JINGLE[which]); jingle.currentTime = 0; jingle.play().catch(() => {}); }
-  let discoOn = false;
+  let discoOn = false, djGenre = null;
   const pops = [], dynamic = [];   // (menu labels that follow the state: Simulate / Finish)
   const closeMenus = () => { pops.forEach(p => { p.hidden = true; }); dock.querySelectorAll('.sp-row [aria-expanded]').forEach(b => b.setAttribute('aria-expanded', 'false')); };
   for (const [space, items] of Object.entries(CONTROLS)) {
@@ -481,7 +516,7 @@ export function spaces(v, ctx) {
     const djLabel = !dj || dj.done ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = ctx.air?.isOpen ? 'On air · tap to end' : 'Simulate on air';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
-    btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : djLabel;
+    btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : (djGenre && dj?.el === track ? djGenre + ' · ' : '') + djLabel;
     // the cover of what plays, in place of the icon
     const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null, pianoSong = v.show.state === 'SONG' ? v.show.song : null;
     for (const [k, song] of [['dj', active === 'dj' && djSong], ['piano', active === 'piano' && pianoSong]]) {
