@@ -94,7 +94,8 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
     if (inLounge(camera.position) !== !!v.lounge) { camera.position.copy(to.pos); controls.target.copy(to.target); lens.fov = to.fov; flight = null; idleSince = performance.now(); return; }
     const from = { pos: camera.position.clone(), target: controls.target.clone(), fov: lens.fov };
     const dist = from.pos.distanceTo(to.pos);
-    flight = { from, to, t: 0, dur: THREE.MathUtils.clamp(1.1 + dist * 0.09, 1.3, 2.6), lift: Math.min(1.4, dist * 0.1) };
+    // unhurried: 2–3.6 s, as a crane or dolly move (shorter moves came out as whips)
+    flight = { from, to, t: 0, dur: THREE.MathUtils.clamp(1.6 + dist * 0.12, 2.0, 3.6), lift: Math.min(1.4, dist * 0.1) };
   }
 
   const ahead = new THREE.Vector3(), tan = new THREE.Vector3();
@@ -117,7 +118,7 @@ export function createDirector({ camera, lens, controls, reducedMotion, onView, 
     }
     if (flight) {
       flight.t = Math.min(1, flight.t + dt / flight.dur);
-      const k = ease(flight.t);
+      const k = (1 - Math.cos(Math.PI * flight.t)) / 2;   // sine in-out: no sudden speed in the middle of a move
       camera.position.lerpVectors(flight.from.pos, flight.to.pos, k);
       camera.position.y += Math.sin(Math.PI * k) * flight.lift;
       controls.target.lerpVectors(flight.from.target, flight.to.target, k);

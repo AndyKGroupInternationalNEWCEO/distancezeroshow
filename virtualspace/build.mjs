@@ -15,10 +15,10 @@ const T = 'assets/vendor/three-0.170.0/';
 const FILES = [
   'virtual-studio/main.js', 'virtual-studio/set.js', 'virtual-studio/screens.js', 'virtual-studio/views.js', 'virtual-studio/details.js',
   'virtual-studio/sound.js', 'virtual-studio/panels.js', 'virtual-studio/chords.js', 'virtual-studio/schedule.js',
-  'virtual-studio/grandpiano.js', 'virtual-studio/onair.js', 'virtual-studio/spaces.js', 'assets/video/dz-logo-reveal.mp4', 'assets/video/dz-master-studio.mp4', 'assets/video/dz-preshow-2026-10-14b.mp4',
+  'virtual-studio/grandpiano.js', 'virtual-studio/onair.js', 'virtual-studio/spaces.js', 'virtual-studio/building.js', 'assets/video/dz-logo-reveal.mp4', 'assets/video/dz-master-studio.mp4', 'assets/video/dz-preshow-2026-10-14b.mp4',
   T + 'three.module.min.js', T + 'LICENSE.txt',
   ...['controls/OrbitControls.js', 'geometries/RoundedBoxGeometry.js', 'lights/RectAreaLightUniformsLib.js', 'lights/RectAreaLightTexturesLib.js',
-    'objects/Reflector.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
+    'objects/Reflector.js', 'loaders/RGBELoader.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
     'postprocessing/Pass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/OutputPass.js', 'shaders/CopyShader.js',
     'postprocessing/GTAOPass.js', 'shaders/GTAOShader.js', 'shaders/PoissonDenoiseShader.js', 'math/SimplexNoise.js',
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
@@ -33,6 +33,9 @@ const FILES = [
   // copied from the masters, see docs/vienna-stage/PIANO-SHOW.md). The songs stream from djandykofficial.com
   ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire', 'piano-parts'].map(f => `virtual-studio/vienna/${f}.js`),
   ...['opening', 'theme', 'between-songs', 'closing'].map(f => `assets/audio/piano-sessions/dz-piano-${f === 'opening' || f === 'closing' ? 'sessions-' + f : f}.wav`),
+  // the shows' cards (the broadcast's jingle videos, spaces.js) and the building's CC0 surfaces and night sky (building.js)
+  ...fs.readdirSync(path.join(ROOT, 'assets/video/shows')).filter(f => f.endsWith('.mp4')).map(f => `assets/video/shows/${f}`),
+  ...fs.readdirSync(path.join(ROOT, 'assets/cc0')).map(f => `assets/cc0/${f}`),
   // the grand's piano parts, transcribed from the recordings (production/gpu/transcribe.py, import-parts.mjs)
   ...fs.readdirSync(path.join(ROOT, 'assets/piano-parts')).filter(f => f.endsWith('.json')).map(f => `assets/piano-parts/${f}`),
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the

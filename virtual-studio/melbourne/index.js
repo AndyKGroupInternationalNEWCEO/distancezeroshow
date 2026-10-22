@@ -205,16 +205,16 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     const h = drive.height, s = liftState();
     if (seq.dir === 'down') {
       if (seq.step === 0 && seq.t >= 2.5) { seq.step = 1; if (!liftCommand('down', { quiet: true }).ok) { seq = null; return; } }
-      else if (seq.step === 1 && h >= 1.3) { seq.step = 2; cut('DJ6', { instant: true }); }
-      else if (seq.step === 2 && h >= 3.3) { seq.step = 3; liftView('low'); }
+      else if (seq.step === 1 && h >= 1.3) { seq.step = 2; if (!seq.own) cut('DJ6', { instant: true }); }
+      else if (seq.step === 2 && h >= 3.3) { seq.step = 3; if (!seq.own) liftView('low'); }
       else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
         cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
-      else if (seq.step === 4 && seq.t >= seq.end) { seq = null; cut('DJ2', { instant: true }); }
+      else if (seq.step === 4 && seq.t >= seq.end) { const own = seq.own; seq = null; if (!own) cut('DJ2', { instant: true }); }
     } else {
       if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,
       if (seq.step === 0 && cover.state !== 'OPEN') { if (cover.state !== 'OPENING') coverCommand('open', { quiet: true }); seq.t = 0; return; }   // then the cover clears
       if (seq.step === 0 && seq.t >= 1.5) { seq.step = 1; if (!liftCommand('up', { quiet: true }).ok) { seq = null; return; } }
-      else if (seq.step === 1 && h <= 2.2) { seq.step = 2; liftView('top'); }
+      else if (seq.step === 1 && h <= 2.2) { seq.step = 2; if (!seq.own) liftView('top'); }
       else if (seq.step === 2 && s === 'UP') { seq = null; env = 'studio'; say('The booth is up in the studio'); }
     }
   }
@@ -298,6 +298,8 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   const api = {
     update, room, booth, club, L, MODES,
     setMusicSource(fn) { musicSource = fn || null; },
+    // the visitor took the camera elsewhere (CCTV, backstage …): a transition on its way leaves the cameras alone
+    releaseCameras() { if (seq) seq.own = true; },
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
     get travelling() { return !!seq; },
     setEnv,
