@@ -170,7 +170,7 @@ export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   halo.castShadow = false;
   const sign = add(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, alphaTest: 0.04, toneMapped: false, color: new THREE.Color(1.3, 1.3, 1.3) }), 0, 5.3, FZ + 0.02);
   sign.castShadow = false;
-  const name = add(new THREE.PlaneGeometry(4.2, 0.66), new THREE.MeshBasicMaterial({ map: text('DISTANCE // ZERO', { size: 92 }), transparent: true, toneMapped: false, color: new THREE.Color(1.2, 1.2, 1.25) }), 0, 4.15, FZ + 0.02);
+  const name = add(new THREE.PlaneGeometry(4.2, 0.66), new THREE.MeshBasicMaterial({ map: text('DISTANCE // ZERO', { w: 2048, h: 320, size: 118 }), transparent: true, toneMapped: false, color: new THREE.Color(1.2, 1.2, 1.25) }), 0, 4.15, FZ + 0.02);
   name.castShadow = false;
   // pavement (4.5 m deep, then a granite kerb), the wet street beyond, the buildings across it
   // (2.4 m of texture = four 60 cm slabs; the wetness patches are their own, larger pattern)

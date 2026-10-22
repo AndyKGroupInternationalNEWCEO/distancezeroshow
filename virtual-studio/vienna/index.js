@@ -12,6 +12,7 @@ import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
 import { createKeyPlayer } from './keys.js';
 import { PARTS } from './piano-parts.js';
+import { SHEETS } from './sheets.js';
 import { REPERTOIRE } from './repertoire.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
@@ -274,7 +275,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     return loading.get(id);
   };
   const partInfo = id => usable(id) ? { kind: 'piano-part', source: PARTS[id].source + (PARTS[id].approved ? '' : ' (preview, not yet approved)') } : null;
-  let keysFor = null;   // the id whose part the key player holds
+  let keysFor = null, sheetShown = '';   // the id whose part the key player holds
   let picked = REPERTOIRE.find(s => s.piano) || REPERTOIRE[0];
   const pickSong = id => { picked = REPERTOIRE.find(s => s.id === id) || picked; ui.song(picked, partInfo(picked.id)); };
   const performSong = () => { abortSequence('Cinematic sequence cancelled'); fetchPart(picked.id); show.playSong(picked); };
@@ -294,6 +295,12 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const playing = show.segment === 'song' ? show.song?.id : show.segment ? 'sessions/' + show.segment : null;
     if (playing !== keysFor) { keysFor = playing; keyPlayer.load(parts[playing] || null); if (!parts[playing]) fetchPart(playing)?.then(p => { if (p && keysFor === playing) keyPlayer.load(p); }); }
     if (keyPlayer.part) keyPlayer.update(show.time);
+    // the score on the desk: the song's pages a spread at a time, turned on through the song (the cover page first)
+    const pages = show.segment === 'song' ? SHEETS[show.song?.id] : null;
+    let spread = null;
+    if (pages && show.duration) { const n = Math.ceil(pages.length / 2), k = Math.min(n - 1, Math.floor((show.time / show.duration) * n)); spread = [pages[2 * k], pages[2 * k + 1]]; }
+    const key = spread ? spread.join() : '';
+    if (key !== sheetShown) { sheetShown = key; studio.piano.userData.sheet?.show(spread); }
     // while a show segment plays on its recording's clock, the lift moves by what that clock moved (frames that come
     // late, or are cut short by main.js's 0.1 s limit, cannot leave the platform behind the music); otherwise by dt
     const seg = show.segment, onAudio = seg && show.clock === 'audio' && !show.paused;

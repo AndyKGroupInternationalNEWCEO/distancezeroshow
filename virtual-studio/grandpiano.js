@@ -136,6 +136,32 @@ export function grandPiano(M) {
   add(new THREE.BoxGeometry(1.26, 0.012, 0.02), brass, 0, KEY_Y + 0.0, -0.005);             // a thin brass line
   const desk = add(new RoundedBoxGeometry(0.86, 0.32, 0.016, 2, 0.006), lacquer, 0, RIM_TOP + 0.18, -0.36); desk.rotation.x = -0.24;
   add(new RoundedBoxGeometry(0.86, 0.02, 0.05, 1, 0.005), lacquer, 0, RIM_TOP + 0.03, -0.32);
+  // the sheet music on the desk: two A4 pages side by side (a spread), shown while a song with a score plays.
+  // `sheet.show([left, right])` with image URLs, `sheet.show(null)` clears the desk
+  const paper = [-1, 1].map(s => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), new THREE.MeshStandardMaterial({ color: 0xf4efe4, roughness: 0.92 }));
+    m.position.set(s * 0.108, 0.0, 0.0095); m.visible = false; desk.add(m); return m;
+  });
+  const pageTex = new Map(), loader = new THREE.TextureLoader();
+  const pageOf = url => {
+    if (!pageTex.has(url)) {
+      const t = loader.load(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      // the grand is placed mirrored in the studio (scale.x −1): the print is turned back the right way round
+      t.wrapS = THREE.RepeatWrapping; g.updateMatrixWorld(true); if (g.matrixWorld.determinant() < 0) { t.repeat.x = -1; t.offset.x = 1; }
+      pageTex.set(url, t);
+    }
+    return pageTex.get(url);
+  };
+  g.userData.sheet = {
+    show(pages) {
+      const mirrored = (g.updateMatrixWorld(true), g.matrixWorld.determinant() < 0);
+      paper.forEach((m, i) => {
+        const url = pages?.[mirrored ? 1 - i : i];
+        m.visible = !!url;
+        if (url && m.material.map !== pageOf(url)) { m.material.map = pageOf(url); m.material.color.set(0xffffff); m.material.needsUpdate = true; }
+      });
+    },
+  };
 
   /* legs, casters, pedal lyre */
   const leg = (x, z) => {
