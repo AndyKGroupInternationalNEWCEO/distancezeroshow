@@ -63,7 +63,7 @@ const ALBUM_GENRES = {
 const TITLE_GENRES = [[/techno|tribal/i, 'Techno'], [/trance/i, 'Trance'], [/tech house/i, 'Tech House'], [/house/i, 'House'], [/progressive/i, 'Progressive'], [/eurodance/i, 'Eurodance'], [/melodic/i, 'Melodic']];
 const genresOf = s => { const t = TITLE_GENRES.filter(([re]) => re.test(s.title)).map(([, g]) => g); return t.length ? t : ALBUM_GENRES[s.id.split('/')[0]] || []; };
 export const GENRES = ['Trance', 'Progressive', 'House', 'Tech House', 'Techno', 'Melodic', 'Eurodance'];
-// DJ Andy'K's own voice drops (DR / SOU, clean, club, echo, fast), over the start of each track in the DJ set
+// DJ Andy'K's own voice drops (DR / SOU, clean, club, echo, fast): by hand only (⋯ FX drops), never by themselves
 const FX = [['dr-clean', 'DR · Clean'], ['dr-club', 'DR · Club'], ['dr-echo', 'DR · Echo'], ['dr-fast', 'DR · Fast'],
   ['sou-clean', 'SOU · Clean'], ['sou-club', 'SOU · Club'], ['sou-echo', 'SOU · Echo'], ['sou-fast', 'SOU · Fast'], ['short', 'Short']];
 // the show's cards play on the studio's LED wall, seen from in front of the desk with the wall filling the picture
@@ -381,7 +381,6 @@ export function spaces(v, ctx) {
       m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 });
       m.setMusicSource(dt => live.read(dt), deck);
       dj.wideAt = performance.now() + 60000;
-      setTimeout(() => { if (dj?.el === track && !dj.paused) playFx(FX[Math.floor(Math.random() * 8)][0]); }, 2500);
     } else {
       jingle.src = asset(JINGLE[step.jingle]); jingle.currentTime = 0; dj.el = jingle; jingle.play().catch(() => {});
       m.setMusicSource(null); m.setTrack(null);
