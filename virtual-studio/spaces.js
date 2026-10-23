@@ -160,7 +160,7 @@ export function spaces(v, ctx) {
   .sp-lib header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .sp-lib header b{font:600 .66rem var(--wide,Arial);letter-spacing:.2em;text-transform:uppercase;width:100%;color:var(--dim,#8a9099)}
   .sp-lib .tab{font:500 .6rem var(--wide,Arial);letter-spacing:.12em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--line,rgba(201,206,214,.16));background:none;color:var(--chrome,#c9ced6);cursor:pointer}
-  .sp-lib .tab[aria-pressed=true]{border-color:var(--ice,#a9c8ee);color:var(--chrome-hi,#f3f5f8);background:rgba(169,200,238,.14)}
+  .sp-lib .tab[aria-pressed=true]{border-color:var(--acc);color:var(--chrome-hi,#f3f5f8);background:rgba(var(--acc-rgb),.14)}
   .sp-lib ol{list-style:none;margin:0;padding:0;max-height:min(46vh,460px);overflow:auto}
   .sp-lib li button{display:flex;align-items:center;gap:12px;width:100%;padding:7px 8px;border:0;border-radius:10px;background:none;color:var(--chrome-hi,#f3f5f8);text-align:left;cursor:pointer;font:500 .8rem var(--wide,Arial)}
   .sp-lib li button:hover,.sp-lib li button[aria-current=true]{background:rgba(255,255,255,.07)}
@@ -171,8 +171,8 @@ export function spaces(v, ctx) {
   .sp-pov{position:fixed;inset:0;z-index:6;pointer-events:none}
   .sp-pov[hidden]{display:none}
   .sp-pov i{display:none}
-  .sp-focus{position:fixed;z-index:6;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;pointer-events:none;border:2px solid rgba(169,200,238,.95);
-    background:radial-gradient(circle,rgba(169,200,238,.18),rgba(169,200,238,0) 70%);box-shadow:0 0 14px rgba(169,200,238,.75),inset 0 0 8px rgba(255,255,255,.35);transition:left .12s,top .12s}
+  .sp-focus{position:fixed;z-index:6;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;pointer-events:none;border:2px solid rgba(var(--acc-rgb),.95);
+    background:radial-gradient(circle,rgba(var(--acc-rgb),.18),rgba(var(--acc-rgb),0) 70%);box-shadow:0 0 14px rgba(var(--acc-rgb),.75),inset 0 0 8px rgba(255,255,255,.35);transition:left .12s,top .12s}
   .sp-focus[hidden]{display:none}
   .sp-pov i::before,.sp-pov i::after{content:"";position:absolute;background:rgba(243,245,248,.85);box-shadow:0 0 4px rgba(0,0,0,.8)}
   .sp-pov i::before{left:12px;top:0;width:2px;height:26px} .sp-pov i::after{top:12px;left:0;width:26px;height:2px}
@@ -188,7 +188,7 @@ export function spaces(v, ctx) {
     background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.06) 45%,rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.3);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 26px rgba(0,0,0,.45);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
     font:600 .7rem var(--wide,Arial);letter-spacing:.12em}
-  .sp-pad .g:active,.sp-pad .g.on{background:linear-gradient(160deg,rgba(169,200,238,.45),rgba(169,200,238,.12));border-color:rgba(169,200,238,.8)}
+  .sp-pad .g:active,.sp-pad .g.on{background:linear-gradient(160deg,rgba(var(--acc-rgb),.45),rgba(var(--acc-rgb),.12));border-color:rgba(var(--acc-rgb),.8)}
   .sp-pad .ring{left:14px;top:48px;width:160px;height:160px;border-radius:50%;cursor:default}
   .sp-pad .ok{left:59px;top:93px;width:70px;height:70px;border-radius:50%;font-size:.9rem;letter-spacing:.08em}
   .sp-pad .ar{width:44px;height:40px;border-radius:12px;background:none;border-color:transparent;box-shadow:none;font-size:1.1rem}
@@ -220,7 +220,7 @@ export function spaces(v, ctx) {
     font-size:.5rem;letter-spacing:.08em;line-height:1.15;white-space:normal}
   .dock.more-open .row.ctrl > .b small{display:none} .dock.more-open .row.ctrl > .b .chev{display:none}
   .dock.more-open .row.ctrl > .b svg.ti{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .dock.more-open .row.ctrl > .b[aria-expanded=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
+  .dock.more-open .row.ctrl > .b[aria-expanded=true]{border-color:var(--acc);background:linear-gradient(160deg,rgba(var(--acc-rgb),.32),rgba(var(--acc-rgb),.08))}
   /* the menus under a tile (Camera, Light, …) in the same glass: a sheet of small glass keys, as the tiles */
   .dock .pop{gap:6px;padding:8px;border-radius:16px;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));width:min(500px,calc(100vw - 32px));
     background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.01) 60%);border:1px solid rgba(255,255,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 12px 34px rgba(0,0,0,.35);
@@ -231,8 +231,10 @@ export function spaces(v, ctx) {
     background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25)}
   .dock .pop .b:hover,.dock.more-open .row.ctrl > .b:hover{border-color:rgba(255,255,255,.55)}
-  .dock .pop .b[aria-pressed=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
+  .dock .pop .b[aria-pressed=true]{border-color:var(--acc);background:linear-gradient(160deg,rgba(var(--acc-rgb),.32),rgba(var(--acc-rgb),.08))}
   .dock.more-open .row.ctrl > .b{overflow:hidden;letter-spacing:.05em!important;overflow-wrap:anywhere}
+  /* the chosen control's colour is the space's own: Studio white, Piano gold, DJ Room ice blue (so it is always clear where one is) */
+  body{--acc:#f3f5f8;--acc-rgb:243,245,248} body[data-space=piano]{--acc:#f2a650;--acc-rgb:242,166,80} body[data-space=dj]{--acc:#a9c8ee;--acc-rgb:169,200,238}
   /* ONE GLASS for everything clickable over the picture: the dock's buttons, the panels and their tabs and keys, the
      simulation's controls. Clear glass with a bright edge and a sheen, the picture blurred behind; the chosen one is
      tinted glass (not a solid white pill) */
@@ -243,7 +245,7 @@ export function spaces(v, ctx) {
     backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
   .b:hover,.tab:hover,.pbtn:hover,.air-b:hover,.chip:hover{border-color:rgba(255,255,255,.55)}
   .b[aria-pressed="true"],.views .b[aria-pressed="true"],.looks .b[aria-pressed="true"],.tab[aria-selected="true"],.pbtn.main,.air-b[aria-pressed="true"]{
-    color:#fff;border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.36),rgba(169,200,238,.1) 55%,rgba(255,255,255,.05))}
+    color:#fff;border-color:var(--acc);background:linear-gradient(160deg,rgba(var(--acc-rgb),.36),rgba(var(--acc-rgb),.1) 55%,rgba(255,255,255,.05))}
   .looks .b[data-look="vienna"][aria-pressed="true"]{border-color:var(--amber,#f2a650);background:linear-gradient(160deg,rgba(242,166,80,.36),rgba(242,166,80,.1) 55%,rgba(255,255,255,.05))}
   .onair[aria-pressed="true"]{border-color:rgba(255,74,61,.7);background:linear-gradient(160deg,rgba(255,74,61,.34),rgba(255,74,61,.1) 55%,rgba(255,255,255,.05))}
   .panel,.air-ctl{--glass-sheet:1}
@@ -252,7 +254,7 @@ export function spaces(v, ctx) {
   .now,.relcard,.trk{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.18)}
   .fld select option{background:#15171c;color:#f3f5f8}
   .edge:not(.open) .eb:not(.places){display:none}
-  .edge.open .places{border-color:var(--ice,#a9c8ee)}
+  .edge.open .places{border-color:var(--acc)}
   .air.sp-air{z-index:4}
   /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
   body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
