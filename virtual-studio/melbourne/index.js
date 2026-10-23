@@ -168,6 +168,9 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   const keys = Object.keys(CAMS), id = k => 'm' + k;
   for (const k of keys) { const c = CAMS[k]; VIEWS[id(k)] = { label: c.label, long: c.long, pos: [...c.pos], target: [...c.target], fov: c.fov, drift: reducedMotion ? 0 : c.drift, tally: 0, cam: c.name, free: true, melbourne: k }; }
   // the DJ transition's cameras: fixed positions, aimed every frame at the booth as it moves (update below)
+  // the shaft closing: from DJ6's place in the studio, down at the glass floor over the shaft, lit by the club below,
+  // while the cover slides in and rises flush (3 s of the arrival, below)
+  VIEWS.mCover = { label: 'Glass floor', long: '4K · Upper studio · the shaft closing', pos: [...CAMS.DJ6.pos], target: xyz(0, DJ_LIFT.across, 0), fov: 44, drift: 0, tally: 0, cam: CAMS.DJ6.name };
   for (const [k, c] of Object.entries(LIFT_CAMS)) VIEWS['mLift' + k] = { label: c.label, long: c.long, pos: [...c.pos], target: xyz(c.look[0], c.look[1], 1), fov: c.fov, drift: 0, tally: 0, cam: c.name, free: true, melbourne: 'lift' };
   let program = null, auto = false, autoNext = 0, autoI = 0, seq = null, env = 'studio';
   let show = 'ended', shown = 'DJ2';   // the DJ room camera the studio's LED wall shows (follows every cut down here; the operator can pick it alone)
@@ -214,9 +217,10 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
       if (seq.step === 0 && seq.t >= 2.5) { seq.step = 1; if (!liftCommand('down', { quiet: true }).ok) { seq = null; return; } }
       else if (seq.step === 1 && h >= 1.3) { seq.step = 2; if (!seq.own) cut('DJ6', { instant: true }); }
       else if (seq.step === 2 && h >= 3.3) { seq.step = 3; if (!seq.own) liftView('low'); }
-      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.end = seq.t + 4; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
+      else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.floorAt = seq.t + 2.4; seq.end = seq.t + 5.6; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
         if (!seq.own) cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
-      else if (seq.step === 4 && seq.t >= seq.end) { const own = seq.own; seq = null; if (!own) cut('DJ2', { instant: true }); }
+      else if (seq.step === 4 && seq.t >= seq.floorAt) { seq.step = 5; if (!seq.own) director.go('mCover', { instant: true }); }   // the cover's last 3 s: it slides in, rises flush, locks
+      else if (seq.step === 5 && seq.t >= seq.end) { const own = seq.own; seq = null; if (!own) cut('DJ2', { instant: true }); }
     } else {
       if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,
       if (seq.step === 0 && cover.state !== 'OPEN') { if (cover.state !== 'OPENING') coverCommand('open', { quiet: true }); seq.t = 0; return; }   // then the cover clears
