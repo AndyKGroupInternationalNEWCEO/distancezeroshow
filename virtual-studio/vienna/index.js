@@ -59,6 +59,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   /* ----- cameras P1–P5: studio viewpoints whose position rides with the lift ----- */
   const keys = Object.keys(CAMS);
   const id = k => 'v' + k;
+  const STUDIO_IN = 10.8;   // m from the studio's centre (0, 1): a camera stays this far inside its wall
   const eased = Object.fromEntries(keys.map(k => [k, 0]));   // each camera's own view of the lift height (P5 lags)
   let t = 0;
   const shot = (k, h, pos = new THREE.Vector3(), target = new THREE.Vector3()) => {
@@ -68,6 +69,14 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     // the cinematic lens: a longer focal length, the camera stepped back so the shot keeps the same framing (as the
     // 4K high-speed camera's look: compressed, calm, the grand standing out of the room)
     if (c.lens) pos.sub(target).multiplyScalar(Math.tan((c.fov * Math.PI) / 360) / Math.tan((c.fov * c.lens * Math.PI) / 360)).add(target);
+    // but never out through the studio's wall: stepped back that far (P5 went to 12.6 m from the studio's centre, the
+    // wall is at 11.8) the wall filled half the picture. The camera stops on its line to the grand, 10.8 m out
+    const out = Math.hypot(pos.x, pos.z - 1);
+    if (out > STUDIO_IN) {
+      let lo = 0, hi = 1;   // the share of the way from the target to the camera that stays inside
+      for (let i = 0; i < 20; i++) { const m = (lo + hi) / 2, x = target.x + (pos.x - target.x) * m, z = target.z + (pos.z - target.z) * m; if (Math.hypot(x, z - 1) > STUDIO_IN) hi = m; else lo = m; }
+      pos.sub(target).multiplyScalar(lo).add(target);
+    }
     return { pos, target };
   };
   for (const k of keys) {
