@@ -675,15 +675,29 @@ export function spaces(v, ctx) {
     piano.steps.splice(piano.i, 0, { song: s });
     v.showCommand('live');
   }
+  // a volume ramp (an element's volume to `to` in `ms`)
+  function ramp(el, to, ms, done) {
+    clearInterval(el._ramp); const from = el.volume, t0 = performance.now();
+    el._ramp = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / ms); el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k >= 1) { clearInterval(el._ramp); done?.(); } }, 30);
+  }
+  // a mix, not a cut: the playing track goes on in a second player and fades out while the new one fades in
+  function crossfade() {
+    if (track.paused || !track.src) return false;
+    const tail = new Audio(); tail.src = track.src; tail.currentTime = track.currentTime; tail.volume = track.volume; tail.play().catch(() => {});
+    ramp(tail, 0, 3000, () => { tail.pause(); tail.removeAttribute('src'); tail.load(); });
+    track.volume = 0; return true;
+  }
   // a DJ track now: it plays at once (the opening or the track before it stops), the set goes on after it
   function playTrackNow(s) {
     afterShow.stop(); cctv.stop(); ended = null; active = 'dj'; document.body.dataset.space = 'dj';
     stopPiano(); unlock();
     if (!dj || dj.done) dj = { i: 0, el: null, paused: false, steps: [{ jingle: 'end' }] };
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
-    dj.el?.pause(); dj.waitUp = false; dj.paused = false;
+    const mixing = dj.el === track && crossfade();
+    if (!mixing) dj.el?.pause(); dj.waitUp = false; dj.paused = false;
     dj.steps.splice(dj.i, 0, { track: s }, { jingle: 'between' });
     djStep();
+    if (mixing) ramp(track, 1, 2500);
   }
 
   /* ----- FIRST PERSON: standing at the DJ console / sitting at the grand. The camera is where the eyes are; drag to

@@ -72,7 +72,7 @@ export function createPanels({ sound, el, onMusicStart }) {
       // only the tabs of the space the visitor is in (spaces.js sets body[data-space]): the show's music in the studio,
       // the piano at the Piano Stage, the booth in the DJ Room
       const all = [['soundtrack', 'Soundtrack'], ['songs', 'Songs'], ['library', 'Library'], ['dj', 'DJ booth'], ['piano', 'Piano'], ['andyk', "DJ Andy'K"]].filter(([id]) => !['songs', 'library'].includes(id) || extra.has(id));
-      const only = { studio: ['soundtrack', 'andyk'], piano: ['songs', 'piano'], dj: ['library', 'dj'] }[document.body.dataset.space];
+      const only = { studio: ['soundtrack', 'andyk'], piano: ['songs', 'piano'], dj: ['library'] }[document.body.dataset.space];
       const shown = only ? all.filter(([id]) => only.includes(id)) : all;
       if (!shown.some(([id]) => id === tab)) tab = shown[0][0];
       tabs.replaceChildren(...shown.map(([id, label]) =>
