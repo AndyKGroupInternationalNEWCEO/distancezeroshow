@@ -12,6 +12,16 @@ export const SCORES = {
    "on": "2026-10-23"
   }
  },
+ "human-stories/letters-never-sent-piano": {
+  "file": "assets/piano-parts/human-stories__letters-never-sent-piano.score.json",
+  "notes": 1206,
+  "bars": 128,
+  "source": "the solo piano arrangement on the desk (DJ Andy'K's piano sheet music, review draft, 2026-10-21), each note timed to the recording through the beat grid it was written on",
+  "approved": {
+   "by": "DJ Andy'K",
+   "on": "2026-10-23"
+  }
+ },
  "human-stories/only-rivers-know-piano": {
   "file": "assets/piano-parts/human-stories__only-rivers-know-piano.score.json",
   "notes": 1379,
