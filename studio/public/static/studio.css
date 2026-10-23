@@ -1041,3 +1041,10 @@ body.rb-window main{padding:var(--pad)}
 @media (max-width:700px){.rb-body,.rb-main{grid-template-columns:1fr}.rb-nav{max-height:200px;border-right:0}}
 .rb-head b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .side-r .rb-head .row{flex-wrap:wrap}.side-r .rb-head b{flex-basis:100%}
+
+/* the Director with the Virtual Space's dock (shell.js): Show Control ends above the dock, nothing behind it */
+body.dz-shell .show3{height:calc(100vh - var(--bar) - var(--gap) - 28px - 112px);min-height:520px}
+/* PLAYLIST rows: the title keeps its width, the key · tempo · length line gives way (never drawn over the title) */
+.pl-list li .row{flex-wrap:wrap}
+.pl-list li .row b{flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+.pl-list li .row .hint{flex:1 1 9em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
