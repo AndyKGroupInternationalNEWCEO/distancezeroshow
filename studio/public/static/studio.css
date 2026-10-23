@@ -1060,3 +1060,6 @@ body.dz-shell .strip:not([hidden]) ~ main .show3{height:calc(100vh - var(--bar) 
 /* the side rundown: whole segment titles (two lines if needed), never "FRIDAY ..." */
 .side-r .ro .ti{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal;word-break:normal;font-size:.72rem;letter-spacing:.02em;line-height:1.25}
 #hClock{white-space:nowrap}
+/* HOST mode (PLACES → Host) with the dock: it ends above the dock too, also with a warning strip */
+body.dz-shell .show3.hostview{height:calc(100vh - var(--bar) - 44px - 112px);min-height:560px}
+body.dz-shell .strip:not([hidden]) ~ main .show3.hostview{height:calc(100vh - var(--bar) - 44px - 112px - 40px)}
