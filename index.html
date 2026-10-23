@@ -676,6 +676,31 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   .rv{opacity:1;transform:none;filter:none}
   .host.a,.host.g{transform:none}
 }
+
+/* long German words in big headings break inside the column instead of widening the page on phones */
+h1,h2,h3,.disp{overflow-wrap:break-word;hyphens:auto}
+/* controls in the Virtual Space style (virtualspace.distancezeroshow.com): glass pills, small wide capitals, chrome when active */
+:root{--glass:rgba(10,11,14,.58);--pill-line:rgba(201,206,214,.16);--champagne:#e3c79a}
+.btn,.play,.snd,.lang,.burger,.social a,.social .soon,.cal-filter button,.cal-nav,.cal-detail .d-acts .btn,.form .btn{
+  border-radius:999px;border:1px solid var(--pill-line);background:var(--glass);backdrop-filter:blur(14px) saturate(120%);-webkit-backdrop-filter:blur(14px) saturate(120%);
+  color:var(--chrome);font-stretch:112%;text-transform:uppercase;transition:border-color .3s,color .3s,background .3s}
+.btn,.play,.cal-detail .d-acts .btn,.form .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:0 22px;font-size:.7rem;letter-spacing:.18em;color:var(--chrome-hi)}
+.snd,.lang,.burger{min-height:36px;padding:0 13px;font-size:.64rem;letter-spacing:.16em}
+.snd,.lang{display:inline-flex;align-items:center}
+.social a,.social .soon{min-height:40px;padding:0 15px;font-size:.64rem;letter-spacing:.16em}
+.cal-filter button{min-height:38px;padding:0 14px;font-size:.6rem;letter-spacing:.16em}
+.cal-nav{border-radius:50%;width:42px;height:42px;padding:0;display:inline-grid;place-items:center}
+.btn:hover,.play:hover,.snd:hover,.lang:hover,.burger:hover,.social a:hover,.cal-filter button:hover,.cal-nav:hover,.cal-detail .d-acts .btn:hover,.form .btn:hover{
+  color:var(--chrome-hi);border-color:rgba(201,206,214,.4);background:var(--glass)}
+.btn:not(.ghost),.form .btn{border-color:rgba(201,206,214,.5)}
+/* the main action and every pressed / active control: the studio's chrome fill */
+.btn:not(.ghost):hover,.form .btn:hover,.play:hover,.snd.on,.cal-filter button[aria-pressed="true"]{
+  color:#0a0b0e;background:linear-gradient(100deg,#f3f5f8,#c9ced6);border-color:transparent}
+.snd.on{background:linear-gradient(100deg,var(--champagne),#f3f5f8 60%,var(--ice))}
+.social a:hover{border-color:var(--champagne)}
+.social .soon{border-style:dashed;opacity:.75}
+.social .soon small{border-radius:999px;padding:2px 7px}
+.btn[aria-disabled="true"],.btn[disabled]{border-color:var(--pill-line);color:var(--dim);background:var(--glass)}
 </style>
 </head>
 <body>
