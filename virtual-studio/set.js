@@ -210,7 +210,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   // the desk's confidence monitors, one for each at the desk, turned to the one sitting there; they show the
   // programme (main.js renders it in while the camera is in the studio)
   const deskScreens = [];
-  function deskMonitor(x, z, seat, scale = 1) {
+  function deskMonitor(x, z, seat, scale = 1, turn = 1) {
     const mon = new THREE.Group();
     mesh(new RoundedBoxGeometry(0.34, 0.21, 0.016, 2, 0.006), M.graphite, mon).position.y = 0.15;
     const mat = new THREE.MeshBasicMaterial({ color: 0x1a2230 });
@@ -220,7 +220,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     mesh(new THREE.BoxGeometry(0.16, 0.008, 0.1), M.brushed, mon);
     mon.position.set(x, RISER + 0.807, z); mon.scale.setScalar(scale);
     mon.rotation.order = 'YXZ';
-    mon.rotation.y = Math.atan2(-(seat.x - x), -(seat.z - z));   // the screen (facing local -z) towards the seat
+    mon.rotation.y = Math.atan2(-(seat.x - x), -(seat.z - z)) * turn;   // the screen (facing local -z) towards the seat (turn > 1: further round)
     mon.rotation.x = 0.14;                                      // tipped back a little, up to the eyes
     shadows(mon); add(mon); deskScreens.push(mat);
   }
@@ -231,7 +231,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     m.rotation.y = Math.PI + (seat.x < 0 ? -0.15 : 0.15);
     add(m);
     const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 0.92, RISER + 0.809, -1.02); add(ms);
-    deskMonitor(seat.x * 1.6, -1.32, seat);
+    deskMonitor(seat.x * 1.5, -1.3, seat, 1, 1.35);   // well round to Andrej / Georgie
   }
 
   /* ----- presenter chairs, and the guest's chair between them ----- */

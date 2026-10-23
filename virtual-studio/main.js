@@ -476,7 +476,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 
-    if (studio.deskScreens?.length && t - deskAt > 0.125 && camera.position.distanceTo(DESK_AT) < 8 && studio.root.visible) {
+    if (studio.deskScreens?.length && t - deskAt > 0.125 && camera.position.distanceTo(DESK_AT) < 16 && studio.root.visible) {
       deskAt = t; deskCam.position.copy(camera.position); deskCam.quaternion.copy(camera.quaternion); deskCam.fov = camera.fov; deskCam.updateProjectionMatrix();
       renderer.setRenderTarget(deskRT); renderer.render(scene, deskCam); renderer.setRenderTarget(null);
     }
