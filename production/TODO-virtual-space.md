@@ -3,7 +3,6 @@
 Open work, newest first. Done items move to the bottom with their commit.
 
 ## Now
-- [ ] **Check live** (deployed 2026-10-23, dpl_DxezFRe7rRakaZCBQggBzTTHCUKK): Safari on the Mac and the iPad, the phone note on the iPhone.
 - [ ] **Baked light for the reception and the building (Cycles on RunPod)**: the page's side is in (807dc16); the bake itself is not done (the dz-bake pod was deleted on 2026-10-23 with nothing fetched). Needs a GPU run again (≈ $1–2).
   - Export the places (reception, facade, street) from the live page as glTF on the pod (`export-probes.mjs places`).
   - In Blender: a second UV set as one atlas, Cycles bake of direct and indirect light (bounces, soft shadows, light from the chandelier, the desk, the canopy and the uplights), denoised.
@@ -18,6 +17,7 @@ Open work, newest first. Done items move to the bottom with their commit.
 - [ ] Broadcast Studio: 1:1 the Virtual Space UI, plus the remote, first person and MIDI. The BRODCASY session owns it, after the Virtual Space is done (see the memory file director-in-virtualspace-style).
 
 ## Done (latest)
+- Deployed 2026-10-23 (dpl_DxezFRe7rRakaZCBQggBzTTHCUKK); checked live by the user: everything works
 - Piano Stage cameras stay inside the studio's wall (P5 showed the wall over half the picture) (e55f44a)
 - Piano: songs from Songs crossfade; no fades where Safari fixes the volume (0a63605)
 - The keys play the sheet music on the desk, six songs (f0c58cc, 6806259)
