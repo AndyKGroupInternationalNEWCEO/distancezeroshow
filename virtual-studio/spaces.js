@@ -466,7 +466,8 @@ export function spaces(v, ctx) {
     };
     // the light baked in Cycles (production/gpu/bake.py) on the reception's and the building's surfaces; without the
     // files the place keeps its real-time light
-    loadBaked(st).catch(e => console.warn('baked light:', e.message)).finally(() => probes().catch(() => {}));
+    // (?baked=0 in the address keeps the real-time light: to compare, or should a bake look wrong)
+    (new URLSearchParams(location.search).get('baked') === '0' ? Promise.resolve() : loadBaked(st)).catch(e => console.warn('baked light:', e.message)).finally(() => probes().catch(() => {}));
     return st;
   })());
   // BAKED LIGHT: the baked meshes (both UV sets; extras: where the real-time one is and its vertex count) take the
