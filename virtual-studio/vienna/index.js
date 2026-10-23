@@ -11,7 +11,8 @@ import { OPENING } from './opening.js';
 import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
 import { createKeyPlayer } from './keys.js';
-import { PARTS } from './piano-parts.js';
+import { PARTS as TRANSCRIBED } from './piano-parts.js';
+import { SCORES } from './score-parts.js';
 import { SHEETS } from './sheets.js';
 import { REPERTOIRE } from './repertoire.js';
 
@@ -266,6 +267,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   // the parts transcribed from the recordings (piano-parts.js): the keys follow the one that belongs to what plays,
   // a repertoire song or a Piano Sessions recording ('sessions/opening' …). Unapproved parts play only with
   // ?keys=preview, for DJ Andy'K to watch before he signs them off
+  // where a song has its sheet music (score-parts.js), the keys play the score on the desk; the others their transcription
+  const PARTS = { ...TRANSCRIBED };
+  for (const [id, s] of Object.entries(SCORES)) if (s.approved) PARTS[id] = s;
   const keyPlayer = createKeyPlayer(studio.piano.userData.keyboard);
   const preview = new URLSearchParams(location.search).get('keys') === 'preview';
   const parts = {}, loading = new Map();   // id → the loaded part (once fetched)
