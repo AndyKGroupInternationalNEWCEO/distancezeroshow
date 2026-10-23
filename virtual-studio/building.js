@@ -117,6 +117,35 @@ export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   // (the panels' texture is about 2.5 m square)
   for (const sx of [-1, 1]) { const m = add(new THREE.BoxGeometry(side, H, 0.6), concrete, sx * (DW / 2 + side / 2), H / 2, FZ - 0.3); m.material = concrete.clone(); Object.assign(m.material, facadeTex(side / 2.5, H / 2.5)); }
   const over = add(new THREE.BoxGeometry(DW, H - DH, 0.6), concrete, 0, DH + (H - DH) / 2, FZ - 0.3); over.material = concrete.clone(); Object.assign(over.material, facadeTex(DW / 2.5, (H - DH) / 2.5));
+  // the Virtual Space's building lives: rows of windows on the floors above (some lit warm or cool behind blinds, most
+  // dark glass with the night city in it), set into the concrete with a frame and a sill; shop windows either side of
+  // the lobby at street level. (The arrival keeps its blind facade)
+  if (furnish) {
+    const glassDark = new THREE.MeshPhysicalMaterial({ color: 0x0b0e12, metalness: 0.2, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMap: nightEnv, envMapIntensity: 0.9 });
+    const frameM = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.7, roughness: 0.4, envMapIntensity: env });
+    const litWarm = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 0.86, 0.5) }), litCool = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.78, 1.15) });
+    const slots = [];
+    for (const y of [4.6, 7.8, 11.0]) for (let x = -19; x <= 19.01; x += 2.7) { if (Math.abs(x) < 4.2 && y < 9) continue; slots.push([x, y, 1.7, 2.0]); }
+    for (const x of [-17.5, -14.6, -11.7, -8.8, 8.8, 11.7, 14.6, 17.5]) slots.push([x, 1.55, 2.4, 2.5]);
+    let seed = 17; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const box = new THREE.BoxGeometry(1, 1, 1), plane = new THREE.PlaneGeometry(1, 1);
+    const frames = new THREE.InstancedMesh(box, frameM, slots.length), panes = new THREE.InstancedMesh(plane, glassDark, slots.length);
+    const litW = [], litC = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+    slots.forEach(([x, y, w, h], i) => {
+      frames.setMatrixAt(i, m4.compose(ps.set(x, y, FZ + 0.03), q, sc.set(w + 0.16, h + 0.16, 0.08)));
+      panes.setMatrixAt(i, m4.compose(ps.set(x, y, FZ + 0.075), q, sc.set(w, h, 1)));
+      const r = rnd(); if (y > 3 && r < 0.22) litW.push([x, y, w, h]); else if (y > 3 && r < 0.3) litC.push([x, y, w, h]);
+      add(new THREE.BoxGeometry(w + 0.3, 0.06, 0.2), frameM, x, y - h / 2 - 0.1, FZ + 0.1).castShadow = false;   // the sill
+    });
+    g.add(frames, panes);
+    for (const [list, mat] of [[litW, litWarm], [litC, litCool]]) {
+      if (!list.length) continue;
+      const lit = new THREE.InstancedMesh(plane, mat, list.length);
+      // a lit room behind half-drawn blinds: the light fills the lower part of the pane
+      list.forEach(([x, y, w, h], i) => { const f = 0.45 + rnd() * 0.45; lit.setMatrixAt(i, m4.compose(ps.set(x, y - h * (1 - f) / 2, FZ + 0.079), q, sc.set(w * 0.96, h * f, 1))); });   // (in front of the dark pane)
+      g.add(lit);
+    }
+  }
   // a deep black reveal round the doorway
   for (const [w, h, x, y] of [[0.08, DH, -DW / 2 + 0.04, DH / 2], [0.08, DH, DW / 2 - 0.04, DH / 2], [DW, 0.08, 0, DH - 0.04]]) add(new THREE.BoxGeometry(w, h, 0.62), dark, x, y, FZ - 0.3);
   // the lobby behind: a warm, lit room with the logo on its back wall, seen through the glass

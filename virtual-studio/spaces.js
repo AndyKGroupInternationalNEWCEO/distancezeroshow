@@ -255,6 +255,36 @@ export function spaces(v, ctx) {
     director.go(view, { instant: true });
   });
 
+  /* ----- scanned furniture (Poly Haven, CC0): each model loaded once, fitted to its real size, stood on its floor ----- */
+  let gltf = null; const modelCache = new Map();
+  async function addProps(list, parent) {
+    const THREE_ = THREE;
+    gltf ??= import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader());
+    const gl = await gltf;
+    await Promise.all(list.map(async pr => {
+      try {
+        if (!modelCache.has(pr.id)) modelCache.set(pr.id, gl.loadAsync(asset(`assets/models/${pr.id}/${pr.id}.gltf`)));
+        const o = (await modelCache.get(pr.id)).scene.clone(true);
+        o.rotation.y = pr.rot || 0; o.updateMatrixWorld(true);
+        const box = new THREE_.Box3().setFromObject(o), dim = box.getSize(new THREE_.Vector3());
+        o.scale.multiplyScalar(pr.height ? pr.height / dim.y : pr.size / Math.max(dim.x, dim.z)); o.updateMatrixWorld(true);
+        box.setFromObject(o); const c = box.getCenter(new THREE_.Vector3());
+        o.position.x += pr.at[0] - c.x; o.position.z += pr.at[1] - c.z;
+        o.position.y += pr.hang !== undefined ? pr.hang - box.max.y : (pr.y ?? 0.052) - box.min.y;
+        o.traverse(x => { if (x.isMesh) { x.castShadow = x.receiveShadow = true; for (const mm of [].concat(x.material)) if (mm) mm.envMapIntensity = 0.8; } });
+        parent.add(o);
+      } catch (e) { console.warn('prop', pr.id, e.message); }
+    }));
+  }
+  // the backstage lounge's plants and side table: loaded the first time someone looks in
+  const LOUNGE_PROPS = [
+    { id: 'potted_plant_01', at: [3.05, -7.8], height: 1.45 },
+    { id: 'potted_plant_02', at: [-3.15, -10.85], rot: 0.8, height: 1.2 },
+    { id: 'side_table_01', at: [-2.35, -9.55], y: 0.005, size: 0.5 },
+  ];
+  let loungeFurnished = false;
+  const furnishLounge = () => { if (loungeFurnished) return; loungeFurnished = true; addProps(LOUNGE_PROPS, ctx.scene); };
+
   /* ----- the building and the reception: built the first time, shown only while the camera is out there ----- */
   ZONES.push({ has: p => p.z > 18, keep(p) { p.y = Math.max(0.25, p.y); } });
   // the backstage lounge's reflections, rendered in Cycles (as the studio's): its own room in the lacquer and glass
@@ -267,23 +297,7 @@ export function spaces(v, ctx) {
     const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; pm.dispose();
     hdr.mapping = THREE.EquirectangularReflectionMapping; const hdr0 = hdr;
     const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
-    // the furniture, as real scanned models (each loaded once, copied where it stands twice)
-    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-    const gl = new GLTFLoader(), cache = new Map();
-    await Promise.all(PROPS.map(async pr => {
-      try {
-        if (!cache.has(pr.id)) cache.set(pr.id, gl.loadAsync(asset(`assets/models/${pr.id}/${pr.id}.gltf`)));
-        const src = (await cache.get(pr.id)).scene, o = src.clone(true);
-        o.rotation.y = pr.rot || 0; o.updateMatrixWorld(true);
-        const box = new THREE.Box3().setFromObject(o), dim = box.getSize(new THREE.Vector3());
-        const k = pr.height ? pr.height / dim.y : pr.size / Math.max(dim.x, dim.z); o.scale.multiplyScalar(k); o.updateMatrixWorld(true);
-        box.setFromObject(o); const c = box.getCenter(new THREE.Vector3());
-        o.position.x += pr.at[0] - c.x; o.position.z += pr.at[1] - c.z;
-        o.position.y += pr.hang !== undefined ? pr.hang - box.max.y : (pr.y ?? 0.052) - box.min.y;
-        o.traverse(x => { if (x.isMesh) { x.castShadow = x.receiveShadow = true; for (const mm of [].concat(x.material)) if (mm) mm.envMapIntensity = 0.8; } });
-        st.group.add(o);
-      } catch (e) { console.warn('prop', pr.id, e.message); }
-    }));
+    await addProps(PROPS, st.group);
     st.sky = hdr0;   // the night city, behind the building when the camera is out there
     // the security cameras out there, where their views are: high in the lobby, on a pole across from the entrance
     const { securityCam } = await import('./set.js');
@@ -830,6 +844,7 @@ export function spaces(v, ctx) {
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
     pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx(); idleCheck();
+    if (!loungeFurnished && (ctx.camera.position.z < -6 || ['backstage', 'securityLounge'].includes(director.current))) furnishLounge();
     for (const f of placeAnim) f(performance.now() / 1000);
     for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
     // the cards, by what the shows are doing
