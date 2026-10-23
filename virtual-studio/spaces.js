@@ -716,6 +716,14 @@ export function spaces(v, ctx) {
     const p = ctx.studio.piano; p.updateMatrixWorld(true);
     return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
   }
+  // OVERHEAD: a 4K camera straight above the DJ booth, the whole console seen from the top (the DJ's side at the
+  // bottom of the picture); fixed, it follows the booth when it rides up or down
+  function overhead() {
+    const g = m.booth.gear.group; g.updateMatrixWorld(true);
+    VIEWS.djTop = { label: 'Overhead', long: '4K · DJ booth · overhead', pos: g.localToWorld(new THREE.Vector3(0, 1.9, -0.06)).toArray(), target: g.localToWorld(new THREE.Vector3(0, 0, 0.02)).toArray(), fov: 46, drift: 0, tally: 0 };
+    m.releaseCameras?.(); director.setAuto(false); director.go('djTop', { instant: true }); topAt = g;
+  }
+  let topAt = null;
   function enterPov(kind) {
     try { enterPov_(kind); } catch (e) { console.error('first person:', e); }
   }
@@ -857,7 +865,7 @@ export function spaces(v, ctx) {
     ],
     dj: [
       [() => (dj && !dj.done ? 'Finish show' : 'Simulate show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
-      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')]]],
+      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
@@ -1053,6 +1061,9 @@ export function spaces(v, ctx) {
     if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
+    if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
+      ctx.camera.position.copy(topAt.localToWorld(new THREE.Vector3(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(new THREE.Vector3(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
+    }
     if (pov && director.current === 'pov' && !director.flying) {
       const c = Math.cos(pov.pitch); ctx.camera.position.copy(pov.eye);
       ctx.controls.target.copy(pov.eye).add(new THREE.Vector3(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.lookAt(ctx.controls.target);
