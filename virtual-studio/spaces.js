@@ -678,7 +678,7 @@ export function spaces(v, ctx) {
       m.setDeck(deck + 1, { title: s.title, artist: "DJ Andy'K", bpm: s.bpm, key: s.key || '', state: 'play', position: 0, duration: s.seconds || 0, pitch: 0 });
       m.setDeck(other + 1, { state: 'stop', position: 0 });
       const ch = [0, 1, 2, 3].map(i => ({ fader: i === deck ? 0.85 : 0, low: 0.5, mid: 0.5, hi: 0.5, filter: 0.5, trim: 0.55 }));
-      m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 });
+      m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 }); live.eq({ trim: 0.55, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5 });
       m.setMusicSource(dt => live.read(dt), deck);
       dj.wideAt = performance.now() + 60000;
     } else {
@@ -940,6 +940,8 @@ export function spaces(v, ctx) {
   const deckOn = () => (dj?.el === track ? dj.deck : -1);
   const chGain = ch => { const mx = m.booth.gear.mix, s = m.booth.gear.strips[ch]?.value; const side = ch < 2 ? 1 - mx.xfader : mx.xfader; return (s?.fader ?? 0.85) * Math.min(1, side * 2); };
   const applyVolume = () => { const d = deckOn(); if (d >= 0) track.volume = Math.max(0, Math.min(1, chGain(d))); };
+  // the playing channel's EQ and filter knobs shape the sound (live-music.js)
+  const applyEq = () => { const d = deckOn(); live.eq(d >= 0 ? m.booth.gear.strips[d].value : {}); };
   function act(h, phase, dx = 0, dy = 0) {
     if (h.note) { const kb = ctx.studio.piano.userData.keyboard; if (phase === 'down') { ctx.sound?.noteOn?.(h.note, 0.8); kb.press(h.note, 1); } else if (phase === 'up') { ctx.sound?.noteOff?.(h.note); kb.press(h.note, 0); } return; }
     const c = h.ctl, gear = m.booth.gear;
@@ -950,7 +952,7 @@ export function spaces(v, ctx) {
     else if (c.act === 'jog' && phase === 'move' && c.deck === deckOn()) { track.currentTime = Math.max(0, track.currentTime + dx * 0.02); m.setDeck(c.deck + 1, { position: track.currentTime }); }
     else if (c.act === 'fader' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch].fader = Math.max(0, Math.min(1, ch[c.ch].fader - dy * 0.006)); gear.setMixer({ ch }); applyVolume(); }
     else if (c.act === 'xfader' && phase === 'move') { gear.setMixer({ xfader: Math.max(0, Math.min(1, gear.mix.xfader + dx * 0.004)) }); applyVolume(); }
-    else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); }
+    else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); applyEq(); }
   }
   canvas.addEventListener('pointerdown', e => {
     if (!pov) return; e.stopImmediatePropagation(); canvas.setPointerCapture?.(e.pointerId);
