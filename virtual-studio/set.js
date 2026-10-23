@@ -494,7 +494,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   for (const [i, pos] of [[-4.2, 0, 4.6], [-2.7, 0, 5.5], [5.1, 0, 3.85]].entries()) {
     const n = i + 1;
     const cam = tvCamera(M, n, glows);
-    cam.group.userData.focus = 'floor';
+    cam.group.userData.focus = n === 1 ? 'georgie' : n === 3 ? 'andy' : 'desk';   // a tap on a camera: its own picture
     cam.group.userData.equipment = `camera ${n}`;
     cam.group.position.set(...pos);
     // cross-shooting: camera 1 (left) holds Georgie, camera 3 (right) holds Andy'K

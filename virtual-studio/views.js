@@ -4,16 +4,16 @@ import * as THREE from 'three';
 
 // tally: which studio camera would be "taking" this shot (1-3 pedestals, 4 the jib)
 export const VIEWS = {
-  studio: { label: 'Studio', long: 'Wide shot', pos: [0, 3.0, 11.4], target: [0, 1.75, -3], fov: 42, drift: 0.32, tally: 2 },
-  desk: { label: 'Desk', long: 'Three-shot', pos: [0, 1.6, 3.9], target: [0, 1.12, -1.75], fov: 36, drift: 0.14, tally: 2 },
-  andy: { label: "Andy'K", long: "DJ Andy'K · Andrej Kneisl · Vienna", pos: [-0.35, 1.12, 1.75], target: [-0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 3 },
-  georgie: { label: 'Georgie', long: 'Georgie Walker · Melbourne', pos: [0.35, 1.12, 1.75], target: [0.95, 0.8, -1.45], fov: 30, drift: 0.07, tally: 1 },
-  wall: { label: 'Video wall', long: 'LED wall and logo', pos: [0, 2.1, 1.9], target: [0, 3.25, -7], fov: 50, drift: 0.12, tally: 4 },
-  crane: { label: 'Crane', long: 'High angle', pos: [7.4, 6.6, 7.6], target: [0, 1.0, -2.2], fov: 40, drift: 0.18, tally: 2 },
-  floor: { label: 'Floor', long: 'Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0.08, tally: 3 },
-  music: { label: 'Music', long: 'Music station', pos: [2.5, 1.85, 3.1], target: [5.4, 1.0, 0.1], fov: 38, drift: 0.12, tally: 3 },
-  piano: { label: 'Piano', long: 'Grand piano', pos: [-2.6, 2.1, 3.7], target: [-6.4, 0.55, -0.2], fov: 40, drift: 0.1, tally: 1 },
-  guest: { label: 'Guest', long: 'Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0.07, tally: 5 },
+  studio: { label: 'Studio', long: '4K · Wide shot', pos: [0, 3.0, 11.4], target: [0, 1.75, -3], fov: 42, drift: 0, tally: 2 },
+  desk: { label: 'Desk', long: '4K · Three-shot', pos: [0, 1.6, 3.9], target: [0, 1.12, -1.75], fov: 36, drift: 0, tally: 2 },
+  andy: { label: "Andy'K", long: "4K · DJ Andy'K · Andrej Kneisl · Vienna", pos: [-0.35, 1.12, 1.75], target: [-0.95, 0.8, -1.45], fov: 30, drift: 0, tally: 3 },
+  georgie: { label: 'Georgie', long: '4K · Georgie Walker · Melbourne', pos: [0.35, 1.12, 1.75], target: [0.95, 0.8, -1.45], fov: 30, drift: 0, tally: 1 },
+  wall: { label: 'Video wall', long: '4K · LED wall and logo', pos: [0, 2.1, 1.9], target: [0, 3.25, -7], fov: 50, drift: 0, tally: 4 },
+  crane: { label: 'Crane', long: '4K · High angle', pos: [7.4, 6.6, 7.6], target: [0, 1.0, -2.2], fov: 40, drift: 0, tally: 2 },
+  floor: { label: 'Floor', long: '4K · Behind camera 3', pos: [5.2, 1.9, 7.4], target: [-0.2, 1.15, -2.2], fov: 34, drift: 0, tally: 3 },
+  music: { label: 'Music', long: '4K · Music station', pos: [2.5, 1.85, 3.1], target: [5.4, 1.0, 0.1], fov: 38, drift: 0, tally: 3 },
+  piano: { label: 'Piano', long: '4K · Grand piano', pos: [-2.6, 2.1, 3.7], target: [-6.4, 0.55, -0.2], fov: 40, drift: 0, tally: 1 },
+  guest: { label: 'Guest', long: '4K · Special guest · camera 5', pos: [0, 1.12, 1.75], target: [0, 0.8, -1.45], fov: 30, drift: 0, tally: 5 },
   // the 4K high-speed camera on the motion-control robot: its own moves, the studio in slow motion (slow = time scale)
   // the backstage lounge behind the LED wall (not part of the tour, never "on air")
   backstage: { label: 'Backstage', long: 'Backstage lounge · no entry', pos: [-3.0, 1.75, -7.55], target: [0.7, 0.75, -10.2], fov: 60, drift: 0.05, tally: 0, lounge: true },
