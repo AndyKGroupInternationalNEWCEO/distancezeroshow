@@ -3,7 +3,7 @@
 Open work, newest first. Done items move to the bottom with their commit.
 
 ## Now
-- [ ] **Deploy** the build of 2026-10-23 (`node virtualspace/build.mjs`, then `vercel deploy --prod --yes` from virtualspace/dist): the user runs it. Then check in Safari on the Mac and the iPad, and the phone note on the iPhone.
+- [ ] **Check live** (deployed 2026-10-23, dpl_DxezFRe7rRakaZCBQggBzTTHCUKK): Safari on the Mac and the iPad, the phone note on the iPhone.
 - [ ] **Baked light for the reception and the building (Cycles on RunPod)**: the page's side is in (807dc16); the bake itself is not done (the dz-bake pod was deleted on 2026-10-23 with nothing fetched). Needs a GPU run again (≈ $1–2).
   - Export the places (reception, facade, street) from the live page as glTF on the pod (`export-probes.mjs places`).
   - In Blender: a second UV set as one atlas, Cycles bake of direct and indirect light (bounces, soft shadows, light from the chandelier, the desk, the canopy and the uplights), denoised.
