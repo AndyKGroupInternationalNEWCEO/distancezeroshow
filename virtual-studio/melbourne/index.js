@@ -463,7 +463,7 @@ export function withVienna(vienna) {
     v.addSource('melbourne', m.feed); m.linkWall(v.setSource, () => v.source, v.feedTarget.texture);
     // the visitor's three buttons (STUDIO / PIANO / DJ ROOM); their labels follow what plays, a few times a second
     const sp = spaces(v, ctx); let spNext = 0;
-    v.update = (dt, t) => { u(dt, t); m.update(dt, t); if (sp && t > spNext) { spNext = t + 0.25; sp.update(); } };
+    v.update = (dt, t) => { u(dt, t); m.update(dt, t); if (sp && t > spNext) { spNext = t + 0.25; sp.update(); } sp?.hold(); };
     v.spaces = sp;
     return v;
   };

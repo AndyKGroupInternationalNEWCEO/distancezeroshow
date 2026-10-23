@@ -60,6 +60,7 @@ const PROPS = [
 for (const [k, v] of Object.entries(PLACES)) VIEWS[k] ??= v;
 for (const [k, v] of Object.entries(AFTER)) VIEWS[k] ??= { tally: 0, ...v };
 const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'assets/jingles/19-friday-show-closing.m4a' };
+const BREAK = 12;   // s of the transition jingle between two tracks (then 2.5 s fading out)
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
 const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
@@ -617,7 +618,7 @@ export function spaces(v, ctx) {
       m.setMusicSource(dt => live.read(dt), deck);
       dj.wideAt = performance.now() + 60000;
     } else {
-      jingle.src = asset(JINGLE[step.jingle]); jingle.currentTime = 0; dj.el = jingle; jingle.play().catch(() => {});
+      clearInterval(jingle._ramp); jingle.volume = 1; jingle.src = asset(JINGLE[step.jingle]); jingle.currentTime = 0; dj.el = jingle; jingle.play().catch(() => {});
       m.setMusicSource(null); m.setTrack(null);
       if (dj.deck) m.setDeck(dj.deck + 1, { state: 'pause' });
       if (step.jingle === 'end') { m.setMode('CLOSING'); m.setAuto(false); m.pickCamera('DJ2'); } else { m.setMode('BREAKDOWN'); m.setShow('break'); }
@@ -627,6 +628,14 @@ export function spaces(v, ctx) {
     if (!dj || dj.paused || dj.done) return;
     if (dj.el === track && !pov && performance.now() > dj.wideAt) { dj.wideAt = performance.now() + 60000 + Math.random() * 60000; director.go(WIDE[(dj.wideI = (dj.wideI || 0) + 1) % WIDE.length]); }
     if (dj.waitUp) { if (!m.travelling && m.lift.state === 'UP') { dj.waitUp = false; m.djOpening('start', undefined, 'short'); } return; }
+    // between two tracks a short break, not the whole 80 s transition jingle: its first BREAK seconds, then it fades
+    // out and the next track starts
+    if (dj.fading) return;
+    if (dj.el === jingle && dj.steps[dj.i - 1]?.jingle === 'between' && jingle.currentTime > BREAK) {
+      const it = dj; it.fading = true;
+      ramp(jingle, 0, 2500, () => { jingle.pause(); jingle.volume = 1; it.fading = false; if (dj === it && dj.el === jingle) djStep(); });
+      return;
+    }
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
   }
@@ -1084,13 +1093,6 @@ export function spaces(v, ctx) {
     if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
-    if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
-      ctx.camera.position.copy(topAt.localToWorld(new THREE.Vector3(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(new THREE.Vector3(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
-    }
-    if (pov && director.current === 'pov' && !director.flying) {
-      const c = Math.cos(pov.pitch); ctx.camera.position.copy(pov.eye);
-      ctx.controls.target.copy(pov.eye).add(new THREE.Vector3(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.lookAt(ctx.controls.target);
-    }
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
@@ -1106,6 +1108,18 @@ export function spaces(v, ctx) {
       if (img.dataset.src !== src) { img.dataset.src = src; if (src) img.src = src; img.hidden = !src; svg.style.display = src ? 'none' : ''; }
     }
   }
+  // the fixed cameras (the overhead, first person) are held every frame: the labels above run only a few times a
+  // second, and between those the director's drift and the orbit controls moved the picture (it shook)
+  const top = new THREE.Vector3(0, 1.9, -0.06), down = new THREE.Vector3(0, 0, 0.02), ahead = new THREE.Vector3();
+  function hold() {
+    if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
+      ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
+    }
+    if (pov && director.current === 'pov' && !director.flying) {
+      const c = Math.cos(pov.pitch); ctx.camera.position.copy(pov.eye);
+      ctx.controls.target.copy(pov.eye).add(ahead.set(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.lookAt(ctx.controls.target);
+    }
+  }
   show();
-  return { update: show, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow, place };
+  return { update: show, hold, get active() { return active; }, get piano() { return piano; }, get dj() { return dj; }, afterShow, place };
 }
