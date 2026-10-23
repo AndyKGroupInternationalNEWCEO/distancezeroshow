@@ -89,10 +89,11 @@ function setWs(name, { focus = false } = {}) {
 function monitors() {
   if (!ctx.conn.open) return;
   const vis = document.visibilityState === 'visible';
-  const on = !vis ? false : ctx.hostMode || ctx.ws === 'show' ? 'show' : ctx.ws === 'live';
+  const on = !vis ? false : ctx.hostMode || ctx.ws === 'show' || ctx.cctv ? 'show' : ctx.ws === 'live';   // CCTV (shell.js) shows the cameras
   ctx.conn.send({ t: 'monitors', on }).catch(() => {});
 }
 ctx.monitors = monitors;
+window.dzDirector = ctx;   // the Virtual Space controls (shell.js) read and drive the same state
 // DIRECTOR / HOST: the same account and the same rights; HOST only changes what this window shows
 ctx.setMode = host => {
   ctx.hostMode = !!host;
