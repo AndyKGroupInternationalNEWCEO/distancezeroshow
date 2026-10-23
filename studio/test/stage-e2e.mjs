@@ -60,12 +60,15 @@ for (let i = 0; i < 60 && !target; i++) { await sleep(200); try { target = (awai
 const cdp = new WebSocket(target.webSocketDebuggerUrl); await new Promise(r => cdp.once('open', r));
 let cid = 0; const pend = new Map(), problems = [];
 cdp.on('message', raw => { const m = JSON.parse(raw); if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); }
+  if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') problems.push('console.error: ' + m.params.args.map(a => a.value ?? a.description ?? '').join(' ').split('\n')[0]);
+  // the web-app manifest's icons use absolute /assets/icons/… paths, outside /piano-stage/: not part of the picture or sound
+  if (m.method === 'Network.responseReceived' && m.params.response.status >= 400 && !/\/assets\/icons\//.test(m.params.response.url)) problems.push(`HTTP ${m.params.response.status} ${m.params.response.url.replace(/\?.*/, '')}`);
   if (m.method === 'Runtime.exceptionThrown') problems.push(m.params.exceptionDetails.exception?.description?.split('\n')[0] || m.params.exceptionDetails.text); });
 const cmd = (method, params = {}) => new Promise(r => { const id = ++cid; pend.set(id, r); cdp.send(JSON.stringify({ id, method, params })); });
 const run = async (fn, ...args) => { const r = await cmd('Runtime.evaluate', { expression: `(${fn})(...${JSON.stringify(args)})`, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result.result.value; };
 const shot = async name => { const r = await cmd('Page.captureScreenshot', { format: 'png' }); const f = path.join(OUT, name + '.png'); fs.writeFileSync(f, Buffer.from(r.result.data, 'base64')); return f; };
-await cmd('Runtime.enable'); await cmd('Page.enable');
-await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+await cmd('Runtime.enable'); await cmd('Page.enable'); await cmd('Network.enable');
+await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, screenWidth: 1920, screenHeight: 1080, deviceScaleFactor: 1, mobile: false });
 // every media element that ever plays, with what it plays: a second sound at the same time would be visible here
 await cmd('Page.addScriptToEvaluateOnNewDocument', { source: `window.__media = new Set(); const _p = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function () { window.__media.add(this); return _p.apply(this, arguments); };
@@ -75,7 +78,11 @@ await cmd('Page.navigate', { url: app.urls().pianoStage.replace(/^http:\/\/127\.
 
 const connected = await waitFor(() => S?.stage?.connected, 60000);
 ok('the real Vienna Piano Stage page loads from the worktree and its bridge connects', connected, connected ? `${((Date.now() - t0) / 1000).toFixed(1)} s` : 'no connection');
-if (!connected) { await finish(); process.exit(1); }
+if (!connected) {
+  console.log('page problems:', problems.slice(0, 10));
+  console.log('page state:', await run(() => ({ studio: !!window.__studio, ext: !!window.__studio?.ext, fallback: !document.getElementById('fallback')?.hidden, fb: document.getElementById('fbtext')?.textContent, load: document.getElementById('loadtext')?.textContent })).catch(e => e.message));
+  await finish(); process.exit(1);
+}
 const rep = () => S.stage.report;
 await waitFor(() => rep(), 5000);
 ok('it reports the stage\'s own state', rep()?.state === 'IDLE' && rep()?.program === 'P1', JSON.stringify({ state: rep()?.state, program: rep()?.program, lift: rep()?.lift, keys: rep()?.keys }));

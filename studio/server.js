@@ -364,7 +364,7 @@ export async function startStudio({ config = loadConfig(), dataDir = path.join(R
     director: `http://${config.director.host}:${director.port}/login#code=${secrets.directorCode}`,
     host: `http://${config.guest.host}:${guest.port}/login#code=${secrets.hostCode}`,
     overlay: `http://${config.director.host}:${director.port}/overlay?key=${secrets.overlayKey}`,
-    pianoStage: `http://${config.director.host}:${director.port}/piano-stage/?quality=broadcast&stagekey=${secrets.overlayKey}`,
+    pianoStage: `http://${config.director.host}:${director.port}/piano-stage/?quality=broadcast&phone=1&stagekey=${secrets.overlayKey}`,
   });
 
   async function close() {

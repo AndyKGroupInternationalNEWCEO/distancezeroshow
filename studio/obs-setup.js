@@ -27,7 +27,7 @@ const shows = wanted.map(id => JSON.parse(fs.readFileSync(path.join(ROOT, 'shows
 const secrets = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'secrets.json'), 'utf8'));
 const overlayUrl = `http://127.0.0.1:${config.director.port}/overlay?key=${secrets.overlayKey}`;
 // the Vienna Piano Stage from this studio (lib/stage.js): the fixed 1920 × 1080 broadcast picture, never ?obs=1
-const stageUrl = `http://127.0.0.1:${config.director.port}/piano-stage/?quality=broadcast&stagekey=${secrets.overlayKey}`;
+const stageUrl = `http://127.0.0.1:${config.director.port}/piano-stage/?quality=broadcast&phone=1&stagekey=${secrets.overlayKey}`;
 const player = { is_local_file: true, local_file: '', looping: false, restart_on_activate: false, close_when_inactive: false, clear_on_media_end: true, hw_decode: true };
 const vdoBase = config.vdoNinja?.base || 'https://vdo.ninja/';
 const vdoView = vdoBase + '?' + new URLSearchParams({ view: secrets.vdoStream, password: secrets.vdoPassword, cleanoutput: '' }).toString().replace(/=(&|$)/g, '$1');
