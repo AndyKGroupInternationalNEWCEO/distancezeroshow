@@ -208,6 +208,7 @@ export function spaces(v, ctx) {
   /* during a show the controls step out of the picture after a few seconds without the pointer moving (as a video
      player's do) and come back at once on any move, touch or key; the show's graphics then sit lower */
   .dock,.edge,.sp-pad{transition:opacity .6s ease}
+  .dock,.edge{user-select:none;-webkit-user-select:none}   /* a drag over the picture never selects the buttons' labels */
   body.sp-idle .dock,body.sp-idle .edge{opacity:0;pointer-events:none}
   body.sp-idle canvas{cursor:none}
   body.sp-idle .sp-air .air-bottom{bottom:84px} body.sp-idle .sp-air .air-ticker{bottom:30px}

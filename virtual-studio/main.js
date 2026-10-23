@@ -177,8 +177,9 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   controls.maxDistance = 15;
   controls.minPolarAngle = 0.12;
   controls.maxPolarAngle = 1.55;
-  controls.minAzimuthAngle = -1.35;
-  controls.maxAzimuthAngle = 1.35;
+  // round the whole set (behind the desk and its chairs too): the director keeps the camera inside the studio's walls
+  controls.minAzimuthAngle = -Infinity;
+  controls.maxAzimuthAngle = Infinity;
   controls.screenSpacePanning = true;
 
   const lens = { fov: v0.fov };
@@ -192,11 +193,9 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
       ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
       const cctv = name && VIEWS[name].cctv;
       document.body.classList.toggle('cctv', !!cctv); cctvPass.enabled = !!cctv;
-      // a security camera looks from where it hangs, often from the side or behind the set: no orbit limits there (nor
-      // for shots marked `free`: the Vienna piano stage's cameras, which look across the set)
-      // (dragging away from a free shot keeps the limits open: closing them would swing the camera round)
+      // a security camera, or a shot marked `free` (the Vienna piano stage's cameras, which look up at the raised
+      // grand), may look up further (dragging away from a free shot keeps that: closing it would swing the camera)
       const free = cctv || (name ? !!VIEWS[name].free : lastFree); lastFree = !cctv && free;
-      controls.minAzimuthAngle = free ? -Infinity : -1.35; controls.maxAzimuthAngle = free ? Infinity : 1.35;
       controls.maxPolarAngle = free && !cctv ? Math.PI - 0.2 : 1.55;   // the Vienna stage's cameras look up at the raised grand
       if (cctv) document.getElementById('cctvName').textContent = cctv;
       for (const b of ui.views) if (b.dataset.view === 'security') b.setAttribute('aria-pressed', String(!!cctv));

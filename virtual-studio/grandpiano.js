@@ -142,8 +142,11 @@ export function grandPiano(M) {
   add(new RoundedBoxGeometry(0.86, 0.02, 0.05, 1, 0.005), lacquer, 0, RIM_TOP + 0.03, -0.32);
   // the sheet music on the desk: two A4 pages side by side (a spread), shown while a song with a score plays.
   // `sheet.show([left, right])` with image URLs, `sheet.show(null)` clears the desk
+  // the paper a shade below the ivory: the desk faces the stage's spot, and at full white the pages turned into a glowing
+  // square (the bloom took them) with no notes to read
+  const PAPER = 0x8f8a80;
   const paper = [-1, 1].map(s => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), new THREE.MeshStandardMaterial({ color: 0xf4efe4, roughness: 0.92 }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.92 }));
     m.position.set(s * 0.108, 0.0, 0.0095); m.visible = false; desk.add(m); return m;
   });
   const pageTex = new Map(), loader = new THREE.TextureLoader();
@@ -162,7 +165,7 @@ export function grandPiano(M) {
       paper.forEach((m, i) => {
         const url = pages?.[mirrored ? 1 - i : i];
         m.visible = !!url;
-        if (url && m.material.map !== pageOf(url)) { m.material.map = pageOf(url); m.material.color.set(0xffffff); m.material.needsUpdate = true; }
+        if (url && m.material.map !== pageOf(url)) { m.material.map = pageOf(url); m.material.color.set(PAPER); m.material.needsUpdate = true; }
       });
     },
   };
