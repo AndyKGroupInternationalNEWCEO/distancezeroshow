@@ -4,6 +4,7 @@
 // Clicking it opens the Virtual Space's existing piano (the music station's Piano tab); there is no second piano.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const LEN = 2.74, W = 1.58, HALF = W / 2;
 const RIM_LOW = 0.62, RIM_H = 0.34, RIM_TOP = RIM_LOW + RIM_H;   // the case sits on the legs; top of the rim ~0.96 m
@@ -91,8 +92,23 @@ export function grandPiano(M) {
 
   /* keyboard: 52 white and 36 black keys, key slip, cheek blocks, fallboard and music desk */
   const KW = 1.222 / 52, front = 0.17;                                                      // keys stick out in front of the case
-  const whites = new THREE.InstancedMesh(new RoundedBoxGeometry(KW - 0.0012, 0.022, 0.15, 1, 0.002), ivory, 52);
-  const blacks = new THREE.InstancedMesh(new RoundedBoxGeometry(0.0115, 0.012, 0.092, 1, 0.002), ebony, 36);
+  // as a real grand's keys, seen close: a white key is a thin ivory top, softly rounded on its edges and lipped a hair
+  // over the front, on a body a little narrower (the gaps between the keys read dark); a black key narrows from its
+  // foot to its top and its front slopes back. Same sizes and pivots as before (the key player is unchanged)
+  const whiteGeo = mergeGeometries([
+    new RoundedBoxGeometry(KW - 0.0012, 0.0045, 0.1515, 3, 0.0014).translate(0, 0.00875, 0.00075),   // the top
+    new THREE.BoxGeometry(KW - 0.0032, 0.0176, 0.146).translate(0, -0.0022, -0.002).toNonIndexed(),  // the body
+  ].map(g => (g.index ? g.toNonIndexed() : g)));
+  const blackGeo = new THREE.BoxGeometry(0.0128, 0.012, 0.092, 2, 1, 2);
+  { const pos = blackGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) <= 0) continue;
+      pos.setX(i, pos.getX(i) * (0.0094 / 0.0128));            // the top narrower than the foot
+      if (pos.getZ(i) > 0.045) pos.setZ(i, pos.getZ(i) - 0.008); // the front sloping back
+    }
+    blackGeo.computeVertexNormals(); }
+  const whites = new THREE.InstancedMesh(whiteGeo, ivory, 52);
+  const blacks = new THREE.InstancedMesh(blackGeo, ebony, 36);
   const x0 = -1.222 / 2 + KW / 2;
   for (let i = 0; i < 52; i++) { o.position.set(x0 + i * KW, KEY_Y - 0.011, front - 0.075); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1); o.updateMatrix(); whites.setMatrixAt(i, o.matrix); }
   // black keys: A0–B0 has one (A#), then the 2 + 3 pattern for each octave from C1
