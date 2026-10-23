@@ -1,0 +1,29 @@
+/* The Virtual Space's look over the studio's pages (loaded after studio.css): clear glass with a bright edge and a
+   sheen over a dark studio; the chosen control is tinted glass, not a solid pill. Layout, sizes and the meaning of
+   colours (red = on air / danger, amber = on, green = ok) stay as studio.css sets them. Never on the overlay. */
+:root{--acc:#f3f5f8;--acc-rgb:243,245,248;
+  --glass-face:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);
+  --glass-edge:rgba(255,255,255,.34);
+  --glass-shine:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25);
+  --glass-blur:blur(22px) saturate(180%) brightness(1.05)}
+body{background:radial-gradient(120% 90% at 50% 0%,#14171d 0%,#060709 60%) fixed}
+.bar{background:linear-gradient(rgba(6,7,9,.85),rgba(6,7,9,.55));backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
+
+/* cards and sheets */
+.card{border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.015) 60%),rgba(8,9,12,.5);border-color:rgba(255,255,255,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 14px 40px rgba(0,0,0,.35);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
+.help>div,.help-dlg form,.assist>div,.layout-pop,.qpop,.switchdlg>div{border-radius:18px;
+  background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02) 60%),rgba(8,9,12,.78);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 20px 50px rgba(0,0,0,.5);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
+.chat-log li{border-radius:12px}
+
+/* buttons: one glass for everything clickable */
+.b{border-radius:11px;color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);background:var(--glass-face);border-color:var(--glass-edge);box-shadow:var(--glass-shine);
+  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
+.b:hover{border-color:rgba(255,255,255,.55)}
+.b.primary,.b[aria-pressed="true"]{color:#fff;border-color:var(--acc);background:linear-gradient(160deg,rgba(var(--acc-rgb),.36),rgba(var(--acc-rgb),.1) 55%,rgba(255,255,255,.05))}
+.b.primary:hover{background:linear-gradient(160deg,rgba(var(--acc-rgb),.48),rgba(var(--acc-rgb),.16) 55%,rgba(255,255,255,.06))}
+.b.quiet{background:none;box-shadow:none}
+.b.on{color:#fff;border-color:var(--amber);background:linear-gradient(160deg,rgba(242,166,80,.38),rgba(242,166,80,.1) 55%,rgba(255,255,255,.05))}
+.b.danger{border-color:rgba(255,77,85,.7);background:linear-gradient(160deg,rgba(255,77,85,.3),rgba(255,77,85,.08) 55%,rgba(255,255,255,.04))}
+.in,input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{border-radius:10px}
