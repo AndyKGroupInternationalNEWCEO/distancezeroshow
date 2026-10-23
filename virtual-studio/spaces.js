@@ -553,7 +553,11 @@ export function spaces(v, ctx) {
     if (!piano || piano.soon || v.show.state !== 'LIVE' || v.show.paused) return;
     const step = piano.steps[piano.i++];
     if (!step) { piano = null; return; }
-    if (step.song) { v.pickSong(step.song.id); v.performSong(); }
+    if (step.song) {
+      v.pickSong(step.song.id); v.performSong();
+      const sp = v.show.audio?.song; clearInterval(sp?._ramp);
+      if (sp) { if (piano.fadeIn) ramp(sp, 1, 3000); else sp.volume = 1; } piano.fadeIn = false;
+    }
     else v.showCommand(step.cmd);
   }
   function startPiano() {
@@ -731,20 +735,29 @@ export function spaces(v, ctx) {
     afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
     stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
     const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = s.audio;
+    // as a pianist goes from one piece into the next: the one playing dies away over 4 s while the new one comes in
+    const mixing = sp && !sp.paused && v.show.segment === 'song' && fades;
+    if (mixing) {
+      const tail = new Audio(); tail.src = sp.src; tail.currentTime = sp.currentTime; tail.volume = sp.volume; tail.play().catch(() => {});
+      ramp(tail, 0, 4000, () => { tail.pause(); tail.removeAttribute('src'); tail.load(); });
+      sp.volume = 0;
+    }
     unlockAll(pianoPlayers());
     if (!piano) piano = { i: 0, steps: [] };
-    piano.soon = false; cardOff();
+    piano.soon = false; piano.fadeIn = mixing; cardOff();
     piano.steps.splice(piano.i, 0, { song: s });
     v.showCommand('live');
   }
-  // a volume ramp (an element's volume to `to` in `ms`)
+  // a volume ramp (an element's volume to `to` in `ms`). Where a page cannot set a player's volume (Safari on the iPad and
+  // the iPhone: it stays 1), there are no fades: a change cuts, as before
+  const fades = (() => { const a = new Audio(); a.volume = 0.5; return a.volume === 0.5; })();
   function ramp(el, to, ms, done) {
     clearInterval(el._ramp); const from = el.volume, t0 = performance.now();
     el._ramp = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / ms); el.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k >= 1) { clearInterval(el._ramp); done?.(); } }, 30);
   }
   // a mix, not a cut: the playing track goes on in a second player and fades out while the new one fades in
   function crossfade() {
-    if (track.paused || !track.src) return false;
+    if (track.paused || !track.src || !fades) return false;
     const tail = new Audio(); tail.src = track.src; tail.currentTime = track.currentTime; tail.volume = track.volume; tail.play().catch(() => {});
     ramp(tail, 0, 3000, () => { tail.pause(); tail.removeAttribute('src'); tail.load(); });
     track.volume = 0; return true;
