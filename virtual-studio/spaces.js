@@ -346,7 +346,7 @@ export function spaces(v, ctx) {
   edge.addEventListener('click', e => {
     const b = e.target.closest('[data-view-edge]'); if (!b) return;
     edge.classList.remove('open'); placesBtn.setAttribute('aria-expanded', 'false');
-    wallHold = false;
+    wallHold = false; exitPov();
     if (b.dataset.viewEdge === 'after') { cctv.stop(); return afterShow.on ? afterShow.stop() : afterShow.start(); }
     if (b.dataset.viewEdge === 'security') { afterShow.stop(); m.releaseCameras(); return cctv.on ? cctv.stop() : cctv.start(); }
     cctv.stop();
@@ -679,6 +679,12 @@ export function spaces(v, ctx) {
   const ring = document.createElement('div'); ring.className = 'sp-focus'; ring.hidden = true; document.body.appendChild(ring);
   const canvas = ctx.renderer.domElement, ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   let pov = null;   // { kind, eye, yaw, pitch, before, drag }
+  // in first person the camera is fixed: nothing cuts away from it (the show's own cuts, the tour, a card), only
+  // BACK / HOME on the remote leave it
+  let povLeaving = false;
+  { const go0 = director.go, auto0 = director.setAuto;
+    director.go = (name, o) => (pov && name !== 'pov' && !povLeaving ? undefined : go0(name, o));
+    director.setAuto = on => (pov && on ? undefined : auto0(on)); }
   function povEye(kind) {
     if (kind === 'dj') {
       const g = m.booth.gear.group; g.updateMatrixWorld(true);
@@ -703,7 +709,7 @@ export function spaces(v, ctx) {
   }
   function exitPov() {
     if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; pad.hidden = true; stopMove(); okHit = null; document.body.classList.remove('sp-pov-on'); ctx.controls.enabled = true;
-    director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true });
+    povLeaving = true; director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true }); povLeaving = false;
   }
   // the remote, as on a TV: the arrows move the focus (a glass ring) from control to control (at the console: PLAY,
   // CUE, jogs, faders, crossfader, knobs, by where they are on screen; at the grand: a semitone left and right, an
@@ -947,7 +953,7 @@ export function spaces(v, ctx) {
   }, true);
   bar.addEventListener('click', e => {
     const b = e.target.closest('.sp[data-space]'); if (!b) return;   // (not body[data-space]: ⋯, Programme and Info are in this bar too)
-    afterShow.stop(); cctv.stop(); ended = null;
+    afterShow.stop(); cctv.stop(); ended = null; exitPov();
     go[b.dataset.space](); active = b.dataset.space; document.body.dataset.space = active; show();
   });
   document.body.dataset.space = active;
