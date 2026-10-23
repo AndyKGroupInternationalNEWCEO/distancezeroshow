@@ -196,8 +196,9 @@ export function spaces(v, ctx) {
   .sp-pad .sm{width:40px;height:40px;border-radius:50%;font-size:1rem}
   .sp-pad .home{left:8px;top:0} .sp-pad .menu{left:140px;top:0} .sp-pad .back{left:74px;top:0}
   /* glass: the space buttons, the edge, the remote */
-  .spaces .sp,.edge .eb{background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.02));border-color:rgba(255,255,255,.24);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 8px 24px rgba(0,0,0,.4);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%)}
+  .spaces .sp,.edge .eb{background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border-color:rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 8px 24px rgba(0,0,0,.3);text-shadow:0 1px 2px rgba(0,0,0,.45);
+    backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
   /* during a show the controls step out of the picture after a few seconds without the pointer moving (as a video
      player's do) and come back at once on any move, touch or key; the show's graphics then sit lower */
   .dock,.edge,.sp-pad{transition:opacity .6s ease}
@@ -207,13 +208,15 @@ export function spaces(v, ctx) {
   .sp-air .air-bottom,.sp-air .air-ticker{transition:bottom .6s ease}
   /* ⋯ as a glass sheet of tiles: an icon over a short name, the space's own controls only */
   .dock.more-open .row.ctrl{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;width:min(700px,calc(100vw - 32px));margin:0 auto 10px;padding:14px;border-radius:20px;
-    background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 12px 34px rgba(0,0,0,.5);
-    backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%)}
+    background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.01) 60%);border:1px solid rgba(255,255,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 30px rgba(255,255,255,.04),0 12px 34px rgba(0,0,0,.35);
+    backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
   body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none!important}
-  body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj],body:not([data-space=studio]) .sp-row[data-for=studio]{display:none!important}
+  /* only the chosen space's sheet (these must win over the open sheet's grid above) */
+  body:not([data-space=piano]) .dock.more-open .row.ctrl.sp-row[data-for=piano],body:not([data-space=dj]) .dock.more-open .row.ctrl.sp-row[data-for=dj]{display:none!important}
   .dock.more-open .row.ctrl .sep{display:none}
   .dock.more-open .row.ctrl > .b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:84px;padding:8px 6px;border-radius:14px;text-align:center;
-    background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+    background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25);color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
     font-size:.58rem;letter-spacing:.12em;line-height:1.2;white-space:normal}
   .dock.more-open .row.ctrl > .b small{display:none} .dock.more-open .row.ctrl > .b .chev{display:none}
   .dock.more-open .row.ctrl > .b svg.ti{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
