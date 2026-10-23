@@ -269,6 +269,10 @@ export function spaces(v, ctx) {
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--acc)}
   .air.sp-air{z-index:4}
+  .sp-air .air-l3{flex-direction:row;align-items:center;gap:14px}
+  .sp-air .l3txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .sp-air .l3art{width:64px;height:64px;flex:none;border-radius:6px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.22),0 6px 18px rgba(0,0,0,.5)}
+  .sp-air .l3art[hidden]{display:none}
   /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
   body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
   body.sp-min .sp-air .air-bottom{bottom:110px} body.sp-min .sp-air .air-ticker{bottom:66px}
@@ -480,10 +484,10 @@ export function spaces(v, ctx) {
     'Every Friday · DJ Show · Live from Melbourne Underground', 'Every Saturday · Piano Sessions · Live from Vienna', 'Every Sunday · The Live Show', 'distancezeroshow.com'];
   const gfx = document.createElement('div'); gfx.className = 'air sp-air'; gfx.hidden = true; gfx.setAttribute('aria-hidden', 'true');
   gfx.innerHTML = `<div class="air-gfx"><div class="air-top"><div class="air-onair"><i></i><b>ON AIR</b><small>Simulation</small></div><div><img class="air-bug" src="${asset('assets/logo-do.webp')}" alt="" width="327" height="160"></div></div>
-    <div class="air-bottom"><div class="air-l3"><b></b><span></span></div><div class="air-meta"><span class="air-cam"></span><span class="air-clock">VIE <b class="v"></b> · MEL <b class="m"></b></span></div></div>
+    <div class="air-bottom"><div class="air-l3"><img class="l3art" alt="" hidden><div class="l3txt"><b></b><span></span></div></div><div class="air-meta"><span class="air-cam"></span><span class="air-clock">VIE <b class="v"></b> · MEL <b class="m"></b></span></div></div>
     <div class="air-ticker"><div class="air-track">${[0, 1].map(() => TICKER.map(t => `<span>${t}</span><i>//</i>`).join('')).join('')}</div></div></div>`;
   document.body.appendChild(gfx);
-  const g = { t: gfx.querySelector('.air-l3 b'), s: gfx.querySelector('.air-l3 span'), cam: gfx.querySelector('.air-cam'), v: gfx.querySelector('.v'), m: gfx.querySelector('.m') };
+  const g = { art: gfx.querySelector('.l3art'), t: gfx.querySelector('.air-l3 b'), s: gfx.querySelector('.air-l3 span'), cam: gfx.querySelector('.air-cam'), v: gfx.querySelector('.v'), m: gfx.querySelector('.m') };
   const hm = tz => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
   function airGfx() {
     const P = v.show, pianoOn = active === 'piano' && (piano || pianoPlaying()), djOn = active === 'dj' && dj && !dj.done;
@@ -496,6 +500,9 @@ export function spaces(v, ctx) {
       : (djSong ? [djSong.title, "DJ Andy'K · DJ Show · Live from Melbourne Underground"] : ['DJ SHOW', !dj.el ? 'Opening · Live from Melbourne Underground' : 'Live from Melbourne Underground']);
     if (g.t.textContent !== title) g.t.textContent = title;
     if (g.s.textContent !== sub) g.s.textContent = sub;
+    // the artwork of what plays, beside its title
+    const song = pianoOn ? (P.state === 'SONG' ? P.song : null) : djSong, art = song ? cover(song) : '';
+    if (g.art.dataset.src !== art) { g.art.dataset.src = art; if (art) g.art.src = art; g.art.hidden = !art; }
     const cam = VIEWS[director.current]?.cam || VIEWS[director.current]?.label || 'CAM'; if (g.cam.textContent !== cam) g.cam.textContent = cam;
     g.v.textContent = hm('Europe/Vienna'); g.m.textContent = hm('Australia/Melbourne');
   }
