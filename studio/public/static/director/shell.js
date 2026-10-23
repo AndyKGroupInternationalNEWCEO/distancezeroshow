@@ -103,16 +103,18 @@ edge.addEventListener('click', e => {
 const cctv = el('section', 'vcctv', `<header><b>CCTV</b><span class="vcam"></span><button class="x" type="button" aria-label="Close">×</button></header><div class="vscr"><img alt=""><p class="hint">No camera picture yet: OBS sends the cameras' pictures while this is open.</p></div><div class="vthumbs"></div>`);
 cctv.hidden = true; document.body.append(cctv);
 let cctvI = 0, cctvT = 0;
-const camTiles = () => $$('#showMons figure, #showMons .tile, #showMons > *').filter(f => f.querySelector('img'));
+// the cameras with a picture (a camera the show does not have, or no guest, is left out)
+const camTiles = () => $$('#showMons .mon3-tile').filter(f => f.querySelector('img')?.getAttribute('src') && !f.querySelector('img').hidden);
+const camName = (t, i) => (t.querySelector('figcaption b')?.textContent || 'Camera ' + (i + 1)).trim();
 function cctvPaint() {
   const tiles = camTiles(); const thumbs = cctv.querySelector('.vthumbs');
   if (!tiles.length) { cctv.querySelector('img').hidden = true; cctv.querySelector('p').hidden = false; thumbs.replaceChildren(); return; }
   cctvI %= tiles.length;
-  const cur = tiles[cctvI], img = cur.querySelector('img'), name = (cur.querySelector('figcaption, .cap, b')?.textContent || 'Camera ' + (cctvI + 1)).trim();
+  const cur = tiles[cctvI], img = cur.querySelector('img'), name = camName(cur, cctvI);
   const big = cctv.querySelector('img'); if (img?.src && big.src !== img.src) big.src = img.src;
   big.hidden = !img?.src; cctv.querySelector('p').hidden = !!img?.src;
   cctv.querySelector('.vcam').textContent = `CAM ${cctvI + 1} · ${name}`;
-  thumbs.replaceChildren(...tiles.map((t, i) => { const b = el('button', 'b' + (i === cctvI ? ' on' : ''), (t.querySelector('figcaption, .cap, b')?.textContent || 'CAM ' + (i + 1)).trim()); b.type = 'button'; b.onclick = () => { cctvI = i; cctvT = Date.now(); cctvPaint(); }; return b; }));
+  thumbs.replaceChildren(...tiles.map((t, i) => { const b = el('button', 'b' + (i === cctvI ? ' on' : ''), camName(t, i)); b.type = 'button'; b.onclick = () => { cctvI = i; cctvT = Date.now(); cctvPaint(); }; return b; }));
 }
 function setCctv(on) {
   cctv.hidden = !on; const c = window.dzDirector; if (c) { c.cctv = on; c.monitors?.(); }
@@ -125,7 +127,7 @@ setInterval(() => { if (cctv.hidden) return; if (Date.now() - cctvT > 5000) { cc
 const pad = el('div', 'vpad', `<button class="g sm home" type="button" data-k="home" aria-label="Home">⌂</button><button class="g sm back" type="button" data-k="back" aria-label="Back">↩</button><button class="g sm menu" type="button" data-k="menu" aria-label="Menu">⋯</button><div class="g ring"></div><button class="g ar up" type="button" data-k="up" aria-label="Up">▲</button><button class="g ar dn" type="button" data-k="down" aria-label="Down">▼</button><button class="g ar lf" type="button" data-k="left" aria-label="Left">◀</button><button class="g ar rt" type="button" data-k="right" aria-label="Right">▶</button><button class="g ok" type="button" data-k="ok">OK</button>`);
 pad.hidden = true; const ring = el('div', 'vring'); ring.hidden = true; document.body.append(pad, ring);
 let remote = false, focusEl = null;
-const usable = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && !e.disabled && !e.closest('[hidden]') && !pad.contains(e); };
+const usable = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && !e.disabled && !e.closest('[hidden]') && !pad.contains(e) && !e.closest('form[action="/logout"]'); };   // never Sign out by remote
 function candidates() {
   const modal = [...$$('.switchdlg, .help, .help-dlg, .assist, dialog[open]')].find(d => !d.hidden && d.getBoundingClientRect().width);
   const sel = 'button, select, input, textarea, [tabindex="0"]';

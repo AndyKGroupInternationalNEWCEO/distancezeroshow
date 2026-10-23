@@ -81,3 +81,7 @@ body.dz-shell .bar{margin-left:-96px;padding-left:112px}
 .vguide{position:fixed;z-index:48;max-width:280px;padding:12px 14px 10px;border-radius:14px;color:#f6f8fb;font-size:.8rem;line-height:1.4;
   background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(255,255,255,.05) 45%,rgba(255,255,255,.03)),rgba(8,9,12,.7);border:1px solid rgba(255,255,255,.34);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 30px rgba(0,0,0,.4);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
 .vguide[hidden]{display:none} .vguide p{margin:0 0 8px}
+/* the edge takes 96 px on the left: the Live monitors size to the width that is left, not only to the height */
+body.dz-shell .live-grid{--mw:min(max(380px,calc((100vh - 560px) * 1.7778)),calc((100vw - 96px - 300px - 2 * var(--pad,24px) - 3 * var(--gap,14px)) / 2))}
+/* notes, toasts and the call stay above the dock */
+body.dz-shell .toasts,body.dz-shell .callpanel{bottom:150px}
