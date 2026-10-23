@@ -31,7 +31,25 @@ const CCTV = ['security', 'secClub', 'securityLounge', 'secReception', 'secBuild
 // the building and its reception (building.js, the arrival's set): a place of its own, reached by a cut; loaded the
 // first time it is asked for. The front faces +z at FZ = 34
 const FZ = 34;
-const PLACES = {
+// the reception's and the street's furniture: scanned models from Poly Haven (CC0, 1k textures, assets/models),
+// each fitted to its real size (`size`: the longest side, or `height`) and stood on the floor
+const PROPS = [
+  { id: 'sofa_03', at: [-4.35, FZ - 4.9], rot: Math.PI / 2, size: 2.2 },
+  { id: 'modern_arm_chair_01', at: [-2.1, FZ - 3.7], rot: -Math.PI / 2 - 0.35, height: 0.82 },
+  { id: 'modern_arm_chair_01', at: [-2.1, FZ - 6.1], rot: -Math.PI / 2 + 0.35, height: 0.82 },
+  { id: 'modern_coffee_table_01', at: [-3.2, FZ - 4.9], rot: Math.PI / 2, size: 1.1 },
+  { id: 'potted_plant_02', at: [-4.4, FZ - 0.8], height: 1.5 },
+  { id: 'potted_plant_02', at: [4.4, FZ - 0.8], rot: 1.2, height: 1.5 },
+  { id: 'potted_plant_04', at: [3.0, FZ - 8.7], height: 1.15 },
+  { id: 'potted_plant_04', at: [-4.4, FZ - 8.9], rot: 2, height: 1.15 },
+  { id: 'ceramic_vase_03', at: [-3.2, FZ - 4.9], y: 0.42, height: 0.32 },
+  { id: 'modern_ceiling_lamp_01', at: [0.1, FZ - 7.6], hang: 3.58, height: 0.55 },
+  { id: 'modern_ceiling_lamp_01', at: [1.7, FZ - 7.6], hang: 3.58, height: 0.55 },
+  { id: 'street_lamp_01', at: [-7.2, FZ + 4.1], rot: Math.PI / 2, height: 5.2 },
+  { id: 'planter_box_02', at: [-3.4, FZ + 1.0], size: 1.5 },
+  { id: 'planter_box_02', at: [3.4, FZ + 1.0], size: 1.5 },
+  { id: 'modular_street_seating', at: [-5.6, FZ + 2.6], size: 2.6 },
+];const PLACES = {
   // (within the orbit's 15 m: the camera is never further than that from what it looks at)
   building: { label: 'Building', long: 'The studio building · night', pos: [6.4, 1.6, FZ + 12.6], target: [0, 4.4, FZ], fov: 64, drift: 0.05, tally: 0, place: true },
   // the security cameras out there: one high in the lobby, one on a pole across the street at the entrance
@@ -246,8 +264,27 @@ export function spaces(v, ctx) {
     const [{ buildStreet }, { RGBELoader }, THREE] = await Promise.all([import('./building.js'), import('three/addons/loaders/RGBELoader.js'), import('three')]);
     const hdr = await new RGBELoader().setDataType(THREE.FloatType).loadAsync(asset('assets/cc0/modern_buildings_night_1k.hdr'));
     const px = hdr.image.data; for (let i = 0; i < px.length; i++) if ((i & 3) !== 3) px[i] = Math.min(px[i], 1.6);   // as the arrival: lamps as glints
-    const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; hdr.dispose(); pm.dispose();
+    const pm = new THREE.PMREMGenerator(ctx.renderer), env = pm.fromEquirectangular(hdr).texture; pm.dispose();
+    hdr.mapping = THREE.EquirectangularReflectionMapping; const hdr0 = hdr;
     const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
+    // the furniture, as real scanned models (each loaded once, copied where it stands twice)
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const gl = new GLTFLoader(), cache = new Map();
+    await Promise.all(PROPS.map(async pr => {
+      try {
+        if (!cache.has(pr.id)) cache.set(pr.id, gl.loadAsync(asset(`assets/models/${pr.id}/${pr.id}.gltf`)));
+        const src = (await cache.get(pr.id)).scene, o = src.clone(true);
+        o.rotation.y = pr.rot || 0; o.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(o), dim = box.getSize(new THREE.Vector3());
+        const k = pr.height ? pr.height / dim.y : pr.size / Math.max(dim.x, dim.z); o.scale.multiplyScalar(k); o.updateMatrixWorld(true);
+        box.setFromObject(o); const c = box.getCenter(new THREE.Vector3());
+        o.position.x += pr.at[0] - c.x; o.position.z += pr.at[1] - c.z;
+        o.position.y += pr.hang !== undefined ? pr.hang - box.max.y : (pr.y ?? 0.052) - box.min.y;
+        o.traverse(x => { if (x.isMesh) { x.castShadow = x.receiveShadow = true; for (const mm of [].concat(x.material)) if (mm) mm.envMapIntensity = 0.8; } });
+        st.group.add(o);
+      } catch (e) { console.warn('prop', pr.id, e.message); }
+    }));
+    st.sky = hdr0;   // the night city, behind the building when the camera is out there
     // the security cameras out there, where their views are: high in the lobby, on a pole across from the entrance
     const { securityCam } = await import('./set.js');
     for (const k of ['secReception', 'secBuilding']) {
@@ -264,7 +301,7 @@ export function spaces(v, ctx) {
   })());
   const placeAnim = [];   // the place's security cameras' REC lamps
   const outside = () => ctx.camera.position.z > 15;
-  let shownOut = null, studioFog = null;
+  let shownOut = null, studioFog = null, studioBg = null;
 
   /* ----- CCTV: the cameras in turn, cut, every 6 s ----- */
   const cctv = {
@@ -812,7 +849,7 @@ export function spaces(v, ctx) {
     if (onWall && !cardEl.ended && held !== cardEl.paused) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
     // the building only while the camera is out there (its lights and wet street cost nothing in the studio then)
     if (street && outside() !== shownOut) {
-      shownOut = outside(); street.then(st => { st.group.visible = shownOut; });
+      shownOut = outside(); street.then(st => { st.group.visible = shownOut; if (st.sky) { studioBg ??= ctx.scene.background; ctx.scene.background = shownOut ? st.sky : studioBg; ctx.scene.backgroundIntensity = shownOut ? 0.55 : 1; } });
       // the studio's haze is the studio's: out on the street the night is clear enough to see the building
       if (ctx.scene.fog) { studioFog ??= ctx.scene.fog.density; ctx.scene.fog.density = shownOut ? 0.004 : studioFog; }
     }

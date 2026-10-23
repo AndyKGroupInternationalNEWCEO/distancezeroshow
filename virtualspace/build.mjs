@@ -18,7 +18,7 @@ const FILES = [
   'virtual-studio/grandpiano.js', 'virtual-studio/onair.js', 'virtual-studio/spaces.js', 'virtual-studio/building.js', 'assets/video/dz-logo-reveal.mp4', 'assets/video/dz-master-studio.mp4', 'assets/video/dz-preshow-2026-10-14b.mp4',
   T + 'three.module.min.js', T + 'LICENSE.txt',
   ...['controls/OrbitControls.js', 'geometries/RoundedBoxGeometry.js', 'lights/RectAreaLightUniformsLib.js', 'lights/RectAreaLightTexturesLib.js',
-    'objects/Reflector.js', 'loaders/RGBELoader.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
+    'objects/Reflector.js', 'loaders/RGBELoader.js', 'loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',
     'postprocessing/Pass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/OutputPass.js', 'shaders/CopyShader.js',
     'postprocessing/GTAOPass.js', 'shaders/GTAOShader.js', 'shaders/PoissonDenoiseShader.js', 'math/SimplexNoise.js',
     'shaders/LuminosityHighPassShader.js', 'shaders/OutputShader.js'].map(f => T + 'addons/' + f),
@@ -40,6 +40,8 @@ const FILES = [
   ...fs.readdirSync(path.join(ROOT, 'assets/sheets')).flatMap(d => fs.readdirSync(path.join(ROOT, 'assets/sheets', d)).map(f => `assets/sheets/${d}/${f}`)),
   // DJ Andy'K's voice drops for the DJ set
   ...fs.readdirSync(path.join(ROOT, 'assets/fx')).filter(f => f.endsWith('.mp3')).map(f => `assets/fx/${f}`),
+  // the reception's and the street's furniture (Poly Haven, CC0): every file of each model
+  ...fs.readdirSync(path.join(ROOT, 'assets/models'), { recursive: true }).filter(f => /\.(gltf|bin|jpg|png)$/.test(f)).map(f => `assets/models/${f}`),
   // the songs' covers (the albums' artwork from djandykofficial.com, 192 px)
   ...fs.readdirSync(path.join(ROOT, 'assets/covers')).filter(f => f.endsWith('.jpg')).map(f => `assets/covers/${f}`),
   // the grand's piano parts, transcribed from the recordings (production/gpu/transcribe.py, import-parts.mjs)

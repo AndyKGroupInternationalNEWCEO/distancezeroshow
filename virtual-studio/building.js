@@ -259,18 +259,7 @@ function furnishLobby({ g, add, glass, champagne }) {
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 8), champagne); ch.add(rod);
   const glow = new THREE.PointLight(0xffd9b0, 16, 8, 2); glow.position.y = -0.55; ch.add(glow);
 
-  // the sofa and the low table, by the left wall
-  const fabric = new THREE.MeshStandardMaterial({ color: 0x2c2b30, roughness: 0.95 });
-  const sofa = new THREE.Group(); sofa.position.set(-4.2, 0.05, FZ - 4.8); sofa.rotation.y = Math.PI / 2; g.add(sofa);
-  const sAdd = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; sofa.add(m); return m; };
-  sAdd(new THREE.BoxGeometry(2.3, 0.22, 0.86), fabric, 0, 0.26, 0);
-  for (const x of [-0.56, 0.56]) sAdd(new THREE.BoxGeometry(1.1, 0.14, 0.72), fabric, x, 0.44, 0.06);    // seat cushions
-  sAdd(new THREE.BoxGeometry(2.3, 0.48, 0.2), fabric, 0, 0.6, -0.33);
-  for (const x of [-1.1, 1.1]) sAdd(new THREE.BoxGeometry(0.14, 0.42, 0.86), fabric, x, 0.43, 0);
-  for (const [x, z] of [[-1.05, -0.35], [1.05, -0.35], [-1.05, 0.35], [1.05, 0.35]]) sAdd(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 10), champagne, x, 0.075, z);
-  const table = new THREE.Group(); table.position.set(-3.0, 0.05, FZ - 4.8); g.add(table);
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.02, 48), glass); top.position.y = 0.42; table.add(top);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, 0.4, 24), champagne); base.position.y = 0.2; table.add(base);
+  // (the sofa, armchairs, table, plants and lamps are real scanned models: spaces.js, PROPS)
 
   // framed show posters on the right wall
   const loader = new THREE.TextureLoader();
