@@ -123,7 +123,15 @@ export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   if (furnish) {
     const glassDark = new THREE.MeshPhysicalMaterial({ color: 0x0b0e12, metalness: 0.2, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMap: nightEnv, envMapIntensity: 0.9 });
     const frameM = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.7, roughness: 0.4, envMapIntensity: env });
-    const litWarm = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 0.86, 0.5) }), litCool = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.78, 1.15) });
+    const room = (() => {
+      const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
+      const gr = x.createRadialGradient(64, 10, 4, 64, 30, 120); gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, '#9a9a9a'); gr.addColorStop(1, '#2a2a2a');
+      x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+      x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(14, 92, 46, 36); x.fillRect(84, 80, 30, 48);   // a sofa's back, a shelf
+      for (let y = 0; y < 128; y += 7) { x.fillStyle = 'rgba(0,0,0,.32)'; x.fillRect(0, y, 128, 2); x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(0, y + 2, 128, 1); }   // the blind's slats
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const litWarm = new THREE.MeshBasicMaterial({ map: room, color: new THREE.Color(0.62, 0.43, 0.25) }), litCool = new THREE.MeshBasicMaterial({ map: room, color: new THREE.Color(0.3, 0.38, 0.55) });
     const slots = [];
     for (const y of [4.6, 7.8, 11.0]) for (let x = -19; x <= 19.01; x += 2.7) { if (Math.abs(x) < 4.2 && y < 9) continue; slots.push([x, y, 1.7, 2.0]); }
     for (const x of [-17.5, -14.6, -11.7, -8.8, 8.8, 11.7, 14.6, 17.5]) slots.push([x, 1.55, 2.4, 2.5]);
@@ -244,7 +252,7 @@ export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   lights.add(canopy, canopy.target, lamp, lamp.target, lobby, sideFill);
   // narrow uplights in the pavement, grazing the concrete either side of the entrance: the building reads at night
   for (const x of [-8, -4.2, 4.2, 8]) {
-    const up = new THREE.SpotLight(0xffe0b8, 520, 16, 0.2, 0.55, 1.4); up.position.set(x, 0.05, FZ + 0.35); up.target.position.set(x, 12, FZ - 0.2);
+    const up = new THREE.SpotLight(0xffe0b8, 220, 14, 0.3, 0.95, 1.6); up.position.set(x, 0.05, FZ + 0.35); up.target.position.set(x, 12, FZ - 0.2);
     lights.add(up, up.target);
     add(new THREE.CircleGeometry(0.09, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.9, 1.5) }), x, 0.006, FZ + 0.35).castShadow = false;
   }
@@ -275,7 +283,7 @@ function furnishLobby({ g, add, glass, champagne }) {
 
   // the crystal chandelier: three rings of glass rods hanging at different lengths from a champagne ring, lit warm
   const ch = new THREE.Group(); ch.position.set(0, 3.58, FZ - 4.6); g.add(ch);
-  const rodMat = new THREE.MeshPhysicalMaterial({ color: 0xfff6ea, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, emissive: 0xffd2a0, emissiveIntensity: 0.45 });
+  const rodMat = new THREE.MeshPhysicalMaterial({ color: 0xfff6ea, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, emissive: 0xffd2a0, emissiveIntensity: 0.1 });
   const rings = [[0.75, 40, 0.9], [0.52, 30, 0.7], [0.3, 20, 0.5]], count = rings.reduce((n, r) => n + r[1], 0);
   const rods = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.011, 0.011, 1, 8), rodMat, count), m4 = new THREE.Matrix4();
   let i = 0, seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -286,7 +294,7 @@ function furnishLobby({ g, add, glass, champagne }) {
   ch.add(rods);
   for (const [r] of rings) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012, 8, 64).rotateX(Math.PI / 2), champagne); ring.position.y = -0.04; ch.add(ring); }
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 8), champagne); ch.add(rod);
-  const glow = new THREE.PointLight(0xffd9b0, 16, 8, 2); glow.position.y = -0.55; ch.add(glow);
+  const glow = new THREE.PointLight(0xffd9b0, 7, 8, 2); glow.position.y = -0.55; ch.add(glow);
 
   // (the sofa, armchairs, table, plants and lamps are real scanned models: spaces.js, PROPS)
 
