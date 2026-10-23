@@ -169,6 +169,10 @@ export function spaces(v, ctx) {
   .sp-lib li small{color:var(--dim,#8a9099);font-size:.66rem;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* first person (the DJ's place, the pianist's): a cross in the middle, BACK, drag to look round, tap a control */
   .sp-pov{position:fixed;inset:0;z-index:6;pointer-events:none}
+  body.sp-pov-on .dock:not(.more-open),body.sp-pov-on .dock .fine{opacity:0;pointer-events:none}
+  body.sp-pov-on .dock.more-open .spaces{display:none}
+  @keyframes sp-fade{0%,80%{opacity:1}100%{opacity:0}}
+  body.sp-pov-on .sp-pov p{bottom:24px;animation:sp-fade 9s forwards}
   .sp-pov[hidden]{display:none}
   .sp-pov i{display:none}
   .sp-focus{position:fixed;z-index:6;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;pointer-events:none;border:2px solid rgba(var(--acc-rgb),.95);
@@ -707,7 +711,7 @@ export function spaces(v, ctx) {
   function povEye(kind) {
     if (kind === 'dj') {
       const g = m.booth.gear.group; g.updateMatrixWorld(true);
-      return { eye: g.localToWorld(new THREE.Vector3(0, 0.68, -0.78)), look: g.localToWorld(new THREE.Vector3(0, -0.1, 0.7)) };
+      return { eye: g.localToWorld(new THREE.Vector3(0, 0.64, -0.74)), look: g.localToWorld(new THREE.Vector3(0, -0.06, 0.32)) };
     }
     const p = ctx.studio.piano; p.updateMatrixWorld(true);
     return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
@@ -719,11 +723,12 @@ export function spaces(v, ctx) {
     if (pov) exitPov();
     const { eye, look } = povEye(kind), d = look.clone().sub(eye).normalize();
     pov = { kind, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
+    pov.yaw0 = pov.yaw; pov.pitch0 = pov.pitch;
     VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
     povUi.hidden = false; pad.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
     focusNote = 60; focusObj = kind === 'dj' ? targets().find(o => o.userData.ctl.act === 'play' && o.userData.ctl.deck === 1) || targets()[0] : null;
-    povUi.querySelector('p').textContent = kind === 'dj' ? 'Arrows: from control to control · OK presses · OK held with an arrow moves a fader, a jog · or tap them' : 'Arrows: from key to key (up/down an octave) · OK plays · or tap the keys';
+    povUi.querySelector('p').textContent = kind === 'dj' ? 'Drag the picture to look round · arrows: from control to control · OK presses (held with an arrow: moves a fader, a jog) · or tap them' : 'Drag the picture to look round · arrows: from key to key (up/down an octave) · OK plays · or tap the keys';
     closeMenus(); dock.classList.remove('more-open');
   }
   function exitPov() {
@@ -824,7 +829,11 @@ export function spaces(v, ctx) {
   canvas.addEventListener('pointermove', e => {
     if (!pov?.drag) return; e.stopImmediatePropagation();
     const dx = e.clientX - pov.drag.x, dy = e.clientY - pov.drag.y; pov.drag.x = e.clientX; pov.drag.y = e.clientY; pov.drag.moved += Math.abs(dx) + Math.abs(dy);
-    if (pov.drag.h?.ctl) act(pov.drag.h, 'move', dx, dy);   // the camera stays where it is: only the controls move
+    if (pov.drag.h?.ctl) act(pov.drag.h, 'move', dx, dy);   // on a control: the control moves
+    else if (!pov.drag.h) {                                  // on the picture: the head turns (the eyes stay where they are)
+      pov.yaw = Math.max(pov.yaw0 - 0.8, Math.min(pov.yaw0 + 0.8, pov.yaw + dx * 0.004 * (ctx.camera.matrixWorld.determinant() < 0 ? -1 : 1)));
+      pov.pitch = Math.max(Math.max(-1.35, pov.pitch0 - 0.6), Math.min(Math.min(0.25, pov.pitch0 + 0.7), pov.pitch + dy * 0.004));
+    }
   }, true);
   // the cross follows the pointer over the picture (it is the pointer here)
   const cross = povUi.querySelector('i');
@@ -1044,6 +1053,10 @@ export function spaces(v, ctx) {
     if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
+    if (pov && director.current === 'pov' && !director.flying) {
+      const c = Math.cos(pov.pitch); ctx.camera.position.copy(pov.eye);
+      ctx.controls.target.copy(pov.eye).add(new THREE.Vector3(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.lookAt(ctx.controls.target);
+    }
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
