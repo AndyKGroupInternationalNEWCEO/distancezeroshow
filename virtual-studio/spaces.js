@@ -688,7 +688,7 @@ export function spaces(v, ctx) {
   function povEye(kind) {
     if (kind === 'dj') {
       const g = m.booth.gear.group; g.updateMatrixWorld(true);
-      return { eye: g.localToWorld(new THREE.Vector3(0, 0.62, -0.62)), look: g.localToWorld(new THREE.Vector3(0, 0.02, 0.22)) };
+      return { eye: g.localToWorld(new THREE.Vector3(0, 0.68, -0.78)), look: g.localToWorld(new THREE.Vector3(0, -0.1, 0.7)) };
     }
     const p = ctx.studio.piano; p.updateMatrixWorld(true);
     return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
@@ -718,7 +718,11 @@ export function spaces(v, ctx) {
   const placeCross = () => {};
   const targets = () => { const t = []; m.booth.gear.group.traverse(o => { if (o.userData.ctl) t.push(o); }); return t; };
   const screenOf = (v3) => { const q = v3.clone().project(ctx.camera), r = canvas.getBoundingClientRect(); return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height, front: q.z < 1 }; };
-  const focusPoint = () => pov?.kind === 'piano' ? ctx.studio.piano.userData.keyboard.keyWorld(focusNote) : focusObj?.getWorldPosition(new THREE.Vector3());
+  const focusPoint = () => {
+    if (pov?.kind === 'piano') return ctx.studio.piano.userData.keyboard.keyWorld(focusNote);
+    if (pov && !focusObj) { const t = targets(); focusObj = t.find(o => o.userData.ctl.act === 'play' && o.userData.ctl.deck === 1) || t[0] || null; }
+    return focusObj?.getWorldPosition(new THREE.Vector3());
+  };
   function navigate(dx, dy) {
     if (pov.kind === 'piano') { focusNote = Math.max(21, Math.min(108, focusNote + (dx ? (ctx.studio.piano.matrixWorld.determinant() < 0 ? -dx : dx) : -dy * 12))); return; }
     const all = targets(), here = screenOf(focusPoint() || new THREE.Vector3());
@@ -756,10 +760,11 @@ export function spaces(v, ctx) {
   pad.addEventListener('pointerup', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.d) stopMove(); else if (b.classList.contains('ok')) okUp(); });
   pad.addEventListener('pointercancel', () => { stopMove(); okUp(); });
   pad.querySelector('.back').addEventListener('click', exitPov);
-  pad.querySelector('.home').addEventListener('click', () => { exitPov(); go.studio(); active = 'studio'; document.body.dataset.space = 'studio'; show(); });
+  pad.querySelector('.home').addEventListener('click', () => { if (!pov) return; pov.before = active === 'dj' ? (m.env === 'djroom' ? 'mDJ2' : 'studio') : active === 'piano' ? 'vP1' : 'studio'; exitPov(); });
   pad.querySelector('.menu').addEventListener('click', () => more.click());
   addEventListener('keydown', e => {
     if (!pov) return;
+    if (!e.metaKey && !e.ctrlKey) e.stopImmediatePropagation();
     const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
     if (d) { e.preventDefault(); if (!moveDir) startMove(d); } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!okHit) okDown(); } else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); exitPov(); }
   }, true);
