@@ -64,7 +64,12 @@ const BREAK = 12;   // s of the transition jingle between two tracks (then 2.5 s
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
 const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
-  djOpen: 'assets/video/shows/dj-opening.mp4', djBetween: 'assets/video/shows/dj-transition.mp4', djEnd: 'assets/video/shows/dj-closing.mp4' };
+  djOpen: 'assets/video/shows/dj-opening.mp4', djBetween: 'assets/video/shows/dj-stay-tuned.mp4', djEnd: 'assets/video/shows/dj-closing.mp4',
+  // the Friday cards (shared-assets/videos/friday, FR_01–FR_04): STARTING SOON before the opening film, WE'LL BE RIGHT BACK
+  // while the show is paused, INTERMISSION (from ⋯ Video), STAY TUNED in the short break between two tracks; the Friday
+  // DJ transition film (DZ_09) stays in ⋯ Video
+  djSoon: 'assets/video/shows/dj-starting-soon.mp4', djBack: 'assets/video/shows/dj-right-back.mp4', djInter: 'assets/video/shows/dj-intermission.mp4',
+  djTransition: 'assets/video/shows/dj-transition.mp4' };
 const asset = p => new URL('../' + p, import.meta.url).href;
 // a song's cover: its album's artwork from djandykofficial.com (assets/covers, 192 px)
 const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
@@ -518,9 +523,9 @@ export function spaces(v, ctx) {
   // the card on the LED wall (the wall's own video programme, as the studio's simulation uses), the camera on the wall,
   // the logo up; while it plays the shot stays on the wall. A show's closing card stays on its last frame
   let wallBefore = null, onWall = false, wallHold = false, logoUp = false;   // logoUp: the hanging logo is up for a show (set in the loop)   // wallHold: the camera stays on the wall (until the visitor picks one)
-  function card(name, { manual = false } = {}) {
+  function card(name, { manual = false, loop = false } = {}) {
     if (cardOf === name && !manual) return; cardOf = name;
-    cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {});
+    cardEl.src = asset(CARD[name]); cardEl.loop = loop; cardEl.currentTime = 0; cardEl.play().catch(() => {});
     if (!onWall) { wallBefore = v.source; onWall = true; }
     v.setSource('main'); ctx.studio.wall.film(() => [[cardEl, 1]]); ctx.studio.wall.set('film');
     director.setAuto(false); director.go(CARD_VIEW, { instant: true }); wallHold = true;
@@ -638,22 +643,40 @@ export function spaces(v, ctx) {
       ramp(jingle, 0, 2500, () => { jingle.pause(); jingle.volume = 1; it.fading = false; if (dj === it && dj.el === jingle) djStep(); });
       return;
     }
+    if (dj.soon) { if (performance.now() > dj.soonUntil) cardEl.onended?.(); return; }
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
   }
   function startDj() {
     const tracks = pick(djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS, 4);
     dj = { i: 0, el: null, paused: false, steps: [{ opening: true }, ...tracks.flatMap((s, k) => (k < tracks.length - 1 ? [{ track: s }, { jingle: 'between' }] : [{ track: s }])), { jingle: 'end' }] };
-    // first the show's opening film (FRIDAY LIVE OPENING) on the studio's LED wall, then the booth's own opening
-    const it = dj; card('djOpen', { manual: true });
-    cardEl.onended = () => { wallOff(); cardOf = null; if (dj === it && dj.i === 0) { wallHold = false; djStep(); } };
+    // first STARTING SOON on the studio's LED wall (once round its loop), then the show's opening film (FRIDAY LIVE
+    // OPENING), then the booth's own opening
+    const it = dj; it.soon = true; it.soonUntil = performance.now() + 15000;   // (in case the card cannot play)
+    card('djSoon', { manual: true });
+    cardEl.onended = () => {
+      if (dj !== it || !it.soon) return; it.soon = false;
+      card('djOpen', { manual: true });
+      cardEl.onended = () => { wallOff(); cardOf = null; if (dj === it && dj.i === 0) { wallHold = false; djStep(); } };
+    };
   }
-  function pauseDj() {
+  // the show's pause on the wall: WE'LL BE RIGHT BACK (the DJ ROOM button) or INTERMISSION (⋯ Video) loops there until
+  // the show goes on; then back to the booth. (A pause from the console in first person shows no card)
+  function holdCard(name) { dj.hold = name; card(name, { manual: true, loop: true }); }
+  function intermission() {
+    if (!dj || dj.done || dj.soon || !dj.el) return;
+    if (dj.hold === 'djInter') return pauseDj();
+    if (dj.paused) holdCard('djInter'); else pauseDj({ hold: 'djInter' });
+  }
+  function pauseDj({ hold } = {}) {
     if (!dj) return;
     dj.paused = !dj.paused;
+    if (dj.soon) { if (!dj.paused) dj.soonUntil = performance.now() + 15000; return; }   // STARTING SOON just waits
     if (!dj.el) m.djOpening('pause');
     else if (dj.paused) dj.el.pause(); else dj.el.play().catch(() => {});
     if (dj.el === track && dj.deck) m.setDeck(dj.deck + 1, { state: dj.paused ? 'pause' : 'play', position: track.currentTime });
+    if (dj.paused && hold && dj.el) holdCard(hold);
+    else if (!dj.paused && dj.hold) { dj.hold = null; cardOff(); wallHold = false; if (dj.el === track) { m.pickCamera('DJ1'); m.setAuto(!pov); } }
   }
   function stopDj() {
     if (dj) { cardOff(); track.pause(); jingle.pause(); for (const n of [2, 3]) m.setDeck(n, { state: 'stop', position: 0 }); dj = null; m.setMusicSource(null); m.setTrack(null); m.setAuto(false); }
@@ -902,7 +925,7 @@ export function spaces(v, ctx) {
       ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
-      ['Video', [['DJ transition', () => card('djBetween', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
+      ['Video', [['Intermission', () => intermission()], ['Stay tuned', () => card('djBetween', { manual: true })], ['DJ transition', () => card('djTransition', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
       ['Jingles', [['DJ transition', () => playJingle('between')], ['Friday closing', () => playJingle('end')]]],
       ['Library', () => openLibrary('dj')],
       ['Genre', [['All genres', () => { djGenre = null; libGenre = 'All'; if (!dj || dj.done) simulate('dj'); }], ...GENRES.filter(g => DJ_TRACKS.some(s => genresOf(s).includes(g))).map(g => [g, () => { libGenre = g; setGenre(g); }])]],
@@ -1011,7 +1034,7 @@ export function spaces(v, ctx) {
       startPiano();
     },
     dj() {
-      if (active === 'dj' && dj && !dj.done) return pauseDj();
+      if (active === 'dj' && dj && !dj.done) return pauseDj({ hold: 'djBack' });
       stopPiano(); unlock();
       startDj();
     },
@@ -1068,7 +1091,8 @@ export function spaces(v, ctx) {
     for (const [b, f] of dynamic) { const t = f(), tl = b.querySelector('.tl'); if (tl.textContent !== t) { b.innerHTML = tileIcon(t) + '<span class="tl"></span>'; b.querySelector('.tl').textContent = t; } }
     // the cards, by what the shows are doing
     const P = v.show;
-    if (active === 'piano' && P.state === 'BETWEEN') card('psBetween');
+    if (dj?.hold) { /* a pause card holds the wall */ }
+    else if (active === 'piano' && P.state === 'BETWEEN') card('psBetween');
     else if (active === 'piano' && P.state === 'CLOSING' && P.duration && P.time > P.duration - 11.4) card('psEnd');
     else if (active === 'dj' && dj?.el === jingle && dj.steps[dj.i - 1]?.jingle === 'between') card('djBetween');
     else if (active === 'dj' && dj?.el === jingle && dj.steps[dj.i - 1]?.jingle === 'end' && jingle.duration && jingle.currentTime > jingle.duration - 8.4) card('djEnd');
@@ -1080,7 +1104,7 @@ export function spaces(v, ctx) {
     if (onWall && wallHold && !cardEl.paused && !cardEl.ended && director.current !== CARD_VIEW && !afterShow.on) director.go(CARD_VIEW, { instant: true });
     // paused with the show
     const held = (active === 'piano' && (P.paused || !!piano?.held)) || !!dj?.paused;
-    if (onWall && !cardEl.ended && held !== cardEl.paused) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
+    if (onWall && !cardEl.ended && held !== cardEl.paused && !dj?.hold) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
     // the building only while the camera is out there (its lights and wet street cost nothing in the studio then)
     if (street && outside() !== shownOut) {
       shownOut = outside(); street.then(st => { st.group.visible = shownOut; if (st.sky) { studioBg ??= ctx.scene.background; ctx.scene.background = shownOut ? st.sky : studioBg; ctx.scene.backgroundIntensity = shownOut ? 0.55 : 1; } });
@@ -1099,7 +1123,7 @@ export function spaces(v, ctx) {
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
-    const djLabel = !dj || dj.done ? 'Play again' : dj.paused ? 'Paused · tap to play' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
+    const djLabel = !dj || dj.done ? 'Play again' : dj.hold === 'djInter' ? 'Intermission · tap to play' : dj.paused ? 'Paused · tap to play' : dj.soon ? 'Starting soon' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = ctx.air?.isOpen ? 'On air · tap to end' : 'Simulate on air';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
     btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : (djGenre && dj?.el === track ? djGenre + ' · ' : '') + djLabel;
