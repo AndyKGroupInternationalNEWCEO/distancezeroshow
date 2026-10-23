@@ -459,11 +459,45 @@ export function spaces(v, ctx) {
     }
     // the reflections rendered in Cycles (production/gpu, cache-places): inside the doors the reception's, outside the
     // street's. Without the files the materials keep their own environment
-    const lobby = [], street = [], at = new THREE.Vector3();
-    st.group.traverse(o => { if (o.isMesh && !o.isReflector) (o.getWorldPosition(at).z < FZ - 0.1 ? lobby : street).push(o); });
-    applyProbe(ctx.renderer, 'street', street).then(() => applyProbe(ctx.renderer, 'reception', lobby)).catch(() => {});
+    const probes = () => {
+      const lobby = [], street = [], at = new THREE.Vector3();
+      st.group.traverse(o => { if (o.isMesh && !o.isReflector && o.visible) (o.getWorldPosition(at).z < FZ - 0.1 ? lobby : street).push(o); });
+      return applyProbe(ctx.renderer, 'street', street).then(() => applyProbe(ctx.renderer, 'reception', lobby));
+    };
+    // the light baked in Cycles (production/gpu/bake.py) on the reception's and the building's surfaces; without the
+    // files the place keeps its real-time light
+    loadBaked(st).catch(e => console.warn('baked light:', e.message)).finally(() => probes().catch(() => {}));
     return st;
   })());
+  // BAKED LIGHT: the baked meshes (both UV sets; extras: where the real-time one is and its vertex count) take the
+  // place of their real-time twins, with the light map of their side (lobby / street); the place's real-time lights
+  // then only add a sheen (the light itself is in the maps)
+  const LM_SCALE = 6, LM_K = 1;   // bake.py's DZ_LM_SCALE; LM_K: the calibration by eye
+  async function loadBaked(st) {
+    const THREE_ = await import('three');
+    gltf ??= import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader());
+    const tl = new THREE_.TextureLoader();
+    const [g, lmLobby, lmStreet] = await Promise.all([(await gltf).loadAsync(asset('assets/baked/places-baked.glb')), tl.loadAsync(asset('assets/baked/lm-lobby.png')), tl.loadAsync(asset('assets/baked/lm-street.png'))]);
+    for (const t of [lmLobby, lmStreet]) { t.colorSpace = THREE_.SRGBColorSpace; t.channel = 1; t.flipY = false; t.anisotropy = 4; }
+    const live = [], box = new THREE_.Box3();
+    st.group.traverse(o => { if (o.isMesh && !o.isInstancedMesh && o.geometry?.attributes?.position) live.push({ o, n: o.geometry.attributes.position.count, c: box.setFromObject(o).getCenter(new THREE_.Vector3()) }); });
+    const keyOf = o => { for (let x = o; x; x = x.parent) if (x.userData?.bk) return x; return null; };
+    const swaps = [];
+    g.scene.updateMatrixWorld(true);
+    g.scene.traverse(b => {
+      if (!b.isMesh || !b.geometry.attributes.uv1) return;
+      const k = keyOf(b); if (!k) return;
+      const { c, n } = k.userData.bk, at = new THREE_.Vector3(...c);
+      const twin = live.find(l => l.n === n && l.c.distanceTo(at) < 0.03 && l.o.visible);
+      if (!twin) return;
+      for (const mm of [].concat(b.material)) { mm.lightMap = k.name.startsWith('bkL') ? lmLobby : lmStreet; mm.lightMapIntensity = LM_SCALE * Math.PI * LM_K; mm.envMapIntensity = 0.5; mm.needsUpdate = true; }
+      b.castShadow = false; b.receiveShadow = false;
+      swaps.push([twin.o, b]);
+    });
+    for (const [o, b] of swaps) { o.visible = false; b.matrixAutoUpdate = false; b.matrix.copy(b.matrixWorld); b.removeFromParent(); st.group.add(b); }
+    st.group.traverse(o => { if (o.isLight && !o.userData.baked) { o.userData.baked = true; o.intensity *= 0.18; } });
+    console.info('baked light:', swaps.length, 'surfaces');
+  }
   const placeAnim = [];   // the place's security cameras' REC lamps
   const outside = () => ctx.camera.position.z > 15;
   let shownOut = null, studioFog = null, studioBg = null;

@@ -50,6 +50,8 @@ const FILES = [
   // reflection probes rendered in Cycles (production/gpu)
   ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music'].map(f => `virtual-studio/melbourne/${f}.js`),
   ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano', 'backstage', 'reception', 'street'].map(f => `assets/probes/${f}.f16`),
+  // the places' light baked in Cycles (production/gpu/bake.py), when there
+  ...['places-baked.glb', 'lm-lobby.png', 'lm-street.png'].map(f => `assets/baked/${f}`).filter(f => fs.existsSync(path.join(ROOT, f))),
   // the DJ Room's opening: the official show song (git-ignored: copied from the master, see virtual-studio/melbourne/djshow.js)
   'assets/audio/dj-room/dz-dj-room-opening.wav', 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
   'virtual-studio/melbourne/djshow.js',
