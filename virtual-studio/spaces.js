@@ -234,7 +234,19 @@ export function spaces(v, ctx) {
   body.sp-min .spaces .min:hover{opacity:1}
   body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none}
   body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj]{display:none}
-  .spaces .small{align-self:center;width:auto;height:44px;padding:0 14px;border-radius:22px;font-size:.6rem;letter-spacing:.16em;flex-direction:row}`;
+  .spaces .small{align-self:center;width:auto;height:44px;padding:0 14px;border-radius:22px;font-size:.6rem;letter-spacing:.16em;flex-direction:row}
+  /* the first visit's guide: the buttons to know glow in turn, a small glass note beside them */
+  @keyframes sp-glow{0%,100%{box-shadow:0 0 0 0 rgba(169,200,238,.0),inset 0 1px 0 rgba(255,255,255,.5)}50%{box-shadow:0 0 0 6px rgba(169,200,238,.35),0 0 26px rgba(169,200,238,.7),inset 0 1px 0 rgba(255,255,255,.5)}}
+  .sp-guide-on{animation:sp-glow 1.4s ease-in-out infinite;border-color:var(--ice,#a9c8ee)!important}
+  .sp-guide{position:fixed;z-index:30;max-width:250px;padding:12px 14px 10px;border-radius:14px;color:#f6f8fb;font-size:.8rem;line-height:1.4;
+    background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(255,255,255,.05) 45%,rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);
+    text-shadow:0 1px 2px rgba(0,0,0,.45);transition:left .35s ease,top .35s ease}
+  .sp-guide b{display:block;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ice,#a9c8ee);margin-bottom:4px}
+  .sp-guide .gnav{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px}
+  .sp-guide button{font:inherit;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:#f6f8fb;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:5px 12px;cursor:pointer}
+  .sp-guide .skip{background:none;border-color:transparent;opacity:.7;padding:5px 0}
+  .sp-guide .dots{opacity:.6;font-size:.62rem;letter-spacing:.2em}`;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
   const bar = document.createElement('div'); bar.className = 'spaces'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Spaces');
@@ -262,6 +274,42 @@ export function spaces(v, ctx) {
   edge.insertAdjacentHTML('afterbegin', `<button class="eb places" type="button" aria-expanded="false">${ICON.places}<span>Places</span></button>`);
   document.body.appendChild(edge);
   const placesBtn = edge.querySelector('.places');
+  // FIRST VISIT: a short guide, three steps. The buttons to know glow in turn and a small glass note says what they do;
+  // a tap on the glowing button (or NEXT) goes on, SKIP ends it. Shown once (?guide shows it again)
+  (() => {
+    let seen = false; try { seen = localStorage.getItem('dz-guide') === '1'; } catch {}
+    if (seen && !/[?&]guide\b/.test(location.search)) return;
+    const steps = [
+      [() => [...bar.querySelectorAll('.sp[data-space]')], 'Pick a space', 'Studio, Piano or DJ Room: a tap takes you there and its show starts. Tap again to pause.'],
+      [() => [more], 'More for this space', '⋯ opens the space\'s own controls: cameras, light, effects, music, the programme and info. ▾ hides everything to just watch.'],
+      [() => [placesBtn], 'Places', 'The building, the reception, backstage, the CCTV cameras and the aftershow, whenever you like.'],
+    ];
+    const note = document.createElement('div'); note.className = 'sp-guide'; note.setAttribute('role', 'dialog'); note.setAttribute('aria-label', 'Guide');
+    let i = -1, lit = [];
+    const end = () => { lit.forEach(e => e.classList.remove('sp-guide-on')); note.remove(); removeEventListener('resize', place); try { localStorage.setItem('dz-guide', '1'); } catch {} };
+    function place() {
+      if (!lit.length) return;
+      const r = lit.map(e => e.getBoundingClientRect()).reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) }));
+      const w = note.offsetWidth, h = note.offsetHeight, W = innerWidth, H = innerHeight;
+      let x, y;
+      if (r.top > H * 0.6) { x = (r.left + r.right) / 2 - w / 2; y = r.top - h - 14; }        // under the note: the dock
+      else if (r.left > W * 0.5) { x = r.left - w - 14; y = r.top; }                           // left of it: the edge
+      else { x = r.right + 14; y = r.top; }
+      note.style.left = Math.max(16, Math.min(W - w - 16, x)) + 'px'; note.style.top = Math.max(16, Math.min(H - h - 16, y)) + 'px';
+    }
+    function step() {
+      lit.forEach(e => { e.classList.remove('sp-guide-on'); e.removeEventListener('click', step); });
+      if (++i >= steps.length) return end();
+      const [els, title, text] = steps[i];
+      lit = els(); lit.forEach(e => { e.classList.add('sp-guide-on'); e.addEventListener('click', step, { once: true }); });
+      note.innerHTML = `<b>${title}</b>${text}<div class="gnav"><button class="skip" type="button">Skip</button><span class="dots">${steps.map((_, k) => k === i ? '●' : '○').join(' ')}</span><button class="next" type="button">${i === steps.length - 1 ? 'Got it' : 'Next'}</button></div>`;
+      note.querySelector('.skip').onclick = () => { lit.forEach(e => e.removeEventListener('click', step)); end(); };
+      note.querySelector('.next').onclick = step;
+      requestAnimationFrame(place);
+    }
+    addEventListener('resize', place);
+    setTimeout(() => { document.body.appendChild(note); step(); }, 1500);
+  })();
   placesBtn.addEventListener('click', () => { const open = edge.classList.toggle('open'); placesBtn.setAttribute('aria-expanded', String(open)); });
   edge.addEventListener('click', e => {
     const b = e.target.closest('[data-view-edge]'); if (!b) return;
