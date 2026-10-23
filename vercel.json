@@ -109,5 +109,12 @@
       "path": "/api/featured-retention",
       "schedule": "0 4 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/featured",
+      "destination": "/get-featured",
+      "permanent": true
+    }
   ]
 }
