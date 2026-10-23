@@ -410,6 +410,12 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     return { rt, cam };
   });
   let feedAt = 0, loungeOn = null;
+  // the desk's confidence monitors: the programme (the shot on air), small, 8 times a second, only in the studio
+  const deskRT = new THREE.WebGLRenderTarget(320, 180, { type: THREE.HalfFloatType });
+  deskRT.texture.colorSpace = THREE.LinearSRGBColorSpace;
+  const deskCam = new THREE.PerspectiveCamera(40, 16 / 9, 0.05, 60);
+  for (const mat of studio.deskScreens || []) { mat.map = deskRT.texture; mat.color.setScalar(1); mat.needsUpdate = true; }
+  let deskAt = 0; const DESK_AT = new THREE.Vector3(0, 1, -1.5);
   // the studio cameras' viewfinders show their own live pictures: one camera per frame, in turn, about 20 times a
   // second in all, and only while the viewer is near the cameras (from further away the screens are a few pixels)
   let vfAt = 0, vfNext = 0;
@@ -470,6 +476,10 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     camera.fov = screenFov(lens.fov, camera.aspect);
     camera.updateProjectionMatrix();
 
+    if (studio.deskScreens?.length && t - deskAt > 0.125 && camera.position.distanceTo(DESK_AT) < 8 && studio.root.visible) {
+      deskAt = t; deskCam.position.copy(camera.position); deskCam.quaternion.copy(camera.quaternion); deskCam.fov = camera.fov; deskCam.updateProjectionMatrix();
+      renderer.setRenderTarget(deskRT); renderer.render(scene, deskCam); renderer.setRenderTarget(null);
+    }
     const here = inLounge(camera.position) || nearLounge(camera.position);
     if (here) studio.lounge.door(camera.position, dt);
     if (here !== loungeOn) { loungeOn = here; studio.lounge.light(here); }

@@ -207,23 +207,31 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     add(m);
     const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0, RISER + 0.809, -1.02); add(ms);
   }
+  // the desk's confidence monitors, one for each at the desk, turned to the one sitting there; they show the
+  // programme (main.js renders it in while the camera is in the studio)
+  const deskScreens = [];
+  function deskMonitor(x, z, seat, scale = 1) {
+    const mon = new THREE.Group();
+    mesh(new RoundedBoxGeometry(0.34, 0.21, 0.016, 2, 0.006), M.graphite, mon).position.y = 0.15;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x1a2230 });
+    const screen = mesh(new THREE.PlaneGeometry(0.32, 0.18), mat, mon);
+    screen.position.set(0, 0.15, -0.0085); screen.rotation.y = Math.PI;
+    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.06), M.brushed, mon).position.y = 0.03;
+    mesh(new THREE.BoxGeometry(0.16, 0.008, 0.1), M.brushed, mon);
+    mon.position.set(x, RISER + 0.807, z); mon.scale.setScalar(scale);
+    mon.rotation.order = 'YXZ';
+    mon.rotation.y = Math.atan2(-(seat.x - x), -(seat.z - z));   // the screen (facing local -z) towards the seat
+    mon.rotation.x = 0.14;                                      // tipped back a little, up to the eyes
+    shadows(mon); add(mon); deskScreens.push(mat);
+  }
+  if (guest) deskMonitor(0, -1.3, SEATS.guest, 0.8);
   for (const [seat, col] of [[SEATS.andy, C.amber], [SEATS.georgie, C.ice]]) {
     const m = microphone(M, col, glows);
     m.position.set(seat.x * 0.92, RISER + 0.807, -1.02);
     m.rotation.y = Math.PI + (seat.x < 0 ? -0.15 : 0.15);
     add(m);
     const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 0.92, RISER + 0.809, -1.02); add(ms);
-    const mon = new THREE.Group();
-    mesh(new RoundedBoxGeometry(0.34, 0.21, 0.016, 2, 0.006), M.graphite, mon).position.y = 0.15;
-    const screen = mesh(new THREE.PlaneGeometry(0.32, 0.19), new THREE.MeshBasicMaterial({ color: 0x1a2230 }), mon);
-    screen.position.set(0, 0.15, -0.0085); screen.rotation.y = Math.PI;
-    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.06), M.brushed, mon).position.y = 0.03;
-    mesh(new THREE.BoxGeometry(0.16, 0.008, 0.1), M.brushed, mon);
-    mon.position.set(seat.x * 1.6, RISER + 0.807, -1.32);
-    mon.rotation.y = seat.x < 0 ? 0.55 : -0.55;
-    mon.rotation.x = -0.12;
-    shadows(mon);
-    add(mon);
+    deskMonitor(seat.x * 1.6, -1.32, seat);
   }
 
   /* ----- presenter chairs, and the guest's chair between them ----- */
@@ -610,7 +618,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
 
   const viewfinders = createViewfinders(cams.map(c => c.vf).filter(Boolean));
   // M: the set's materials, for the Vienna piano stage (vienna/stage.js) built round the grand
-  return { update, wall, cams, viewfinders, logo, desk, lights, music, piano, floorOpaque, root, lounge, robot, M, liftLogo(on) { liftTo = on ? 1 : 0; },
+  return { update, wall, cams, viewfinders, logo, desk, deskScreens, lights, music, piano, floorOpaque, root, lounge, robot, M, liftLogo(on) { liftTo = on ? 1 : 0; },
     beacons: { off() { beaconMode = 'off'; }, standby() { beaconMode = 'standby'; }, cue() { beaconMode = 'cue'; cueAt = beaconClock(); }, air() { beaconMode = 'air'; }, clock(fn) { beaconClock = fn; } } };
 }
 
