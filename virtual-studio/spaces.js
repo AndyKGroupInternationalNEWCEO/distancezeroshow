@@ -233,6 +233,24 @@ export function spaces(v, ctx) {
   .dock .pop .b:hover,.dock.more-open .row.ctrl > .b:hover{border-color:rgba(255,255,255,.55)}
   .dock .pop .b[aria-pressed=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
   .dock.more-open .row.ctrl > .b{overflow:hidden;letter-spacing:.05em!important;overflow-wrap:anywhere}
+  /* ONE GLASS for everything clickable over the picture: the dock's buttons, the panels and their tabs and keys, the
+     simulation's controls. Clear glass with a bright edge and a sheen, the picture blurred behind; the chosen one is
+     tinted glass (not a solid white pill) */
+  .dock{background:linear-gradient(rgba(4,5,7,0),rgba(4,5,7,.35) 60%)}
+  .b,.tab,.pbtn,.air-b,.chip,.phead .x,.fld select{color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
+    background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25);
+    backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
+  .b:hover,.tab:hover,.pbtn:hover,.air-b:hover,.chip:hover{border-color:rgba(255,255,255,.55)}
+  .b[aria-pressed="true"],.views .b[aria-pressed="true"],.looks .b[aria-pressed="true"],.tab[aria-selected="true"],.pbtn.main,.air-b[aria-pressed="true"]{
+    color:#fff;border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.36),rgba(169,200,238,.1) 55%,rgba(255,255,255,.05))}
+  .looks .b[data-look="vienna"][aria-pressed="true"]{border-color:var(--amber,#f2a650);background:linear-gradient(160deg,rgba(242,166,80,.36),rgba(242,166,80,.1) 55%,rgba(255,255,255,.05))}
+  .onair[aria-pressed="true"]{border-color:rgba(255,74,61,.7);background:linear-gradient(160deg,rgba(255,74,61,.34),rgba(255,74,61,.1) 55%,rgba(255,255,255,.05))}
+  .panel,.air-ctl{--glass-sheet:1}
+  .panel{background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02) 60%),rgba(8,9,12,.45);border:1px solid rgba(255,255,255,.28);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 20px 50px rgba(0,0,0,.4);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
+  .now,.relcard,.trk{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.18)}
+  .fld select option{background:#15171c;color:#f3f5f8}
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--ice,#a9c8ee)}
   .air.sp-air{z-index:4}
