@@ -68,8 +68,9 @@ const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'as
 const asset = p => new URL('../' + p, import.meta.url).href;
 // a song's cover: its album's artwork from djandykofficial.com (assets/covers, 192 px)
 const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
-// in the DJ set, every 1–2 minutes a look from further off: down through the glass, the studio and the stage, the crane
-const WIDE = ['mDJ6', 'djwide', 'crane'];
+// in the DJ set, every 1–2 minutes a look from further off, always with the DJ in it: down through the lit glass
+// floor, the club's master wide (the studio's own wide shots showed an empty studio over the closed shaft)
+const WIDE = ['mDJ6', 'mDJ1', 'mDJ6'];
 // the DJ's library by genre: the album's genre on djandykofficial.com, and a version named in a track's title wins
 const ALBUM_GENRES = {
   'wavelength-traces': ['Trance'], 'remembers-the-shape': ['Trance', 'Progressive'], 'six-trance-ballads': ['Trance'],

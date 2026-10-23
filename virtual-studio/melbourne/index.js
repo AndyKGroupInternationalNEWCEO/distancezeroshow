@@ -174,7 +174,8 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   // a camera that is not yet in the club (or one on the glass, DJ6) cuts: a flight would pass through the floor
   const below = k => CAMS[k].pos[1] < 0;
   const cut = (k, { instant = false } = {}) => { program = k; shown = k; director.setAuto(false); director.go(id(k), { instant: instant || below(k) !== inClub(camera.position) }); };
-  const AUTO = ['DJ1', 'DJ2', 'DJ3', 'DJ5', 'DJ2', 'DJ4', 'HS', 'DJ1', 'DJ3'];   // calm cuts, every 8 bars (the 4K high-speed once a round)
+  // calm cuts, every 8 bars, each with the DJ in it (the 4K high-speed once a round, the look through the lit glass floor twice)
+  const AUTO = ['DJ1', 'DJ2', 'DJ6', 'DJ3', 'DJ5', 'DJ2', 'DJ4', 'HS', 'DJ6', 'DJ1', 'DJ3'];
   VIEWS[id('HS')].slow = 0.3;   // slow motion: the club's effects move at this rate on that shot (below), the music and the lift do not
   const liftView = k => { program = 'lift'; director.setAuto(false); director.go('mLift' + k, { instant: true }); };
 
