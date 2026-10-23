@@ -677,6 +677,8 @@ footer p.c{letter-spacing:0;font-style:italic;font-weight:300;font-size:1rem;mar
   .host.a,.host.g{transform:none}
 }
 
+/* long German words in big headings break inside the column instead of widening the page on phones */
+h1,h2,h3,.disp{overflow-wrap:break-word;hyphens:auto}
 /* controls in the Virtual Space style (virtualspace.distancezeroshow.com): glass pills, small wide capitals, chrome when active */
 :root{--glass:rgba(10,11,14,.58);--pill-line:rgba(201,206,214,.16);--champagne:#e3c79a}
 .btn,.play,.snd,.lang,.burger,.social a,.social .soon,.cal-filter button,.cal-nav,.cal-detail .d-acts .btn,.form .btn{
