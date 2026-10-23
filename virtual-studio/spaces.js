@@ -159,6 +159,24 @@ export function spaces(v, ctx) {
     background:rgba(8,9,12,.82);border:1px solid var(--line,rgba(201,206,214,.25));color:var(--chrome-hi,#f3f5f8);font:600 .7rem var(--wide,Arial);letter-spacing:.18em;cursor:pointer}
   .sp-pov p{position:absolute;bottom:calc(var(--dock-h,140px) + 14px);left:50%;transform:translateX(-50%);margin:0;padding:5px 12px;border-radius:6px;background:rgba(4,5,7,.7);
     color:var(--chrome,#c9ced6);font:500 .62rem var(--wide,Arial);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+  /* the remote: a glass D-pad for first person (arrows move the cross, OK presses what is under it; held with an
+     arrow it drags: a fader, a jog), BACK, HOME, MENU — as on a TV remote */
+  .sp-pad{position:fixed;right:calc(var(--gut,16px) + 8px);bottom:calc(var(--dock-h,140px) + 18px);z-index:7;width:188px;height:236px;pointer-events:auto}
+  .sp-pad[hidden]{display:none}
+  .sp-pad .g{position:absolute;display:grid;place-items:center;color:#f3f5f8;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;
+    background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.06) 45%,rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.3);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 26px rgba(0,0,0,.45);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+    font:600 .7rem var(--wide,Arial);letter-spacing:.12em}
+  .sp-pad .g:active,.sp-pad .g.on{background:linear-gradient(160deg,rgba(169,200,238,.45),rgba(169,200,238,.12));border-color:rgba(169,200,238,.8)}
+  .sp-pad .ring{left:14px;top:48px;width:160px;height:160px;border-radius:50%;cursor:default}
+  .sp-pad .ok{left:59px;top:93px;width:70px;height:70px;border-radius:50%;font-size:.9rem;letter-spacing:.08em}
+  .sp-pad .ar{width:44px;height:40px;border-radius:12px;background:none;border-color:transparent;box-shadow:none;font-size:1.1rem}
+  .sp-pad .up{left:72px;top:52px} .sp-pad .dn{left:72px;top:164px} .sp-pad .lf{left:18px;top:108px;width:40px;height:44px} .sp-pad .rt{left:130px;top:108px;width:40px;height:44px}
+  .sp-pad .sm{width:40px;height:40px;border-radius:50%;font-size:1rem}
+  .sp-pad .home{left:8px;top:0} .sp-pad .menu{left:140px;top:0} .sp-pad .back{left:74px;top:0}
+  /* glass: the space buttons, the edge, the remote */
+  .spaces .sp,.edge .eb{background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.02));border-color:rgba(255,255,255,.24);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 8px 24px rgba(0,0,0,.4);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%)}
   .air.sp-air{z-index:4}
   /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
   body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
@@ -479,7 +497,14 @@ export function spaces(v, ctx) {
      PLAY and CUE, a jog (drag: scrub), the channel faders and the crossfader (drag), the EQ knobs (drag); at the grand,
      its keys play. BACK returns to the camera before ----- */
   const povUi = document.createElement('div'); povUi.className = 'sp-pov'; povUi.hidden = true;
-  povUi.innerHTML = '<i></i><button type="button">BACK</button><p></p>'; document.body.appendChild(povUi);
+  povUi.innerHTML = '<i></i><p></p>'; document.body.appendChild(povUi);
+  const pad = document.createElement('div'); pad.className = 'sp-pad'; pad.hidden = true; pad.setAttribute('aria-label', 'Remote');
+  pad.innerHTML = `<div class="g ring"></div>
+    <button class="g ar up" type="button" data-d="0,-1" aria-label="Up">▲</button><button class="g ar dn" type="button" data-d="0,1" aria-label="Down">▼</button>
+    <button class="g ar lf" type="button" data-d="-1,0" aria-label="Left">◀</button><button class="g ar rt" type="button" data-d="1,0" aria-label="Right">▶</button>
+    <button class="g ok" type="button" aria-label="OK">OK</button>
+    <button class="g sm home" type="button" aria-label="Home" title="Back to the studio">⌂</button><button class="g sm back" type="button" aria-label="Back" title="Back">↩</button><button class="g sm menu" type="button" aria-label="Menu" title="⋯">≡</button>`;
+  document.body.appendChild(pad);
   const canvas = ctx.renderer.domElement, ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   let pov = null;   // { kind, eye, yaw, pitch, before, drag }
   function povEye(kind) {
@@ -499,18 +524,49 @@ export function spaces(v, ctx) {
     pov = { kind, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
     VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
-    povUi.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
-    povUi.querySelector('p').textContent = kind === 'dj' ? 'Aim the cross · tap PLAY, CUE · drag the jogs, the faders, the crossfader' : 'Aim the cross · tap the keys to play';
+    povUi.hidden = false; pad.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
+    crossX = innerWidth / 2; crossY = innerHeight / 2; placeCross();
+    povUi.querySelector('p').textContent = kind === 'dj' ? 'Arrows move the cross · OK presses PLAY, CUE · OK held with an arrow moves a fader, a jog' : 'Arrows move the cross · OK plays the key under it';
     closeMenus(); dock.classList.remove('more-open');
   }
   function exitPov() {
-    if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; document.body.classList.remove('sp-pov-on'); ctx.controls.enabled = true;
+    if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; pad.hidden = true; stopMove(); okHit = null; document.body.classList.remove('sp-pov-on'); ctx.controls.enabled = true;
     director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true });
   }
-  povUi.querySelector('button').addEventListener('click', exitPov);
+  // the remote: the cross moves by the arrows (held: it keeps moving), OK presses what is under the cross and,
+  // held with an arrow, drags it; the keyboard's arrows and Enter do the same
+  let crossX = innerWidth / 2, crossY = innerHeight / 2, okHit = null, moveDir = null, moveTimer = 0;
+  const placeCross = () => { cross.style.left = crossX + 'px'; cross.style.top = crossY + 'px'; };
+  function stepCross() {
+    if (!pov || !moveDir) return;
+    const [dx, dy] = moveDir, k = 7;
+    if (okHit?.ctl) act(okHit, 'move', dx * k, dy * k);
+    else { crossX = Math.max(0, Math.min(innerWidth, crossX + dx * k)); crossY = Math.max(0, Math.min(innerHeight, crossY + dy * k)); placeCross(); }
+  }
+  const startMove = d => { moveDir = d; stepCross(); clearInterval(moveTimer); moveTimer = setInterval(stepCross, 16); };
+  const stopMove = () => { moveDir = null; clearInterval(moveTimer); };
+  const okDown = () => { if (!pov) return; okHit = hitAt(crossX, crossY); if (okHit) act(okHit, 'down'); pad.querySelector('.ok').classList.add('on'); };
+  const okUp = () => { if (okHit) act(okHit, 'up'); okHit = null; pad.querySelector('.ok').classList.remove('on'); };
+  pad.addEventListener('pointerdown', e => {
+    const b = e.target.closest('button'); if (!b) return; e.preventDefault(); b.setPointerCapture?.(e.pointerId);
+    if (b.dataset.d) startMove(b.dataset.d.split(',').map(Number));
+    else if (b.classList.contains('ok')) okDown();
+  });
+  pad.addEventListener('pointerup', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.d) stopMove(); else if (b.classList.contains('ok')) okUp(); });
+  pad.addEventListener('pointercancel', () => { stopMove(); okUp(); });
+  pad.querySelector('.back').addEventListener('click', exitPov);
+  pad.querySelector('.home').addEventListener('click', () => { exitPov(); go.studio(); active = 'studio'; document.body.dataset.space = 'studio'; show(); });
+  pad.querySelector('.menu').addEventListener('click', () => more.click());
+  addEventListener('keydown', e => {
+    if (!pov) return;
+    const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+    if (d) { e.preventDefault(); if (!moveDir) startMove(d); } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!okHit) okDown(); } else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); exitPov(); }
+  }, true);
+  addEventListener('keyup', e => { if (!pov) return; if (e.key.startsWith('Arrow')) stopMove(); else if (e.key === 'Enter' || e.key === ' ') okUp(); }, true);
   const aim = () => { const c = Math.cos(pov.pitch); ctx.controls.target.copy(pov.eye).add(new THREE.Vector3(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.position.copy(pov.eye); ctx.camera.lookAt(ctx.controls.target); VIEWS.pov.target = ctx.controls.target.toArray(); };
-  function hit(e) {
-    const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  const hit = e => hitAt(e.clientX, e.clientY);
+  function hitAt(x, y) {
+    const r = canvas.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, ctx.camera);
     const root = pov.kind === 'dj' ? m.booth.gear.group : ctx.studio.piano;
     for (const h of ray.intersectObject(root, true)) {
@@ -547,7 +603,7 @@ export function spaces(v, ctx) {
   }, true);
   // the cross follows the pointer over the picture (it is the pointer here)
   const cross = povUi.querySelector('i');
-  canvas.addEventListener('pointermove', e => { if (!pov) return; cross.style.left = e.clientX + 'px'; cross.style.top = e.clientY + 'px'; });
+  canvas.addEventListener('pointermove', e => { if (!pov) return; crossX = e.clientX; crossY = e.clientY; placeCross(); });
   canvas.addEventListener('pointerup', e => { if (!pov?.drag) return; e.stopImmediatePropagation(); if (pov.drag.h) act(pov.drag.h, 'up'); pov.drag = null; }, true);
   canvas.addEventListener('click', e => { if (pov) e.stopImmediatePropagation(); }, true);
 
