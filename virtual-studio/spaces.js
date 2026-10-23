@@ -63,7 +63,7 @@ const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'as
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
 const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
-  djBetween: 'assets/video/shows/dj-transition.mp4', djEnd: 'assets/video/shows/dj-closing.mp4' };
+  djOpen: 'assets/video/shows/dj-opening.mp4', djBetween: 'assets/video/shows/dj-transition.mp4', djEnd: 'assets/video/shows/dj-closing.mp4' };
 const asset = p => new URL('../' + p, import.meta.url).href;
 // a song's cover: its album's artwork from djandykofficial.com (assets/covers, 192 px)
 const cover = s => s && asset('assets/covers/' + s.id.split('/')[0] + '.jpg');
@@ -633,7 +633,9 @@ export function spaces(v, ctx) {
   function startDj() {
     const tracks = pick(djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS, 4);
     dj = { i: 0, el: null, paused: false, steps: [{ opening: true }, ...tracks.flatMap((s, k) => (k < tracks.length - 1 ? [{ track: s }, { jingle: 'between' }] : [{ track: s }])), { jingle: 'end' }] };
-    djStep();
+    // first the show's opening film (FRIDAY LIVE OPENING) on the studio's LED wall, then the booth's own opening
+    const it = dj; card('djOpen', { manual: true });
+    cardEl.onended = () => { wallOff(); cardOf = null; if (dj === it && dj.i === 0) { wallHold = false; djStep(); } };
   }
   function pauseDj() {
     if (!dj) return;
