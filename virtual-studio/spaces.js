@@ -177,6 +177,13 @@ export function spaces(v, ctx) {
   /* glass: the space buttons, the edge, the remote */
   .spaces .sp,.edge .eb{background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.02));border-color:rgba(255,255,255,.24);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 8px 24px rgba(0,0,0,.4);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%)}
+  /* during a show the controls step out of the picture after a few seconds without the pointer moving (as a video
+     player's do) and come back at once on any move, touch or key; the show's graphics then sit lower */
+  .dock,.edge,.sp-pad{transition:opacity .6s ease}
+  body.sp-idle .dock,body.sp-idle .edge{opacity:0;pointer-events:none}
+  body.sp-idle canvas{cursor:none}
+  body.sp-idle .sp-air .air-bottom{bottom:84px} body.sp-idle .sp-air .air-ticker{bottom:30px}
+  .sp-air .air-bottom,.sp-air .air-ticker{transition:bottom .6s ease}
   .air.sp-air{z-index:4}
   /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
   body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
@@ -747,9 +754,19 @@ export function spaces(v, ctx) {
   }
   relabel();
 
+  // the controls out of the picture while a show plays and the pointer rests; back on any move, touch or key
+  let lastInput = performance.now();
+  const wake = () => { lastInput = performance.now(); if (document.body.classList.contains('sp-idle')) document.body.classList.remove('sp-idle'); };
+  for (const ev of ['pointermove', 'pointerdown', 'keydown', 'touchstart', 'wheel']) addEventListener(ev, wake, { passive: true, capture: true });
+  function idleCheck() {
+    const showing = !gfx.hidden || afterShow.on || cctv.on || ctx.air?.isOpen;
+    const panelOpen = document.body.classList.contains('panel-open') || dock.classList.contains('more-open') || !!pov;
+    document.body.classList.toggle('sp-idle', showing && !panelOpen && performance.now() - lastInput > 3000);
+  }
+
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
-    pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx();
+    pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx(); idleCheck();
     for (const f of placeAnim) f(performance.now() / 1000);
     for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
     // the cards, by what the shows are doing
