@@ -218,7 +218,7 @@ export function buildStreet(nightEnv, { cc0: base, furnish = false } = {}) {
   // under the pavement and the street: their reflection, seen through the wet, part-transparent surfaces (as the studio
   // floor), blurred and broken up by the relief rather than a mirror
   for (const [w, d, y, z, nrm, nr, wt, wr] of [[W, 4.5, -0.003, FZ + 2.25, floor.normalMap, 2.4, wet, 8], [W, 20, -0.124, FZ + 14.6, asphalt.normalMap, 3, wet2, 10]]) {
-    const m = new Reflector(new THREE.PlaneGeometry(w, d), { clipBias: 0.003, textureWidth: 1024, textureHeight: 512, color: 0x5a5d63, shader: WetReflector });
+    const m = new Reflector(new THREE.PlaneGeometry(w, d), { clipBias: 0.003, textureWidth: 512, textureHeight: 256, color: 0x5a5d63, shader: WetReflector }   /* (half size: a wet reflection is blurred anyway) */);
     const u = m.material.uniforms; u.tNormal.value = nrm; u.tWet.value = wt; u.uScale.value.set(1 / nr, 1 / nr); u.uWetScale.value.set(1 / wr, 1 / wr);
     m.rotation.x = -Math.PI / 2; m.position.set(0, y, z); g.add(m);
   }

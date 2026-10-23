@@ -318,6 +318,15 @@ export function spaces(v, ctx) {
     const st = buildStreet(env, { cc0: asset('assets/cc0/'), furnish: true }); ctx.scene.add(st.group); await st.ready;
     await addProps(PROPS, st.group);
     st.sky = hdr0;   // the night city, behind the building when the camera is out there
+    // out there the studio, the club, the Piano Stage and the studio's mirror floor are behind the facade: they are
+    // not drawn while a camera (also a reflection's) is outside, only restored for the next picture. Inside, the
+    // building is hidden (below). Their shaders are compiled now, so the first look out does not stall
+    const heavy = [ctx.studio.root, m.room?.root, v.stage?.root, ...ctx.scene.children.filter(o => o.isReflector)].filter(Boolean);
+    let saved = null;
+    const before = ctx.scene.onBeforeRender, after = ctx.scene.onAfterRender;
+    ctx.scene.onBeforeRender = (r, s, cam, ...rest) => { before?.call(ctx.scene, r, s, cam, ...rest); if (!saved && cam.position.z > 15) { saved = heavy.map(o => o.visible); heavy.forEach(o => { o.visible = false; }); } };
+    ctx.scene.onAfterRender = (...a) => { after?.call(ctx.scene, ...a); if (saved) { heavy.forEach((o, i) => { o.visible = saved[i]; }); saved = null; } };
+    st.group.visible = true; ctx.renderer.compileAsync?.(ctx.scene, ctx.camera).catch(() => {});
     // the security cameras out there, where their views are: high in the lobby, on a pole across from the entrance
     const { securityCam } = await import('./set.js');
     for (const k of ['secReception', 'secBuilding']) {
