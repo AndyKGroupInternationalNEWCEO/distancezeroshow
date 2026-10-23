@@ -3,13 +3,7 @@
 Open work, newest first. Done items move to the bottom with their commit.
 
 ## Now
-- [ ] **Baked light for the reception and the building (Cycles on RunPod)**: the page's side is in (807dc16); the bake itself is not done (the dz-bake pod was deleted on 2026-10-23 with nothing fetched). Needs a GPU run again (≈ $1–2).
-  - Export the places (reception, facade, street) from the live page as glTF on the pod (`export-probes.mjs places`).
-  - In Blender: a second UV set as one atlas, Cycles bake of direct and indirect light (bounces, soft shadows, light from the chandelier, the desk, the canopy and the uplights), denoised.
-  - In three.js: the baked light on the reception and the facade as a lightMap (uv1); the live lights there turned down; the wet street and moving things stay live.
-  - The user checks it live in Safari.
-
-## Next
+- [ ] **Baked light: check live** (c64ed13, baked on 2026-10-23): the reception and the street in Safari, against ?baked=0; the strength is calibrated by eye (LM_K in spaces.js).
 - [ ] Opening videos for Piano and DJ from the 3D studio (my job; jingle and ident videos belong to the Claude chat).
 - [ ] Piano keys: model quality up close.
 - [ ] DJ: the EQ knobs change the sound (now they only move).
