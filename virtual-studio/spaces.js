@@ -1012,6 +1012,8 @@ export function spaces(v, ctx) {
     // the hanging logo is up for the whole show, as in the studio's simulation, and comes down when it ends
     const wantLogo = onWall || (active === 'piano' && !!piano && v.show.state !== 'ENDED') || (active === 'dj' && !!dj && !dj.over && !dj.done);
     if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
+    // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
+    if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;

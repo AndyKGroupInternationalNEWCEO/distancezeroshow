@@ -322,7 +322,8 @@ function buildRig({ studioLights, M, add, mesh }) {
     m.material.color.copy(color).multiplyScalar(k);
   };
 
-  return {
+  const api = {
+    quiet: false,   // the pianist's own view: no beams, lens glow or pools (the camera sits in the spot's cone: it would blind it)
     fixtures,
     // what lights the stage for real: the studio's own piano lights (read by tests)
     real: { perimeter: [studioTop], spot: [studioSolo] },
@@ -341,8 +342,8 @@ function buildRig({ studioLights, M, add, mesh }) {
         col.copy(g.color);
         f.beam.material.uniforms.uColor.value.copy(col);
         f.beam.material.uniforms.uOpacity.value = 0.11 * g.level * L.haze * (f.group === 'spot' ? 1.4 : 1);
-        f.beam.visible = g.level * L.haze > 0.01;
-        f.lens.color.copy(col).multiplyScalar(2.2 * g.level);
+        f.beam.visible = !api.quiet && g.level * L.haze > 0.01;
+        f.lens.color.copy(col).multiplyScalar(api.quiet ? 0 : 2.2 * g.level);
       }
       movers.forEach((f, i) => onPlatform(moverPools[i], f.g.position, f.aim, top, 0.07, L.moving.color, 0.55 * L.moving.level));
       onPlatform(spotPool, spotF.g.position, center, top, 0.11, L.spot.color, 0.5 * L.spot.level);
@@ -356,4 +357,5 @@ function buildRig({ studioLights, M, add, mesh }) {
       studioTop.color.copy(L.perimeter.color); studioTop.intensity = 280 * L.perimeter.level;
     },
   };
+  return api;
 }
