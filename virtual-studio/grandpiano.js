@@ -129,6 +129,8 @@ export function grandPiano(M) {
     },
     depth: note => keyMap.get(note)?.depth ?? null,
     // the note a pointer hit (the key instance a raycast found)
+    // where a key is (its top, world): for the remote's highlight
+    keyWorld(note, out = new THREE.Vector3()) { const k = keyMap.get(note); if (!k) return null; k.mesh.updateMatrixWorld(true); return out.setFromMatrixPosition(new THREE.Matrix4().multiplyMatrices(k.mesh.matrixWorld, k.rest)); },
     noteAt(object, instanceId) { for (const [n, k] of keyMap) if (k.mesh === object && k.i === instanceId) return n; return null; },
   };
   add(new THREE.BoxGeometry(1.24, 0.07, 0.17), satin, 0, KEY_Y - 0.06, front - 0.08);       // key bed

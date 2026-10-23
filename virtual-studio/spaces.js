@@ -151,8 +151,10 @@ export function spaces(v, ctx) {
   /* first person (the DJ's place, the pianist's): a cross in the middle, BACK, drag to look round, tap a control */
   .sp-pov{position:fixed;inset:0;z-index:6;pointer-events:none}
   .sp-pov[hidden]{display:none}
-  .sp-pov i{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;filter:drop-shadow(0 0 2px #000)}
-  body.sp-pov-on canvas{cursor:none}
+  .sp-pov i{display:none}
+  .sp-focus{position:fixed;z-index:6;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;pointer-events:none;border:2px solid rgba(169,200,238,.95);
+    background:radial-gradient(circle,rgba(169,200,238,.18),rgba(169,200,238,0) 70%);box-shadow:0 0 14px rgba(169,200,238,.75),inset 0 0 8px rgba(255,255,255,.35);transition:left .12s,top .12s}
+  .sp-focus[hidden]{display:none}
   .sp-pov i::before,.sp-pov i::after{content:"";position:absolute;background:rgba(243,245,248,.85);box-shadow:0 0 4px rgba(0,0,0,.8)}
   .sp-pov i::before{left:12px;top:0;width:2px;height:26px} .sp-pov i::after{top:12px;left:0;width:26px;height:2px}
   .sp-pov button{pointer-events:auto;position:absolute;top:calc(env(safe-area-inset-top,0px) + 74px);left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:999px;
@@ -512,6 +514,7 @@ export function spaces(v, ctx) {
     <button class="g ok" type="button" aria-label="OK">OK</button>
     <button class="g sm home" type="button" aria-label="Home" title="Back to the studio">⌂</button><button class="g sm back" type="button" aria-label="Back" title="Back">↩</button><button class="g sm menu" type="button" aria-label="Menu" title="⋯">≡</button>`;
   document.body.appendChild(pad);
+  const ring = document.createElement('div'); ring.className = 'sp-focus'; ring.hidden = true; document.body.appendChild(ring);
   const canvas = ctx.renderer.domElement, ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   let pov = null;   // { kind, eye, yaw, pitch, before, drag }
   function povEye(kind) {
@@ -532,28 +535,51 @@ export function spaces(v, ctx) {
     VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
     povUi.hidden = false; pad.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
-    crossX = innerWidth / 2; crossY = innerHeight / 2; placeCross();
-    povUi.querySelector('p').textContent = kind === 'dj' ? 'Arrows move the cross · OK presses PLAY, CUE · OK held with an arrow moves a fader, a jog' : 'Arrows move the cross · OK plays the key under it';
+    focusNote = 60; focusObj = kind === 'dj' ? targets().find(o => o.userData.ctl.act === 'play' && o.userData.ctl.deck === 1) || targets()[0] : null;
+    povUi.querySelector('p').textContent = kind === 'dj' ? 'Arrows: from control to control · OK presses · OK held with an arrow moves a fader, a jog · or tap them' : 'Arrows: from key to key (up/down an octave) · OK plays · or tap the keys';
     closeMenus(); dock.classList.remove('more-open');
   }
   function exitPov() {
     if (!pov) return; const back = pov.before; pov = null; povUi.hidden = true; pad.hidden = true; stopMove(); okHit = null; document.body.classList.remove('sp-pov-on'); ctx.controls.enabled = true;
     director.go(back && back !== 'pov' ? back : (active === 'dj' ? 'mDJ2' : 'vP2'), { instant: true });
   }
-  // the remote: the cross moves by the arrows (held: it keeps moving), OK presses what is under the cross and,
-  // held with an arrow, drags it; the keyboard's arrows and Enter do the same
-  let crossX = innerWidth / 2, crossY = innerHeight / 2, okHit = null, moveDir = null, moveTimer = 0;
-  const placeCross = () => { cross.style.left = crossX + 'px'; cross.style.top = crossY + 'px'; };
+  // the remote, as on a TV: the arrows move the focus (a glass ring) from control to control (at the console: PLAY,
+  // CUE, jogs, faders, crossfader, knobs, by where they are on screen; at the grand: a semitone left and right, an
+  // octave up and down), OK presses the one in focus and, held with an arrow, drags it; keyboard arrows and Enter too
+  let crossX = innerWidth / 2, crossY = innerHeight / 2, okHit = null, moveDir = null, moveTimer = 0, lastNav = 0, focusObj = null, focusNote = 60;
+  const placeCross = () => {};
+  const targets = () => { const t = []; m.booth.gear.group.traverse(o => { if (o.userData.ctl) t.push(o); }); return t; };
+  const screenOf = (v3) => { const q = v3.clone().project(ctx.camera), r = canvas.getBoundingClientRect(); return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height, front: q.z < 1 }; };
+  const focusPoint = () => pov?.kind === 'piano' ? ctx.studio.piano.userData.keyboard.keyWorld(focusNote) : focusObj?.getWorldPosition(new THREE.Vector3());
+  function navigate(dx, dy) {
+    if (pov.kind === 'piano') { focusNote = Math.max(21, Math.min(108, focusNote + (dx ? (ctx.studio.piano.matrixWorld.determinant() < 0 ? -dx : dx) : -dy * 12))); return; }
+    const all = targets(), here = screenOf(focusPoint() || new THREE.Vector3());
+    let best = null, bestScore = Infinity;
+    for (const o of all) {
+      if (o === focusObj) continue;
+      const p = screenOf(o.getWorldPosition(new THREE.Vector3())), vx = p.x - here.x, vy = p.y - here.y, len = Math.hypot(vx, vy) || 1, cos = (vx * dx + vy * dy) / len;
+      if (cos < 0.35) continue;
+      const score = len * (1 + 2.5 * (1 - cos)); if (score < bestScore) { bestScore = score; best = o; }
+    }
+    if (best) focusObj = best;
+  }
   function stepCross() {
     if (!pov || !moveDir) return;
-    const [dx, dy] = moveDir, k = 7;
-    if (okHit?.ctl) act(okHit, 'move', dx * k, dy * k);
-    else { crossX = Math.max(0, Math.min(innerWidth, crossX + dx * k)); crossY = Math.max(0, Math.min(innerHeight, crossY + dy * k)); placeCross(); }
+    const [dx, dy] = moveDir;
+    if (okHit?.ctl) { act(okHit, 'move', dx * 7, dy * 7); return; }
+    if (performance.now() - lastNav < 170) return; lastNav = performance.now(); navigate(dx, dy);
   }
-  const startMove = d => { moveDir = d; stepCross(); clearInterval(moveTimer); moveTimer = setInterval(stepCross, 16); };
+  const startMove = d => { moveDir = d; lastNav = 0; stepCross(); clearInterval(moveTimer); moveTimer = setInterval(stepCross, 16); };
   const stopMove = () => { moveDir = null; clearInterval(moveTimer); };
-  const okDown = () => { if (!pov) return; okHit = hitAt(crossX, crossY); if (okHit) act(okHit, 'down'); pad.querySelector('.ok').classList.add('on'); };
+  const okDown = () => { if (!pov) return; okHit = pov.kind === 'piano' ? { note: focusNote } : focusObj ? { ctl: focusObj.userData.ctl } : null; if (okHit) act(okHit, 'down'); pad.querySelector('.ok').classList.add('on'); };
   const okUp = () => { if (okHit) act(okHit, 'up'); okHit = null; pad.querySelector('.ok').classList.remove('on'); };
+  // the ring follows its control on screen
+  (function ringLoop() {
+    requestAnimationFrame(ringLoop);
+    if (!pov) { ring.hidden = true; return; }
+    const p = focusPoint(); if (!p) { ring.hidden = true; return; }
+    const s2 = screenOf(p); ring.hidden = !s2.front; ring.style.left = s2.x + 'px'; ring.style.top = s2.y + 'px';
+  })();
   pad.addEventListener('pointerdown', e => {
     const b = e.target.closest('button'); if (!b) return; e.preventDefault(); b.setPointerCapture?.(e.pointerId);
     if (b.dataset.d) startMove(b.dataset.d.split(',').map(Number));
