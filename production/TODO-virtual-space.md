@@ -5,12 +5,11 @@ Open work, newest first. Done items move to the bottom with their commit.
 ## Now
 - [ ] **Baked light: check live** (c64ed13, baked on 2026-10-23): the reception and the street in Safari, against ?baked=0; the strength is calibrated by eye (LM_K in spaces.js).
 - [ ] Opening videos for Piano and DJ from the 3D studio (my job; jingle and ident videos belong to the Claude chat).
-- [ ] Piano keys: model quality up close.
-- [ ] DJ: the EQ knobs change the sound (now they only move).
 - [ ] Jingle videos: the DJ transition and closing videos are shorter than their audio (8 s against 80–100 s). Claude chat's job; write it the request.
 - [ ] Broadcast Studio: 1:1 the Virtual Space UI, plus the remote, first person and MIDI. The BRODCASY session owns it, after the Virtual Space is done (see the memory file director-in-virtualspace-style).
 
 ## Done (latest)
+- The grand's keys modelled as a real grand's (895e201); the DJ mixer's EQ and filter shape the sound (0802d9e)
 - Deployed 2026-10-23 (dpl_DxezFRe7rRakaZCBQggBzTTHCUKK); checked live by the user: everything works
 - Piano Stage cameras stay inside the studio's wall (P5 showed the wall over half the picture) (e55f44a)
 - Piano: songs from Songs crossfade; no fades where Safari fixes the volume (0a63605)
