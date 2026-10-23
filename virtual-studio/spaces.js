@@ -280,6 +280,8 @@ export function spaces(v, ctx) {
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--acc)}
   .air.sp-air{z-index:4}
+  /* the Piano Sessions: the song's title up under ON AIR, not across the bottom, where it lay over the grand's keys */
+  .sp-air.keys .air-bottom{top:calc(env(safe-area-inset-top,0px) + 104px);bottom:auto;align-items:flex-start}
   .sp-air .air-l3{flex-direction:row;align-items:center;gap:14px}
   .sp-air .l3txt{display:flex;flex-direction:column;gap:4px;min-width:0}
   .sp-air .l3art{width:64px;height:64px;flex:none;border-radius:6px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.22),0 6px 18px rgba(0,0,0,.5)}
@@ -503,6 +505,7 @@ export function spaces(v, ctx) {
   function airGfx() {
     const P = v.show, pianoOn = active === 'piano' && (piano || pianoPlaying()), djOn = active === 'dj' && dj && !dj.done;
     gfx.hidden = !(pianoOn || djOn) || !!pov;
+    gfx.classList.toggle('keys', !!pianoOn);
     document.body.classList.toggle('sp-air-on', !gfx.hidden);
     if (gfx.hidden) return;
     const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null;
