@@ -49,7 +49,7 @@ const send = (method, params = {}) => new Promise(r => { const i = ++id; pending
 const evaluate = async expr => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description); return r.result.result.value; };
 
 await send('Runtime.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false, screenWidth: 1920, screenHeight: 1080 });
 async function load() {
   await send('Page.navigate', { url: `http://127.0.0.1:${port}/production/opening/index.html?render${query ? '&' + query : ''}` });
   await sleep(500);

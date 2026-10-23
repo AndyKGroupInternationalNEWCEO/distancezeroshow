@@ -29,8 +29,10 @@ ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id
 const send = (method, params = {}) => new Promise(r => { const id = ++seq; pending.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
 const run = async src => { const r = await send('Runtime.evaluate', { expression: src, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text); return r.result.result.value; };
 await send('Runtime.enable'); await send('Page.enable');
+// a desktop's screen (the page sends phones away: studio.html)
+await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1600, screenHeight: 900 });
 await send('Page.navigate', { url: BASE + 'melbourne-dev.html' });
-await run(`(async () => { for (let i = 0; i < 600; i++) { if (window.__studio?.ext?.spaces) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('no studio'); })()`);
+await run(`(async () => { for (let i = 0; i < 3000; i++) { if (window.__studio?.ext?.spaces) return;   /* (software WebGL on the pod: over a minute) */ await new Promise(r => setTimeout(r, 100)); } throw new Error('no studio'); })()`);
 
 const out = await run(`(async () => {
   const a = window.__studio, THREE = await import('three'), { FZ } = await import('./virtual-studio/building.js');
@@ -64,4 +66,5 @@ const out = await run(`(async () => {
 fs.writeFileSync(path.join(OUT, 'places.glb'), Buffer.from(out.glb, 'base64'));
 fs.writeFileSync(path.join(OUT, 'places.json'), JSON.stringify({ fz: out.fz, names: out.names }));
 console.log('wrote cache-bake/places.glb', (fs.statSync(path.join(OUT, 'places.glb')).size / 1e6).toFixed(1), 'MB,', out.names.length, 'meshes to bake');
-chrome.kill(); server.close(); fs.rmSync(profile, { recursive: true, force: true }); process.exit(0);
+chrome.kill(); server.close(); try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch {}   // (Chrome may still be writing its profile)
+process.exit(0);
