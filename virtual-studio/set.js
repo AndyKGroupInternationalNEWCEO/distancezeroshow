@@ -200,12 +200,14 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
 
   // desk props: broadcast microphones and slim monitors facing the presenters; the guest has a microphone only,
   // so nothing stands in the middle of the desk in the front shots
+  // the desk top is an arc (radius 3.24–4.14 round DESK_CENTER): a prop's depth follows its place along it
+  const onTop = (x, r) => DESK_CENTER + Math.sqrt(r * r - x * x);   // z on the desk top at radius r
   if (guest) {
     const m = microphone(M, C.champagne, glows);
-    m.position.set(0.16, RISER + 0.807, -1.2);
+    m.position.set(0.17, RISER + 0.807, onTop(0.17, 3.55));
     m.rotation.y = Math.PI;
     add(m);
-    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0.16, RISER + 0.809, -1.2); add(ms);
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0.17, RISER + 0.809, onTop(0.17, 3.55)); add(ms);
   }
   // the desk's confidence monitors, one for each at the desk, turned to the one sitting there; they show the
   // programme (main.js renders it in while the camera is in the studio)
@@ -224,14 +226,14 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     mon.rotation.x = 0.14;                                      // tipped back a little, up to the eyes
     shadows(mon); add(mon); deskScreens.push(mat);
   }
-  if (guest) deskMonitor(0, -1.3, SEATS.guest, 0.8);
+  if (guest) deskMonitor(0, onTop(0, 3.4), SEATS.guest, 0.8);
   for (const [seat, col] of [[SEATS.andy, C.amber], [SEATS.georgie, C.ice]]) {
     const m = microphone(M, col, glows);
-    m.position.set(seat.x * 1.22, RISER + 0.807, -1.2);
+    m.position.set(seat.x * 1.22, RISER + 0.807, onTop(seat.x * 1.22, 3.5));
     m.rotation.y = Math.PI + (seat.x < 0 ? -0.15 : 0.15);
     add(m);
-    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 1.22, RISER + 0.809, -1.2); add(ms);
-    deskMonitor(seat.x * 1.5, -1.3, seat, 1, 1.35);   // well round to Andrej / Georgie
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 1.22, RISER + 0.809, onTop(seat.x * 1.22, 3.5)); add(ms);
+    deskMonitor(seat.x * 1.5, onTop(seat.x * 1.5, 3.4), seat, 1, 1.35);   // well round to Andrej / Georgie
   }
 
   /* ----- presenter chairs, and the guest's chair between them ----- */
