@@ -98,6 +98,7 @@ const ICON = {
   after: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a16 16 0 1 0 10 26A13 13 0 0 1 30 8z"/><path d="M14 40h20"/></svg>',
   building: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 40V12h20v28M28 20h12v20"/><path d="M13 18h3m4 0h3m-10 6h3m4 0h3m-10 6h3m4 0h3M33 26h3m-3 6h3"/><path d="M4 40h40"/></svg>',
   reception: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30h36v10H6z"/><path d="M10 30v-4h28v4"/><circle cx="24" cy="14" r="5"/><path d="M16 26c1-4 4-6 8-6s7 2 8 6"/></svg>',
+  places: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 42s13-12.5 13-22a13 13 0 0 0-26 0c0 9.5 13 22 13 22z"/><circle cx="24" cy="20" r="4.5"/></svg>',
   cctv: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 14l26 8-3 8-26-8z"/><path d="M34 22l6 2"/><path d="M14 24l-2 10H6"/></svg>',
   backstage: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 40V8h20l4 4v28"/><path d="M8 40h32"/><circle cx="28" cy="25" r="1.5"/></svg>',
 };
@@ -204,6 +205,21 @@ export function spaces(v, ctx) {
   body.sp-idle canvas{cursor:none}
   body.sp-idle .sp-air .air-bottom{bottom:84px} body.sp-idle .sp-air .air-ticker{bottom:30px}
   .sp-air .air-bottom,.sp-air .air-ticker{transition:bottom .6s ease}
+  /* ⋯ as a glass sheet of tiles: an icon over a short name, the space's own controls only */
+  .dock.more-open .row.ctrl{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;width:min(700px,calc(100vw - 32px));margin:0 auto 10px;padding:14px;border-radius:20px;
+    background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 12px 34px rgba(0,0,0,.5);
+    backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%)}
+  body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none!important}
+  body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj],body:not([data-space=studio]) .sp-row[data-for=studio]{display:none!important}
+  .dock.more-open .row.ctrl .sep{display:none}
+  .dock.more-open .row.ctrl > .b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:84px;padding:8px 6px;border-radius:14px;text-align:center;
+    background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+    font-size:.58rem;letter-spacing:.12em;line-height:1.2;white-space:normal}
+  .dock.more-open .row.ctrl > .b small{display:none} .dock.more-open .row.ctrl > .b .chev{display:none}
+  .dock.more-open .row.ctrl > .b svg.ti{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .dock.more-open .row.ctrl > .b[aria-expanded=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
+  .edge:not(.open) .eb:not(.places){display:none}
+  .edge.open .places{border-color:var(--ice,#a9c8ee)}
   .air.sp-air{z-index:4}
   /* while the show's graphics are up the page's own header and shot label step aside (as in the studio's simulation) */
   body.sp-air-on .top,body.sp-air-on .shot,body.sp-air-on .hint{visibility:hidden} .sp-air .air-bottom{bottom:calc(var(--dock-h,140px) + 52px)} .sp-air .air-ticker{bottom:calc(var(--dock-h,140px) + 8px)}
@@ -222,8 +238,6 @@ export function spaces(v, ctx) {
   const button = (key, label) => `<button class="sp ${key}" type="button" data-space="${key}" aria-pressed="false">${ICON[key]}<img class="art" alt="" hidden><span>${label}</span><small></small></button>`;
   bar.innerHTML = button('studio', 'Studio') + button('piano', 'Piano') + button('dj', 'DJ Room')
     + '<button class="sp more" type="button" aria-expanded="false" aria-label="More controls" title="More for this space">⋯</button>'
-    + '<button class="sp small" type="button" data-global="programme" title="The programme, as on distancezeroshow.com">Programme</button>'
-    + '<button class="sp small" type="button" data-global="info" title="How the Virtual Space works">Info</button>'
     + '<button class="sp more min" type="button" aria-label="Hide the controls" title="Hide the controls (to watch)">▾</button>';
   dock.insertBefore(bar, ctrl);
   const btn = k => bar.querySelector(`[data-space="${k}"]`), more = bar.querySelector('.more');
@@ -234,16 +248,21 @@ export function spaces(v, ctx) {
   const liveBtn = document.getElementById('liveBtn');
   let programmeAll = false;
   liveBtn?.addEventListener('click', () => { document.body.dataset.programme = programmeAll ? 'all' : ''; programmeAll = false; }, true);
-  bar.querySelector('[data-global=programme]').addEventListener('click', () => { programmeAll = true; liveBtn?.click(); });
-  bar.querySelector('[data-global=info]').addEventListener('click', () => window.open('how-it-works', '_blank', 'noopener'));
+  const openProgramme = () => { programmeAll = true; liveBtn?.click(); };
+  const openInfo = () => window.open('how-it-works', '_blank', 'noopener');
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
   edge.innerHTML = [['building', 'building', 'Building'], ['reception', 'reception', 'Reception'], ['backstage', 'backstage', 'Backstage'], ['security', 'cctv', 'CCTV'], ['after', 'after', 'Aftershow']]
     .map(([view, icon, label]) => `<button class="eb" type="button" data-view-edge="${view}" aria-pressed="false">${ICON[icon]}<span>${label}</span></button>`).join('');
+  // one PLACES button; the places unfold under it and fold away again after a choice
+  edge.insertAdjacentHTML('afterbegin', `<button class="eb places" type="button" aria-expanded="false">${ICON.places}<span>Places</span></button>`);
   document.body.appendChild(edge);
+  const placesBtn = edge.querySelector('.places');
+  placesBtn.addEventListener('click', () => { const open = edge.classList.toggle('open'); placesBtn.setAttribute('aria-expanded', String(open)); });
   edge.addEventListener('click', e => {
     const b = e.target.closest('[data-view-edge]'); if (!b) return;
+    edge.classList.remove('open'); placesBtn.setAttribute('aria-expanded', 'false');
     wallHold = false;
     if (b.dataset.viewEdge === 'after') { cctv.stop(); return afterShow.on ? afterShow.stop() : afterShow.start(); }
     if (b.dataset.viewEdge === 'security') { afterShow.stop(); m.releaseCameras(); return cctv.on ? cctv.stop() : cctv.start(); }
@@ -703,6 +722,7 @@ export function spaces(v, ctx) {
       ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
       ['Songs', () => openLibrary('piano')],
       ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
+      ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
     dj: [
       [() => (dj && !dj.done ? 'Finish DJ show' : 'Simulate DJ show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
@@ -716,6 +736,7 @@ export function spaces(v, ctx) {
       ['FX drops', FX.map(([id, l]) => [l, () => playFx(id)])],
       ['Next track', () => nextTrack()],
       ['♪ DJ booth', () => document.getElementById('musicBtn')?.click()],
+      ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
   };
   function simulate(space) {
@@ -750,12 +771,34 @@ export function spaces(v, ctx) {
   function playJingle(which) { stopDj(); jingle.src = asset(JINGLE[which]); jingle.currentTime = 0; jingle.play().catch(() => {}); }
   let discoOn = false, djGenre = null;
   const pops = [], dynamic = [];   // (menu labels that follow the state: Simulate / Finish)
+  // the tiles' icons, by what a control is called (line icons, as the space buttons)
+  const P = d => `<svg class="ti" viewBox="0 0 48 48" aria-hidden="true">${d}</svg>`;
+  const TILE_ICONS = [
+    [/^(Simulate|Finish)/, P('<circle cx="24" cy="24" r="16"/><path d="M20 17l11 7-11 7z"/>')],
+    [/^Camera/, P('<rect x="7" y="15" width="24" height="18" rx="3"/><path d="M31 21l10-5v16l-10-5"/>')],
+    [/^Light/, P('<path d="M18 30a10 10 0 1 1 12 0v4H18z"/><path d="M19 39h10"/>')],
+    [/^Effects/, P('<path d="M24 6l3 9 9 3-9 3-3 9-3-9-9-3 9-3z"/><path d="M37 30l1.5 4.5L43 36l-4.5 1.5L37 42l-1.5-4.5L31 36l4.5-1.5z"/>')],
+    [/^Video/, P('<rect x="6" y="11" width="36" height="26" rx="3"/><path d="M21 19l9 5-9 5z"/>')],
+    [/^Jingles/, P('<path d="M10 28V20h7l10-8v24l-10-8z"/><path d="M33 18a8 8 0 0 1 0 12M37 14a14 14 0 0 1 0 20"/>')],
+    [/^(Songs|Library)/, P('<rect x="8" y="8" width="20" height="32" rx="2"/><rect x="31" y="8" width="9" height="32" rx="2"/><path d="M13 15h10M13 21h10"/>')],
+    [/^Genre/, P('<path d="M8 12h32M14 24h20M20 36h8"/>')],
+    [/^FX/, P('<path d="M16 16v16M10 24h12"/><path d="M28 16l10 16M38 16L28 32"/>')],
+    [/^Next/, P('<path d="M12 14l14 10-14 10z"/><path d="M34 14v20"/>')],
+    [/^♪|Music/, P('<path d="M18 34V12l20-4v22"/><circle cx="14" cy="34" r="4"/><circle cx="34" cy="30" r="4"/>')],
+    [/^Programme|dates|schedule/i, P('<rect x="7" y="10" width="34" height="30" rx="3"/><path d="M7 18h34M15 6v8M33 6v8"/>')],
+    [/^Info/, P('<circle cx="24" cy="24" r="16"/><path d="M24 22v10M24 16v.5"/>')],
+    [/on air|Simulate on air/i, P('<circle cx="24" cy="24" r="5"/><path d="M14 14a14 14 0 0 0 0 20M34 14a14 14 0 0 1 0 20"/>')],
+    [/Auto camera/i, P('<path d="M10 24a14 14 0 0 1 24-10M38 24a14 14 0 0 1-24 10"/><path d="M34 8v6h-6M14 40v-6h6"/>')],
+  ];
+  const tileIcon = text => TILE_ICONS.find(([re]) => re.test(text))?.[1] || '';
+  // a tile: its icon, then its name in a span (so a name that changes, Simulate / Finish, keeps the icon)
+  const setTile = (b, text) => { b.innerHTML = tileIcon(text) + '<span class="tl"></span>'; b.querySelector('.tl').textContent = text; };
   const closeMenus = () => { pops.forEach(p => { p.hidden = true; }); dock.querySelectorAll('.sp-row [aria-expanded]').forEach(b => b.setAttribute('aria-expanded', 'false')); };
   for (const [space, items] of Object.entries(CONTROLS)) {
     const row = document.createElement('div'); row.className = 'row ctrl sp-row'; row.dataset.for = space;
     for (const [label, what] of items) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'b' + (Array.isArray(what) ? ' mbtn' : '');
-      b.textContent = typeof label === 'function' ? label() : label;
+      setTile(b, typeof label === 'function' ? label() : label);
       if (typeof label === 'function') dynamic.push([b, label]);
       if (Array.isArray(what)) {
         const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
@@ -769,6 +812,9 @@ export function spaces(v, ctx) {
     dock.insertBefore(row, ctrl.nextSibling);
   }
   more.addEventListener('click', closeMenus);
+  // the studio's own row (Simulate on air, Camera, Light, Auto camera, Music, Schedule) as tiles too, with Programme and Info
+  for (const b of ctrl.querySelectorAll(':scope > .b')) { if (!b.querySelector('svg.ti')) b.insertAdjacentHTML('afterbegin', tileIcon(b.textContent.trim())); }
+  for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
 
   /* ----- the buttons ----- */
   let active = 'studio', shot = 0;
@@ -826,8 +872,8 @@ export function spaces(v, ctx) {
     if (labelled === active) return; labelled = active;
     const l = LABELS[active];
     if (ui.onair && !document.body.classList.contains('sim')) ui.onair.textContent = l.onair;
-    if (ui.music) ui.music.textContent = l.music;
-    if (ui.live) ui.live.textContent = l.live;
+    if (ui.music) setTile(ui.music, l.music);
+    if (ui.live) setTile(ui.live, l.live);
   }
   relabel();
 
@@ -846,7 +892,7 @@ export function spaces(v, ctx) {
     pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx(); idleCheck();
     if (!loungeFurnished && (ctx.camera.position.z < -6 || ['backstage', 'securityLounge'].includes(director.current))) furnishLounge();
     for (const f of placeAnim) f(performance.now() / 1000);
-    for (const [b, f] of dynamic) { const t = f(); if (b.textContent !== t) b.textContent = t; }
+    for (const [b, f] of dynamic) { const t = f(), tl = b.querySelector('.tl'); if (tl.textContent !== t) { b.innerHTML = tileIcon(t) + '<span class="tl"></span>'; b.querySelector('.tl').textContent = t; } }
     // the cards, by what the shows are doing
     const P = v.show;
     if (active === 'piano' && P.state === 'BETWEEN') card('psBetween');
