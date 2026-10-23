@@ -239,7 +239,7 @@ export function spaces(v, ctx) {
      simulation's controls. Clear glass with a bright edge and a sheen, the picture blurred behind; the chosen one is
      tinted glass (not a solid white pill) */
   .dock{background:linear-gradient(rgba(4,5,7,0),rgba(4,5,7,.35) 60%)}
-  .b,.tab,.pbtn,.air-b,.chip,.phead .x,.fld select{color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
+  .b,.tab,.pbtn,.air-b,.chip,.phead .x,.sp-info .x,.fld select{color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
     background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25);
     backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
@@ -253,6 +253,15 @@ export function spaces(v, ctx) {
     box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 20px 50px rgba(0,0,0,.4);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
   .now,.relcard,.trk{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.18)}
   .fld select option{background:#15171c;color:#f3f5f8}
+  .sp-info{position:fixed;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));padding:18px 20px 14px;border-radius:18px;color:#f6f8fb;
+    font-size:.8rem;line-height:1.5;text-shadow:0 1px 2px rgba(0,0,0,.45);
+    background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.03)),rgba(8,9,12,.35);border:1px solid rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 18px 50px rgba(0,0,0,.45);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
+  .sp-info[hidden]{display:none}
+  .sp-info b{display:block;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:8px}
+  .sp-info p{margin:0 0 10px} .sp-info a{color:#f6f8fb} .sp-info .links{font-size:.7rem;letter-spacing:.06em} .sp-info .links a{text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3)}
+  .sp-info .dev{font-size:.62rem;letter-spacing:.08em;opacity:.7;margin:0}
+  .sp-info .x{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;font-size:1rem;line-height:1;cursor:pointer}
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--acc)}
   .air.sp-air{z-index:4}
@@ -296,7 +305,17 @@ export function spaces(v, ctx) {
   let programmeAll = false;
   liveBtn?.addEventListener('click', () => { document.body.dataset.programme = programmeAll ? 'all' : ''; programmeAll = false; }, true);
   const openProgramme = () => { programmeAll = true; liveBtn?.click(); };
-  const openInfo = () => window.open('how-it-works', '_blank', 'noopener');
+  // INFO: a glass card with what this page is, the legal pages and how it works (the page's footer keeps one line)
+  const info = document.createElement('div'); info.className = 'sp-info'; info.hidden = true; info.setAttribute('role', 'dialog'); info.setAttribute('aria-label', 'Info');
+  info.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>Info</b>
+    <p>A virtual set preview. “Simulate” plays a simulation of the show on this page; nothing is recorded or broadcast. First show 27 January 2027 · <a href="/">distancezeroshow.com</a></p>
+    <p class="links"><a href="how-it-works" target="_blank" rel="noopener">How it works</a> · <a href="?guide">Guide</a></p>
+    <p class="links"><a href="https://distancezeroshow.com/impressum#en">Impressum</a> · <a href="https://distancezeroshow.com/privacy#en">Privacy</a> · <a href="https://distancezeroshow.com/cookies#en">Cookies</a> · <a href="https://distancezeroshow.com/terms#en">Terms of use</a> · <a href="https://distancezeroshow.com/disclaimer#en">Disclaimer</a></p>
+    <p class="dev">Developed by Andy'K Group International LTD</p>`;
+  document.body.appendChild(info);
+  info.querySelector('.x').addEventListener('click', () => { info.hidden = true; });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !info.hidden) info.hidden = true; });
+  const openInfo = () => { info.hidden = !info.hidden; };
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
