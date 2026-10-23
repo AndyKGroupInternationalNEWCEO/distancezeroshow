@@ -63,7 +63,10 @@ const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'as
 const BREAK = 12;   // s of the transition jingle between two tracks (then 2.5 s fading out)
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
+// (the Piano Sessions' cards: shared-assets/videos/piano-sessions, PS_01–PS_05; WE'LL BE RIGHT BACK and INTERMISSION
+// loop while the show is paused, as the Friday ones do)
 const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'assets/video/shows/ps-stay-tuned.mp4', psEnd: 'assets/video/shows/ps-thank-you.mp4',
+  psBack: 'assets/video/shows/ps-right-back.mp4', psInter: 'assets/video/shows/ps-intermission.mp4',
   djOpen: 'assets/video/shows/dj-opening.mp4', djBetween: 'assets/video/shows/dj-stay-tuned.mp4', djEnd: 'assets/video/shows/dj-closing.mp4',
   // the Friday cards (shared-assets/videos/friday, FR_01–FR_04): STARTING SOON before the opening film, WE'LL BE RIGHT BACK
   // while the show is paused, INTERMISSION (from ⋯ Video), STAY TUNED in the short break between two tracks; the Friday
@@ -562,6 +565,19 @@ export function spaces(v, ctx) {
     cardEl.addEventListener('ended', () => { if (piano?.soon) beginPiano(); }, { once: true });
     piano.soonUntil = performance.now() + 14000;   // (in case the card cannot play)
   }
+  // the Piano Sessions' pause on the wall: WE'LL BE RIGHT BACK (the PIANO button) or INTERMISSION (⋯ Video) loops there
+  // until the show goes on; then the main front camera
+  function pausePiano({ hold } = {}) {
+    if (!piano || piano.soon || !pianoPlaying()) return;
+    v.showCommand('pause');
+    if (v.show.paused && hold) { piano.hold = hold; card(hold, { manual: true, loop: true }); }
+    else if (!v.show.paused && piano.hold) { piano.hold = null; cardOff(); wallHold = false; v.pickCamera('P1'); }
+  }
+  function pianoIntermission() {
+    if (!piano || piano.soon || !pianoPlaying()) return;
+    if (piano.hold === 'psInter') return pausePiano();
+    if (v.show.paused) { piano.hold = 'psInter'; card('psInter', { manual: true, loop: true }); } else pausePiano({ hold: 'psInter' });
+  }
   function beginPiano() { if (!piano?.soon) return; piano.soon = false; v.showCommand(v.show.state === 'IDLE' || v.show.state === 'ENDED' ? 'start' : 'restart'); }
   const stopPiano = () => { piano = null; cardOff(); if (pianoPlaying()) v.showCommand('stop'); };   // (also ends a STARTING SOON)
 
@@ -914,7 +930,7 @@ export function spaces(v, ctx) {
       ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano')]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Studio look', () => v.setLook(false)], ['Concert look', () => v.setLook(true)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
-      ['Video', [['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
+      ['Video', [['Intermission', () => pianoIntermission()], ['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
       ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
       ['Songs', () => openLibrary('piano')],
       ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
@@ -1028,7 +1044,7 @@ export function spaces(v, ctx) {
     },
     piano() {
       if (active === 'piano' && piano?.soon) { piano.held = !piano.held; if (piano.held) cardEl.pause(); else { cardEl.play().catch(() => {}); piano.soonUntil = performance.now() + 14000; } return; }
-      if (active === 'piano' && pianoPlaying()) return v.showCommand('pause');
+      if (active === 'piano' && pianoPlaying()) return pausePiano({ hold: 'psBack' });
       stopDj();
       if (m.env === 'djroom') m.setEnv('studio', { transition: false });
       startPiano();
@@ -1091,7 +1107,7 @@ export function spaces(v, ctx) {
     for (const [b, f] of dynamic) { const t = f(), tl = b.querySelector('.tl'); if (tl.textContent !== t) { b.innerHTML = tileIcon(t) + '<span class="tl"></span>'; b.querySelector('.tl').textContent = t; } }
     // the cards, by what the shows are doing
     const P = v.show;
-    if (dj?.hold) { /* a pause card holds the wall */ }
+    if (dj?.hold || piano?.hold) { /* a pause card holds the wall */ }
     else if (active === 'piano' && P.state === 'BETWEEN') card('psBetween');
     else if (active === 'piano' && P.state === 'CLOSING' && P.duration && P.time > P.duration - 11.4) card('psEnd');
     else if (active === 'dj' && dj?.el === jingle && dj.steps[dj.i - 1]?.jingle === 'between') card('djBetween');
@@ -1104,7 +1120,7 @@ export function spaces(v, ctx) {
     if (onWall && wallHold && !cardEl.paused && !cardEl.ended && director.current !== CARD_VIEW && !afterShow.on) director.go(CARD_VIEW, { instant: true });
     // paused with the show
     const held = (active === 'piano' && (P.paused || !!piano?.held)) || !!dj?.paused;
-    if (onWall && !cardEl.ended && held !== cardEl.paused && !dj?.hold) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
+    if (onWall && !cardEl.ended && held !== cardEl.paused && !dj?.hold && !piano?.hold) { if (held) cardEl.pause(); else cardEl.play().catch(() => {}); }
     // the building only while the camera is out there (its lights and wet street cost nothing in the studio then)
     if (street && outside() !== shownOut) {
       shownOut = outside(); street.then(st => { st.group.visible = shownOut; if (st.sky) { studioBg ??= ctx.scene.background; ctx.scene.background = shownOut ? st.sky : studioBg; ctx.scene.backgroundIntensity = shownOut ? 0.55 : 1; } });
@@ -1122,7 +1138,7 @@ export function spaces(v, ctx) {
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
-    const pianoLabel = piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
+    const pianoLabel = piano?.hold === 'psInter' ? 'Intermission · tap to play' : piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
     const djLabel = !dj || dj.done ? 'Play again' : dj.hold === 'djInter' ? 'Intermission · tap to play' : dj.paused ? 'Paused · tap to play' : dj.soon ? 'Starting soon' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = ctx.air?.isOpen ? 'On air · tap to end' : 'Simulate on air';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
