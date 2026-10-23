@@ -442,8 +442,9 @@ const $ = s => document.querySelector(s);
 const loader = $('#loader'), bar = $('#bar');
 const progress = p => { bar.style.width = Math.round(p * 100) + '%'; };
 
-function fallback(text) {
+function fallback(text, title) {
   if (text) $('#fbtext').textContent = text;
+  if (title) $('#fallback h1').textContent = title;
   $('#fallback').hidden = false;
   loader.classList.add('done');
   for (const el of ['.dock', '.top .status', '.shot', '.hint']) $(el)?.setAttribute('hidden', '');
@@ -477,7 +478,11 @@ function tier() {
     : { mobile: false, ao: true, dpr: Math.min(dpr, 2), msaa: 4, shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };   // edges smoothed (4× MSAA) on desktops; the frame-rate watch lowers it on slow machines
 }
 
-if (!webgl2()) fallback();
+// phones: the studio (with the Piano Stage and the DJ Room) is made for a tablet from the iPad mini (744 px across) or a
+// computer; a phone gets this note and loads nothing of the 3D (?phone=1 opens it anyway, for testing)
+const phone = Math.min(screen.width, screen.height) < 700 && !new URLSearchParams(location.search).has('phone');
+if (phone) fallback('The DISTANCE // ZERO virtual studio, with the Vienna Piano Stage and the Melbourne Underground DJ Room, needs a bigger screen. Open this page on a tablet (iPad mini or larger) or on a computer.', 'Made for tablet and computer');
+else if (!webgl2()) fallback();
 else {
   try {
     progress(0.1);
