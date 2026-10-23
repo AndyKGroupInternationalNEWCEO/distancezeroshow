@@ -202,10 +202,10 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   // so nothing stands in the middle of the desk in the front shots
   if (guest) {
     const m = microphone(M, C.champagne, glows);
-    m.position.set(0, RISER + 0.807, -1.02);
+    m.position.set(0.16, RISER + 0.807, -1.2);
     m.rotation.y = Math.PI;
     add(m);
-    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0, RISER + 0.809, -1.02); add(ms);
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(0.16, RISER + 0.809, -1.2); add(ms);
   }
   // the desk's confidence monitors, one for each at the desk, turned to the one sitting there; they show the
   // programme (main.js renders it in while the camera is in the studio)
@@ -216,8 +216,8 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     const mat = new THREE.MeshBasicMaterial({ color: 0x1a2230 });
     const screen = mesh(new THREE.PlaneGeometry(0.32, 0.18), mat, mon);
     screen.position.set(0, 0.15, -0.0085); screen.rotation.y = Math.PI;
-    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.06), M.brushed, mon).position.y = 0.03;
-    mesh(new THREE.BoxGeometry(0.16, 0.008, 0.1), M.brushed, mon);
+    mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.06), M.brushed, mon).position.y = 0.03;
+    mesh(new THREE.BoxGeometry(0.1, 0.006, 0.065), M.brushed, mon);
     mon.position.set(x, RISER + 0.807, z); mon.scale.setScalar(scale);
     mon.rotation.order = 'YXZ';
     mon.rotation.y = Math.atan2(-(seat.x - x), -(seat.z - z)) * turn;   // the screen (facing local -z) towards the seat (turn > 1: further round)
@@ -227,10 +227,10 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   if (guest) deskMonitor(0, -1.3, SEATS.guest, 0.8);
   for (const [seat, col] of [[SEATS.andy, C.amber], [SEATS.georgie, C.ice]]) {
     const m = microphone(M, col, glows);
-    m.position.set(seat.x * 0.92, RISER + 0.807, -1.02);
+    m.position.set(seat.x * 1.22, RISER + 0.807, -1.2);
     m.rotation.y = Math.PI + (seat.x < 0 ? -0.15 : 0.15);
     add(m);
-    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 0.92, RISER + 0.809, -1.02); add(ms);
+    const ms = contactShadow(0.2, 0.2, 0.5); ms.position.set(seat.x * 1.22, RISER + 0.809, -1.2); add(ms);
     deskMonitor(seat.x * 1.5, -1.3, seat, 1, 1.35);   // well round to Andrej / Georgie
   }
 
