@@ -221,6 +221,18 @@ export function spaces(v, ctx) {
   .dock.more-open .row.ctrl > .b small{display:none} .dock.more-open .row.ctrl > .b .chev{display:none}
   .dock.more-open .row.ctrl > .b svg.ti{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
   .dock.more-open .row.ctrl > .b[aria-expanded=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
+  /* the menus under a tile (Camera, Light, …) in the same glass: a sheet of small glass keys, as the tiles */
+  .dock .pop{gap:6px;padding:8px;border-radius:16px;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));width:min(500px,calc(100vw - 32px));
+    background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.01) 60%);border:1px solid rgba(255,255,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 12px 34px rgba(0,0,0,.35);
+    backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
+  .dock .pop[hidden]{display:none}
+  .dock .pop .b{justify-content:center;text-align:center;min-height:40px;height:auto;padding:6px 8px;border-radius:11px;white-space:normal;line-height:1.2;
+    font-size:.5rem;letter-spacing:.08em;color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
+    background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25)}
+  .dock .pop .b:hover,.dock.more-open .row.ctrl > .b:hover{border-color:rgba(255,255,255,.55)}
+  .dock .pop .b[aria-pressed=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
+  .dock.more-open .row.ctrl > .b{overflow:hidden;letter-spacing:.05em!important;overflow-wrap:anywhere}
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--ice,#a9c8ee)}
   .air.sp-air{z-index:4}
@@ -774,7 +786,7 @@ export function spaces(v, ctx) {
   // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
   const CONTROLS = {
     piano: [
-      [() => (piano || pianoPlaying() ? 'Finish Piano show' : 'Simulate Piano show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
+      [() => (piano || pianoPlaying() ? 'Finish show' : 'Simulate show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
       ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano')]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Studio look', () => v.setLook(false)], ['Concert look', () => v.setLook(true)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
@@ -785,7 +797,7 @@ export function spaces(v, ctx) {
       ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
     dj: [
-      [() => (dj && !dj.done ? 'Finish DJ show' : 'Simulate DJ show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
+      [() => (dj && !dj.done ? 'Finish show' : 'Simulate show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
       ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
