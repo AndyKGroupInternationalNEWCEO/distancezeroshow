@@ -207,19 +207,19 @@ export function spaces(v, ctx) {
   body.sp-idle .sp-air .air-bottom{bottom:84px} body.sp-idle .sp-air .air-ticker{bottom:30px}
   .sp-air .air-bottom,.sp-air .air-ticker{transition:bottom .6s ease}
   /* ⋯ as a glass sheet of tiles: an icon over a short name, the space's own controls only */
-  .dock.more-open .row.ctrl{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;width:min(700px,calc(100vw - 32px));margin:0 auto 10px;padding:14px;border-radius:20px;
+  .dock.more-open .row.ctrl{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;width:min(500px,calc(100vw - 32px));margin:0 auto 8px;padding:8px;border-radius:16px;
     background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.01) 60%);border:1px solid rgba(255,255,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 30px rgba(255,255,255,.04),0 12px 34px rgba(0,0,0,.35);
     backdrop-filter:blur(22px) saturate(180%) brightness(1.05);-webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.05)}
   body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none!important}
   /* only the chosen space's sheet (these must win over the open sheet's grid above) */
   body:not([data-space=piano]) .dock.more-open .row.ctrl.sp-row[data-for=piano],body:not([data-space=dj]) .dock.more-open .row.ctrl.sp-row[data-for=dj]{display:none!important}
   .dock.more-open .row.ctrl .sep{display:none}
-  .dock.more-open .row.ctrl > .b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:84px;padding:8px 6px;border-radius:14px;text-align:center;
+  .dock.more-open .row.ctrl > .b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:56px;padding:5px 4px;border-radius:11px;text-align:center;
     background:linear-gradient(155deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%,rgba(255,255,255,.06) 100%);border:1px solid rgba(255,255,255,.34);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.08),0 6px 18px rgba(0,0,0,.25);color:#f6f8fb;text-shadow:0 1px 2px rgba(0,0,0,.45);
-    font-size:.58rem;letter-spacing:.12em;line-height:1.2;white-space:normal}
+    font-size:.5rem;letter-spacing:.08em;line-height:1.15;white-space:normal}
   .dock.more-open .row.ctrl > .b small{display:none} .dock.more-open .row.ctrl > .b .chev{display:none}
-  .dock.more-open .row.ctrl > .b svg.ti{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .dock.more-open .row.ctrl > .b svg.ti{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
   .dock.more-open .row.ctrl > .b[aria-expanded=true]{border-color:var(--ice,#a9c8ee);background:linear-gradient(160deg,rgba(169,200,238,.32),rgba(169,200,238,.08))}
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--ice,#a9c8ee)}
@@ -404,18 +404,18 @@ export function spaces(v, ctx) {
   let cardOf = null;   // which card shows (so each plays once per moment)
   // the card on the LED wall (the wall's own video programme, as the studio's simulation uses), the camera on the wall,
   // the logo up; while it plays the shot stays on the wall. A show's closing card stays on its last frame
-  let wallBefore = null, onWall = false, wallHold = false;   // wallHold: the camera stays on the wall (until the visitor picks one)
+  let wallBefore = null, onWall = false, wallHold = false, logoUp = false;   // logoUp: the hanging logo is up for a show (set in the loop)   // wallHold: the camera stays on the wall (until the visitor picks one)
   function card(name, { manual = false } = {}) {
     if (cardOf === name && !manual) return; cardOf = name;
     cardEl.src = asset(CARD[name]); cardEl.currentTime = 0; cardEl.play().catch(() => {});
     if (!onWall) { wallBefore = v.source; onWall = true; }
-    v.setSource('main'); ctx.studio.wall.film(() => [[cardEl, 1]]); ctx.studio.wall.set('film'); ctx.studio.liftLogo(true);
+    v.setSource('main'); ctx.studio.wall.film(() => [[cardEl, 1]]); ctx.studio.wall.set('film');
     director.setAuto(false); director.go(CARD_VIEW, { instant: true }); wallHold = true;
     cardEl.onended = () => { if (manual || !name.endsWith('End')) wallOff(); };
   }
   function wallOff() {
     if (!onWall) return; onWall = false;
-    ctx.studio.wall.set('idle'); ctx.studio.liftLogo(false); if (wallBefore && wallBefore !== 'main') v.setSource(wallBefore);
+    ctx.studio.wall.set('idle'); if (wallBefore && wallBefore !== 'main') v.setSource(wallBefore);
   }
   const cardOff = () => { cardOf = null; cardEl.pause(); wallOff(); };
 
@@ -929,6 +929,9 @@ export function spaces(v, ctx) {
     // a show that has run to its end hands over to AFTERSHOW
     const over = (active === 'piano' && v.show.state === 'ENDED' && !piano) || (active === 'dj' && dj?.over);
     if (over && !afterShow.on) { ended ??= performance.now(); if (performance.now() - ended > 6000) afterShow.start(); }
+    // the hanging logo is up for the whole show, as in the studio's simulation, and comes down when it ends
+    const wantLogo = onWall || (active === 'piano' && !!piano && v.show.state !== 'ENDED') || (active === 'dj' && !!dj && !dj.over && !dj.done);
+    if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
     for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
