@@ -930,7 +930,9 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
         logEvent('ok', `Background loop: ${v.id} — ${v.title} (no sound) until the next GO`);
       } else if (afterScene) {
         const sc = afterScene; afterScene = ''; state.mediaAir.video = null;
-        if (obs.hasScene(sc)) { await obs.setProgram(sc); logEvent('ok', `Video ended: back to ${sc}`); }
+        // only while the video is still on program: a scene Andrej cut to by hand stays
+        if (obs.state.program !== 'VT') logEvent('ok', `Video ended: ${obs.state.program} stays (cut by hand), ${sc} not taken`);
+        else if (obs.hasScene(sc)) { await obs.setProgram(sc); logEvent('ok', `Video ended: back to ${sc}`); }
       } else if (state.mediaAir.video) state.mediaAir.video = null;
       changed();
     } catch (e) { resetAfter(); logEvent('warn', `Sequence stopped: ${e.message}`); }
