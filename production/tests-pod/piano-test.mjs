@@ -1,5 +1,6 @@
 // PIANO (the owner's brief of 2026-10-27), in headless Chrome by real clicks: the choice on entering (no show by itself),
-// PLAY PIANO in private, SIMULATE LIVE SHOW in the agreed order, the NOW PLAYING lower third whole, RETURN TO PIANO.
+// PLAY PIANO in private, SIMULATE LIVE SHOW in the agreed order, the NOW PLAYING lower third whole, RETURN TO PIANO;
+// then the same choice in the DJ ROOM (PLAY DJ at the console, SIMULATE LIVE SHOW, RETURN TO DJ BOOTH).
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -91,7 +92,9 @@ while (Date.now() - t0 < 12 * 60000) {
     }
     await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1600, screenHeight: 900 });
   }
-  // on through each recording: a jump to 1.5 s before its end, so that each one ends by itself (its 'ended')
+  // on through each recording: a jump to 1.5 s before its end, so that each one ends by itself (its 'ended'); the
+  // first song only once the lower third is measured
+  if (s.show === 'SONG' && !measured) { await sleep(700); continue; }
   await run(`(() => { const P = ${S}.show, d = P.duration; if (!P.segment || P.paused || !(d > 4) || P.time > d - 3) return;
     if (P.segment === 'song') P.seek(d - 1.5); else P.audio[P.segment].currentTime = d - 1.5; })()`);
   await sleep(700);
@@ -113,7 +116,39 @@ check('RETURN TO PIANO: at the piano, no show, no AFTERSHOW, nothing plays (9 s)
 await shot('5-return');
 // 5. the other spaces still answer
 await click('.spaces [data-space="studio"]'); await W(`${S}.spaces.active === 'studio'`, 10000); s = await state(); check('STUDIO still works', s.active === 'studio' && !s.choice, s);
-await click('.spaces [data-space="dj"]'); await W(`${S}.spaces.active === 'dj'`, 10000); s = await state(); check('DJ ROOM still starts its show (STARTING SOON, then opening 1)', s.active === 'dj' && await W(`${S}.melbourne.opening.state === 'PLAYING'`, 25000), s);
+// (the studio's own simulation hides the dock while it is on: its EXIT, as a visitor does)
+await run(`document.querySelector('.air-exit')?.click()`); await sleep(1500);
+// 6. DJ ROOM: the same choice
+const djState = () => run(`(() => { const v = ${S}, m = v.melbourne, d = v.spaces.dj; return { active: v.spaces.active, choice: !document.querySelector('.sp-choice').hidden, choiceBtn: document.querySelector('.sp-choice .play').textContent,
+  dj: d ? { done: !!d.done, soon: !!d.soon, i: d.i } : null, opening: m.opening.state, pov: document.body.classList.contains('sp-pov-on'), gfx: !document.querySelector('.sp-air').hidden, after: v.spaces.afterShow.on, card: document.querySelector('.sp-card').classList.contains('on'), out: window.__out }; })()`);
+const enterDj = async () => { await click('.spaces [data-space="dj"]'); if (!await W(`!document.querySelector('.sp-choice').hidden`, 10000)) await click('.spaces [data-space="dj"]'); };
+await enterDj(); await sleep(5000); let d = await djState();
+check('DJ ROOM: the choice appears, the show does not start by itself (5 s)', d.active === 'dj' && d.choice && d.choiceBtn === 'Play DJ' && !d.dj && d.opening !== 'PLAYING' && !d.card && !d.gfx, d);
+await shot('6-dj-choice');
+await click('.sp-choice .play'); await W(`document.body.classList.contains('sp-pov-on')`, 20000); await sleep(2000); d = await djState();
+check('PLAY DJ: at the console in first person, no show, no on-air graphics, nothing sent out', d.pov && !d.dj && d.opening !== 'PLAYING' && !d.gfx && !d.out.length, d);
+await shot('7-play-dj');
+await run(`document.querySelector('.sp-pad .home').click()`); await sleep(1500);
+await enterDj(); await sleep(800); d = await djState(); check('DJ ROOM again (at rest): the choice again', d.choice && d.choiceBtn === 'Play DJ' && !d.dj, d);
+await click('.sp-choice .sim');
+check('SIMULATE LIVE SHOW (DJ): STARTING SOON, then opening 1', await W(`${S}.melbourne.opening.state === 'PLAYING'`, 60000), await djState());
+// on through the show: the opening to its end, each track and jingle to 1.5 s before its end (the break jingle past
+// its short break), so that each ends by itself
+const t1 = Date.now();
+while (Date.now() - t1 < 10 * 60000) {
+  d = await djState(); if (d.dj?.done) break;
+  await run(`(() => { const v = ${S}, m = v.melbourne, d = v.spaces.dj; if (!d || d.paused || d.soon) return;
+    if (!d.el) { if (m.opening.state === 'PLAYING') m.djOpening('seek', 97.5); return; }
+    const a = d.el; if (a.duration > 4 && a.currentTime < a.duration - 3 && !d.fading) a.currentTime = a.duration - 1.5; })()`);
+  await sleep(1500);
+}
+await sleep(1500); d = await djState();
+check('DJ show ended: the choice with RETURN TO DJ BOOTH', d.dj?.done && d.choice && d.choiceBtn === 'Return to DJ booth', d);
+await shot('8-dj-ended');
+await click('.sp-choice .play'); await W(`document.body.classList.contains('sp-pov-on')`, 40000); await sleep(9000); d = await djState();
+check('RETURN TO DJ BOOTH: at the console, no show, no AFTERSHOW (9 s)', d.active === 'dj' && d.pov && !d.dj && !d.after && d.opening !== 'PLAYING' && !d.gfx, d);
+await shot('9-dj-return');
+s = await state();
 check('nothing sent out', !s.out.length, s.out);
 check('no errors', !problems.length, problems);
 console.log(`${results.filter(Boolean).length}/${results.length}`, OUT);

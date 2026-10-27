@@ -15,7 +15,7 @@ await clickText('.sp-row .b', 'Video'); await sleep(200); await clickText('.pop 
 check('piano video card on', await run("document.querySelector('.sp-card').classList.contains('on')"), {}); await shot('ctl-card');
 await sleep(8000);
 check('the card goes away at its end', !(await run("document.querySelector('.sp-card').classList.contains('on')")), await run("(() => { const c = document.querySelector('.sp-card'); return { t: c.currentTime, d: c.duration, ended: c.ended, paused: c.paused, src: c.src.slice(-30), rs: c.readyState }; })()"));
-await click('.spaces [data-space="dj"]'); await sleep(1500);
+await click('.spaces [data-space="dj"]'); await sleep(800); await click('.sp-choice .sim'); await sleep(1500);
 if (!(await run("document.getElementById('dock').classList.contains('more-open')"))) await click('.spaces .more');
 const drow = await vis('.sp-row .b'); console.log('  dj ⋯:', JSON.stringify(drow));
 check('dj ⋯: its own', ['Finish DJ show', 'Camera', 'Light', 'Effects', 'Video', 'Jingles'].every(w => drow.includes(w)) && !drow.some(x => /Piano show/.test(x)), drow);

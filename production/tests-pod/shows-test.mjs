@@ -61,7 +61,7 @@ await sleep(4000); await shot('piano-song2');
 const k = await run(`(() => { const kb = __studio.studio.piano.userData.keyboard; return { keys: kb.notes.filter(x => kb.depth(x) > 0).length, cam: __studio.director.current, label: document.querySelector('.spaces [data-space=piano] small').textContent }; })()`);
 console.log('  song 2:', JSON.stringify(k));
 // DJ ROOM: opening 1 → track → jingle → track
-await click('.spaces [data-space="dj"]'); await sleep(2000);
+await click('.spaces [data-space="dj"]'); await sleep(800); await click('.sp-choice .sim'); await sleep(2000);
 check('DJ ROOM: piano stopped, opening 1 plays', await W(`${S}.melbourne.opening.state === 'PLAYING' && ${S}.show.state === 'IDLE'`, 10000), {});
 await run(`${S}.melbourne.djOpening('seek', 97.5)`);
 check('opening ends → track 1 plays, the light follows it', await W(`${S}.spaces.dj?.el && !${S}.spaces.dj.el.paused && ${S}.spaces.dj.el.currentTime > 2`, 40000), await run(`${S}.spaces.dj && { i: ${S}.spaces.dj.i, el: !!${S}.spaces.dj.el }`));
