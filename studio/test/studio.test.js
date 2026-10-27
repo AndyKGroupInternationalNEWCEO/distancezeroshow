@@ -1298,6 +1298,32 @@ test('A/B: break video once, then V19 loops muted for the whole break; RETURN TO
   d.close();
 });
 
+test('a video played in VT: the planned scene follows when it ends, unless the Director cut away by hand', async () => {
+  const d = client(D, { cookie: directorCookie }); await d.opened;
+  await d.send({ t: 'rundown', action: 'reset' });
+  const date = new Date(Date.now() + 85 * 86400000).toISOString().slice(0, 10);
+  await d.send({ t: 'episode.new', format: 'sunday', date, start: '20:00' });
+  await d.next(m => m.t === 'state' && m.s.rundown.episode?.date === date);
+  // MUSIC without its Video Player, so the programme video (V06) plays in VT
+  const keep = mock.items.MUSIC; mock.items.MUSIC = keep.filter(i => i.sourceName !== 'Video Player');
+  try {
+    let r = await d.send({ t: 'cue.go', index: 5 });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(mock.state.program, 'VT');
+    mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+    await d.next(m => m.t === 'log' && /Video ended: back to MUSIC/.test(m.entry.text));
+    assert.equal(mock.state.program, 'MUSIC', 'no cut by hand: the planned scene follows');
+    r = await d.send({ t: 'cue.go', index: 5 });
+    assert.equal(mock.state.program, 'VT');
+    await d.send({ t: 'obs', action: 'program', scene: 'VIENNA' });
+    mock.emit('MediaInputPlaybackEnded', { inputName: 'Video Player' });
+    await d.next(m => m.t === 'log' && /Video ended: VIENNA stays/.test(m.entry.text));
+    assert.equal(mock.state.program, 'VIENNA', 'the Director\'s cut stays');
+  } finally { mock.items.MUSIC = keep; }
+  await d.send({ t: 'rundown', action: 'reset' });
+  d.close();
+});
+
 test('a video with its own sound stops the running jingle; the opening never plays on top of STARTING SOON', async () => {
   const d = client(D, { cookie: directorCookie }); await d.opened;
   await d.send({ t: 'rundown', action: 'reset' });
