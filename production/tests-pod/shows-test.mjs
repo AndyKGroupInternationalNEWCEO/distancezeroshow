@@ -46,7 +46,7 @@ await sleep(3000);
 const W = (cond, ms = 60000) => run(`(async () => { const t0 = Date.now(); while (Date.now() - t0 < ${ms}) { if (${cond}) return true; await new Promise(r => setTimeout(r, 200)); } return false; })()`);
 const S = `__studio.ext`;
 // PIANO: the show order
-await click('.spaces [data-space="piano"]'); await sleep(1500);
+await click('.spaces [data-space="piano"]'); await sleep(800); await click('.sp-choice .sim'); await sleep(1500);
 check('PIANO: STARTING SOON first', await run(`document.querySelector('.sp-card').classList.contains('on') && ${S}.show.state === 'IDLE'`), {});
 await shot('piano-soon');
 check('then the Piano Sessions start', await W(`${S}.show.state !== 'IDLE'`, 20000), {});

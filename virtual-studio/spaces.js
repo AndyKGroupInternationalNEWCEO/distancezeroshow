@@ -276,12 +276,14 @@ export function spaces(v, ctx) {
   .sp-info b{display:block;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:8px}
   .sp-info p{margin:0 0 10px} .sp-info a{color:#f6f8fb} .sp-info .links{font-size:.7rem;letter-spacing:.06em} .sp-info .links a{text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3)}
   .sp-info .dev{font-size:.62rem;letter-spacing:.08em;opacity:.7;margin:0}
+  .sp-choice .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px} .sp-choice .acts .b{flex:1 1 160px;justify-content:center}
   .sp-info .x{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;font-size:1rem;line-height:1;cursor:pointer}
   .edge:not(.open) .eb:not(.places){display:none}
   .edge.open .places{border-color:var(--acc)}
   .air.sp-air{z-index:4}
-  /* the Piano Sessions: the song's title up under ON AIR, not across the bottom, where it lay over the grand's keys */
-  .sp-air.keys .air-bottom{top:calc(env(safe-area-inset-top,0px) + 104px);bottom:auto;align-items:flex-start}
+  /* the Piano Sessions: the song's title up under ON AIR, not across the bottom, where it lay over the grand's keys
+     (its own class: the page's .keys is the panel keyboard's, 150 px high, and cut the graphics off under ON AIR) */
+  .sp-air.piano-air .air-bottom{top:calc(env(safe-area-inset-top,0px) + 104px);bottom:auto;align-items:flex-start}
   .sp-air .air-l3{flex-direction:row;align-items:center;gap:14px}
   .sp-air .l3txt{display:flex;flex-direction:column;gap:4px;min-width:0}
   .sp-air .l3art{width:64px;height:64px;flex:none;border-radius:6px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.22),0 6px 18px rgba(0,0,0,.5)}
@@ -352,7 +354,7 @@ export function spaces(v, ctx) {
     let seen = false; try { seen = localStorage.getItem('dz-guide') === '1'; } catch {}
     if (seen && !/[?&]guide\b/.test(location.search)) return;
     const steps = [
-      [() => [...bar.querySelectorAll('.sp[data-space]')], 'Pick a space', 'Studio, Piano or DJ Room: a tap takes you there and its show starts. Tap again to pause.'],
+      [() => [...bar.querySelectorAll('.sp[data-space]')], 'Pick a space', 'Studio, Piano or DJ Room: a tap takes you there and its show starts (at the Piano: the show or the piano to play). Tap again to pause.'],
       [() => [more], 'More for this space', '⋯ opens the space\'s own controls: cameras, light, effects, music, the programme and info. ▾ hides everything to just watch.'],
       [() => [placesBtn], 'Places', 'The building, the reception, backstage, the CCTV cameras and the aftershow, whenever you like.'],
     ];
@@ -540,7 +542,7 @@ export function spaces(v, ctx) {
   function airGfx() {
     const P = v.show, pianoOn = active === 'piano' && (piano || pianoPlaying()), djOn = active === 'dj' && dj && !dj.done;
     gfx.hidden = !(pianoOn || djOn) || !!pov;
-    gfx.classList.toggle('keys', !!pianoOn);
+    gfx.classList.toggle('piano-air', !!pianoOn);
     document.body.classList.toggle('sp-air-on', !gfx.hidden);
     if (gfx.hidden) return;
     const djSong = dj?.el === track ? dj.steps[dj.i - 1]?.track : null;
@@ -581,10 +583,15 @@ export function spaces(v, ctx) {
   /* ----- the Piano Sessions, in show order ----- */
   // (the album Opus No. 1: Vienna is not part of the Piano Sessions)
   const PIANO_SONGS = REPERTOIRE.filter(s => s.piano && s.audio && s.audioOk && !s.id.startsWith('opus-no-1-vienna/'));
+  // the owner's segment order after the openings (the INTRO): SONG 1, PAUSE, SONG 2, SONG 3, PAUSE, SONG 4, PAUSE;
+  // then the closing ends the show
+  const PIANO_PLAN = ['song', 'between', 'song', 'song', 'between', 'song', 'between'];
   let piano = null;   // { steps, i }
   const pianoPlaying = () => !['IDLE', 'ENDED'].includes(v.show.state);
   function pianoNext() {
     if (piano?.soon && !piano.held && performance.now() > piano.soonUntil) beginPiano();
+    // the closing has played out: the show is over (nothing of it waits any more), the way back to the piano is offered
+    if (piano && !piano.soon && v.show.state === 'ENDED' && piano.i >= piano.steps.length) { piano = null; if (active === 'piano') pianoChoice(true); return; }
     if (!piano || piano.soon || v.show.state !== 'LIVE' || v.show.paused) return;
     const step = piano.steps[piano.i++];
     if (!step) { piano = null; return; }
@@ -600,7 +607,8 @@ export function spaces(v, ctx) {
     // (the song player gets its first song now, so that it can be unlocked: a player without a source cannot be)
     const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = songs[0].audio;
     unlockAll(pianoPlayers());
-    piano = { i: 0, steps: songs.flatMap((s, k) => (k < songs.length - 1 ? [{ song: s }, { cmd: 'between' }] : [{ song: s }])).concat({ cmd: 'closing' }) };
+    let k = 0;
+    piano = { i: 0, steps: PIANO_PLAN.map(x => (x === 'song' ? { song: songs[k++] } : { cmd: x })).filter(x => !('song' in x) || x.song).concat({ cmd: 'closing' }) };
     // first STARTING SOON over the studio (the card's length), then the openings
     if (pianoPlaying()) v.showCommand('stop');
     piano.soon = true; card('psSoon', { manual: true });
@@ -622,6 +630,30 @@ export function spaces(v, ctx) {
   }
   function beginPiano() { if (!piano?.soon) return; piano.soon = false; v.showCommand(v.show.state === 'IDLE' || v.show.state === 'ENDED' ? 'start' : 'restart'); }
   const stopPiano = () => { piano = null; cardOff(); if (pianoPlaying()) v.showCommand('stop'); };   // (also ends a STARTING SOON)
+  // PIANO asks first: the show as a simulated live show, or the grand to play in private (its sound stays on this page);
+  // after a show the same card leads back to the piano, without starting the show again
+  const choice = document.createElement('div'); choice.className = 'sp-info sp-choice'; choice.hidden = true; choice.setAttribute('role', 'dialog'); choice.setAttribute('aria-label', 'Piano');
+  choice.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>Piano</b><p></p>
+    <div class="acts"><button class="b sim" type="button">Simulate live show</button><button class="b play" type="button"></button></div>`;
+  document.body.appendChild(choice);
+  const hideChoice = () => { choice.hidden = true; };
+  function pianoChoice(end) {
+    choice.querySelector('p').textContent = end ? 'The show is over.' : 'Watch the Piano Sessions as a simulated live show, or play the grand yourself (only you hear it).';
+    choice.querySelector('.play').textContent = end ? 'Return to piano' : 'Play piano';
+    choice.hidden = false;
+  }
+  choice.querySelector('.x').addEventListener('click', hideChoice);
+  choice.querySelector('.sim').addEventListener('click', () => { hideChoice(); simulate('piano'); });
+  choice.querySelector('.play').addEventListener('click', () => { hideChoice(); playPiano(); });
+  // PLAY PIANO / RETURN TO PIANO: no show (and nothing left of one), the keyboard camera, the piano of the music station
+  function playPiano() {
+    afterShow.stop(); cctv.stop(); ended = null; exitPov(); active = 'piano'; document.body.dataset.space = 'piano';
+    stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
+    stopPiano(); if (v.show.state !== 'IDLE') v.showCommand('stop');
+    wallHold = false; director.setAuto(false); v.pickCamera('P2');
+    ctx.panels?.open('station', 'piano');
+    show();
+  }
 
   /* ----- the DJ show, in show order ----- */
   const DJ_TRACKS = REPERTOIRE.filter(s => !s.piano && s.audio && s.audioOk && s.bpm);
@@ -767,7 +799,7 @@ export function spaces(v, ctx) {
   const openLibrary = kind => ctx.panels?.open('station', kind === 'piano' ? 'songs' : 'library');
   // a piano song now: the show goes to LIVE (the openings stop) and the song is next in its order
   function playSongNow(s) {
-    afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
+    hideChoice(); afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
     stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
     const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = s.audio;
     // as a pianist goes from one piece into the next: the one playing dies away over 4 s while the new one comes in
@@ -1005,7 +1037,7 @@ export function spaces(v, ctx) {
     ],
   };
   function simulate(space) {
-    afterShow.stop(); cctv.stop(); ended = null; active = space; document.body.dataset.space = space;
+    hideChoice(); afterShow.stop(); cctv.stop(); ended = null; active = space; document.body.dataset.space = space;
     if (space === 'piano') { stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false }); startPiano(); }
     else { stopPiano(); unlock(); stopDj(); startDj(); }
     closeMenus(); show();
@@ -1015,7 +1047,7 @@ export function spaces(v, ctx) {
   // studio's, and the camera to the wide studio shot
   function finish(space) {
     afterShow.stop(); cctv.stop(); ended = null;
-    if (space === 'piano') { stopPiano(); if (v.lift.state !== 'LOWERED' && !v.liftHold) v.command('reset'); director.setAuto(false); director.go('studio'); }
+    if (space === 'piano') { stopPiano(); if (v.lift.state !== 'LOWERED' && !v.liftHold) v.command('reset'); director.setAuto(false); director.go('studio'); pianoChoice(true); }
     else { stopDj(); m.setShow('ended'); m.setMode('CLOSING'); if (m.lift.state !== 'UP' || m.env === 'djroom') { if (!m.travelling) m.transition('up'); } else director.go('studio'); }
     closeMenus(); show();
   }
@@ -1100,7 +1132,9 @@ export function spaces(v, ctx) {
       if (active === 'piano' && pianoPlaying()) return pausePiano({ hold: 'psBack' });
       stopDj();
       if (m.env === 'djroom') m.setEnv('studio', { transition: false });
-      startPiano();
+      // the show does not start by itself: the piano in view, and the choice
+      if (!piano && !pianoPlaying()) { director.setAuto(false); v.pickCamera('P1'); }
+      pianoChoice(v.show.state === 'ENDED');
     },
     dj() {
       if (active === 'dj' && dj && !dj.done) return pauseDj({ hold: 'djBack' });
@@ -1113,14 +1147,14 @@ export function spaces(v, ctx) {
   document.getElementById('onair')?.addEventListener('click', e => {
     if (active !== 'piano' && active !== 'dj') return;
     e.stopImmediatePropagation();
-    afterShow.stop(); ended = null;
+    afterShow.stop(); ended = null; hideChoice();
     if (active === 'piano') { stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false }); startPiano(); }
     else { stopPiano(); unlock(); stopDj(); startDj(); }
     dock.classList.remove('more-open'); more.setAttribute('aria-expanded', 'false'); show();
   }, true);
   bar.addEventListener('click', e => {
     const b = e.target.closest('.sp[data-space]'); if (!b) return;   // (not body[data-space]: ⋯, Programme and Info are in this bar too)
-    afterShow.stop(); cctv.stop(); ended = null; exitPov();
+    afterShow.stop(); cctv.stop(); ended = null; exitPov(); hideChoice();
     go[b.dataset.space](); active = b.dataset.space; document.body.dataset.space = active; show();
   });
   document.body.dataset.space = active;

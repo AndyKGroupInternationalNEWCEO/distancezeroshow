@@ -36,7 +36,7 @@ async function click(sel) {
 }
 const state = () => run(`(() => { const v = __studio.ext, m = v.melbourne; return { active: v.spaces.active, piano: v.show.state, paused: v.show.paused, dj: m.opening.state, lift: m.lift.state, env: m.env, view: __studio.director.current,
   labels: [...document.querySelectorAll('.spaces [data-space] small')].map(e => e.textContent), panels: [...document.querySelectorAll('.vz,.mz')].map(e => getComputedStyle(e).display),
-  audio: [...document.querySelectorAll('audio')].length, playing: [v.show.audio && Object.values(v.show.audio), m.openings.big.audio, m.openings.short.audio].flat().filter(a => a && !a.paused).length }; })()`);
+  choice: !document.querySelector('.sp-choice').hidden, audio: [...document.querySelectorAll('audio')].length, playing: [v.show.audio && Object.values(v.show.audio), m.openings.big.audio, m.openings.short.audio].flat().filter(a => a && !a.paused).length }; })()`);
 const results = []; const check = (name, ok, s) => { results.push(ok); console.log((ok ? '✔ ' : '✘ ') + name + (ok ? '' : '  ' + JSON.stringify(s))); };
 
 await send('Page.navigate', { url: BASE + 'melbourne-dev.html' });
@@ -50,8 +50,10 @@ await run(`__studio.ext.melbourne.djOpening('seek', 50)`); await run(`(async () 
 await shot('2-dj-club');
 await click('[data-space="dj"]'); await sleep(600); s = await state(); check('DJ ROOM again: paused', s.dj === 'PAUSED' && s.playing === 0, s);
 await click('[data-space="dj"]'); await sleep(600); s = await state(); check('DJ ROOM again: playing', s.dj === 'PLAYING', s);
-await click('[data-space="piano"]'); await sleep(3000); s = await state();
-check('PIANO: DJ opening stopped, piano show started, one music source', s.dj === 'IDLE' && s.piano !== 'IDLE' && s.playing <= 1 && s.env === 'studio', s);
+await click('[data-space="piano"]'); await sleep(2000); s = await state();
+check('PIANO: DJ opening stopped, the choice shown, no show, nothing plays', s.dj === 'IDLE' && s.piano === 'IDLE' && s.choice && s.playing === 0 && s.env === 'studio', s);
+await click('.sp-choice .sim'); await run(`(async () => { for (let i = 0; i < 200 && __studio.ext.show.state === 'IDLE'; i++) await new Promise(r => setTimeout(r, 100)); })()`); s = await state();
+check('SIMULATE LIVE SHOW: piano show started, one music source', s.piano !== 'IDLE' && !s.choice && s.playing <= 1, s);
 await run(`(async () => { for (let i = 0; i < 300 && __studio.ext.show.state === 'PREPARING'; i++) await new Promise(r => setTimeout(r, 100)); })()`); await sleep(9000);
 await shot('3-piano');
 await click('[data-space="piano"]'); await sleep(600); s = await state(); check('PIANO again: paused', s.paused === true && s.playing === 0, s);
