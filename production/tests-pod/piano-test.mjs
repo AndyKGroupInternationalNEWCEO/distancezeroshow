@@ -50,7 +50,9 @@ await run(`(async () => { for (let i = 0; i < 300 && !window.__studio?.ext?.spac
 await sleep(3000);
 
 // 1. entering PIANO: the choice, no show
-await click('[data-space="piano"]'); await sleep(5000); let s = await state();
+// (the first frames under software WebGL are slow: a click that lands before the page answers is repeated once)
+const enterPiano = async () => { await click('.spaces [data-space="piano"]'); if (!await W(`!document.querySelector('.sp-choice').hidden`, 10000)) await click('.spaces [data-space="piano"]'); };
+await enterPiano(); await sleep(5000); let s = await state();
 check('PIANO: the choice appears, the show does not start by itself (5 s)', s.active === 'piano' && s.choice && s.choiceBtn === 'Play piano' && s.show === 'IDLE' && !s.gfx && s.playing === 0, s);
 await shot('1-choice');
 // 2. PLAY PIANO: private, no simulation
@@ -60,11 +62,11 @@ check('PLAY PIANO: the piano panel, no show, no on-air graphics, nothing sent ou
 await shot('2-play-piano');
 await run(`document.getElementById('panelClose')?.click()`);
 // 3. SIMULATE LIVE SHOW: the segments in order, never two recordings at once
-await click('[data-space="piano"]'); await sleep(800); s = await state(); check('PIANO again (at rest): the choice again', s.choice && s.show === 'IDLE', s);
+await enterPiano(); await sleep(800); s = await state(); check('PIANO again (at rest): the choice again', s.choice && s.show === 'IDLE', s);
 await run(`(() => { window.__seq = []; window.__maxPlaying = 0; const v = ${S}; setInterval(() => { const P = v.show, k = P.state === 'SONG' ? 'SONG:' + (P.song?.id || '') : P.state;
   if (__seq[__seq.length - 1] !== k) __seq.push(k); __maxPlaying = Math.max(__maxPlaying, Object.values(P.audio || {}).filter(a => !a.paused).length); }, 50); })()`);
 await click('.sp-choice .sim');
-check('SIMULATE LIVE SHOW: the show starts', await W(`${S}.show.state !== 'IDLE'`, 20000), await state());
+check('SIMULATE LIVE SHOW: the show starts (after STARTING SOON)', await W(`${S}.show.state !== 'IDLE'`, 60000), await state());
 const VIEWPORTS = [[1600, 900], [1280, 720], [1920, 1080], [1366, 768], [1024, 640]];   // (1280×720 ≈ 1920×1080 at 150 % zoom)
 const measure = () => run(`(() => { const g = document.querySelector('.sp-air'), r = g.getBoundingClientRect(), l = g.querySelector('.air-l3').getBoundingClientRect(), a = g.querySelector('.l3art'), ar = a.getBoundingClientRect(), br = g.querySelector('.air-l3 b').getBoundingClientRect();
   const inside = q => q.top >= r.top - 0.5 && q.bottom <= r.bottom + 0.5 && q.left >= r.left - 0.5 && q.right <= r.right + 0.5;
@@ -110,8 +112,8 @@ await click('.sp-choice .play'); await sleep(9000); s = await state();
 check('RETURN TO PIANO: at the piano, no show, no AFTERSHOW, nothing plays (9 s)', s.active === 'piano' && s.show === 'IDLE' && !s.after && !s.gfx && s.playing === 0 && s.pianoPanel, s);
 await shot('5-return');
 // 5. the other spaces still answer
-await click('[data-space="studio"]'); await sleep(1500); s = await state(); check('STUDIO still works', s.active === 'studio' && !s.choice, s);
-await click('[data-space="dj"]'); await sleep(2500); s = await state(); check('DJ ROOM still starts its show', s.active === 'dj' && (await run(`${S}.melbourne.opening.state`)) === 'PLAYING', s);
+await click('.spaces [data-space="studio"]'); await W(`${S}.spaces.active === 'studio'`, 10000); s = await state(); check('STUDIO still works', s.active === 'studio' && !s.choice, s);
+await click('.spaces [data-space="dj"]'); await W(`${S}.spaces.active === 'dj'`, 10000); s = await state(); check('DJ ROOM still starts its show (STARTING SOON, then opening 1)', s.active === 'dj' && await W(`${S}.melbourne.opening.state === 'PLAYING'`, 25000), s);
 check('nothing sent out', !s.out.length, s.out);
 check('no errors', !problems.length, problems);
 console.log(`${results.filter(Boolean).length}/${results.length}`, OUT);
