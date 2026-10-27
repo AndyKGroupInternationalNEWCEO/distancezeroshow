@@ -15,7 +15,7 @@ const T = 'assets/vendor/three-0.170.0/';
 const FILES = [
   'virtual-studio/main.js', 'virtual-studio/set.js', 'virtual-studio/screens.js', 'virtual-studio/views.js', 'virtual-studio/details.js',
   'virtual-studio/sound.js', 'virtual-studio/panels.js', 'virtual-studio/chords.js', 'virtual-studio/schedule.js',
-  'virtual-studio/grandpiano.js', 'virtual-studio/onair.js', 'virtual-studio/spaces.js', 'virtual-studio/building.js', 'assets/video/dz-logo-reveal.mp4', 'assets/video/dz-master-studio.mp4', 'assets/video/dz-preshow-2026-10-14b.mp4',
+  'virtual-studio/grandpiano.js', 'virtual-studio/onair.js', 'virtual-studio/spaces.js', 'virtual-studio/midi.js', 'virtual-studio/building.js', 'assets/video/dz-logo-reveal.mp4', 'assets/video/dz-master-studio.mp4', 'assets/video/dz-preshow-2026-10-14b.mp4',
   T + 'three.module.min.js', T + 'LICENSE.txt',
   ...['controls/OrbitControls.js', 'geometries/RoundedBoxGeometry.js', 'lights/RectAreaLightUniformsLib.js', 'lights/RectAreaLightTexturesLib.js',
     'objects/Reflector.js', 'loaders/RGBELoader.js', 'loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/MaskPass.js',

@@ -17,6 +17,7 @@ import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
 import { applyProbe } from './melbourne/probes.js';
 import { inClub } from './melbourne/layout.js';
+import { midi } from './midi.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -1004,6 +1005,23 @@ export function spaces(v, ctx) {
     else if (c.act === 'xfader' && phase === 'move') { gear.setMixer({ xfader: Math.max(0, Math.min(1, gear.mix.xfader + dx * 0.004)) }); applyVolume(); }
     else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); applyEq(); }
   }
+  // MIDI: a keyboard plays the grand (its sound and its keys), a DJ controller works the console as a tap or drag would
+  // (midi.js: the models per space, MIDI Learn)
+  const DJ_MIDI = { play: 'play', cue: 'cue', jog: 'jog' };
+  const midiUi = midi({
+    space: () => active,
+    piano: {
+      noteOn: (n, v) => { ctx.sound?.noteOn?.(n, Math.max(0.15, v)); ctx.studio.piano.userData.keyboard.press(n, 1); },
+      noteOff: n => { ctx.sound?.noteOff?.(n); ctx.studio.piano.userData.keyboard.press(n, 0); },
+    },
+    dj: (action, value) => {
+      const [, kind, i] = action.match(/^([a-z]+)(\d?)$/), idx = +i || 0, gear = m.booth.gear;   // deck / channel 1 or 2 (the set's)
+      if (DJ_MIDI[kind]) return act({ ctl: kind === 'jog' ? { act: 'jog', deck: idx } : { act: kind, deck: idx } }, kind === 'jog' ? 'move' : 'up', kind === 'jog' ? value * 5 : 0);
+      if (kind === 'xfader') { gear.setMixer({ xfader: value }); return applyVolume(); }
+      const ch = []; ch[idx] = { [kind]: value }; gear.setMixer({ ch });
+      if (kind === 'fader') applyVolume(); else applyEq();
+    },
+  });
   canvas.addEventListener('pointerdown', e => {
     if (!pov) return; e.stopImmediatePropagation(); canvas.setPointerCapture?.(e.pointerId);
     const h = hit(e); pov.drag = { x: e.clientX, y: e.clientY, h, moved: 0 };
@@ -1036,6 +1054,7 @@ export function spaces(v, ctx) {
       ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
       ['Songs', () => openLibrary('piano')],
       ['♪ Piano', () => document.getElementById('musicBtn')?.click()],
+      ['MIDI', () => midiUi.open()],
       ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
     dj: [
@@ -1050,6 +1069,7 @@ export function spaces(v, ctx) {
       ['FX drops', FX.map(([id, l]) => [l, () => playFx(id)])],
       ['Next track', () => nextTrack()],
       ['♪ DJ booth', () => document.getElementById('musicBtn')?.click()],
+      ['MIDI', () => midiUi.open()],
       ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
   };
@@ -1100,6 +1120,7 @@ export function spaces(v, ctx) {
     [/^Next/, P('<path d="M12 14l14 10-14 10z"/><path d="M34 14v20"/>')],
     [/^♪|Music/, P('<path d="M18 34V12l20-4v22"/><circle cx="14" cy="34" r="4"/><circle cx="34" cy="30" r="4"/>')],
     [/^Programme|dates|schedule/i, P('<rect x="7" y="10" width="34" height="30" rx="3"/><path d="M7 18h34M15 6v8M33 6v8"/>')],
+    [/^MIDI/, P('<rect x="6" y="14" width="36" height="20" rx="3"/><path d="M13 14v12m7-12v12m8-12v12m7-12v12"/>')],
     [/^Info/, P('<circle cx="24" cy="24" r="16"/><path d="M24 22v10M24 16v.5"/>')],
     [/on air|Simulate on air/i, P('<circle cx="24" cy="24" r="5"/><path d="M14 14a14 14 0 0 0 0 20M34 14a14 14 0 0 1 0 20"/>')],
     [/Auto camera/i, P('<path d="M10 24a14 14 0 0 1 24-10M38 24a14 14 0 0 1-24 10"/><path d="M34 8v6h-6M14 40v-6h6"/>')],
