@@ -61,7 +61,6 @@ const PROPS = [
 for (const [k, v] of Object.entries(PLACES)) VIEWS[k] ??= v;
 for (const [k, v] of Object.entries(AFTER)) VIEWS[k] ??= { tally: 0, ...v };
 const JINGLE = { between: 'assets/jingles/02-friday-dj-transition.m4a', end: 'assets/jingles/19-friday-show-closing.m4a' };
-const BREAK = 12;   // s of the transition jingle between two tracks (then 2.5 s fading out)
 // the shows' cards (the jingle videos made for the broadcast, muted: the page plays the sound): full screen over the
 // studio as an ident starts (STAY TUNED, the DJ transition) or as the closing ends (THANK YOU, the Friday closing)
 // (the Piano Sessions' cards: shared-assets/videos/piano-sessions, PS_01–PS_05; WE'LL BE RIGHT BACK and INTERMISSION
@@ -70,7 +69,7 @@ const CARD = { psSoon: 'assets/video/shows/ps-starting-soon.mp4', psBetween: 'as
   psBack: 'assets/video/shows/ps-right-back.mp4', psInter: 'assets/video/shows/ps-intermission.mp4',
   djOpen: 'assets/video/shows/dj-opening.mp4', djBetween: 'assets/video/shows/dj-stay-tuned.mp4', djEnd: 'assets/video/shows/dj-closing.mp4',
   // the Friday cards (shared-assets/videos/friday, FR_01–FR_04): STARTING SOON before the opening film, WE'LL BE RIGHT BACK
-  // while the show is paused, INTERMISSION (from ⋯ Video), STAY TUNED in the short break between two tracks; the Friday
+  // while the show is paused, INTERMISSION (from ⋯ Video), STAY TUNED in the break between two tracks (the transition jingle, played whole); the Friday
   // DJ transition film (DZ_09) stays in ⋯ Video
   djSoon: 'assets/video/shows/dj-starting-soon.mp4', djBack: 'assets/video/shows/dj-right-back.mp4', djInter: 'assets/video/shows/dj-intermission.mp4',
   djTransition: 'assets/video/shows/dj-transition.mp4' };
@@ -734,14 +733,7 @@ export function spaces(v, ctx) {
     if (!dj || dj.paused || dj.done) return;
     if (dj.el === track && !pov && performance.now() > dj.wideAt) { dj.wideAt = performance.now() + 60000 + Math.random() * 60000; director.go(WIDE[(dj.wideI = (dj.wideI || 0) + 1) % WIDE.length]); }
     if (dj.waitUp) { if (!m.travelling && m.lift.state === 'UP') { dj.waitUp = false; m.djOpening('start', undefined, 'short'); } return; }
-    // between two tracks a short break, not the whole 80 s transition jingle: its first BREAK seconds, then it fades
-    // out and the next track starts
-    if (dj.fading) return;
-    if (dj.el === jingle && dj.steps[dj.i - 1]?.jingle === 'between' && jingle.currentTime > BREAK) {
-      const it = dj; it.fading = true;
-      ramp(jingle, 0, 2500, () => { jingle.pause(); jingle.volume = 1; it.fading = false; if (dj === it && dj.el === jingle) djStep(); });
-      return;
-    }
+    // (the transition jingle between two tracks plays to its end, as every jingle: the next track starts on its 'ended')
     if (dj.soon) { if (performance.now() > dj.soonUntil) cardEl.onended?.(); return; }
     const op = m.opening.state;
     if (!dj.el ? (dj.i > 0 && (op === 'ENDED' || op === 'IDLE')) : dj.el.ended) djStep();
@@ -1266,7 +1258,7 @@ export function spaces(v, ctx) {
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = piano?.hold === 'psInter' ? 'Intermission · tap to play' : piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
-    const djLabel = !dj || dj.done ? 'Play again' : dj.hold === 'djInter' ? 'Intermission · tap to play' : dj.paused ? 'Paused · tap to play' : dj.soon ? 'Starting soon' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
+    const djLabel = !dj ? 'DJ show' : dj.done ? 'Play again' : dj.hold === 'djInter' ? 'Intermission · tap to play' : dj.paused ? 'Paused · tap to play' : dj.soon ? 'Starting soon' : !dj.el ? 'Opening' : dj.el === track ? '♪ ' + (dj.steps[dj.i - 1]?.track?.title || '') : dj.i >= dj.steps.length ? 'Closing' : 'Next track';
     btn('studio').querySelector('small').textContent = ctx.air?.isOpen ? 'On air · tap to end' : 'Simulate on air';
     btn('piano').querySelector('small').textContent = active !== 'piano' ? 'Piano show' : p.paused ? 'Paused · tap to play' : pianoLabel;
     btn('dj').querySelector('small').textContent = active !== 'dj' ? 'DJ show' : (djGenre && dj?.el === track ? djGenre + ' · ' : '') + djLabel;
