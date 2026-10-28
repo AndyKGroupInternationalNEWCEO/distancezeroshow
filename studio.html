@@ -469,13 +469,18 @@ function tier() {
   const q = new URLSearchParams(location.search).get('quality');
   // OBS browser source (?obs=1) or ?quality=broadcast: a fixed 1920 × 1080 picture at the highest settings, the same in
   // every OBS source size; it never trades quality for frame rate
-  if (q === 'broadcast' || new URLSearchParams(location.search).get('obs') === '1')
-    return { mobile: false, broadcast: true, ao: true, dpr: 1, shadowSize: 4096, shadows2: true, reflections: true, mirrorSize: 2048, glass: true, bloomScale: 1, msaa: 4, wall: { width: 2048, height: 860 }, wallFps: 30 };
+  // ?quality=4k: the same at 3840 × 2160; ?quality=8k: 7680 × 4320 where the graphics card can hold it (stills and
+  // recordings: a live picture at 8K is beyond today's browsers and cards)
+  const lines = { '4k': 2160, '8k': 4320 }[q] || 1080;
+  if (q === 'broadcast' || q === '4k' || q === '8k' || new URLSearchParams(location.search).get('obs') === '1')
+    return { mobile: false, broadcast: true, lines, ao: true, dpr: 1, shadowSize: 4096, shadows2: true, reflections: true, mirrorSize: 2048, glass: true, bloomScale: 1, msaa: 4, wall: { width: 2048, height: 860 }, wallFps: 30 };
   const mobile = q ? q === 'low' : (matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600);
   const dpr = window.devicePixelRatio || 1;
   return mobile
     ? { mobile: true, ao: false, dpr: Math.min(dpr, 1.5), shadowSize: 1024, shadows2: false, reflections: false, glass: false, bloomScale: 0.5, wall: { width: 1280, height: 538 }, wallFps: 20 }
-    : { mobile: false, ao: true, dpr: Math.min(dpr, 2), msaa: 4, shadowSize: 2048, shadows2: true, reflections: true, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };   // edges smoothed (4× MSAA) on desktops; the frame-rate watch lowers it on slow machines
+    // desktops: every camera's PROGRAM picture rendered 2160 lines high (3840 × 2160 at 16:9) and scaled to the window,
+    // edges smoothed (4× MSAA); the frame-rate watch steps it down on a machine that cannot keep it smooth
+    : { mobile: false, lines: 2160, ao: true, dpr: Math.min(dpr, 2), msaa: 4, shadowSize: 4096, shadows2: true, reflections: true, mirrorSize: 2048, glass: true, bloomScale: 0.75, wall: { width: 2048, height: 860 }, wallFps: 30 };
 }
 
 // phones: the studio (with the Piano Stage and the DJ Room) is made for a tablet from the iPad mini (744 px across) or a

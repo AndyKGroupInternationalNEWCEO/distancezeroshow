@@ -365,10 +365,24 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   setTimeout(() => ui.hint.classList.add('gone'), 9000);
 
   /* ----- sizing and adaptive quality ----- */
+  const gl = renderer.getContext(), MAX_BUFFER = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_TEXTURE_SIZE), 8192);
+  let dprCap = Infinity;
+  // close-ups stay sharp: every texture filtered at the card's best anisotropy (new ones as places and rooms load)
+  const maxAniso = renderer.capabilities.getMaxAnisotropy(), sharpened = new WeakSet();
+  function sharpen() {
+    scene.traverse(o => { for (const m of [].concat(o.material || [])) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'clearcoatNormalMap']) {
+      const t = m[k]; if (!t || sharpened.has(t) || t.isRenderTargetTexture) continue; sharpened.add(t);
+      if (t.anisotropy < maxAniso) { t.anisotropy = maxAniso; t.needsUpdate = true; } } });
+  }
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    // broadcast: the drawing buffer is 1080 lines high whatever the source size (1920 × 1080 in a 16:9 source)
-    if (quality.broadcast && h) { dpr = 1080 / h; renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); }
+    // broadcast: the drawing buffer is 1080 (4K: 2160, 8K: 4320) lines high whatever the source size; desktops render
+    // their PROGRAM 2160 lines high (4K), lowered only by the frame-rate watch (dprCap); never past the card's limit
+    if (h && quality.lines) {
+      const want = quality.broadcast ? quality.lines / h : Math.min(dprCap, Math.max(quality.dpr, quality.lines / h));
+      dpr = Math.min(want, MAX_BUFFER / Math.max(w, h));
+      renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr);
+    }
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
     bloom.resolution.set(w * quality.bloomScale, h * quality.bloomScale);
@@ -389,9 +403,11 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     if (now - sampleAt < 2500) return;
     const fps = (frames * 1000) / (now - sampleAt);
     frames = 0; sampleAt = now;
-    if (document.hidden || fps >= 40 || downgraded > 4 || quality.broadcast) return;
+    sharpen();
+    if (document.hidden || fps >= 40 || downgraded > 6 || quality.broadcast) return;
     downgraded++;
-    if (dpr > 1) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
+    // the picture's size first (from 4K in bigger steps when the machine is far too slow), then the effects
+    if (dpr > 1) { dprCap = dpr = Math.max(1, dpr * (fps < 25 ? 0.7 : 0.85)); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
     else if (ao?.enabled) ao.enabled = false;
     else if (mirror) { scene.remove(mirror); mirror = null; studio.floorOpaque?.(); }
     else bloom.enabled = false;
