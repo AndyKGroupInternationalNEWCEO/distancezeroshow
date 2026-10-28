@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DISTANCE // ZERO Broadcast Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
+<style>
+  /* Stage 1 of broadcast.distancezeroshow.com (docs/BROADCAST-WEB.md): a status page in front of the studio on the
+     Vienna Mac. It only asks the studio's public /healthz whether the Mac is on; it holds no secret and controls nothing. */
+  :root { --black: #060709; --panel: #121419; --raise: #181b21; --smoke: #1f232a; --text: #eef0f3; --dim: #9aa1ab; --ok: #3ddc84; --off: #ff5c5c; --wait: #e6b450; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--black); color: var(--text);
+    font: 16px/1.5 Archivo, system-ui, sans-serif; }
+  main { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--smoke); border-radius: 18px; padding: 32px 28px; }
+  .brand { font-weight: 800; font-stretch: 125%; letter-spacing: .06em; font-size: 13px; color: var(--dim); }
+  h1 { margin: 6px 0 24px; font-size: 28px; font-weight: 800; font-stretch: 110%; }
+  .status { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; background: var(--raise); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--wait); flex: none; }
+  .status[data-s="on"] .dot { background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+  .status[data-s="off"] .dot { background: var(--off); }
+  .status b { display: block; }
+  .status span { color: var(--dim); font-size: 14px; }
+  .go { display: block; margin-top: 20px; padding: 14px; border-radius: 12px; text-align: center; font-weight: 700; text-decoration: none;
+    background: var(--text); color: var(--black); }
+  .go[aria-disabled="true"] { background: var(--smoke); color: var(--dim); pointer-events: none; }
+  p.note { margin: 20px 0 0; color: var(--dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">DISTANCE // ZERO</div>
+  <h1>Broadcast Studio</h1>
+  <div class="status" id="status" data-s="wait" role="status" aria-live="polite">
+    <div class="dot"></div>
+    <div><b id="title">Checking the studio…</b><span id="detail">Asking the Vienna Mac whether the studio is running.</span></div>
+  </div>
+  <a class="go" id="go" aria-disabled="true">Open the studio</a>
+  <p class="note">The Director works on the Vienna Mac itself. This page shows whether the studio is on and opens the host and guest entrance; it cannot control anything.</p>
+</main>
+<script>
+  // the studio's public entrance (Tailscale Funnel → host/guest port 4748); the Director port is never reachable from here
+  const STUDIO = 'https://macbook-air-von-andrej.tailff4ac2.ts.net';
+  const $ = id => document.getElementById(id);
+  function show(s, title, detail) {
+    $('status').dataset.s = s; $('title').textContent = title; $('detail').textContent = detail;
+    const go = $('go');
+    if (s === 'on') { go.href = STUDIO + '/login'; go.removeAttribute('aria-disabled'); }
+    else { go.removeAttribute('href'); go.setAttribute('aria-disabled', 'true'); }
+  }
+  // no-cors: the answer itself is unreadable, but a reachable studio resolves and an unreachable one throws
+  async function check() {
+    try {
+      await fetch(STUDIO + '/healthz', { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(8000) });
+      show('on', 'Studio is online', 'The Vienna Mac is running the studio.');
+    } catch {
+      show('off', 'Studio offline', 'The Vienna Mac is off or the studio is not started. Live controls are unavailable.');
+    }
+  }
+  check(); setInterval(check, 15000);
+</script>
+</body>
+</html>
