@@ -31,6 +31,31 @@ Steps (each step needs Andy's go, marked ✋):
 
 `studio.distancezeroshow.com` is not touched.
 
+### Vercel project, prepared (not created)
+
+Andy's decision (28 Oct): all D//0 web apps in the one existing Vercel account (being switched to
+info@distancezeroshow.com), no Pro, no other account or platform.
+
+| Setting | Value |
+|---|---|
+| Project | `dz-broadcast` in `kneislandrej-1341s-projects` |
+| Root directory | `studio/web` (only this folder is uploaded: no studio code, no `data/`, no secrets) |
+| Framework / build | Other / none; output = the folder itself |
+| Config | `studio/web/vercel.json` (CSP, noindex, no-store, frame deny) |
+| Environment variables | none |
+| Domain | `broadcast.distancezeroshow.com`: added only with Andy's go, then the IONOS record changed (backup first) |
+| Deploy | CLI from `studio/web` (`vercel deploy`, preview first); not via the website's GitHub workflow |
+
+**Status: production BLOCKED.** Vercel's Hobby plan is for non-commercial use only, and D//0 shows advertising
+and sponsors. The page itself is ready and tested locally (Chrome: online, offline, link to the studio, no CSP errors).
+
+### Stage 2 on Vercel later
+
+The `cloud/` prototype keeps sessions and data in memory and in files. On Vercel it needs: the API routes as
+functions, Supabase Auth for the two identities, and Supabase tables + Realtime for plans and the Mac's state
+(`BROADCAST-WEB.md` Stage 2). Environment variables then: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (browser),
+`SUPABASE_SECRET_KEY` (server only), and the engine's own credential on the Mac only.
+
 ## Stage 2 — the target: cloud control, Mac engine
 
 ```
