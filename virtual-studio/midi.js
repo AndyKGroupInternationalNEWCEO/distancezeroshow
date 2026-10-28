@@ -24,6 +24,7 @@ const ACTIONS = {
   dj: [
     ['play1', 'Deck 2 · Play'], ['cue1', 'Deck 2 · Cue'], ['jog1', 'Deck 2 · Jog'],
     ['play2', 'Deck 3 · Play'], ['cue2', 'Deck 3 · Cue'], ['jog2', 'Deck 3 · Jog'],
+    ...[1, 2].flatMap(c => [[`tempo${c}`, `Deck ${c + 1} · Tempo fader`], ...'abcd'.split('').map(p => [`hot${p}${c}`, `Deck ${c + 1} · Hot cue ${p.toUpperCase()}`]), [`loopin${c}`, `Deck ${c + 1} · Loop in`], [`loopout${c}`, `Deck ${c + 1} · Loop out`]]),
     ['fader1', 'Channel 2 · Fader'], ['fader2', 'Channel 3 · Fader'], ['xfader', 'Crossfader'],
     ...[1, 2].flatMap(c => ['trim', 'hi', 'mid', 'low', 'filter'].map(k => [`${k}${c}`, `Channel ${c + 1} · ${k === 'hi' ? 'High' : k[0].toUpperCase() + k.slice(1)}`])),
   ],
@@ -110,7 +111,7 @@ export function midi({ space, piano, dj }) {
       return;
     }
     if (!act) return;
-    if (/^(play|cue)/.test(act)) { if (on || (cc && d2 > 0)) dj(act, 1); return; }
+    if (/^(play|cue|hot|loop)/.test(act)) { if (on || (cc && d2 > 0)) dj(act, 1); return; }
     if (/^jog/.test(act)) { if (cc) dj(act, d2 < 64 ? d2 : d2 - 128); return; }
     if (cc) dj(act, d2 / 127);
   }

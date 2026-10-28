@@ -6,7 +6,7 @@
 // flat): a three-band EQ as a DJ mixer's (a knob down to 0 kills its band, up to 1 adds 6 dB), and one filter knob
 // (left of centre a low-pass closing, right a high-pass opening). The light then follows what the EQ lets through.
 export function liveMusic() {
-  let ctx = null, an = null, bins = null, chain = null;
+  let ctx = null, an = null, bins = null, chain = null, vu = null;
   const peak = { low: 0.2, mid: 0.2, high: 0.2 }, wired = new WeakSet();
   let lowAvg = 0, kick = 0, hit = 0, last = 0;
   // the element to follow (call it from the visitor's click: browsers start audio contexts on a gesture only)
@@ -16,6 +16,9 @@ export function liveMusic() {
       const f = (type, freq, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = freq; if (q) b.Q.value = q; return b; };
       chain = { trim: ctx.createGain(), low: f('lowshelf', 120), mid: f('peaking', 1000, 0.7), hi: f('highshelf', 6000), lp: f('lowpass', 20000, 0.9), hp: f('highpass', 10, 0.9) };
       chain.trim.connect(chain.low).connect(chain.mid).connect(chain.hi).connect(chain.lp).connect(chain.hp).connect(an);
+      // the meters: left and right after the EQ and the channel's fader (the player's volume), as a mixer's meters
+      const split = ctx.createChannelSplitter(2); chain.hp.connect(split);
+      vu = [0, 1].map(i => { const a = ctx.createAnalyser(); a.fftSize = 1024; split.connect(a, i); return { a, buf: new Float32Array(a.fftSize), level: 0 }; });
       eq(last_);
     }
     if (ctx.state === 'suspended') ctx.resume();
@@ -33,7 +36,22 @@ export function liveMusic() {
     kick = Math.max(kick * Math.exp(-dt * 9), Math.min(1, Math.max(0, jump) * 9));
     const now = performance.now() / 1000;
     if (jump > 0.12 && now - last > 0.4) { hit = 1; last = now; } else hit = Math.max(0, hit - dt * 4);
-    return { ...out, kick, hit };
+    // the meters: each side's peak in dB, −48 … 0 dB onto 0 … 1, falling back as a mixer's do
+    const levels = vu.map(c => { c.a.getFloatTimeDomainData(c.buf); let pk = 0; for (const v of c.buf) pk = Math.max(pk, Math.abs(v));
+      const l = pk > 0 ? Math.max(0, 1 + 20 * Math.log10(pk) / 48) : 0; c.level = Math.max(l, c.level - dt * 1.6); return c.level; });
+    return { ...out, kick, hit, vu: levels };
+  }
+  // the overview a player's screen draws: the recording decoded once and its peaks in `n` slices (0 … 1)
+  const overviews = new Map();
+  function overview(url, n = 1200) {
+    if (!ctx) return Promise.resolve(null);
+    if (!overviews.has(url)) overviews.set(url, fetch(url).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+      .then(b => new Promise((ok, no) => ctx.decodeAudioData(b, ok, no))).then(buf => {
+        const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i)), step = Math.floor(buf.length / n), out = new Array(n).fill(0);
+        for (let i = 0; i < n; i++) { let pk = 0; for (const d of ch) for (let j = i * step, e = j + step; j < e; j += 4) { const v = Math.abs(d[j]); if (v > pk) pk = v; } out[i] = pk; }
+        const top = Math.max(...out) || 1; return out.map(v => v / top);
+      }).catch(() => null));
+    return overviews.get(url);
   }
   // the knobs (0…1, 0.5 flat): the bands −26 dB (killed) … +6 dB, trim ×0.5 … ×1.5, the filter's sweep
   let last_ = { trim: 0.5, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5 };
@@ -47,5 +65,5 @@ export function liveMusic() {
     set(chain.lp.frequency, off || fl > 0.5 ? 20000 : 200 * Math.pow(100, fl / 0.5));          // 200 Hz … 20 kHz
     set(chain.hp.frequency, off || fl < 0.5 ? 10 : 20 * Math.pow(200, (fl - 0.5) / 0.5));      // 20 Hz … 4 kHz
   }
-  return { follow, read, eq };
+  return { follow, read, eq, overview };
 }

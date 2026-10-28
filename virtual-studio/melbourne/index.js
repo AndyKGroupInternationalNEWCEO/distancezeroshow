@@ -305,7 +305,10 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
         booth.gear.setMixer({ ch: [0, 1, 2, 3].map(i => ({ fader: i === 1 ? 0.85 : 0, trim: 0.55, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5 })), xfader: 0.25, master: 0.8 });
       }
     }
-    if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); const ch = [0, 0, 0, 0]; ch[musicSource ? musicCh : 1] = lv; booth.gear.setLevels({ ch, master: [lv, lv * 0.97] }); }
+    // the meters: the real left / right peaks of what plays (live-music.js) where there are some; for the openings'
+    // recordings (measured maps, no live signal) the level the map gives
+    if (L.music?.vu) { const [l, r] = L.music.vu, ch = [0, 0, 0, 0]; ch[musicCh] = Math.max(l, r); booth.gear.setLevels({ ch, master: [l, r] }); }
+    else if (L.music) { const lv = Math.min(1, 0.15 + 0.85 * Math.max(L.music.low, L.music.mid)); const ch = [0, 0, 0, 0]; ch[musicSource ? musicCh : 1] = lv; booth.gear.setLevels({ ch, master: [lv, lv * 0.97] }); }
     // the room's master: full in the DJ room, a soft glow up through the glass while the main studio is the room
     // (and full while the studio's wall shows the DJ room live: the show is on down there). During the way down it
     // comes up with the booth
