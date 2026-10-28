@@ -33,18 +33,21 @@ Steps (each step needs Andy's go, marked ✋):
 
 ### Vercel project, prepared (not created)
 
-Andy's decision (28 Oct): all D//0 web apps in the one existing Vercel account (being switched to
-info@distancezeroshow.com), no Pro, no other account or platform.
+Andy's decision (28 Oct, final): the old account `kneislandrej-1341` stays unchanged with the website and the
+Virtual Space only (no email change, no moves). Marketing Studio and Broadcast go to the separate, new Vercel account
+**info@distancezeroshow.com**. No Pro, no other platform. Access: a scoped token of the new account, saved by Andy to
+`~/.config/dz/vercel-info.token` (never through chat or git), used with `--token`/`--scope` for these projects only,
+so the old account's CLI login stays untouched. Not verified yet: no access to the new account so far.
 
 | Setting | Value |
 |---|---|
-| Project | `dz-broadcast` in `kneislandrej-1341s-projects` |
+| Project | `dz-broadcast` in the new info@distancezeroshow.com account |
 | Root directory | `studio/web` (only this folder is uploaded: no studio code, no `data/`, no secrets) |
 | Framework / build | Other / none; output = the folder itself |
 | Config | `studio/web/vercel.json` (CSP, noindex, no-store, frame deny) |
 | Environment variables | none |
 | Domain | `broadcast.distancezeroshow.com`: added only with Andy's go, then the IONOS record changed (backup first) |
-| Deploy | CLI from `studio/web` (`vercel deploy`, preview first); not via the website's GitHub workflow |
+| Deploy | CLI from `studio/web` with the new account's token and scope (`vercel deploy`, preview first); not via GitHub integration or the website's workflow |
 
 **Status: production BLOCKED.** Vercel's Hobby plan is for non-commercial use only, and D//0 shows advertising
 and sponsors. The page itself is ready and tested locally (Chrome: online, offline, link to the studio, no CSP errors).
