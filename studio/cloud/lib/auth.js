@@ -4,13 +4,22 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const ACCOUNTS = [{ login: 'andy', name: 'Andy', role: 'director' }, { login: 'georgie', name: 'Georgie', role: 'host' }];
+// the official identities (Andy, 28 Oct 2026). Studio users only: info@distancezeroshow.com is the infrastructure
+// account and never signs in here. In production these become invitation-only Supabase Auth users.
+export const ACCOUNTS = [
+  { login: 'andrejkneisl@distancezeroshow.com', name: 'Andrej Kneisl', role: 'director', title: 'Director · Owner / Administrator' },
+  { login: 'georgiewalker@distancezeroshow.com', name: 'Georgie Walker', role: 'host', title: 'Co-Host' },
+];
 const hash = (pw, salt) => crypto.scryptSync(String(pw), salt, 32);
 
 export function createAuth({ dataDir, now = () => Date.now(), ttlMs = 12 * 3600e3, maxTries = 5 }) {
   const file = path.join(dataDir, 'test-users.json');
   let users, created = null;
-  try { users = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  try {
+    users = JSON.parse(fs.readFileSync(file, 'utf8'));
+    // accounts from an older list (e.g. before the official addresses) are not carried over: new test passwords
+    if (ACCOUNTS.map(a => a.login).sort().join() !== Object.keys(users).sort().join()) throw new Error('other accounts');
+  }
   catch {
     users = {}; created = {};
     for (const a of ACCOUNTS) {
@@ -31,8 +40,9 @@ export function createAuth({ dataDir, now = () => Date.now(), ttlMs = 12 * 3600e
     if (!u || !crypto.timingSafeEqual(got, Buffer.from(u.hash, 'hex'))) { recent.push(now()); tries.set(ip, recent); return { status: 401, error: 'Wrong name or password' }; }
     tries.delete(ip);
     const sid = crypto.randomBytes(32).toString('base64url');
-    sessions.set(sid, { login: u.login, name: u.name, role: u.role, expires: now() + ttlMs });
-    return { sid, user: { login: u.login, name: u.name, role: u.role } };
+    const user = { login: u.login, name: u.name, role: u.role, title: u.title };
+    sessions.set(sid, { ...user, expires: now() + ttlMs });
+    return { sid, user };
   }
   function session(sid) {
     const s = sid ? sessions.get(sid) : null;

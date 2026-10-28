@@ -63,7 +63,7 @@ export function createCloud({ dataDir = path.join(HERE, 'data'), showsDir = path
     const sid = cookie(req), me = auth.session(sid);
     if (!me) return send(res, 401, { error: 'Sign in first' });
     if (req.method === 'POST' && p === '/api/logout') { auth.logout(sid); return send(res, 200, { ok: true }, { 'Set-Cookie': 'dz_s=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' }); }
-    if (req.method === 'GET' && p === '/api/me') return send(res, 200, { user: { login: me.login, name: me.name, role: me.role } });
+    if (req.method === 'GET' && p === '/api/me') return send(res, 200, { user: { login: me.login, name: me.name, role: me.role, title: me.title } });
     if (req.method === 'GET' && p === '/api/engine') return send(res, 200, engine.view());
     if (req.method === 'GET' && p === '/api/formats') return send(res, 200, planner.formats());
     if (req.method === 'GET' && p === '/api/plans') return send(res, 200, planner.list());

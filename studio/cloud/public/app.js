@@ -16,7 +16,7 @@ async function start() {
   document.body.classList.toggle('director', me?.role === 'director');
   clearInterval(poll);
   if (!me) return;
-  $('who').textContent = `${me.name} · ${me.role === 'director' ? 'Director' : 'Host'}`;
+  $('who').textContent = `${me.name} · ${me.title}`;
   await Promise.all([engine(), loadPlans()]);
   poll = setInterval(engine, 3000);
 }

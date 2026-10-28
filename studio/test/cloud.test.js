@@ -14,6 +14,7 @@ const cloud = createCloud({ dataDir, now: () => clock, staleMs: 10000 });
 const server = http.createServer(cloud.handler);
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const B = `http://127.0.0.1:${server.address().port}`;
+const ANDY = 'andrejkneisl@distancezeroshow.com', GEORGIE = 'georgiewalker@distancezeroshow.com';
 test.after(() => { server.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
 
 async function req(method, p, { body, cookie, headers = {} } = {}) {
@@ -33,26 +34,35 @@ async function signIn(login) {
 test('test accounts are generated, stored hashed, never in plain text', () => {
   const saved = fs.readFileSync(path.join(dataDir, 'test-users.json'), 'utf8');
   for (const pw of Object.values(cloud.auth.created)) assert.ok(!saved.includes(pw));
-  assert.deepEqual(Object.keys(cloud.auth.created).sort(), ['andy', 'georgie']);
+  assert.deepEqual(Object.keys(cloud.auth.created).sort(), [ANDY, GEORGIE].sort());
+});
+
+test('the official addresses sign in (any letter case) with their roles; the infrastructure account is no studio user', async () => {
+  const r = await req('POST', '/api/login', { body: { login: ANDY.toUpperCase(), password: cloud.auth.created[ANDY] } });
+  assert.equal(r.status, 200); assert.equal(r.json.user.role, 'director'); assert.match(r.json.user.title, /Owner/);
+  const g = await req('POST', '/api/login', { body: { login: GEORGIE, password: cloud.auth.created[GEORGIE] } });
+  assert.equal(g.json.user.role, 'host'); assert.equal(g.json.user.title, 'Co-Host');
+  assert.equal((await req('POST', '/api/login', { body: { login: 'info@distancezeroshow.com', password: cloud.auth.created[ANDY] } })).status, 401);
+  clock += 61e3;   // that refusal counts towards the lockout; the next test starts with a clean minute
 });
 
 test('sign-in: wrong password refused, five failures lock the address for a minute, nothing without a session', async () => {
   assert.equal((await req('GET', '/api/plans')).status, 401);
   assert.equal((await req('GET', '/api/engine')).status, 401);
-  for (let i = 0; i < 5; i++) assert.equal((await req('POST', '/api/login', { body: { login: 'andy', password: 'nope' } })).status, 401);
-  assert.equal((await req('POST', '/api/login', { body: { login: 'andy', password: cloud.auth.created.andy } })).status, 429);
+  for (let i = 0; i < 5; i++) assert.equal((await req('POST', '/api/login', { body: { login: ANDY, password: 'nope' } })).status, 401);
+  assert.equal((await req('POST', '/api/login', { body: { login: ANDY, password: cloud.auth.created[ANDY] } })).status, 429);
   clock += 61e3;
-  await signIn('andy');
+  await signIn(ANDY);
 });
 
 test('a change without the page header or from another origin is refused', async () => {
-  const c = await signIn('andy');
+  const c = await signIn(ANDY);
   assert.equal((await req('POST', '/api/plans', { cookie: c, headers: { 'X-DZ': '' }, body: { format: 'friday', date: '2030-01-04', start: '21:00' } })).status, 403);
   assert.equal((await req('POST', '/api/plans', { cookie: c, headers: { Origin: 'https://evil.example' }, body: { format: 'friday', date: '2030-01-04', start: '21:00' } })).status, 403);
 });
 
 test('roles: Andy plans; Georgie reads the planner but cannot change it', async () => {
-  const a = await signIn('andy'), g = await signIn('georgie');
+  const a = await signIn(ANDY), g = await signIn(GEORGIE);
   const plans = (await req('GET', '/api/plans', { cookie: g })).json;
   assert.deepEqual(plans.map(p => p.format).sort(), ['friday', 'saturday', 'sunday'], 'one test episode of each format');
   assert.ok(plans.every(p => p.test && p.segments.length > 0));
@@ -68,7 +78,7 @@ test('roles: Andy plans; Georgie reads the planner but cannot change it', async 
 });
 
 test('the Mac link: only the engine token may report; unknown fields are dropped; silence means offline', async () => {
-  const c = await signIn('georgie');
+  const c = await signIn(GEORGIE);
   assert.equal((await req('GET', '/api/engine', { cookie: c })).json.online, false, 'no report yet');
   assert.equal((await req('POST', '/engine/heartbeat', { headers: { Authorization: 'Bearer wrong' }, body: { obs: true } })).status, 401);
   const token = engineToken(dataDir);
@@ -82,7 +92,7 @@ test('the Mac link: only the engine token may report; unknown fields are dropped
 });
 
 test('no route can reach OBS or the studio: control-like paths answer 404, also for the director', async () => {
-  const c = await signIn('andy');
+  const c = await signIn(ANDY);
   for (const p of ['/api/command', '/api/obs', '/api/stream', '/api/golive', '/engine/command', '/api/engine'])
     assert.ok([404, 405].includes((await req('POST', p, { cookie: c, body: { action: 'stream', on: true } })).status), p);
 });

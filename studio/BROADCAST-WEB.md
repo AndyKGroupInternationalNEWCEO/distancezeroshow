@@ -63,6 +63,27 @@ Steps (each step needs Andy's go, marked ✋):
 `HOST_ACTIONS` allows today), guests keep the invitation link flow (INVITATION → WAITING ROOM → ADMIT → TAKE ON AIR),
 which stays on the Mac.
 
+**Identities (confirmed by Andy, 28 Oct 2026)**
+
+| Person | Studio sign-in | Role in the web studio | Today's studio |
+|---|---|---|---|
+| Andrej Kneisl | `andrejkneisl@distancezeroshow.com` | `director` — Director, Owner / Administrator | Director on the Mac (local only) |
+| Georgie Walker | `georgiewalker@distancezeroshow.com` | `host` — Co-Host | host code, her Tailscale link |
+| — | `info@distancezeroshow.com` | **none**: the infrastructure account (Vercel, Supabase), never a studio user | — |
+
+The Stage 2a prototype (`cloud/`) already uses these addresses with generated test passwords (local only). Mail for the
+domain is hosted by IONOS (MX `mx00/mx01.ionos.co.uk`, SPF set, DMARC `p=none`). That the two mailboxes exist and
+receive mail is **not verified**: no mail has been sent. Before any invitation: Andy confirms both inboxes receive
+a test message.
+
+**Sign-in migration (only after Stage 2c is verified)**
+1. Supabase Auth: sign-ups off, the two addresses invited (✋ Andy sends/approves), MFA for Andy, no default passwords.
+2. The web studio and today's codes run side by side; Georgie keeps her code and Tailscale link.
+3. One real rehearsal with Georgie signed in through the web.
+4. ✋ Andy decides to retire the host code. Rollback at any point: the codes and the Funnel link were never removed,
+   so switching back is turning the web sign-in off.
+Guests keep their invitation links; they get no account.
+
 **Video and calls** — camera previews and the Georgie–Andy call stay peer-to-peer/through the existing path in 2a–2c;
 pushing video through Realtime would cost bandwidth and is not planned.
 
