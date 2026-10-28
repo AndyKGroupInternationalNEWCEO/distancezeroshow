@@ -1001,7 +1001,8 @@ export function spaces(v, ctx) {
   const track2 = new Audio(); track2.crossOrigin = 'anonymous'; track2.preload = 'auto';
   const players = [null, track, track2, null], loaded = [null, null, null, null], cuePts = [0, 0, 0, 0];
   const free = () => ownDecks && !dj;   // PLAY DJ: the DJ's own decks, no show and no set running
-  const elOf = d => (free() ? (loaded[d] ? players[d] : null) : dj.el === track && dj.deck === d ? track : null);
+  // (no show, no set and not PLAY DJ: no deck plays. The per-frame loop asks from the first frame on, before any show)
+  const elOf = d => (free() ? (loaded[d] ? players[d] : null) : dj?.el === track && dj.deck === d ? track : null);
   const deckOn = () => (dj?.el === track ? dj.deck : -1);
   // each deck's tempo fader (±16 %, key lock on), hot cues A–H (seconds) and loop { a, b, on }
   const deckPitch = [0, 0, 0, 0], hotCues = [[], [], [], []], loops = [null, null, null, null];
