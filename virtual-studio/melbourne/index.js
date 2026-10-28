@@ -20,8 +20,8 @@ import { createDjShow, DJ_OPENING, DJ_OPENING_SHORT } from './djshow.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
 import { spaces } from '../spaces.js';
-import { securityCam } from '../set.js';
-import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, ROOM, inClub, inShaft, keepInClub, xyz } from './layout.js';
+import { securityCam, cineRobot } from '../set.js';
+import { CAMS, LIFT_CAMS, CLUB_BOOTH, DJ_LIFT, BEACON, CAM3, STUDIO_SHOTS, ROOM, BOOTH, inClub, inShaft, keepInClub, xyz } from './layout.js';
 
 const GOLD = AMBER, SILVER = ICE, WHITE = '#fff4e8', WARM = '#ffd9b0', VIOLET = '#8a5cff', MAGENTA = '#ff3fa4', CYAN = '#3fd8ff';
 // each group: [level, colour, (heads) pattern | pulse]. Gold, silver and black by default; club colours in the
@@ -163,6 +163,22 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
 
   /* ----- the tempo clock ----- */
   let bpm = 128, beat = 0;
+
+  // CAM 4K HS is the studio's motion-control robot (set.js) here too: on its own track on the club floor in front of the
+  // booth (out of DJ2's picture: under it, and parked at the end of its rails). Its programme over the console with the
+  // booth down: low across the left deck, up over the mixer, across the right deck, up to the DJ, low hero on the DJ
+  const Y0 = ROOM.floor + CLUB_BOOTH.riser + CLUB_BOOTH.top;
+  const djMoves = [
+    [1.0, -1.1, xyz(-1.0, 2.75, Y0 + 0.25), xyz(-0.6, 2.0, Y0 + 0.05)],
+    [1.2, 0, xyz(0, 2.85, Y0 + 0.6), xyz(0, 1.9, Y0)],
+    [1.0, 1.1, xyz(1.0, 2.75, Y0 + 0.25), xyz(0.6, 2.0, Y0 + 0.05)],
+    [1.3, 0.5, xyz(0.5, 3.0, Y0 + 0.95), xyz(0, 1.6, Y0 + 0.55)],
+    [1.1, -0.4, xyz(-0.3, 2.9, Y0 - 0.2), xyz(0, 1.6, Y0 + 0.7)],
+  ];
+  // (should the robot fail, HS stays the fixed camera it was)
+  let robot = null;
+  try { robot = cineRobot(studio.M, { moves: djMoves, at: xyz(0, 4.3, ROOM.floor), rotY: BOOTH.rotY, rail: 5.6, parkX: -2.5, park: xyz(0, 2.0, Y0) });
+    robot.group.userData.equipment = '4K camera robot · DJ Room'; room.root.add(robot.group); } catch (e) { console.error('DJ robot:', e); robot = null; }
 
   /* ----- cameras DJ1–DJ6, and the transition camera ----- */
   const keys = Object.keys(CAMS), id = k => 'm' + k;
@@ -315,6 +331,9 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     // the 4K high-speed shot: the effects' own movement slowed (lasers, heads, fog, jogs), eased in and out like the studio's
     fxK += ((VIEWS[director.current]?.slow ?? 1) - fxK) * (1 - Math.exp(-dt * 2.5)); const fdt = dt * fxK; fxT += fdt;
     if (seen) { room.face(camera); room.update(fxT, fdt, L, beat); booth.update(fxT, fdt, L, beat); club.update(fxT, fdt, L); }
+    // the 4K high-speed shot is the robot's lens, flying its programme in the shot's slow motion; parked otherwise
+    if (robot) { robot.active = director.current === id('HS'); try { robot.update(fdt); } catch (e) { console.error('DJ robot:', e); robot = null; } }
+    if (robot && director.current === id('HS') && !director.flying) { camera.position.copy(robot.shot.pos); controls.target.copy(robot.shot.target); camera.lookAt(controls.target); }
     ui?.show({ cover: cover.state, lift: liftState(), hold: liftHold, mode, env, program, auto, bpm, beat, fx, preset: L.preset, track: L.track, view: VIEWS[director.current]?.melbourne || null, show, wall: wallName(), wallAuto: wall.auto, desk: desk.on });
   }
 

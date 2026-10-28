@@ -40,6 +40,8 @@ const FILES = [
   ...fs.readdirSync(path.join(ROOT, 'assets/sheets')).flatMap(d => fs.readdirSync(path.join(ROOT, 'assets/sheets', d)).map(f => `assets/sheets/${d}/${f}`)),
   // DJ Andy'K's voice drops for the DJ set
   ...fs.readdirSync(path.join(ROOT, 'assets/fx')).filter(f => f.endsWith('.mp3')).map(f => `assets/fx/${f}`),
+  // the playable grand's recordings (Salamander Grand Piano, CC BY 3.0: its README carries the credit)
+  ...fs.readdirSync(path.join(ROOT, 'assets/piano-samples')).filter(f => /\.(mp3|md)$/.test(f)).map(f => `assets/piano-samples/${f}`),
   // the reception's and the street's furniture (Poly Haven, CC0): every file of each model
   ...fs.readdirSync(path.join(ROOT, 'assets/models'), { recursive: true }).filter(f => /\.(gltf|bin|jpg|png)$/.test(f)).map(f => `assets/models/${f}`),
   // the songs' covers (the albums' artwork from djandykofficial.com, 192 px)

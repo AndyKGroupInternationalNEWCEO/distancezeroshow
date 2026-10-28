@@ -915,19 +915,31 @@ const MOVES = [
   [1.3, -0.4, [-0.3, 2.35, 1.3], [0, 3.6, -5.5]],      // the swoop up to the logo
   [0.9, -1.5, [-1.2, 0.45, 1.6], [-0.95, 1.2, -1.95]], // low on Andy'K's chair, then back to the floor
 ];
-function cineRobot(M) {
+// The same robot serves the Piano Stage and the DJ Room (vienna/, melbourne/): `opt` gives its own programme of moves
+// (world points: track position, where the camera is, what it looks at), where its track stands (`at`, turned `rotY`,
+// `rail` long), where it parks, and `base()`: a height it rides up by (the Piano Stage's camera tower follows the lift)
+export function cineRobot(M, opt = {}) {
+  const moves = opt.moves || MOVES, rail = opt.rail || 6.4, parkX = opt.parkX ?? -2.8;
   const group = new THREE.Group();
+  group.position.set(...(opt.at || [0, 0, ROBOT.z])); group.rotation.y = opt.rotY || 0;
+  const baseY = group.position.y;
   const add = (geo, mat, x, y, z, parent = group) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   // satin titanium, so it reads against the dark set; thin amber light rings at the joints, in the studio's colours
   const body = new THREE.MeshPhysicalMaterial({ color: 0x6a6f77, metalness: 0.8, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
   const led = new THREE.MeshBasicMaterial({ color: new THREE.Color(AMBER).multiplyScalar(1.6) });
   const ring = (r, parent, z = 0, axis = 'z') => { const t = add(new THREE.TorusGeometry(r, 0.006, 6, 40), led, 0, 0, z, parent); if (axis === 'y') t.rotation.x = Math.PI / 2; if (axis === 'x') t.rotation.y = Math.PI / 2; return t; };
   // track: two rails on sleepers along the front of the set, with end stops
-  for (const z of [-0.13, 0.13]) add(new THREE.BoxGeometry(6.4, 0.035, 0.05), M.brushed, 0, 0.0475, ROBOT.z + z);
-  for (let x = -3.1; x <= 3.11; x += 0.62) add(new THREE.BoxGeometry(0.08, 0.03, 0.42), M.graphite, x, 0.015, ROBOT.z);
-  for (const x of [-3.22, 3.22]) add(new THREE.BoxGeometry(0.06, 0.1, 0.4), M.graphite, x, 0.06, ROBOT.z);
+  for (const z of [-0.13, 0.13]) add(new THREE.BoxGeometry(rail, 0.035, 0.05), M.brushed, 0, 0.0475, z);
+  for (let x = -rail / 2 + 0.1; x <= rail / 2 - 0.09; x += 0.62) add(new THREE.BoxGeometry(0.08, 0.03, 0.42), M.graphite, x, 0.015, 0);
+  for (const x of [-rail / 2 - 0.02, rail / 2 + 0.02]) add(new THREE.BoxGeometry(0.06, 0.1, 0.4), M.graphite, x, 0.06, 0);
+  // on a camera tower (base()): a deck under the track and a telescopic leg at each end, down to the floor
+  const legs = [];
+  if (opt.base) {
+    add(new THREE.BoxGeometry(rail + 0.3, 0.05, 0.6), M.graphite, 0, -0.025, 0);
+    for (const x of [-rail / 2 + 0.25, rail / 2 - 0.25]) legs.push(add(new THREE.CylinderGeometry(0.07, 0.07, 1, 20), M.brushed, x, -0.5, 0));
+  }
   // carriage, base and turning column
-  const carriage = new THREE.Group(); carriage.position.set(0, 0, ROBOT.z); group.add(carriage);
+  const carriage = new THREE.Group(); group.add(carriage);
   add(new RoundedBoxGeometry(0.52, 0.08, 0.46, 2, 0.015), M.graphite, 0, 0.105, 0, carriage);
   add(new THREE.CylinderGeometry(0.2, 0.22, 0.2, 32), body, 0, 0.245, 0, carriage);
   const column = new THREE.Group(); column.position.y = 0.345; carriage.add(column);
@@ -951,13 +963,16 @@ function cineRobot(M) {
   const head = cam.head; group.add(head);
   shadows(group);
 
-  const v = new THREE.Vector3(), wp = new THREE.Vector3(), look = new THREE.Vector3(), lens = new THREE.Vector3(), park = new THREE.Vector3(0, 1.0, -1.9);
-  const total = MOVES.reduce((a, m) => a + m[0], 0);
-  let u = 0, active = false;
+  const v = new THREE.Vector3(), wp = new THREE.Vector3(), look = new THREE.Vector3(), lens = new THREE.Vector3(), park = new THREE.Vector3(...(opt.park || [0, 1.0, -1.9]));
+  const total = moves.reduce((a, m) => a + m[0], 0);
+  let u = 0, active = false, off = 0;
+  // the moves are in the world; the arm is solved in the track's own frame (along its rails: x)
+  const local = new THREE.Vector3();
   function pose(trackX, wristAt, lookAt) {
     carriage.position.x = trackX;
-    const sx = trackX, sy = ROBOT.shoulder, sz = ROBOT.z;
-    const dx = wristAt.x - sx, dy = wristAt.y - sy, dz = wristAt.z - sz;
+    group.updateMatrixWorld(true); group.worldToLocal(local.copy(wristAt));
+    const sx = trackX, sy = ROBOT.shoulder, sz = 0;
+    const dx = local.x - sx, dy = local.y - sy, dz = local.z - sz;
     column.rotation.y = Math.atan2(dx, dz);
     const r = Math.hypot(dx, dz), { L1, L2 } = ROBOT;
     const d = THREE.MathUtils.clamp(Math.hypot(r, dy), Math.abs(L1 - L2) + 0.02, L1 + L2 - 0.02);
@@ -965,8 +980,14 @@ function cineRobot(M) {
     const a2 = Math.PI - Math.acos(THREE.MathUtils.clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
     shoulder.rotation.x = -a1; elbow.rotation.x = a2;
     group.updateMatrixWorld(true);
-    wrist.getWorldPosition(wp);
+    wrist.getWorldPosition(wp); group.worldToLocal(wp);
     head.position.copy(wp).y += 0.06; head.lookAt(lookAt);
+  }
+  // the tower: the track rides up by base(), its legs reach down to the floor
+  function ride() {
+    if (!opt.base) return;
+    off = Math.max(0, opt.base()); group.position.y = baseY + off;
+    for (const l of legs) { l.scale.y = Math.max(0.001, off); l.position.y = -off / 2 - 0.05; l.visible = off > 0.02; }
   }
   return {
     group, head, tally: cam.tally, vf: cam.vf,
@@ -974,19 +995,20 @@ function cineRobot(M) {
     shot: { pos: lens, target: look },
     set active(on) { if (on && !active) u = 0; active = on; },
     update(dt) {
+      ride();
       if (!active) {
         // parked: at the Vienna end of the track, folded over itself along the rail, low: outside every other shot
-        carriage.position.x = -2.8; column.rotation.y = -Math.PI / 2; shoulder.rotation.x = -0.18; elbow.rotation.x = 2.75;
-        group.updateMatrixWorld(true); wrist.getWorldPosition(wp); head.position.copy(wp).y += 0.06; head.lookAt(park);
+        carriage.position.x = parkX; column.rotation.y = -Math.PI / 2; shoulder.rotation.x = -0.18; elbow.rotation.x = 2.75;
+        group.updateMatrixWorld(true); wrist.getWorldPosition(wp); group.worldToLocal(wp); head.position.copy(wp).y += 0.06; head.lookAt(v.copy(park).setY(park.y + off));
         return;
       }
       u = (u + dt) % total;
       let i = 0, t = u;
-      while (t > MOVES[i][0]) { t -= MOVES[i][0]; i++; }
-      const [dur, x0, w0, l0] = MOVES[i], [, x1, w1, l1] = MOVES[(i + 1) % MOVES.length];
+      while (t > moves[i][0]) { t -= moves[i][0]; i++; }
+      const [dur, x0, w0, l0] = moves[i], [, x1, w1, l1] = moves[(i + 1) % moves.length];
       const k = THREE.MathUtils.smoothstep(t / dur, 0, 1);
-      look.set(...l0).lerp(v.set(...l1), k);
-      const w = new THREE.Vector3(...w0).lerp(v.set(...w1), k);
+      look.set(...l0).lerp(v.set(...l1), k); look.y += off;
+      const w = new THREE.Vector3(...w0).lerp(v.set(...w1), k); w.y += off;
       pose(THREE.MathUtils.lerp(x0, x1, k), w, look);
       head.localToWorld(lens.set(0, 0.065, 0.36));
     },

@@ -100,13 +100,41 @@ export function createSound() {
   const state = () => ({ index, playing: !audio.paused && index >= 0, time: audio.currentTime || 0, duration: audio.duration || 0, failed });
 
   /* ---------- piano ---------- */
+  // the recorded grand: Salamander Grand Piano (Alexander Holm, CC BY 3.0, assets/piano-samples), a note every minor
+  // third, the others tuned from the nearest one (at most a semitone away), as tambien/Piano (MIT) plays it. Until
+  // the recordings have loaded (or if they cannot), the additive voice below plays
+  const SAMPLES = new URL('../assets/piano-samples/', import.meta.url), recorded = new Map();
+  const NAMES = ['C', 'Ds', 'Fs', 'A'], STEP = [0, 3, 6, 9];
+  let loading = null;
+  function loadSamples() {
+    if (loading) return loading;
+    const notes = [21, 108]; for (let o = 1; o <= 7; o++) for (const s of STEP) notes.push(12 * (o + 1) + s);
+    const name = m => (m === 21 ? 'A0' : m === 108 ? 'C8' : NAMES[STEP.indexOf(m % 12)] + (Math.floor(m / 12) - 1));
+    loading = Promise.all(notes.map(m => fetch(new URL(name(m) + '.mp3', SAMPLES)).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+      .then(b => new Promise((ok, no) => ctx.decodeAudioData(b, ok, no))).then(buf => recorded.set(m, buf)).catch(() => {})));
+    return loading;
+  }
+  function nearest(midi) {
+    for (const d of [0, -1, 1, -2, 2]) if (recorded.has(midi - d)) return [recorded.get(midi - d), d];
+    return null;
+  }
+  function sampled(midi, velocity, rec) {
+    const [buf, d] = rec, t = ctx.currentTime, src = ctx.createBufferSource(), out = ctx.createGain(), tone = ctx.createBiquadFilter();
+    src.buffer = buf; src.playbackRate.value = Math.pow(2, d / 12);
+    // a soft touch is darker and quieter, a hard one brighter (one recorded layer, shaped by the velocity)
+    tone.type = 'lowpass'; tone.Q.value = 0.3; tone.frequency.value = 1200 + 17000 * velocity * velocity;
+    out.gain.value = 0.12 + 0.62 * Math.pow(velocity, 1.6);
+    src.connect(tone).connect(out).connect(pianoBus); src.start(t);
+    voices.set(midi, { out, oscs: [src] });
+  }
   // additive voice: a few harmonics with a little inharmonicity, a bright hammer that mellows, natural decay
   const voices = new Map();
   const PARTIALS = [[1, 1], [2, 0.42], [3, 0.2], [4, 0.11], [5, 0.06], [6, 0.03]];
   function noteOn(midi, velocity = 0.8) {
-    ensure();
+    ensure(); loadSamples();
     if (voices.has(midi)) noteOff(midi, 0.03);
-    if (voices.size > 18) noteOff(voices.keys().next().value, 0.05); // steal the oldest
+    if (voices.size > 40) noteOff(voices.keys().next().value, 0.05); // steal the oldest
+    const rec = nearest(midi); if (rec) return sampled(midi, velocity, rec);
     const t = ctx.currentTime, f = 440 * Math.pow(2, (midi - 69) / 12);
     const out = ctx.createGain(), tone = ctx.createBiquadFilter();
     tone.type = 'lowpass'; tone.Q.value = 0.4;

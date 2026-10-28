@@ -6,7 +6,8 @@ import { VIEWS } from '../views.js';
 import { AMBER, ICE } from '../screens.js';
 import { createLift } from './lift.js';
 import { buildStage } from './stage.js';
-import { LIFT, CAMS, STUDIO_PIANO_VIEW, platformTop } from './layout.js';
+import { LIFT, CAMS, STUDIO_PIANO_VIEW, PIANO, platformTop, at } from './layout.js';
+import { cineRobot } from '../set.js';
 import { OPENING } from './opening.js';
 import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
@@ -85,6 +86,22 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     // solo: the studio goes down round the stage, as on the studio's own piano shot (main.js), not quite as far
     VIEWS[id(k)] = { label: c.label, long: c.long, pos: s.pos.toArray(), target: s.target.toArray(), fov: c.fov * (c.lens || 1), drift: 0, tally: 0, cam: c.name, free: true, vienna: k, solo: 0.6, ...(k === 'P6' ? { slow: 0.3 } : {}) };
   }
+  // CAM P6, the 4K high-speed camera, is the studio's motion-control robot (set.js) here too: on its own track beside
+  // the stage, on the side away from the studio cameras, on a camera tower that rides up with the lift. Its programme:
+  // along the keys from the bass end, up over the hands, the pianist's profile, over the lid, low on the hands
+  const P = (along, across, y) => { const [x, z] = at(along, across); return [x, y, z]; };
+  const pianoMoves = [
+    [1.0, 0.1, P(1.4, -1.05, 0.85), P(0.95, 0.3, 0.72)],
+    [1.2, 0.4, P(1.7, -1.1, 1.6), P(1.0, 0, 0.75)],
+    [1.1, 1.0, P(2.3, -1.2, 1.35), P(1.55, 0, 1.2)],
+    [1.3, -0.8, P(0.2, -1.3, 1.9), P(-0.4, 0.2, 0.9)],
+    [1.0, -0.2, P(1.25, -1.05, 0.55), P(1.05, 0.2, 0.8)],
+  ];
+  // (should the robot fail, P6 stays the fixed camera it was)
+  let robot = null;
+  try { robot = cineRobot(studio.M, { moves: pianoMoves, at: P(1.2, -2.8, 0), rotY: PIANO.rotY - Math.PI / 2, rail: 3.2, parkX: -1.4, park: P(0, 0, 0.9), base: () => platformTop(lift.height) });
+    robot.group.userData.equipment = '4K camera robot · Piano Stage'; scene.add(robot.group); } catch (e) { console.error('piano robot:', e); robot = null; }
+  let robotK = 1;
   // the studio's own piano shot (key 9) follows the grand up as well; with the lift down it is exactly as before
   const studioPiano = { pos: [...VIEWS.piano.pos], target: [...VIEWS.piano.target] };
   const pianoShot = (h, pos = new THREE.Vector3(), target = new THREE.Vector3()) => {
@@ -344,6 +361,12 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const step = onAudio && seg === liftSeg && show.time >= liftT && show.time - liftT < 0.5 ? show.time - liftT : dt;
     liftSeg = seg; liftT = show.time;
     const h = frozen ? lift.height : lift.step(step);
+    // the robot flies its programme on P6, in the shot's slow motion; parked otherwise
+    if (robot) {
+      robot.active = director.current === id('P6');
+      robotK += ((VIEWS[director.current]?.slow ?? 1) - robotK) * (1 - Math.exp(-dt * 2.5));
+      try { robot.update(dt * robotK); } catch (e) { console.error('piano robot:', e); robot = null; }
+    }
     for (const k of keys) {
       const lag = CAMS[k].lag;
       eased[k] = lag && !reducedMotion ? eased[k] + (h - eased[k]) * (1 - Math.exp(-dt / lag * 2)) : h;
@@ -358,7 +381,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const k = VIEWS[director.current]?.vienna || (director.current === 'piano' && (h > 0.001 || lift.moving) ? 'piano' : null);
     if (k && director.flying) wasFlying = true;
     else if (k) {
-      if (k === 'piano') pianoShot(h, want.pos, want.target); else shot(k, eased[k], want.pos, want.target);
+      if (k === 'piano') pianoShot(h, want.pos, want.target);
+      else if (k === 'P6' && robot) { want.pos.copy(robot.shot.pos); want.target.copy(robot.shot.target); }   // the robot's lens
+      else shot(k, eased[k], want.pos, want.target);
       if (wasFlying || !settle) { offset.copy(camera.position).sub(want.pos); settle = k; wasFlying = false; }
       offset.multiplyScalar(Math.exp(-dt * 3));
       camera.position.copy(want.pos).add(offset);
