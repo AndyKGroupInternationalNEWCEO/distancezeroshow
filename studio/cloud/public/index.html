@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DISTANCE // ZERO Broadcast</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="proto">PROTOTYPE · TEST DATA · NOT CONNECTED TO THE STUDIO</div>
+
+<section id="login" class="card narrow" hidden>
+  <div class="brand">DISTANCE // ZERO</div>
+  <h1>Broadcast Studio</h1>
+  <form id="loginForm">
+    <label>Name <input name="login" autocomplete="username" required></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr" role="alert"></p>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <div><span class="brand">DISTANCE // ZERO</span> <b>Broadcast</b></div>
+    <div><span id="who"></span> <button id="logout" class="quiet">Sign out</button></div>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Vienna Mac</h2>
+      <div class="status" id="mac" data-s="off"><span class="dot"></span><div><b id="macTitle">Mac offline</b><span id="macDetail"></span></div></div>
+      <p class="hint">Live controls (OBS, cameras, GO LIVE, MIDI) stay on the Mac. This page shows the studio's state and plans shows; it sends no commands.</p>
+    </section>
+    <section class="card">
+      <h2>Studio state <small>read only</small></h2>
+      <dl id="state" class="grid"></dl>
+    </section>
+    <section class="card wide">
+      <h2>Upcoming shows</h2>
+      <ul id="plans" class="plans"></ul>
+      <form id="newPlan" class="row director-only" hidden>
+        <select name="format"><option value="friday">Friday DJ</option><option value="saturday">Saturday Piano</option><option value="sunday">Sunday Show</option></select>
+        <input name="date" type="date" required>
+        <input name="start" type="time" value="20:00" required>
+        <button type="submit">Add episode</button>
+      </form>
+      <p class="err director-only" id="newErr" role="alert"></p>
+    </section>
+    <section class="card wide" id="editor" hidden>
+      <h2 id="edTitle">Show Planner</h2>
+      <form id="planForm">
+        <div class="row">
+          <label>Title <input name="title"></label>
+          <label>Date <input name="date" type="date"></label>
+          <label>Start <input name="start" type="time"></label>
+          <label>Status <select name="status"><option>planned</option><option>ready</option><option>cancelled</option></select></label>
+        </div>
+        <label>Notes <textarea name="notes" rows="2"></textarea></label>
+        <table><thead><tr><th>#</th><th>Segment</th><th>Kind</th><th>Min</th><th class="director-only"></th></tr></thead><tbody id="segs"></tbody></table>
+        <p class="hint" id="total"></p>
+        <div class="row director-only">
+          <button type="button" id="addSeg" class="quiet">Add segment</button>
+          <button type="submit">Save</button>
+          <button type="button" id="delPlan" class="danger">Delete episode</button>
+        </div>
+        <p class="err" id="planErr" role="alert"></p>
+      </form>
+    </section>
+  </main>
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
