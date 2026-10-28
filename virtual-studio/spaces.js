@@ -776,11 +776,13 @@ export function spaces(v, ctx) {
   }
   // PLAY DJ / RETURN TO DJ BOOTH: no show (and nothing left of one), at the console in first person (once the booth has
   // stopped riding): its decks, faders and knobs work there
+  // PLAY DJ is played in the DJ Room: at the console, the player rides down with the booth into the club
   let djPovWait = false;
+  function povDown() { enterPov('dj'); if ((m.lift.state === 'UP' || m.env !== 'djroom') && !m.travelling) m.transition('down'); }
   function playDj() {
     afterShow.stop(); cctv.stop(); ended = null; active = 'dj'; document.body.dataset.space = 'dj';
     stopPiano(); unlock(); stopDj(); wallHold = false;
-    if (m.travelling) djPovWait = true; else enterPov('dj');
+    if (m.travelling) djPovWait = true; else povDown();
     show();
   }
 
@@ -876,13 +878,12 @@ export function spaces(v, ctx) {
   { const go0 = director.go, auto0 = director.setAuto;
     director.go = (name, o) => (pov && name !== 'pov' && !povLeaving ? undefined : go0(name, o));
     director.setAuto = on => (pov && on ? undefined : auto0(on)); }
+  // the eyes belong to the console / the grand (`at`, `local`): when its lift rides, they ride with it (hold())
   function povEye(kind) {
-    if (kind === 'dj') {
-      const g = m.booth.gear.group; g.updateMatrixWorld(true);
-      return { eye: g.localToWorld(new THREE.Vector3(0, 0.64, -0.74)), look: g.localToWorld(new THREE.Vector3(0, -0.06, 0.32)) };
-    }
-    const p = ctx.studio.piano; p.updateMatrixWorld(true);
-    return { eye: p.localToWorld(new THREE.Vector3(0, 1.24, 0.72)), look: p.localToWorld(new THREE.Vector3(0, 0.84, -0.2)) };
+    const at = kind === 'dj' ? m.booth.gear.group : ctx.studio.piano; at.updateMatrixWorld(true);
+    const local = kind === 'dj' ? new THREE.Vector3(0, 0.64, -0.74) : new THREE.Vector3(0, 1.24, 0.72);
+    const look = kind === 'dj' ? new THREE.Vector3(0, -0.06, 0.32) : new THREE.Vector3(0, 0.84, -0.2);
+    return { at, local, eye: at.localToWorld(local.clone()), look: at.localToWorld(look) };
   }
   // OVERHEAD: a 4K camera straight above the DJ booth, the whole console seen from the top (the DJ's side at the
   // bottom of the picture); fixed, it follows the booth when it rides up or down
@@ -897,8 +898,8 @@ export function spaces(v, ctx) {
   }
   function enterPov_(kind) {
     if (pov) exitPov();
-    const { eye, look } = povEye(kind), d = look.clone().sub(eye).normalize();
-    pov = { kind, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
+    const { at, local, eye, look } = povEye(kind), d = look.clone().sub(eye).normalize();
+    pov = { kind, at, local, eye, yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y), before: director.current, drag: null };
     pov.yaw0 = pov.yaw; pov.pitch0 = pov.pitch;
     VIEWS.pov = { label: kind === 'dj' ? 'DJ' : 'Pianist', long: kind === 'dj' ? '4K · First person · at the DJ console' : '4K · First person · at the grand', pos: eye.toArray(), target: look.toArray(), fov: kind === 'dj' ? 62 : 58, drift: 0, tally: 0, cam: kind === 'dj' ? 'CAM 4K DJ' : 'CAM 4K PIANIST', free: true, melbourne: kind === 'dj' ? 'pov' : undefined };
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
@@ -1222,7 +1223,7 @@ export function spaces(v, ctx) {
   // the shows move on, and the buttons say what plays (the director's panels and the Broadcast bridge can change it too)
   function show() {
     pianoNext(); djNext(); afterShow.update(); cctv.update(); relabel(); airGfx(); idleCheck();
-    if (djPovWait && !m.travelling) { djPovWait = false; if (active === 'dj' && !dj) enterPov('dj'); }
+    if (djPovWait && !m.travelling) { djPovWait = false; if (active === 'dj' && !dj) povDown(); }
     if (!loungeFurnished && (ctx.camera.position.z < -6 || ['backstage', 'securityLounge'].includes(director.current))) furnishLounge();
     for (const f of placeAnim) f(performance.now() / 1000);
     for (const [b, f] of dynamic) { const t = f(), tl = b.querySelector('.tl'); if (tl.textContent !== t) { b.innerHTML = tileIcon(t) + '<span class="tl"></span>'; b.querySelector('.tl').textContent = t; } }
@@ -1279,6 +1280,9 @@ export function spaces(v, ctx) {
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
     }
     if (pov && director.current === 'pov' && !director.flying) {
+      // the eyes follow the booth / the grand on its lift (before, they stayed where they were: the booth went down,
+      // the picture stayed up in the shaft, under the studio's ceiling)
+      pov.eye.copy(pov.at.localToWorld(ahead.copy(pov.local))); VIEWS.pov.pos = pov.eye.toArray();
       const c = Math.cos(pov.pitch); ctx.camera.position.copy(pov.eye);
       ctx.controls.target.copy(pov.eye).add(ahead.set(Math.sin(pov.yaw) * c, Math.sin(pov.pitch), Math.cos(pov.yaw) * c)); ctx.camera.lookAt(ctx.controls.target);
     }
