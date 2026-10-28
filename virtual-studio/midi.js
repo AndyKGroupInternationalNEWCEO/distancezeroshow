@@ -30,7 +30,7 @@ const ACTIONS = {
   ],
 };
 
-export function midi({ space, piano, dj }) {
+export function midi({ space, piano, dj, djAudio }) {
   const supported = typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
   let access = null, learning = null, held = new Set(), sustain = false;
   const sustained = new Set();
@@ -66,6 +66,7 @@ export function midi({ space, piano, dj }) {
     const head = document.createElement('b'); head.textContent = sp === 'dj' ? 'MIDI · DJ controller' : 'MIDI · Keyboard'; card.append(head);
     const p = text => { const e = document.createElement('p'); e.textContent = text; card.append(e); return e; };
     if (sp !== 'piano' && sp !== 'dj') { p('MIDI devices play the grand at the Piano and the console in the DJ Room.'); return; }
+    if (sp === 'dj' && djAudio) outputsUi();
     if (!supported) { p('This browser does not support MIDI devices (Web MIDI). Safari, on the Mac and the iPhone, has none; Chromium-based browsers and Firefox do.'); return; }
     if (!access) { p('Connect your controller, then allow this page to use MIDI devices. It only listens; nothing is sent.'); const b = btn('Use MIDI devices', () => connect(true)); card.append(b); return; }
     const all = inputs();
@@ -83,6 +84,18 @@ export function midi({ space, piano, dj }) {
     }
     card.append(ul);
     card.append(btn('Clear learned controls', () => { write(store(sp, dev?.name), {}); render(); }));
+  }
+  // the DJ Room's PHONES (the CUE mix) and BOOTH (the master's send) to other audio outputs of this computer
+  let outTok = 0;
+  function outputsUi() {
+    const box = document.createElement('div'); card.append(box); const tok = ++outTok;
+    if (!djAudio.supported) { const e = document.createElement('p'); e.className = 'st'; e.textContent = 'PHONES and BOOTH outputs: this browser cannot send sound to a second output (Safari). Use Chrome or Edge for headphone cueing.'; box.append(e); return; }
+    djAudio.list().then(list => {
+      if (tok !== outTok) return;
+      const opts = [['', 'Off'], ...list.map(o => [o.id, o.label])], cur = djAudio.current;
+      for (const [which, label] of [['phones', 'PHONES (CUE) output'], ['booth', 'BOOTH output']])
+        box.append(select(label, opts, cur[which], v => djAudio.set(which, v).then(render, () => render())));
+    });
   }
   function btn(label, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; b.textContent = label; b.onclick = fn; return b; }
   function select(label, opts, value, fn) {

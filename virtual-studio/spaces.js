@@ -185,7 +185,7 @@ export function spaces(v, ctx) {
   @keyframes sp-fade{0%,80%{opacity:1}100%{opacity:0}}
   body.sp-pov-on .sp-pov p{bottom:24px;animation:sp-fade 9s forwards}
   .sp-pov[hidden]{display:none}
-  .sp-pov i{display:none}
+  .sp-pov i{display:none} .sp-pov .nt{display:block;font-size:.72rem;font-weight:600;color:#f2a650} .sp-pov .nt:empty{display:none}
   .sp-focus{position:fixed;z-index:6;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;pointer-events:none;border:2px solid rgba(var(--acc-rgb),.95);
     background:radial-gradient(circle,rgba(var(--acc-rgb),.18),rgba(var(--acc-rgb),0) 70%);box-shadow:0 0 14px rgba(var(--acc-rgb),.75),inset 0 0 8px rgba(255,255,255,.35);transition:left .12s,top .12s}
   .sp-focus[hidden]{display:none}
@@ -670,6 +670,7 @@ export function spaces(v, ctx) {
   fxEl.preload = 'auto';
   track.crossOrigin = 'anonymous'; track.preload = 'auto'; jingle.preload = 'auto';
   let dj = null;   // { steps, i, el (what plays now), paused }
+  let ownDecks = false;   // PLAY DJ: decks 2 and 3 are the DJ's own, each with its own player (below)
   // Safari (and the iPhone) let a page start a sound only from the visitor's click, element by element. So in that click
   // every player the show will use later is started muted and paused at once: the openings, the idents, the songs, the
   // DJ tracks and jingles. Later they may play on their own, on the show's clock
@@ -688,7 +689,7 @@ export function spaces(v, ctx) {
   // in the visitor's click: both players unlocked for Safari (played and paused at once), the analyser started
   function unlock() {
     unlockAll([...djPlayers(), fxEl]);
-    for (const a of [track, jingle]) { if (!a.src) a.src = a === jingle ? asset(JINGLE.between) : DJ_TRACKS[0].audio; a.muted = true; a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
+    for (const a of [track, track2, jingle]) { if (!a.src) a.src = a === jingle ? asset(JINGLE.between) : DJ_TRACKS[0].audio; a.muted = true; a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
     live.follow(track);
   }
   function djStep() {
@@ -719,12 +720,12 @@ export function spaces(v, ctx) {
       const deck = dj.deck = dj.deck === 1 ? 2 : 1, other = deck === 1 ? 2 : 1;
       // a new track on the deck: its tempo fader where the DJ left it (key lock on), no hot cues or loop yet, and its
       // waveform overview once the recording is decoded (live-music.js)
-      track.preservesPitch = true; track.playbackRate = 1 + deckPitch[deck]; hotCues[deck] = []; loops[deck] = null;
+      track.preservesPitch = true; track.playbackRate = 1 + deckPitch[deck]; hotCues[deck] = []; loops[deck] = null; live.route(track, deck);
       m.setDeck(deck + 1, { title: s.title, artist: "DJ Andy'K", bpm: s.bpm, key: s.key || '', state: 'play', position: 0, duration: s.seconds || 0, pitch: deckPitch[deck], hot: [], loop: null, waveform: null });
       live.overview(s.audio).then(w => { if (w && dj?.el === track && dj.deck === deck && track.src.endsWith(s.audio.split('/').pop())) m.setDeck(deck + 1, { waveform: w }); });
       m.setDeck(other + 1, { state: 'stop', position: 0 });
       const ch = [0, 1, 2, 3].map(i => ({ fader: i === deck ? 0.85 : 0, low: 0.5, mid: 0.5, hi: 0.5, filter: 0.5, trim: 0.55 }));
-      m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 }); live.eq({ trim: 0.55, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5 });
+      m.setMixer({ ch, xfader: deck === 1 ? 0.25 : 0.75, master: 0.8 }); syncMix();
       m.setMusicSource(dt => live.read(dt), deck);
       dj.wideAt = performance.now() + 60000;
     } else {
@@ -775,6 +776,7 @@ export function spaces(v, ctx) {
     else if (!dj.paused && dj.hold) { dj.hold = null; cardOff(); wallHold = false; if (dj.el === track) { m.pickCamera('DJ1'); m.setAuto(!pov); } }
   }
   function stopDj() {
+    ownDecks = false; stopDecks();
     if (dj) { cardOff(); track.pause(); jingle.pause(); for (const n of [2, 3]) m.setDeck(n, { state: 'stop', position: 0 }); dj = null; m.setMusicSource(null); m.setTrack(null); m.setAuto(false); }
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
   }
@@ -786,6 +788,8 @@ export function spaces(v, ctx) {
   function playDj() {
     afterShow.stop(); cctv.stop(); ended = null; active = 'dj'; document.body.dataset.space = 'dj';
     stopPiano(); unlock(); stopDj(); wallHold = false;
+    // the DJ's own two decks (2 and 3) on their channels, faders up, the crossfader in the middle
+    ownDecks = true; m.setMixer({ ch: [0, 1, 2, 3].map(i => ({ fader: i === 1 || i === 2 ? 0.85 : 0, trim: 0.5, hi: 0.5, mid: 0.5, low: 0.5, filter: 0.5, cue: false })), xfader: 0.5, master: 0.8 }); syncMix();
     if (m.travelling) djPovWait = true; else povDown();
     show();
   }
@@ -851,6 +855,8 @@ export function spaces(v, ctx) {
   function playTrackNow(s) {
     hideChoice(); afterShow.stop(); cctv.stop(); ended = null; active = 'dj'; document.body.dataset.space = 'dj';
     stopPiano(); unlock();
+    // PLAY DJ: onto the deck that is not playing (deck 2 first), beside what plays on the other
+    if (free()) { const d = !loaded[1] ? 1 : !loaded[2] ? 2 : players[1].paused ? 1 : players[2].paused ? 2 : 1; return loadDeck(d, s); }
     if (!dj || dj.done) dj = { i: 0, el: null, paused: false, steps: [{ jingle: 'end' }] };
     if (['PLAYING', 'PAUSED'].includes(m.opening.state)) m.djOpening('stop');
     const mixing = dj.el === track && crossfade();
@@ -865,7 +871,9 @@ export function spaces(v, ctx) {
      PLAY and CUE, a jog (drag: scrub), the channel faders and the crossfader (drag), the EQ knobs (drag); at the grand,
      its keys play. BACK returns to the camera before ----- */
   const povUi = document.createElement('div'); povUi.className = 'sp-pov'; povUi.hidden = true;
-  povUi.innerHTML = '<i></i><p></p>'; document.body.appendChild(povUi);
+  povUi.innerHTML = '<i></i><b class="nt"></b><p></p>'; document.body.appendChild(povUi);
+  // a short note over the hint (the MIC, a permission)
+  let noteT = 0; const povNote = t => { const i = povUi.querySelector('.nt'); i.textContent = t; clearTimeout(noteT); if (t) noteT = setTimeout(() => { i.textContent = ''; }, 8000); };
   const pad = document.createElement('div'); pad.className = 'sp-pad'; pad.hidden = true; pad.setAttribute('aria-label', 'Remote');
   pad.innerHTML = `<div class="g ring"></div>
     <button class="g ar up" type="button" data-d="0,-1" aria-label="Up">▲</button><button class="g ar dn" type="button" data-d="0,1" aria-label="Down">▼</button>
@@ -909,7 +917,7 @@ export function spaces(v, ctx) {
     director.setAuto(false); director.go('pov', { instant: true }); ctx.controls.enabled = false;
     povUi.hidden = false; pad.hidden = false; document.body.classList.add('sp-pov-on'); m.setAuto(false);
     focusNote = 60; focusObj = kind === 'dj' ? targets().find(o => o.userData.ctl.act === 'play' && o.userData.ctl.deck === 1) || targets()[0] : null;
-    povUi.querySelector('p').textContent = kind === 'dj' ? 'Drag the picture to look round · arrows: from control to control · OK presses (held with an arrow: moves a fader, a jog) · or tap them · PLAY, CUE, HOT CUE A–H, LOOP IN/OUT, TEMPO, faders, EQ, FILTER work · SYNC, the booth knobs and MIC are not working yet' : 'Drag the picture to look round · arrows: from key to key (up/down an octave) · OK plays · or tap the keys';
+    povUi.querySelector('p').textContent = kind === 'dj' ? 'Drag the picture to look round · arrows: from control to control · OK presses (held with an arrow: moves a fader, a jog) · or tap them · PLAY, CUE, HOT CUE A–H, LOOP IN/OUT, TEMPO, faders, EQ, FILTER work · decks 2 and 3 play together, each on its own channel (decks 1 and 4 have no player) · SYNC matches the tempo, not the beat · CUE sends a channel to PHONES, PHONES and BOOTH go to other outputs from the MIDI card (Chrome, Edge) · TALK opens the mic' : 'Drag the picture to look round · arrows: from key to key (up/down an octave) · OK plays · or tap the keys';
     closeMenus(); dock.classList.remove('more-open');
   }
   function exitPov() {
@@ -986,70 +994,115 @@ export function spaces(v, ctx) {
     }
     return null;
   }
-  // the decks: deck 2 and 3 (index 1, 2) are the set's; the deck that plays now is the set's current one
+  // THE DECKS. In the DJ show (the simulation, or a set started from the Library) the show's player plays on deck 2
+  // or 3 in turn, as before. In PLAY DJ the decks are the DJ's own: deck 2 and deck 3 each have their own player, their
+  // own track and their own mixer channel (live-music.js), and play at the same time, mixed by the console. Decks 1
+  // and 4 have no player (their screens say NO TRACK)
+  const track2 = new Audio(); track2.crossOrigin = 'anonymous'; track2.preload = 'auto';
+  const players = [null, track, track2, null], loaded = [null, null, null, null], cuePts = [0, 0, 0, 0];
+  const free = () => ownDecks && !dj;   // PLAY DJ: the DJ's own decks, no show and no set running
+  const elOf = d => (free() ? (loaded[d] ? players[d] : null) : dj.el === track && dj.deck === d ? track : null);
   const deckOn = () => (dj?.el === track ? dj.deck : -1);
-  // each deck's tempo fader (±16 %, key lock on), hot cues A–H (seconds) and loop { a, b, on }: real controls of the
-  // track that plays (one deck plays at a time; on the other they wait)
+  // each deck's tempo fader (±16 %, key lock on), hot cues A–H (seconds) and loop { a, b, on }
   const deckPitch = [0, 0, 0, 0], hotCues = [[], [], [], []], loops = [null, null, null, null];
-  const showPos = d => m.setDeck(d + 1, { position: track.currentTime });
-  // a loop plays round: back to its IN as the track reaches its OUT (checked every frame)
+  const showPos = d => { const el = elOf(d); if (el) m.setDeck(d + 1, { position: el.currentTime }); };
+  const effBpm = d => (loaded[d]?.bpm || 0) * (1 + deckPitch[d]);
+  // SYNC: lit while the deck's tempo matches the other playing deck's (the beat's phase is the DJ's to match by ear)
+  const syncLights = () => { for (const d of [1, 2]) { const o = d === 1 ? 2 : 1; m.setDeck(d + 1, { sync: free() && !!loaded[d] && !!loaded[o] && Math.abs(effBpm(d) - effBpm(o)) < 0.05 }); } };
+  // a loop plays round: back to its IN as the track reaches its OUT (checked every frame), on each deck
   (function loopLoop() {
     requestAnimationFrame(loopLoop);
-    const d = deckOn(), L = d >= 0 && loops[d];
-    if (L?.on && !track.paused && track.currentTime >= L.b) { track.currentTime = L.a; showPos(d); }
+    for (const d of [1, 2]) { const el = elOf(d), L = loops[d]; if (el && L?.on && !el.paused && el.currentTime >= L.b) { el.currentTime = L.a; showPos(d); } }
   })();
-  const chGain = ch => { const mx = m.booth.gear.mix, s = m.booth.gear.strips[ch]?.value; const side = ch < 2 ? 1 - mx.xfader : mx.xfader; return (s?.fader ?? 0.85) * Math.min(1, side * 2); };
-  const applyVolume = () => { const d = deckOn(); if (d >= 0) track.volume = Math.max(0, Math.min(1, chGain(d))); };
-  // the playing channel's EQ and filter knobs shape the sound (live-music.js)
-  const applyEq = () => { const d = deckOn(); live.eq(d >= 0 ? m.booth.gear.strips[d].value : {}); };
+  // the console's mixer is the sound's mixer: every fader, knob, CUE and the crossfader go to live-music.js as they move
+  const syncMix = () => { const g = m.booth.gear; live.mix({ ch: g.strips.map(s => ({ ...s.value })), xfader: g.mix.xfader, master: g.mix.master, booth: g.mix.booth, phones: g.mix.phones }); };
+  const applyVolume = syncMix, applyEq = syncMix;
+  // PLAY DJ: a track onto a deck (its own player and channel); it plays at once if `go`
+  function loadDeck(d, s, go = true) {
+    const el = players[d]; if (!el || !s) return;
+    live.route(el, d); el.src = s.audio; el.currentTime = 0; el.preservesPitch = true; el.playbackRate = 1 + deckPitch[d]; el.volume = 1;
+    loaded[d] = s; hotCues[d] = []; loops[d] = null; cuePts[d] = 0;
+    m.setDeck(d + 1, { title: s.title, artist: "DJ Andy'K", bpm: s.bpm, key: s.key || '', state: go ? 'play' : 'pause', position: 0, duration: s.seconds || 0, pitch: deckPitch[d], hot: [], loop: null, waveform: null });
+    live.overview(s.audio).then(w => { if (w && loaded[d] === s) m.setDeck(d + 1, { waveform: w }); });
+    if (go) el.play().catch(() => {});
+    m.setMusicSource(dt => live.read(dt), d); m.setMode('PERFORMANCE'); syncMix(); syncLights();
+  }
+  for (const d of [1, 2]) players[d].addEventListener('ended', () => { if (free() && loaded[d]) m.setDeck(d + 1, { state: 'stop', position: players[d].duration || 0 }); });
+  // out of PLAY DJ (a show starts, another space): the DJ's own decks stop
+  function stopDecks() { for (const d of [1, 2]) { if (loaded[d]) { players[d].pause(); loaded[d] = null; m.setDeck(d + 1, { title: '', artist: '', state: 'stop', position: 0, duration: 0, hot: [], loop: null, waveform: null, sync: false }); } } }
+  const pool = () => (djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS);
   function act(h, phase, dx = 0, dy = 0) {
     if (h.note) { const kb = ctx.studio.piano.userData.keyboard; if (phase === 'down') { ctx.sound?.noteOn?.(h.note, 0.8); kb.press(h.note, 1); } else if (phase === 'up') { ctx.sound?.noteOff?.(h.note); kb.press(h.note, 0); } return; }
-    const c = h.ctl, gear = m.booth.gear;
+    const c = h.ctl, gear = m.booth.gear, el = c.deck != null ? elOf(c.deck) : null;
     if (c.act === 'play' && phase === 'up') {
+      if (free()) {
+        if (!players[c.deck]) return;                                                   // decks 1 and 4: no player
+        if (!loaded[c.deck]) return loadDeck(c.deck, pick(pool(), 1)[0]);              // an empty deck: a track from the Library
+        if (el.paused) { el.play().catch(() => {}); m.setDeck(c.deck + 1, { state: 'play', position: el.currentTime }); } else { el.pause(); m.setDeck(c.deck + 1, { state: 'pause', position: el.currentTime }); }
+        return;
+      }
       if (c.deck === deckOn()) pauseDj();
-      else { const pool = djGenre ? DJ_TRACKS.filter(s => genresOf(s).includes(djGenre)) : DJ_TRACKS; if (dj && !dj.done) dj.deck = c.deck === 1 ? 2 : 1; playTrackNow(pick(pool, 1)[0]); }
-    } else if (c.act === 'cue' && phase === 'up' && c.deck === deckOn()) { track.currentTime = 0; if (!dj.paused) pauseDj(); m.setDeck(c.deck + 1, { state: 'pause', position: 0 }); }
-    else if (c.act === 'jog' && phase === 'move' && c.deck === deckOn()) { track.currentTime = Math.max(0, track.currentTime + dx * 0.02); m.setDeck(c.deck + 1, { position: track.currentTime }); }
-    else if (c.act === 'fader' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch].fader = Math.max(0, Math.min(1, ch[c.ch].fader - dy * 0.006)); gear.setMixer({ ch }); applyVolume(); }
-    else if (c.act === 'xfader' && phase === 'move') { gear.setMixer({ xfader: Math.max(0, Math.min(1, gear.mix.xfader + dx * 0.004)) }); applyVolume(); }
+      else { if (dj && !dj.done) dj.deck = c.deck === 1 ? 2 : 1; playTrackNow(pick(pool(), 1)[0]); }
+    } else if (c.act === 'cue' && phase === 'up' && el) {
+      // as a club player's CUE: playing, back to the cue point and stopped there; stopped, the cue point set where it is
+      if (free()) { if (!el.paused) { el.pause(); el.currentTime = cuePts[c.deck]; } else cuePts[c.deck] = el.currentTime; m.setDeck(c.deck + 1, { state: 'pause', position: el.currentTime }); return; }
+      track.currentTime = 0; if (!dj.paused) pauseDj(); m.setDeck(c.deck + 1, { state: 'pause', position: 0 });
+    }
+    else if (c.act === 'jog' && phase === 'move' && el) { el.currentTime = Math.max(0, el.currentTime + dx * 0.02); showPos(c.deck); }
+    else if (c.act === 'fader' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch].fader = Math.max(0, Math.min(1, ch[c.ch].fader - dy * 0.006)); gear.setMixer({ ch }); syncMix(); }
+    else if (c.act === 'xfader' && phase === 'move') { gear.setMixer({ xfader: Math.max(0, Math.min(1, gear.mix.xfader + dx * 0.004)) }); syncMix(); }
+    else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); syncMix(); }
+    else if (c.act === 'mknob' && phase === 'move') { gear.setMixer({ [c.name]: Math.max(0, Math.min(1, gear.mix[c.name] - dy * 0.006)) }); syncMix(); }
+    else if (c.act === 'chcue' && phase === 'up') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch].cue = !ch[c.ch].cue; gear.setMixer({ ch }); syncMix(); }
+    else if (c.act === 'mic' && phase === 'up') {
+      live.setMic(!live.micOn).then(on => { gear.setMic(on); povNote(on ? 'MIC open: the music is ducked under the voice. Use headphones, or keep the speakers low (feedback)' : ''); })
+        .catch(() => { gear.setMic(false); povNote('The microphone was not allowed or not found (browser settings)'); });
+    }
     else if (c.act === 'tempo' && phase === 'move') {
       // the fader towards the DJ (down the screen) plays faster, as a club player's
       deckPitch[c.deck] = Math.max(-0.16, Math.min(0.16, deckPitch[c.deck] + dy * 0.0008));
-      if (c.deck === deckOn()) { track.playbackRate = 1 + deckPitch[c.deck]; showPos(c.deck); }
-      m.setDeck(c.deck + 1, { pitch: deckPitch[c.deck] });
+      if (el) { el.playbackRate = 1 + deckPitch[c.deck]; showPos(c.deck); }
+      m.setDeck(c.deck + 1, { pitch: deckPitch[c.deck] }); syncLights();
     }
-    else if (c.act === 'hot' && phase === 'up' && c.deck === deckOn()) {
+    else if (c.act === 'sync' && phase === 'up' && free() && loaded[c.deck]) {
+      // SYNC: this deck's tempo to the other deck's (its BPM × its tempo fader), within the fader's ±16 %
+      const o = c.deck === 1 ? 2 : 1; if (!loaded[o] || !loaded[c.deck].bpm) return;
+      deckPitch[c.deck] = Math.max(-0.16, Math.min(0.16, effBpm(o) / loaded[c.deck].bpm - 1));
+      el.playbackRate = 1 + deckPitch[c.deck]; showPos(c.deck); m.setDeck(c.deck + 1, { pitch: deckPitch[c.deck] }); syncLights();
+    }
+    else if (c.act === 'hot' && phase === 'up' && el) {
       const h = hotCues[c.deck];
-      if (h[c.i] == null) h[c.i] = track.currentTime; else { track.currentTime = h[c.i]; if (dj.paused) pauseDj(); }
-      m.setDeck(c.deck + 1, { hot: h, position: track.currentTime });
+      if (h[c.i] == null) h[c.i] = el.currentTime;
+      else { el.currentTime = h[c.i]; if (free()) { if (el.paused) { el.play().catch(() => {}); m.setDeck(c.deck + 1, { state: 'play' }); } } else if (dj.paused) pauseDj(); }
+      m.setDeck(c.deck + 1, { hot: h, position: el.currentTime });
     }
-    else if (c.act === 'loopIn' && phase === 'up' && c.deck === deckOn()) { loops[c.deck] = { a: track.currentTime, b: null, on: false }; m.setDeck(c.deck + 1, { loop: loops[c.deck] }); }
-    else if (c.act === 'loopOut' && phase === 'up' && c.deck === deckOn()) {
+    else if (c.act === 'loopIn' && phase === 'up' && el) { loops[c.deck] = { a: el.currentTime, b: null, on: false }; m.setDeck(c.deck + 1, { loop: loops[c.deck] }); }
+    else if (c.act === 'loopOut' && phase === 'up' && el) {
       const L = loops[c.deck];
       if (L?.on) L.on = false;                                                       // OUT again: out of the loop
-      else if (L && track.currentTime > L.a + 0.1) { L.b = track.currentTime; L.on = true; track.currentTime = L.a; showPos(c.deck); }
+      else if (L && el.currentTime > L.a + 0.1) { L.b = el.currentTime; L.on = true; el.currentTime = L.a; showPos(c.deck); }
       m.setDeck(c.deck + 1, { loop: L });
     }
-    else if (c.act === 'knob' && phase === 'move') { const ch = gear.strips.map(s => ({ ...s.value })); ch[c.ch][c.name] = Math.max(0, Math.min(1, ch[c.ch][c.name] - dy * 0.006)); gear.setMixer({ ch }); applyEq(); }
   }
   // MIDI: a keyboard plays the grand (its sound and its keys), a DJ controller works the console as a tap or drag would
   // (midi.js: the models per space, MIDI Learn)
   const DJ_MIDI = { play: 'play', cue: 'cue', jog: 'jog' };
   const midiUi = midi({
     space: () => active,
+    djAudio: { supported: live.outputsSupported, list: live.outputs, set: live.setOutput, get current() { return live.output; } },
     piano: {
       noteOn: (n, v) => { ctx.sound?.noteOn?.(n, Math.max(0.15, v)); ctx.studio.piano.userData.keyboard.press(n, 1); },
       noteOff: n => { ctx.sound?.noteOff?.(n); ctx.studio.piano.userData.keyboard.press(n, 0); },
     },
     dj: (action, value) => {
       const [, kind, i] = action.match(/^([a-z]+)(\d?)$/), idx = +i || 0, gear = m.booth.gear;   // deck / channel 1 or 2 (the set's)
-      if (kind === 'tempo') { const d = idx; deckPitch[d] = (value - 0.5) * 0.32; if (d === deckOn()) { track.playbackRate = 1 + deckPitch[d]; showPos(d); } return m.setDeck(d + 1, { pitch: deckPitch[d] }); }
+      if (kind === 'tempo') { const d = idx, el = elOf(d); deckPitch[d] = (value - 0.5) * 0.32; if (el) { el.playbackRate = 1 + deckPitch[d]; showPos(d); } m.setDeck(d + 1, { pitch: deckPitch[d] }); return syncLights(); }
+      if (kind === 'sync') return act({ ctl: { act: 'sync', deck: idx } }, 'up');
       if (/^hot[a-h]$/.test(kind)) return act({ ctl: { act: 'hot', deck: idx, i: 'abcdefgh'.indexOf(kind[3]) } }, 'up');
       if (kind === 'loopin' || kind === 'loopout') return act({ ctl: { act: kind === 'loopin' ? 'loopIn' : 'loopOut', deck: idx } }, 'up');
       if (DJ_MIDI[kind]) return act({ ctl: kind === 'jog' ? { act: 'jog', deck: idx } : { act: kind, deck: idx } }, kind === 'jog' ? 'move' : 'up', kind === 'jog' ? value * 5 : 0);
-      if (kind === 'xfader') { gear.setMixer({ xfader: value }); return applyVolume(); }
-      const ch = []; ch[idx] = { [kind]: value }; gear.setMixer({ ch });
-      if (kind === 'fader') applyVolume(); else applyEq();
+      if (kind === 'xfader') { gear.setMixer({ xfader: value }); return syncMix(); }
+      const ch = []; ch[idx] = { [kind]: value }; gear.setMixer({ ch }); syncMix();
     },
   });
   canvas.addEventListener('pointerdown', e => {

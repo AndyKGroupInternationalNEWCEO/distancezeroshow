@@ -110,16 +110,16 @@ export function buildGear({ M, parent, glowMat }) {
     // HOT CUE A–H: a tap sets a cue where the track is, the next tap jumps back to it (spaces.js); lit once set
     const hot = [];
     for (let i = 0; i < 8; i++) { const m = led(tint, 0.35, 'pads'); const [x, z] = at(-0.1225 + i * 0.035, 0.095); mesh(new RoundedBoxGeometry(0.028, 0.007, 0.016, 2, 0.003), m, x, 0.063, z, p).userData.ctl = { deck: n, act: 'hot', i }; hot.push(m); }
-    // LOOP IN / OUT (lit while a loop plays), and SYNC (not working yet: one deck plays at a time; it stays dark)
-    const loopM = [];
-    for (const [u, act] of [[-0.142, 'loopIn'], [-0.108, 'loopOut'], [0.12, null]]) { const [x, z] = at(u, u > 0 ? 0.075 : 0.058); const m = act ? led(GOLD, 0.3, 'pads') : satin;
-      const b = mesh(new RoundedBoxGeometry(0.022, 0.006, 0.012, 2, 0.002), m, x, 0.0625, z, p); if (act) { b.userData.ctl = { deck: n, act }; loopM.push(m); } }
+    // LOOP IN / OUT (lit while a loop plays), SYNC (lit while this deck's tempo matches the other's)
+    const loopM = []; let syncM = null;
+    for (const [u, act] of [[-0.142, 'loopIn'], [-0.108, 'loopOut'], [0.12, 'sync']]) { const [x, z] = at(u, u > 0 ? 0.075 : 0.058); const m = led(act === 'sync' ? tint : GOLD, 0.3, 'pads');
+      mesh(new RoundedBoxGeometry(0.022, 0.006, 0.012, 2, 0.002), m, x, 0.0625, z, p).userData.ctl = { deck: n, act }; if (act === 'sync') syncM = m; else loopM.push(m); }
     { const [x, z] = at(0.135, -0.06); mesh(new THREE.BoxGeometry(0.004, 0.003, 0.12), rubber, x, 0.0612, z, p); }
     const tempoCap = mesh(new RoundedBoxGeometry(0.03, 0.014, 0.018, 2, 0.004), satin, ...((([x, z]) => [x, 0.068, z])(at(0.135, -0.06))), p);
     tempoCap.userData.ctl = { deck: n, act: 'tempo' }; mesh(new THREE.BoxGeometry(0.024, 0.0006, 0.0018), capWhite, 0, 0.0072, 0, tempoCap);
     knob(p, 0.13, 0.168, smallKnobGeo).position.y = 0.06;
     // (no USB stick: nothing here claims a source the Broadcast Studio did not report)
-    return { p, jog, jogRing, centre, play, cue, hot, loopM, tempoCap, screen: scr, data: { state: 'stop', position: 0, duration: 0, pitch: 0, title: '', artist: '', bpm: null, key: '', waveform: null, at: 0, hot: [], loop: null } };
+    return { p, jog, jogRing, centre, play, cue, hot, loopM, syncM, tempoCap, screen: scr, data: { state: 'stop', position: 0, duration: 0, pitch: 0, title: '', artist: '', bpm: null, key: '', waveform: null, at: 0, hot: [], loop: null, sync: false } };
   });
 
   /* ================= the mixer ================= */
@@ -142,7 +142,7 @@ export function buildGear({ M, parent, glowMat }) {
   const KNOBS = ['trim', 'hi', 'mid', 'low', 'filter'], KV = [0.185, 0.135, 0.095, 0.055, 0.012];
   const strips = CHU.map((u, i) => {
     const knobs = KNOBS.map((name, k) => { const kn = knob(mx, u, KV[k], k === 0 || k === 4 ? smallKnobGeo : knobGeo); kn.position.y = 0.0955; kn.userData.ctl = { ch: i, act: 'knob', name }; return kn; });
-    const cueM = led(GOLD, 0.9, 'pads'); { const [x, z] = at(u, -0.04); mesh(new RoundedBoxGeometry(0.024, 0.007, 0.012, 1, 0.003), cueM, x, 0.099, z, mx); }
+    const cueM = led(GOLD, 0.9, 'pads'); { const [x, z] = at(u, -0.04); mesh(new RoundedBoxGeometry(0.024, 0.007, 0.012, 2, 0.003), cueM, x, 0.099, z, mx).userData.ctl = { ch: i, act: 'chcue' }; }
     const segs = [];   // a 15-segment meter beside the fader
     for (let s = 0; s < 15; s++) { const c = s > 12 ? new THREE.Color(1, 0.25, 0.2) : s > 9 ? GOLD : SILVER, m = led(c, 1.1, 'meters'); const [x, z] = at(u + 0.021, -0.145 + s * 0.0048); mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.0034), m, x, 0.0965, z, mx); segs.push(m); }
     const [fx, fz] = at(u, -0.11);
@@ -150,12 +150,13 @@ export function buildGear({ M, parent, glowMat }) {
     mesh(new THREE.BoxGeometry(0.0022, 0.0006, 0.022), capWhite, 0, 0.0082, 0, cap);
     return { u, knobs, cueM, segs, cap, value: { ...REST }, level: 0 };
   });
-  const master = { knobs: [0.185, 0.135, 0.075].map(v => { const k = knob(mx, MASTER_U, v); k.position.y = 0.0955; return k; }), segs: [[], []], level: [0, 0] };
+  const master = { knobs: [[0.185, 'master'], [0.135, 'booth'], [0.075, 'phones']].map(([v, name]) => { const k = knob(mx, MASTER_U, v); k.position.y = 0.0955; k.userData.ctl = { act: 'mknob', name }; return k; }), segs: [[], []], level: [0, 0] };
   for (const [side, du] of [[0, -0.008], [1, 0.008]]) for (let s = 0; s < 15; s++) { const c = s > 12 ? new THREE.Color(1, 0.25, 0.2) : s > 9 ? GOLD : SILVER, m = led(c, 1.1, 'meters'); const [x, z] = at(MASTER_U + du, -0.145 + s * 0.0048); mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.0034), m, x, 0.0965, z, mx); master.segs[side].push(m); }
-  const micLed = led(new THREE.Color(1, 0.18, 0.12), 1.4); { const [x, z] = at(MASTER_U, 0.05); mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.003, 16), micLed, x, 0.097, z, mx); }
+  // TALK: the mic's on button (lit red while the mic is open)
+  const micLed = led(new THREE.Color(1, 0.18, 0.12), 1.4); { const [x, z] = at(MASTER_U, 0.05); mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.005, 40), micLed, x, 0.098, z, mx).userData.ctl = { act: 'mic' }; }
   { const [x, z] = at(0, -0.19); mesh(new THREE.BoxGeometry(0.11, 0.003, 0.004), rubber, x, 0.0962, z, mx); }
   const xfCap = mesh(new RoundedBoxGeometry(0.024, 0.016, 0.016, 2, 0.004), satin, 0, 0.104, -0.19 - 0.0, mx); xfCap.position.z = -0.19; xfCap.userData.ctl = { act: 'xfader' };
-  const mix = { xfader: 0.5, master: 0.7, phones: 0.5 };
+  const mix = { xfader: 0.5, master: 0.7, booth: 0.5, phones: 0.5 };
 
   /* ================= headphones (the console's left end) and the talkback mic (its right end) ================= */
   const hp = new THREE.Group(); hp.position.set(1.32, 0, -0.08); hp.rotation.y = 0.5; g.add(hp);   // on the console's left end
@@ -188,6 +189,7 @@ export function buildGear({ M, parent, glowMat }) {
     if ('duration' in d) o.duration = Math.max(0, +d.duration || 0);
     if ('position' in d) { o.position = Math.max(0, +d.position || 0); o.at = performance.now() / 1000; }
     if ('pitch' in d) o.pitch = Math.max(-0.16, Math.min(0.16, +d.pitch || 0));
+    if ('sync' in d) o.sync = !!d.sync;
     if ('hot' in d) o.hot = Array.isArray(d.hot) ? d.hot.slice(0, 8).map(v => (Number.isFinite(v) ? +v : null)) : [];
     if ('loop' in d) o.loop = d.loop && Number.isFinite(d.loop.a) ? { a: +d.loop.a, b: Number.isFinite(d.loop.b) ? +d.loop.b : null, on: !!d.loop.on } : null;
     if ('waveform' in d) o.waveform = Array.isArray(d.waveform) && d.waveform.length ? d.waveform.slice(0, 2048).map(clamp01) : null;
@@ -197,7 +199,7 @@ export function buildGear({ M, parent, glowMat }) {
   }
   function setMixer(d = {}) {
     (d.ch || []).forEach((c, i) => { const s = strips[i]; if (!s || !c) return; for (const f of [...KNOBS, 'fader']) if (f in c) s.value[f] = clamp01(c[f]); if ('cue' in c) s.value.cue = !!c.cue; });
-    for (const f of ['xfader', 'master', 'phones']) if (f in d) mix[f] = clamp01(d[f]);
+    for (const f of ['xfader', 'master', 'booth', 'phones']) if (f in d) mix[f] = clamp01(d[f]);
   }
   function setLevels(d = {}) {
     (d.ch || []).forEach((v, i) => { if (strips[i]) strips[i].level = Math.max(strips[i].level, clamp01(v)); });
@@ -224,6 +226,7 @@ export function buildGear({ M, parent, glowMat }) {
       k.play.color.setRGB(0.25, 1, 0.45).multiplyScalar(o.state === 'play' ? 1.2 : o.state === 'pause' && (t * 2) % 1 < 0.5 ? 1.0 : 0.05);
       k.cue.color.copy(GOLD).multiplyScalar(loaded && o.state !== 'play' ? 1.1 : 0.05);
       k.hot.forEach((m, i) => m.color.multiplyScalar(o.hot[i] != null ? 2.6 : loaded ? 0.35 : 0.12));
+      k.syncM.color.multiplyScalar(o.sync && loaded ? 2.6 : loaded ? 0.35 : 0.12);
       k.loopM.forEach((m, i) => m.color.multiplyScalar(o.loop?.on ? ((t * 2) % 1 < 0.6 ? 3 : 1.2) : i === 0 && o.loop ? 2 : 0.15));
       k.tempoCap.position.z = at(0.135, -0.06 + o.pitch / 0.16 * 0.055)[1];
       if (power) k.screen.draw(t, o, position(o));
@@ -234,7 +237,7 @@ export function buildGear({ M, parent, glowMat }) {
       s.cueM.color.multiplyScalar(s.value.cue ? 1.4 : 0.08);
       segsOn(s.segs, s.level, power); s.level = Math.max(0, s.level - dt * 1.6);   // the meter falls back at about 24 dB/s
     });
-    master.knobs.forEach((k, i) => turn(k, [mix.master, 0.5, mix.phones][i]));
+    master.knobs.forEach((k, i) => turn(k, [mix.master, mix.booth, mix.phones][i]));
     master.segs.forEach((segs, i) => { segsOn(segs, master.level[i], power); master.level[i] = Math.max(0, master.level[i] - dt * 1.6); });
     xfCap.position.x = at(-0.055 + mix.xfader * 0.11, 0)[0];
   }
