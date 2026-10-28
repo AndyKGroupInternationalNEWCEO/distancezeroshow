@@ -219,6 +219,16 @@ export function buildRoom({ studio, scene, quality }) {
   // the LED walls: back (behind the DJ, −across), left and right (the room's ends along), front (+across, lower,
   // behind the front cameras)
   const led = ledWalls(Object.assign(new Image(), { src: new URL('../../assets/logo-do-1k.webp', import.meta.url).href }));
+  // one LED cabinet's face (0.5 × 0.5 m): 192 × 192 pixels as dark gaps between soft lit dots, the cabinet's seam round it
+  const ledGrid = (() => {
+    const n = 768, c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), px = n / 192;
+    x.fillStyle = 'rgba(0,0,0,0.38)'; x.fillRect(0, 0, n, n);
+    x.globalCompositeOperation = 'destination-out';   // each pixel's lit dot: the mask cleared there
+    for (let i = 0; i < 192; i++) for (let j = 0; j < 192; j++) { x.beginPath(); x.arc((i + 0.5) * px, (j + 0.5) * px, px * 0.36, 0, Math.PI * 2); x.fill(); }
+    x.globalCompositeOperation = 'source-over'; x.fillStyle = 'rgba(0,0,0,0.85)';
+    x.fillRect(0, 0, n, 3); x.fillRect(0, 0, 3, n);   // the seam (the next cabinet adds the other side)
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  })();
   const walls = [];
   const wall = (surface, len, h, x, y, z, ry) => {
     const mat = new THREE.MeshBasicMaterial({ map: led.surfaces[surface].tex, color: new THREE.Color(0, 0, 0), toneMapped: true });
@@ -227,6 +237,11 @@ export function buildRoom({ studio, scene, quality }) {
     for (const [bx, by, bw, bh] of [[0, h / 2 + 0.04, len + 0.16, 0.08], [0, -h / 2 - 0.04, len + 0.16, 0.08], [-len / 2 - 0.04, 0, 0.08, h], [len / 2 + 0.04, 0, 0.08, h]]) {
       const f = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.1), M.dark); f.position.set(bx, by, 0.02); w.add(f);
     }
+    // the LED wall's own structure over its picture: 0.5 m cabinets with their seams, and the pixel grid (2.6 mm
+    // pitch, as a club's fine-pitch wall: a soft dot mask that only shows up close; mip-mapped to an even dimming away)
+    const grid = ledGrid.clone(); grid.needsUpdate = true; grid.repeat.set(len / 0.5, h / 0.5);
+    const ov = new THREE.Mesh(new THREE.PlaneGeometry(len, h), new THREE.MeshBasicMaterial({ map: grid, transparent: true, depthWrite: false, toneMapped: false }));
+    ov.position.z = 0.003; ov.renderOrder = 1; w.add(ov);
     walls.push(mat); return w;
   };
   wall('back', ROOM.w - 1.4, H - 0.7, 0, ROOM.floor + 0.35 + (H - 0.7) / 2, -ROOM.d / 2 + 0.06, 0);

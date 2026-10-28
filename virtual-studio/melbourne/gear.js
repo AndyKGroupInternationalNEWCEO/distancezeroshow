@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { AMBER, ICE } from '../screens.js';
+import { brushed, roughnessNoise } from '../details.js';
 
 const GOLD = new THREE.Color(AMBER), SILVER = new THREE.Color(ICE);
 const DECK = { w: 0.329, d: 0.453 }, MIX = { w: 0.394, d: 0.459 };
@@ -55,12 +56,20 @@ export function buildGear({ M, parent, glowMat }) {
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x050607, metalness: 0, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02 });
   const screenGlass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.08, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.02 });
   const capWhite = new THREE.MeshBasicMaterial({ color: 0xe8eaee });
+  // close-up finish: the bodies' satin varies a little (no plastic-flat gloss), the jogs' tops and the trims are
+  // brushed aluminium (anisotropic highlight), the screens sit in a gloss-black glass bezel
+  body.roughnessMap = roughnessNoise(3); body.roughness = 0.42;
+  const aluBrushed = new THREE.MeshPhysicalMaterial({ color: 0xc3c6cc, metalness: 1, roughness: 0.3, roughnessMap: brushed(2), anisotropy: 0.8 });
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xe2e4e8, metalness: 1, roughness: 0.12 });
+  const bezel = new THREE.MeshPhysicalMaterial({ color: 0x030304, metalness: 0, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.03 });
+  const plateRough = brushed(1);
 
   // a knob: knurled skirt and a domed cap (lathe profile), a white pointer line; `value` 0…1 turns it −150°…+150°
   const knobGeo = new THREE.LatheGeometry([[0.0, 0], [0.0105, 0], [0.0105, 0.004], [0.0095, 0.006], [0.0092, 0.016], [0.0082, 0.019], [0.005, 0.0205], [0, 0.021]].map(([r, y]) => new THREE.Vector2(r, y)), 56);
   const smallKnobGeo = knobGeo.clone().scale(0.8, 0.85, 0.8);
   const pointerGeo = new THREE.BoxGeometry(0.0012, 0.0008, 0.0065).translate(0, 0.0212, 0.0045);
-  function knob(p, u, v, geo = knobGeo) { const [x, z] = at(u, v); const k = mesh(geo, body, x, 0, z, p); mesh(pointerGeo, capWhite, 0, 0, 0, k); return k; }
+  const knobCap = new THREE.CylinderGeometry(0.0056, 0.0056, 0.0008, 40);
+  function knob(p, u, v, geo = knobGeo) { const [x, z] = at(u, v); const k = mesh(geo, body, x, 0, z, p); mesh(knobCap, aluBrushed, 0, geo === knobGeo ? 0.0207 : 0.0177, 0, k); mesh(pointerGeo, capWhite, 0, 0, 0, k); return k; }
   const turn = (k, value) => { k.rotation.y = -(-150 + 300 * value) * Math.PI / 180; };
 
   /* ================= the players ================= */
@@ -70,6 +79,8 @@ export function buildGear({ M, parent, glowMat }) {
     // the body: a low chassis rising towards the screen, rounded edges, a rubber foot line
     mesh(new RoundedBoxGeometry(DECK.w, 0.06, DECK.d, 3, 0.008), body, 0, 0.03, 0, p);
     mesh(new RoundedBoxGeometry(DECK.w - 0.01, 0.006, DECK.d - 0.01, 1, 0.002), rubber, 0, 0.002, 0, p);
+    // a brushed aluminium band round the top edge
+    mesh(new RoundedBoxGeometry(DECK.w + 0.002, 0.005, DECK.d + 0.002, 3, 0.0025), aluBrushed, 0, 0.0575, 0, p);
     const fp = faceplate(DECK.w, DECK.d, ({ text, ring, rect, P, x, s }) => {
       ring(0, -0.03, 0.108, 'rgba(220,224,230,0.25)'); ring(0, -0.03, 0.113, 'rgba(220,224,230,0.12)');
       text('PLAY/PAUSE', -0.115, -0.207, 0.0042); text('CUE', -0.115, -0.152, 0.0042);
@@ -84,10 +95,11 @@ export function buildGear({ M, parent, glowMat }) {
       text('VINYL', 0.105, -0.205, 0.0034); text('JOG MODE', 0.105, -0.193, 0.003, 'rgba(220,224,230,0.5)');
       x.strokeStyle = 'rgba(220,224,230,0.18)'; x.lineWidth = 0.0005 * s; const [a, b] = P(-DECK.w / 2 + 0.008, 0.125), [c2] = P(DECK.w / 2 - 0.008, 0); x.beginPath(); x.moveTo(a, b); x.lineTo(c2, b); x.stroke();
     });
-    mesh(fp.geo, new THREE.MeshStandardMaterial({ map: fp.tex, metalness: 0.5, roughness: 0.42 }), 0, 0.0605, 0, p);
+    mesh(fp.geo, new THREE.MeshStandardMaterial({ map: fp.tex, metalness: 0.5, roughness: 0.5, roughnessMap: plateRough }), 0, 0.0605, 0, p);
     // the screen: a 9-inch touch screen in a raised, tilted housing at the far end
     const sh = new THREE.Group(); sh.position.set(0, 0.06, 0.168); sh.rotation.x = -0.32; p.add(sh);   // its far edge up: the screen faces the DJ
-    mesh(new RoundedBoxGeometry(0.29, 0.03, 0.135, 2, 0.006), body, 0, 0.012, 0, sh);
+    mesh(new RoundedBoxGeometry(0.29, 0.03, 0.135, 3, 0.006), body, 0, 0.012, 0, sh);
+    mesh(new RoundedBoxGeometry(0.224, 0.003, 0.146, 2, 0.004), bezel, 0, 0.0262, 0, sh);   // the screen's glass bezel
     const scr = screen(n), sm = new THREE.MeshBasicMaterial({ map: scr.tex, toneMapped: false, color: 0x000000 });
     lit.push({ m: sm, white: true, k: 1, group: 'screens' });
     const face = mesh(new THREE.PlaneGeometry(0.2, 0.125).rotateX(-Math.PI / 2).rotateY(Math.PI), sm, 0, 0.0275, 0.0, sh); face.castShadow = false;
@@ -97,7 +109,8 @@ export function buildGear({ M, parent, glowMat }) {
     const [jx, jz] = at(0, -0.03);
     const jogRing = led(tint, 1.4); mesh(new THREE.TorusGeometry(0.1065, 0.0018, 12, 160).rotateX(Math.PI / 2), jogRing, jx, 0.062, jz, p);
     const jog = new THREE.Group(); jog.position.set(jx, 0.061, jz); p.add(jog); jog.userData.ctl = { deck: n, act: 'jog' };
-    mesh(new THREE.CylinderGeometry(0.103, 0.103, 0.014, 160), alu, 0, 0.007, 0, jog);
+    mesh(new THREE.CylinderGeometry(0.103, 0.103, 0.014, 160), aluBrushed, 0, 0.007, 0, jog);
+    mesh(new THREE.TorusGeometry(0.1032, 0.0045, 12, 160).rotateX(Math.PI / 2), rubber, 0, 0.007, 0, jog);   // the jog's grip
     const grooves = (() => { const c = document.createElement('canvas'); c.width = c.height = 1024; const x = c.getContext('2d'); x.scale(2, 2); x.fillStyle = '#101113'; x.fillRect(0, 0, 512, 512);
       for (let r = 40; r < 250; r += 1.1) { x.strokeStyle = `rgba(255,255,255,${0.035 + (r % 9 < 2 ? 0.03 : 0)})`; x.lineWidth = 1; x.beginPath(); x.arc(256, 256, r, 0, Math.PI * 2); x.stroke(); }
       x.fillStyle = '#d9dbe0'; x.fillRect(250, 18, 12, 70);   // the platter's marker, at 12 o'clock
@@ -106,7 +119,7 @@ export function buildGear({ M, parent, glowMat }) {
     const centre = led(tint, 0.35, 'screens'); mesh(new THREE.TorusGeometry(0.026, 0.0016, 10, 72).rotateX(Math.PI / 2), centre, 0, 0.0185, 0, jog);   // the jog's centre display: a thin lit ring
     // play / cue: big round buttons with lit rims; the hot-cue pads; loop, sync; the tempo fader; the browse knob
     const play = led(new THREE.Color(0.25, 1, 0.45), 1.2), cue = led(GOLD, 1.2);
-    for (const [v, m] of [[-0.185, play], [-0.13, cue]]) { const [x, z] = at(-0.115, v); mesh(new THREE.CylinderGeometry(0.0165, 0.0165, 0.008, 64), satin, x, 0.064, z, p).userData.ctl = { deck: n, act: v < -0.15 ? 'play' : 'cue' }; mesh(new THREE.TorusGeometry(0.0168, 0.0016, 10, 64).rotateX(Math.PI / 2), m, x, 0.068, z, p); }
+    for (const [v, m] of [[-0.185, play], [-0.13, cue]]) { const [x, z] = at(-0.115, v); mesh(new THREE.CylinderGeometry(0.0165, 0.0165, 0.008, 64), satin, x, 0.064, z, p).userData.ctl = { deck: n, act: v < -0.15 ? 'play' : 'cue' }; mesh(new THREE.TorusGeometry(0.0168, 0.0016, 10, 64).rotateX(Math.PI / 2), m, x, 0.068, z, p); mesh(new THREE.TorusGeometry(0.0192, 0.0011, 10, 64).rotateX(Math.PI / 2), chrome, x, 0.0612, z, p); }
     // HOT CUE A–H: a tap sets a cue where the track is, the next tap jumps back to it (spaces.js); lit once set
     const hot = [];
     for (let i = 0; i < 8; i++) { const m = led(tint, 0.35, 'pads'); const [x, z] = at(-0.1225 + i * 0.035, 0.095); mesh(new RoundedBoxGeometry(0.028, 0.007, 0.016, 2, 0.003), m, x, 0.063, z, p).userData.ctl = { deck: n, act: 'hot', i }; hot.push(m); }
@@ -138,7 +151,8 @@ export function buildGear({ M, parent, glowMat }) {
     text('A', -0.06, -0.205, 0.004); text('B', 0.06, -0.205, 0.004); rect(0, -0.19, 0.11, 0.004); text('CROSSFADER', 0, -0.214, 0.0029, 'rgba(220,224,230,0.55)');
     text('AKX-V4', -0.18, -0.218, 0.0052, 'rgba(232,234,238,0.9)', 'left', 700); text('DISTANCE // ZERO', 0.18, -0.218, 0.0038, 'rgba(242,166,80,0.8)', 'right', 600);
   }, 2304);
-  mesh(fp.geo, new THREE.MeshStandardMaterial({ map: fp.tex, metalness: 0.5, roughness: 0.42 }), 0, 0.0955, 0, mx);
+  mesh(fp.geo, new THREE.MeshStandardMaterial({ map: fp.tex, metalness: 0.5, roughness: 0.5, roughnessMap: plateRough }), 0, 0.0955, 0, mx);
+  mesh(new RoundedBoxGeometry(MIX.w + 0.002, 0.005, MIX.d + 0.002, 3, 0.0025), aluBrushed, 0, 0.0925, 0, mx);
   const KNOBS = ['trim', 'hi', 'mid', 'low', 'filter'], KV = [0.185, 0.135, 0.095, 0.055, 0.012];
   const strips = CHU.map((u, i) => {
     const knobs = KNOBS.map((name, k) => { const kn = knob(mx, u, KV[k], k === 0 || k === 4 ? smallKnobGeo : knobGeo); kn.position.y = 0.0955; kn.userData.ctl = { ch: i, act: 'knob', name }; return kn; });
@@ -146,7 +160,9 @@ export function buildGear({ M, parent, glowMat }) {
     const segs = [];   // a 15-segment meter beside the fader
     for (let s = 0; s < 15; s++) { const c = s > 12 ? new THREE.Color(1, 0.25, 0.2) : s > 9 ? GOLD : SILVER, m = led(c, 1.1, 'meters'); const [x, z] = at(u + 0.021, -0.145 + s * 0.0048); mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.0034), m, x, 0.0965, z, mx); segs.push(m); }
     const [fx, fz] = at(u, -0.11);
+    mesh(new THREE.BoxGeometry(0.0035, 0.0012, 0.07), rubber, fx, 0.0961, fz, mx);   // the fader's slot
     const cap = mesh(new RoundedBoxGeometry(0.016, 0.016, 0.026, 2, 0.004), satin, fx, 0.104, fz, mx); cap.userData.ctl = { ch: i, act: 'fader' };
+    for (const dz of [-0.007, 0.007]) mesh(new THREE.BoxGeometry(0.0165, 0.0012, 0.0016), rubber, 0, 0.0082, dz, cap);   // grip ridges
     mesh(new THREE.BoxGeometry(0.0022, 0.0006, 0.022), capWhite, 0, 0.0082, 0, cap);
     return { u, knobs, cueM, segs, cap, value: { ...REST }, level: 0 };
   });

@@ -396,7 +396,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   resize();
 
   // judge the frame rate only after shaders and textures have settled
-  let frames = 0, sampleAt = performance.now() + 4000, downgraded = 0;
+  let frames = 0, sampleAt = performance.now() + 4000, downgraded = 0, roomy = 0;
   function adapt(now) {
     if (now < sampleAt) { frames = 0; return; }
     frames++;
@@ -404,6 +404,11 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     const fps = (frames * 1000) / (now - sampleAt);
     frames = 0; sampleAt = now;
     sharpen();
+    // a heavy moment passed (the club's lasers and haze at full, a busy shot): the picture's size comes back up step by
+    // step once the frame rate has room again. (Before, every step down was for good: one heavy moment in the DJ Room
+    // left every camera, the robot's too, below 4K for the rest of the visit)
+    if (!quality.broadcast && dprCap < Infinity && fps >= 55) { if (++roomy >= 2) { roomy = 0; dprCap = dprCap * 1.15; if (dprCap >= quality.lines / Math.max(1, canvas.clientHeight)) dprCap = Infinity; resize(); } return; }
+    roomy = 0;
     if (document.hidden || fps >= 40 || downgraded > 6 || quality.broadcast) return;
     downgraded++;
     // the picture's size first (from 4K in bigger steps when the machine is far too slow), then the effects

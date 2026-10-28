@@ -236,7 +236,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
       else if (seq.step === 3 && s === 'DOWN') { seq.step = 4; seq.floorAt = seq.t + 2.4; seq.end = seq.t + 5.6; if (opening?.state !== 'PLAYING') { mode = 'PERFORMANCE'; modeBeat = beat; }   // (an opening's own script has the light)
         if (!seq.own) cut('DJ1', { instant: true }); coverCommand('close', { quiet: true }); armsCommand('deploy', { quiet: true }); say('DJ room: the booth is down · PERFORMANCE · cover closing, monitor arms out'); }
       else if (seq.step === 4 && seq.t >= seq.floorAt) { seq.step = 5; if (!seq.own) director.go('mCover', { instant: true }); }   // the cover's last 3 s: it slides in, rises flush, locks
-      else if (seq.step === 5 && seq.t >= seq.end) { const own = seq.own; seq = null; if (!own) cut('DJ2', { instant: true }); }
+      else if (seq.step === 5 && seq.t >= seq.end) { const own = seq.own, then = seq.then; seq = null; if (!own) cut(then || 'DJ2', { instant: true }); }
     } else {
       if (seq.step === 0 && booth.arms.state !== 'STOWED') { if (booth.arms.state !== 'STOWING') armsCommand('retract', { quiet: true }); seq.t = 0; return; }   // the arms in first,
       if (seq.step === 0 && cover.state !== 'OPEN') { if (cover.state !== 'OPENING') coverCommand('open', { quiet: true }); seq.t = 0; return; }   // then the cover clears
@@ -350,7 +350,13 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     get mode() { return mode; }, get env() { return env; }, get program() { return program; }, get auto() { return auto; }, get bpm() { return bpm; }, get beat() { return beat; },
     get travelling() { return !!seq; },
     setEnv,
-    pickCamera(k) { if (!CAMS[k]) return say('No such camera'); seq = null; auto = false; env = 'djroom'; cut(k); say('DJ room: ' + CAMS[k].name); },
+    pickCamera(k) {
+      if (!CAMS[k]) return say('No such camera');
+      // a club camera with the booth not down: the booth goes down first (its lift cameras ride with it), then the cut
+      // to the camera picked. (Before, the cut came at once: an empty, dark club with the console still up in the studio)
+      if (below(k) && (liftState() !== 'DOWN' || drive.moving) && !liftHold) { if (!seq) transition('down'); if (seq?.dir === 'down') { seq.then = k; return say('DJ room: ' + CAMS[k].name + ' once the booth is down'); } }
+      seq = null; auto = false; env = 'djroom'; cut(k); say('DJ room: ' + CAMS[k].name);
+    },
     setAuto(on) { auto = !!on; autoNext = beat; say(auto ? 'Automatic camera sequence on (8 bars a shot)' : 'Automatic camera sequence off'); },
     // the DJ lift: 'down' / 'up' (the DJ TRANSITION with its cameras and light), or the bare lift commands
     transition, liftCommand, coverCommand, armsCommand, cover,

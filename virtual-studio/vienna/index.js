@@ -221,7 +221,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const wallMat = (() => { let m = null; studio.root.traverse(o => { if (o.isMesh && o.material?.emissiveMap === studio.wall.texture) m = o.material; }); return m; })();
   const WALL_ASPECT = 2048 / 860;
   const feed = {
-    rt: new THREE.WebGLRenderTarget(quality.broadcast ? 1536 : 1024, quality.broadcast ? 645 : 430, { type: THREE.HalfFloatType }),
+    // the live picture on the studio's LED wall (the DJ Room, the Piano Stage): at the wall's own resolution (2048 × 860,
+    // as its canvas) on desktops and broadcast, with 4× MSAA; lighter on phones and tablets
+    rt: new THREE.WebGLRenderTarget(quality.mobile ? 1024 : 2048, quality.mobile ? 430 : 860, { type: THREE.HalfFloatType, samples: quality.mobile ? 0 : 4 }),
     cam: new THREE.PerspectiveCamera(40, WALL_ASPECT, 0.05, 80),
     at: 0,
     black: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1),

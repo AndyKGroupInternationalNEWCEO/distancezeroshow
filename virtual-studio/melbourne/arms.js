@@ -40,12 +40,22 @@ export function buildArms({ parent, riser, M, glow, black, rubber }) {
     const box = new THREE.Group(); box.position.set(0, 0.0, BOOM); boom.add(box);
     // the monitor: a two-way box (woofer, tweeter, a port), its back plate with the arm's yoke
     const cab = new THREE.Group(); cab.position.set(0, 0.25, 0); box.add(cab);
-    mesh(new RoundedBoxGeometry(0.3, 0.46, 0.32, 2, 0.02), black, 0, 0, 0, cab);
-    mesh(new THREE.CircleGeometry(0.105, 40), rubber, 0, -0.07, 0.161, cab);
-    mesh(new THREE.CircleGeometry(0.045, 32), new THREE.MeshStandardMaterial({ color: 0x1c1d20, metalness: 0.4, roughness: 0.5 }), 0, -0.07, 0.1615, cab);
-    mesh(new THREE.TorusGeometry(0.107, 0.006, 8, 40), chrome, 0, -0.07, 0.162, cab);
-    mesh(new THREE.CircleGeometry(0.032, 28), new THREE.MeshStandardMaterial({ color: 0x777b82, metalness: 0.9, roughness: 0.3 }), 0, 0.13, 0.161, cab);
-    mesh(new RoundedBoxGeometry(0.1, 0.022, 0.01, 1, 0.005), rubber, 0, -0.195, 0.161, cab);   // the bass port
+    mesh(new RoundedBoxGeometry(0.3, 0.46, 0.32, 4, 0.024), black, 0, 0, 0, cab);
+    // the drivers, modelled (not flat discs): the woofer's cone dished into the baffle with a rolled rubber surround
+    // and a domed dust cap in a chrome trim ring; the tweeter's soft dome in a shallow waveguide
+    const cone = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.1, roughness: 0.7, side: THREE.DoubleSide });   // (seen from inside the dish)
+    const woof = new THREE.Group(); woof.position.set(0, -0.07, 0.16); cab.add(woof);
+    mesh(new THREE.LatheGeometry([[0.03, -0.028], [0.06, -0.018], [0.09, -0.006], [0.097, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 64).rotateX(Math.PI / 2), cone, 0, 0, 0, woof);
+    mesh(new THREE.TorusGeometry(0.1, 0.007, 12, 72), rubber, 0, 0, 0.001, woof);
+    mesh(new THREE.SphereGeometry(0.034, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).scale(1, 1, 0.45), new THREE.MeshStandardMaterial({ color: 0x1c1d20, metalness: 0.4, roughness: 0.45 }), 0, 0, -0.026, woof);
+    mesh(new THREE.TorusGeometry(0.109, 0.005, 12, 72), chrome, 0, 0, 0.002, woof);
+    const tw = new THREE.Group(); tw.position.set(0, 0.13, 0.16); cab.add(tw);
+    mesh(new THREE.LatheGeometry([[0.022, -0.012], [0.04, -0.006], [0.058, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 64).rotateX(Math.PI / 2), cone, 0, 0, 0, tw);
+    mesh(new THREE.SphereGeometry(0.02, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).scale(1, 1, 0.6), new THREE.MeshStandardMaterial({ color: 0x8a8e95, metalness: 0.6, roughness: 0.35 }), 0, 0, -0.012, tw);
+    mesh(new THREE.TorusGeometry(0.06, 0.003, 10, 72), chrome, 0, 0, 0.001, tw);
+    // the bass port: a flared slot
+    mesh(new RoundedBoxGeometry(0.11, 0.028, 0.012, 3, 0.008), black, 0, -0.195, 0.158, cab);
+    mesh(new RoundedBoxGeometry(0.096, 0.016, 0.014, 2, 0.006), new THREE.MeshBasicMaterial({ color: 0x000000 }), 0, -0.195, 0.158, cab);
     mesh(new THREE.BoxGeometry(0.2, 0.06, 0.04), steel, 0, -0.22, -0.1, cab);                   // the yoke
     return { s, carriage, stages, strip, head, boom, box, cab };
   });

@@ -3,6 +3,7 @@
 // real sizes, headphones, a talkback mic), the booth monitors on mechanical arms (arms.js), and the cables down the back. Nothing here
 // plays or mixes audio (that is the Broadcast Studio's and OBS's); the gear moves only on data it is sent.
 import * as THREE from 'three';
+import { leatherNormal, brushed } from '../details.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { glow } from '../set.js';
 import { AMBER, ICE } from '../screens.js';
@@ -31,6 +32,11 @@ export function buildBooth({ M, parent, at, floor = ROOM.floor }) {
   /* ----- the console: a cabinet with a lit front, a work top the gear stands on ----- */
   add(new RoundedBoxGeometry(B.w, B.top - 0.05, B.d, 3, 0.03), black, 0, B.riser + (B.top - 0.05) / 2, 0);
   add(new RoundedBoxGeometry(B.w + 0.08, 0.05, B.d + 0.06, 2, 0.015), panel, 0, top - 0.025, 0);
+  // the work top's padded front edge (black leather, as a club console's armrest) and brushed aluminium end cheeks
+  const leather = new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.62, normalMap: leatherNormal(8), normalScale: new THREE.Vector2(0.6, 0.6) });
+  add(new RoundedBoxGeometry(B.w + 0.08, 0.045, 0.07, 4, 0.02), leather, 0, top - 0.02, B.d / 2 + 0.06);
+  const cheek = new THREE.MeshPhysicalMaterial({ color: 0xb4b7bd, metalness: 1, roughness: 0.3, roughnessMap: brushed(2), anisotropy: 0.7 });
+  for (const sx of [-1, 1]) add(new RoundedBoxGeometry(0.02, B.top - 0.02, B.d + 0.1, 3, 0.006), cheek, sx * (B.w / 2 + 0.05), B.riser + (B.top - 0.02) / 2, 0.01);
   // the front: a smoked panel, the D//0 mark lit behind it, a gold line under it
   const logoTex = new THREE.TextureLoader().load(new URL('../../assets/logo-do-1k.webp', import.meta.url).href); logoTex.colorSpace = THREE.SRGBColorSpace;
   const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, color: 0x000000 }); lit.push({ m: logoMat, k: 1.1, group: 'booth', white: true });
