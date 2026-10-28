@@ -15,6 +15,7 @@ import { PARTS as TRANSCRIBED } from './piano-parts.js';
 import { SCORES } from './score-parts.js';
 import { SHEETS } from './sheets.js';
 import { REPERTOIRE } from './repertoire.js';
+import { ARRANGEMENTS, ARRANGEMENT_PARTS, ARRANGEMENT_SHEETS } from './arrangements.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
 // lighting modes: each group's [level, colour, (moving heads) pattern | (under) pulse], the haze in the beams, and the
@@ -33,7 +34,7 @@ export const SOURCES = [
   ['selected', 'Selected camera'], ['media', 'Media / graphics', 'Phase 3'], ['off', 'Off'],
 ];
 
-export function vienna({ renderer, scene, camera, controls, director, studio, quality, reducedMotion }) {
+export function vienna({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, sound }) {
   const stage = buildStage({ studio, scene });
   const lift = createLift(LIFT);
 
@@ -279,6 +280,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   // where a song has its sheet music (score-parts.js), the keys play the score on the desk; the others their transcription
   const PARTS = { ...TRANSCRIBED };
   for (const [id, s] of Object.entries(SCORES)) if (s.approved) PARTS[id] = s;
+  // DJ Andy'K's piano arrangements of his songs (arrangements.js): no recording, the grand plays their notes itself
+  Object.assign(PARTS, ARRANGEMENT_PARTS);
+  const SONGS = [...REPERTOIRE, ...ARRANGEMENTS], PAGES = { ...SHEETS, ...ARRANGEMENT_SHEETS };
   const keyPlayer = createKeyPlayer(studio.piano.userData.keyboard);
   const preview = new URLSearchParams(location.search).get('keys') === 'preview';
   const parts = {}, loading = new Map();   // id → the loaded part (once fetched)
@@ -292,12 +296,29 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const partInfo = id => usable(id) ? { kind: 'piano-part', source: PARTS[id].source + (PARTS[id].approved ? '' : ' (preview, not yet approved)') } : null;
   let keysFor = null, sheetShown = '';   // the id whose part the key player holds
   let picked = REPERTOIRE.find(s => s.piano) || REPERTOIRE[0];
-  const pickSong = id => { picked = REPERTOIRE.find(s => s.id === id) || picked; ui.song(picked, partInfo(picked.id)); };
+  const pickSong = id => { picked = SONGS.find(s => s.id === id) || picked; ui.song(picked, partInfo(picked.id)); };
   const performSong = () => { abortSequence('Cinematic sequence cancelled'); fetchPart(picked.id); show.playSong(picked); };
   const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
   const seekSong = f => show.seek(f * show.duration);
   const ui = panel({ setLiftHold, command, setMode, pickCamera, setSource, setKey, setLook, showCommand, video: show.video, pickSong, performSong, seekSong });
   ui.song(picked, partInfo(picked.id));
+
+  // a piano arrangement has no recording: its notes sound on the grand's own piano (sound.js), on the show's clock. Each
+  // note starts as the clock passes it and stops at its end; a pause, a jump or the song's end lets every note go
+  let heard = { part: null, i: 0, t: 0 }; const ringing = new Map();   // midi → when it stops (s)
+  const hush = () => { for (const m of ringing.keys()) sound?.noteOff?.(m, 0.2); ringing.clear(); };
+  function voice(part) {
+    const t = show.time;
+    if (!part || !sound || show.paused) { if (ringing.size) hush(); if (!part) heard.part = null; return; }
+    if (heard.part !== part || t < heard.t - 0.05 || t - heard.t > 1) {   // a new song, or a jump: from here on
+      hush(); const n = part.notes; let lo = 0, hi = n.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (n[mid].t < t) lo = mid + 1; else hi = mid; }
+      heard = { part, i: lo, t };
+    }
+    const n = part.notes;
+    for (; heard.i < n.length && n[heard.i].t <= t; heard.i++) { const x = n[heard.i]; sound.noteOn(x.m, Math.max(0.2, x.v ?? 0.7)); ringing.set(x.m, Math.max(ringing.get(x.m) || 0, x.t + x.d)); }
+    for (const [m, end] of ringing) if (end <= t) { sound.noteOff(m); ringing.delete(m); }
+    heard.t = t;
+  }
 
   /* ----- per frame ----- */
   let settle = null, wasFlying = false, liftSeg = null, liftT = 0;
@@ -310,8 +331,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const playing = show.segment === 'song' ? show.song?.id : show.segment ? 'sessions/' + show.segment : null;
     if (playing !== keysFor) { keysFor = playing; keyPlayer.load(parts[playing] || null); if (!parts[playing]) fetchPart(playing)?.then(p => { if (p && keysFor === playing) keyPlayer.load(p); }); }
     if (keyPlayer.part) keyPlayer.update(show.time);
+    voice(playing && show.song?.notesOnly && show.segment === 'song' ? keyPlayer.part : null);
     // the score on the desk: the song's pages a spread at a time, turned on through the song (the cover page first)
-    const pages = show.segment === 'song' ? SHEETS[show.song?.id] : null;
+    const pages = show.segment === 'song' ? PAGES[show.song?.id] : null;
     let spread = null;
     if (pages && show.duration) { const n = Math.ceil(pages.length / 2), k = Math.min(n - 1, Math.floor((show.time / show.duration) * n)); spread = [pages[2 * k], pages[2 * k + 1]]; }
     const key = spread ? spread.join() : '';

@@ -221,14 +221,15 @@ export function createShow({ api, rise }) {
       }
     },
     // perform a song from the repertoire: its original recording, the stage cameras in turn, back to LIVE at its end.
-    // A recording that cannot be loaded is reported (and nothing is put in its place)
+    // A recording that cannot be loaded is reported (and nothing is put in its place). A piano arrangement (notesOnly:
+    // no recording of it exists) runs on the show clock for its length: the grand plays it from its notes
     playSong(entry) {
       if (running()) return api.say('Perform a song from LIVE (the openings are still running)');
-      if (!entry?.audio) return api.say(`${entry?.title || 'Song'}: no original recording listed in the song library — please provide it`);
+      if (!entry?.audio && !entry?.notesOnly) return api.say(`${entry?.title || 'Song'}: no original recording listed in the song library — please provide it`);
       stopAll();
-      song.entry = entry; song.failed = false; song.duration = entry.seconds || 0;
+      song.entry = entry; song.failed = !!entry.notesOnly; song.duration = entry.seconds || 0;
       song.cfg.label = entry.title;
-      if (songAudio.src !== entry.audio) songAudio.src = entry.audio;
+      if (entry.audio && songAudio.src !== entry.audio) songAudio.src = entry.audio;
       song.script.cues = Array.from({ length: 400 }, (_, i) => ({ t: i * SONG_SHOTS.length, cut: SONG_SHOTS.cams[i % SONG_SHOTS.cams.length] }));
       Object.assign(song.script.cues[0], { lights: SHOW.live.lights, release: 'all', master: 1, say: 'song · ' + entry.title });
       begin('song');
@@ -250,7 +251,7 @@ export function createShow({ api, rise }) {
       if (state === 'PREPARING') { if (api.liftState() === 'LOWERED') { const n = then; then = null; begin(n); } return; }
       if (!seg || paused) return;
       const m = media[seg];
-      if (seg === 'song' && m.failed) { const e = m.entry; live(); api.say(`${e.title}: the original recording could not be loaded — please provide it (${e.audio})`); return; }
+      if (seg === 'song' && m.failed && !m.entry?.notesOnly) { const e = m.entry; live(); api.say(`${e.title}: the original recording could not be loaded — please provide it (${e.audio})`); return; }
       t = m.failed ? t + dt : m.audio.currentTime;
       if (video && seg === 'opening' && videoShown && Math.abs(video.currentTime - t) > 0.12) video.currentTime = t;   // the video follows the audio
       const cues = m.script.cues;

@@ -13,6 +13,7 @@
 //   v: the Vienna Piano Stage (vienna/index.js) with the DJ Room as v.melbourne (melbourne/index.js, withVienna)
 import * as THREE from 'three';
 import { REPERTOIRE } from './vienna/repertoire.js';
+import { ARRANGEMENTS } from './vienna/arrangements.js';
 import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
 import { applyProbe } from './melbourne/probes.js';
@@ -787,13 +788,14 @@ export function spaces(v, ctx) {
      Room; the piano songs or the DJ's tracks with their covers, filtered by genre; a click plays one now ----- */
   let libGenre = 'All';
   function libraryNode(kind) {
-    const piano_ = kind === 'piano', all = piano_ ? PIANO_SONGS : DJ_TRACKS;
+    // at the Piano: the Piano Sessions' songs, then DJ Andy'K's piano arrangements of his songs (drafts: the grand plays them)
+    const piano_ = kind === 'piano', all = piano_ ? [...PIANO_SONGS, ...ARRANGEMENTS] : DJ_TRACKS;
     const genres = piano_ ? [] : ['All', ...GENRES.filter(g => all.some(s => genresOf(s).includes(g)))];
     const list = piano_ || libGenre === 'All' ? all : all.filter(s => genresOf(s).includes(libGenre));
     const now = piano_ ? (v.show.state === 'SONG' ? v.show.song?.id : null) : dj?.el === track ? dj.steps[dj.i - 1]?.track?.id : null;
     const el = document.createElement('div'); el.className = 'sp-lib';
-    el.innerHTML = `<header><b>${piano_ ? list.length + ' piano songs · tap one to play it' : list.length + ' tracks · tap one to play it'}</b>${genres.map(g => `<button class="tab" type="button" data-g="${g}" aria-pressed="${g === libGenre}">${g}</button>`).join('')}</header>
-      <ol>${list.map(s => `<li><button type="button" data-id="${s.id}" aria-current="${s.id === now}"><img src="${cover(s)}" alt="" loading="lazy"><span>${s.title}<small>${s.album}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''}${s.key ? ' · ' + s.key : ''}${piano_ ? '' : ' · ' + genresOf(s).join(', ')}</small></span></button></li>`).join('')}</ol>`;
+    el.innerHTML = `<header><b>${piano_ ? `${PIANO_SONGS.length} piano songs · ${ARRANGEMENTS.length} piano arrangements (drafts) · tap one to play it` : list.length + ' tracks · tap one to play it'}</b>${genres.map(g => `<button class="tab" type="button" data-g="${g}" aria-pressed="${g === libGenre}">${g}</button>`).join('')}</header>
+      <ol>${list.map(s => `<li><button type="button" data-id="${s.id}" aria-current="${s.id === now}"><img src="${cover(s)}" alt="" loading="lazy"><span>${s.title}<small>${s.album}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''}${s.key ? ' · ' + s.key : ''}${piano_ ? (s.arrangement ? ' · arrangement, draft' : '') : ' · ' + genresOf(s).join(', ')}</small></span></button></li>`).join('')}</ol>`;
     el.addEventListener('click', e => {
       const tab = e.target.closest('[data-g]'), row = e.target.closest('[data-id]');
       if (tab) { libGenre = tab.dataset.g; djGenre = libGenre === 'All' ? null : libGenre; ctx.panels?.refresh(); return; }
@@ -811,7 +813,7 @@ export function spaces(v, ctx) {
   function playSongNow(s) {
     hideChoice(); afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
     stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
-    const sp = v.show.audio?.song; if (sp && !sp.src) sp.src = s.audio;
+    const sp = v.show.audio?.song; if (sp && !sp.src && s.audio) sp.src = s.audio;
     // as a pianist goes from one piece into the next: the one playing dies away over 4 s while the new one comes in
     const mixing = sp && !sp.paused && v.show.segment === 'song' && fades;
     if (mixing) {
