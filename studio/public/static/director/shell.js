@@ -26,11 +26,12 @@ const TI = {
   talk: svg('<path d="M8 10h32v20H22l-8 7v-7H8z"/>'),
   guest: svg('<circle cx="18" cy="17" r="6"/><path d="M6 40c1-8 6-12 12-12s11 4 12 12"/><path d="M34 14v12M28 20h12"/>'),
   more: svg('<circle cx="12" cy="24" r="2.5"/><circle cx="24" cy="24" r="2.5"/><circle cx="36" cy="24" r="2.5"/>'),
+  midi: svg('<rect x="5" y="12" width="38" height="24" rx="3"/><path d="M12 12v14M19 12v14M29 12v14M36 12v14"/><path d="M15 26v10M33 26v10M24 26v10"/>'),
   remote: svg('<rect x="15" y="4" width="18" height="40" rx="7"/><circle cx="24" cy="18" r="5"/><path d="M20 30h8M20 36h8"/>'),
 };
 const SPACE = { sunday: ['studio', 'Studio'], saturday: ['piano', 'Piano'], friday: ['dj', 'DJ Room'] };
 const PANELS = [['plan', 'Plan'], ['playlist', 'Playlist'], ['runbook', 'Runbook'], ['audio', 'Audio'], ['video', 'Video'], ['gfx', 'Graphics'], ['talk', 'Talk'], ['guest', 'Guest'], ['more', 'More']];
-const PLACES = [['live', 'Live', TI.live], ['show', 'Show', TI.show], ['cctv', 'CCTV', ICON.cctv], ['tech', 'Technical', TI.tech], ['rehearse', 'Rehearsal', TI.rehearse], ['host', 'Host', TI.host]];
+const PLACES = [['live', 'Live', TI.live], ['show', 'Show', TI.show], ['cctv', 'CCTV', ICON.cctv], ['midi', 'MIDI', TI.midi], ['tech', 'Technical', TI.tech], ['rehearse', 'Rehearsal', TI.rehearse], ['host', 'Host', TI.host]];
 const store = { get(k, d) { try { const v = localStorage.getItem('dz-shell-' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('dz-shell-' + k, JSON.stringify(v)); } catch {} } };
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 document.body.classList.add('dz-shell');
@@ -88,12 +89,13 @@ edge.append(tog);
 for (const [k, label, icon] of PLACES) { const b = el('button', 'veb', `${icon}<span>${label}</span>`); b.type = 'button'; b.dataset.place = k; b.setAttribute('aria-pressed', 'false'); edge.append(b); }
 document.body.append(edge);
 tog.addEventListener('click', () => { edge.classList.toggle('open'); tog.setAttribute('aria-expanded', String(edge.classList.contains('open'))); placeRing(); });
-const placeOn = k => k === 'cctv' ? !cctv.hidden : k === 'host' ? document.body.classList.contains('host-mode') : !document.body.classList.contains('host-mode') && !$('#ws-' + k)?.hidden;
+const placeOn = k => k === 'midi' ? !midiP.hidden : k === 'cctv' ? !cctv.hidden : k === 'host' ? document.body.classList.contains('host-mode') : !document.body.classList.contains('host-mode') && !$('#ws-' + k)?.hidden;
 edge.addEventListener('click', e => {
   const b = e.target.closest('[data-place]'); if (!b) return;
   const k = b.dataset.place;
-  if (k === 'cctv') return setCctv(cctv.hidden);
-  setCctv(false);
+  if (k === 'cctv') return setMidi(false), setCctv(cctv.hidden);
+  if (k === 'midi') return setCctv(false), setMidi(midiP.hidden);
+  setCctv(false); setMidi(false);
   if (k === 'host') return (document.body.classList.contains('host-mode') ? $('#modeDirector') : $('#modeHost'))?.click(), renderSpaces();
   if (document.body.classList.contains('host-mode')) $('#modeDirector')?.click();
   $('#tab-' + k)?.click(); renderSpaces();
@@ -123,6 +125,27 @@ function setCctv(on) {
 cctv.querySelector('.x').addEventListener('click', () => setCctv(false));
 setInterval(() => { if (cctv.hidden) return; if (Date.now() - cctvT > 5000) { cctvI++; cctvT = Date.now(); } cctvPaint(); }, 500);
 
+/* ---------- MIDI: the Mac's keyboard and DJ controller (read by the studio, lib/midi.js); MIDI LEARN binds a control ---------- */
+const midiP = el('section', 'vcctv vmidi', '<header><b>MIDI</b><span class="vcam" id="midiStatus"></span><button class="x" type="button" aria-label="Close">×</button></header><div class="vmb"><div><h3>Devices</h3><ul id="midiDevs"></ul><p class="hint" id="midiLast"></p><p class="hint">A keyboard (Arturia …) plays the grand on the Vienna Piano Stage: its keys move and it sounds; the sustain pedal holds. Any other button, pad or key does what you teach it here: press LEARN, then the control on the device.</p></div><div><h3>Actions</h3><ul id="midiActs"></ul></div></div>');
+midiP.hidden = true; document.body.append(midiP);
+const send = (m) => window.dzDirector?.conn?.send(m);
+function renderMidi(v) {
+  if (!v) return;
+  midiP.querySelector('#midiStatus').textContent = v.status === 'on' ? `${v.devices.length} device${v.devices.length === 1 ? '' : 's'}${v.learning ? ' · LEARN: press a control on the device' : ''}` : v.status === 'off' ? 'MIDI is off: install @julusian/midi in studio/' : v.status;
+  midiP.querySelector('#midiDevs').replaceChildren(...(v.devices.length ? v.devices.map(d => { const li = el('li'); li.append(Object.assign(el('span'), { textContent: d.name })); const s = el('select', 'in'); for (const [k, t] of [['keys', 'Keyboard → grand'], ['dj', 'DJ controller'], ['other', 'Other']]) s.append(new Option(t, k, false, d.kind === k)); s.onchange = () => send({ t: 'midi', action: 'kind', name: d.name, kind: s.value }).then(renderMidi); li.append(s); return li; }) : [el('li', 'hint', 'No MIDI device connected. Plug it in: it appears here within a few seconds.')]));
+  const l = v.last; midiP.querySelector('#midiLast').textContent = l ? `Last: ${l.dev} · ${l.type === 'cc' ? 'CC ' + l.cc + ' = ' + l.raw : l.type + ' ' + (l.note ?? '')} · ch ${l.ch + 1}` : '';
+  const byAction = {}; for (const [k, a] of Object.entries(v.bindings || {})) (byAction[a] ||= []).push(k);
+  midiP.querySelector('#midiActs').replaceChildren(...v.actions.map(([id, label]) => {
+    const li = el('li'); li.append(Object.assign(el('span'), { textContent: label }));
+    for (const k of byAction[id] || []) { const [dev, type, ch, num] = k.split('|'); const b = el('button', 'b sm quiet'); b.textContent = `${dev.split(' ')[0]} ${type === 'cc' ? 'CC' : 'note'} ${num} ×`; b.type = 'button'; b.title = 'Remove this binding'; b.onclick = () => send({ t: 'midi', action: 'unbind', key: k }).then(renderMidi); li.append(b); }
+    const lb = el('button', 'b sm' + (v.learning === id ? ' on' : ''), v.learning === id ? 'Press a control…' : 'Learn'); lb.type = 'button';
+    lb.onclick = () => send({ t: 'midi', action: 'learn', what: v.learning === id ? '' : id }).then(renderMidi); li.append(lb); return li;
+  }));
+}
+function setMidi(on) { midiP.hidden = !on; if (on) send({ t: 'midi', action: 'view' })?.then(renderMidi, e => { midiP.querySelector('#midiStatus').textContent = e.message; }); renderSpaces(); placeRing(); }
+midiP.querySelector('.x').addEventListener('click', () => setMidi(false));
+window.dzDirector?.conn?.on?.('midi', m => { if (!midiP.hidden) renderMidi(m.v); });
+
 /* ---------- the remote: the arrows move the ring between the controls in view, OK presses ---------- */
 const pad = el('div', 'vpad', `<button class="g sm home" type="button" data-k="home" aria-label="Home">⌂</button><button class="g sm back" type="button" data-k="back" aria-label="Back">↩</button><button class="g sm menu" type="button" data-k="menu" aria-label="Menu">⋯</button><div class="g ring"></div><button class="g ar up" type="button" data-k="up" aria-label="Up">▲</button><button class="g ar dn" type="button" data-k="down" aria-label="Down">▼</button><button class="g ar lf" type="button" data-k="left" aria-label="Left">◀</button><button class="g ar rt" type="button" data-k="right" aria-label="Right">▶</button><button class="g ok" type="button" data-k="ok">OK</button>`);
 pad.hidden = true; const ring = el('div', 'vring'); ring.hidden = true; document.body.append(pad, ring);
@@ -131,7 +154,7 @@ const usable = e => { const r = e.getBoundingClientRect(); return r.width > 0 &&
 function candidates() {
   const modal = [...$$('.switchdlg, .help, .help-dlg, .assist, dialog[open]')].find(d => !d.hidden && d.getBoundingClientRect().width);
   const sel = 'button, select, input, textarea, [tabindex="0"]';
-  const roots = modal ? [modal] : !cctv.hidden ? [cctv, dock, edge] : [$('main'), dock, edge, $('.bar')];
+  const roots = modal ? [modal] : !midiP.hidden ? [midiP, dock, edge] : !cctv.hidden ? [cctv, dock, edge] : [$('main'), dock, edge, $('.bar')];
   return roots.flatMap(r => r ? [...r.querySelectorAll(sel)] : []).filter(usable);
 }
 function placeRing() {
@@ -150,7 +173,7 @@ function move(dir) {
 }
 function key(k) {
   if (k === 'ok') { if (!focusEl) return; if (/SELECT|INPUT|TEXTAREA/.test(focusEl.tagName)) focusEl.focus(); else focusEl.click(); setTimeout(placeRing, 80); return; }
-  if (k === 'back') { const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }); if (!cctv.hidden) setCctv(false); else if (dock.classList.contains('open')) setMore(false); else if (edge.classList.contains('open')) tog.click(); else document.dispatchEvent(esc); setTimeout(placeRing, 80); return; }
+  if (k === 'back') { const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }); if (!cctv.hidden) setCctv(false); else if (!midiP.hidden) setMidi(false); else if (dock.classList.contains('open')) setMore(false); else if (edge.classList.contains('open')) tog.click(); else document.dispatchEvent(esc); setTimeout(placeRing, 80); return; }
   if (k === 'home') { setCctv(false); setMore(false); if (document.body.classList.contains('host-mode')) $('#modeDirector')?.click(); $('#tab-live')?.click(); focusEl = $('#cutBtn'); renderSpaces(); placeRing(); return; }
   if (k === 'menu') return setMore(!dock.classList.contains('open'));
   move(k);

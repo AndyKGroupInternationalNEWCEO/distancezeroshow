@@ -85,3 +85,9 @@ body.dz-shell .bar{margin-left:-96px;padding-left:112px}
 body.dz-shell .live-grid{--mw:min(max(380px,calc((100vh - 560px) * 1.7778)),calc((100vw - 96px - 300px - 2 * var(--pad,24px) - 3 * var(--gap,14px)) / 2))}
 /* notes, toasts and the call stay above the dock */
 body.dz-shell .toasts,body.dz-shell .callpanel{bottom:150px}
+/* MIDI: devices and MIDI LEARN (shell.js) */
+.vmidi .vmb{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px;color:#f6f8fb}
+.vmidi h3{margin:0 0 8px;font:600 .62rem var(--wide);letter-spacing:.2em;text-transform:uppercase;color:var(--acc)}
+.vmidi ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.vmidi li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border:1px solid rgba(255,255,255,.14);border-radius:10px;font-size:.82rem}
+.vmidi li>span{flex:1;min-width:0}

@@ -63,6 +63,24 @@ async function start() {
     }
   }
 
+  // MIDI from the Mac's keyboard (lib/midi.js): the grand's key moves and it sounds. The stage's own noteOn/noteOff when
+  // the Virtual Space provides them; until then the page's keyboard (studio.piano) and its Web Audio piano (sound).
+  // The sustain pedal holds released notes until it comes up.
+  const app = window.__studio, held = new Set(), down = new Set();
+  let sustain = false;
+  const keyDown = (n, v) => { if (ext.noteOn) return ext.noteOn(n, v); app.studio?.piano?.userData?.keyboard?.press(n, 1); app.sound?.noteOn?.(n, 0.25 + v * 0.75); };
+  const keyUp = n => { if (ext.noteOff) return ext.noteOff(n); app.studio?.piano?.userData?.keyboard?.press(n, 0); app.sound?.noteOff?.(n); };
+  function note(m) {
+    if (typeof m.sustain === 'boolean') {
+      sustain = m.sustain; if (ext.sustain) ext.sustain(sustain);
+      if (!sustain) { for (const n of held) if (!down.has(n)) keyUp(n); held.clear(); }
+      return;
+    }
+    const n = Math.round(Number(m.note)); if (!(n >= 21 && n <= 108)) return;
+    if (m.vel > 0) { down.add(n); held.delete(n); keyDown(n, Math.min(1, Number(m.vel) || 0.7)); }
+    else { down.delete(n); if (sustain && !ext.sustain) held.add(n); else keyUp(n); }
+  }
+
   let ws = null, timer = 0, wait = 1000;
   function connect() {
     ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?stage=${encodeURIComponent(KEY)}`);
@@ -70,6 +88,7 @@ async function start() {
     ws.onmessage = e => {
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.t !== 'stage.cmd') return;
+      if (m.cmd === 'note') { try { note(m); } catch (err) { console.warn('[stage-bridge] note', err); } return; }   // a key: at once, no answer
       let error = '';
       try { run(m); } catch (err) { error = err.message || String(err); }
       // the stage's own answer (it refuses a song while the openings run, for example) comes back with the report

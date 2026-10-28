@@ -1072,3 +1072,22 @@ body.dz-shell .show3,body.dz-shell .show3.hostview{height:calc(100vh - var(--bar
 body.dz-shell .strip:not([hidden]) ~ main .show3{height:calc(100vh - var(--bar) - var(--dock) - 30px - 40px)}
 body.dz-shell .mon3{max-width:min(1700px,105vh)}
 body.dz-shell .mon3-tile[data-which=program] .mpic{max-height:min(34vh,calc(100vh - 560px))}
+/* Show Control and HOST mode with the dock: one fixed screen, the page itself never scrolls; each panel is a fixed
+   glass box and only its own content scrolls inside it (script, rundown, playlist, runbook…) */
+body.dz-shell:has(#ws-show:not([hidden])),body.dz-shell.host-mode{height:100vh;overflow:hidden;padding-bottom:0}
+body.dz-shell:has(#ws-show:not([hidden])) main,body.dz-shell.host-mode main{padding-bottom:0}
+body.dz-shell .show3-body>.col>.card{flex:none}
+body.dz-shell .show3-body>.col{overscroll-behavior:contain;border-radius:16px}
+/* the panel's heading stays at the top of its glass box while its content scrolls */
+body.dz-shell .show3-body>.col>.card>.card-h{position:sticky;top:0;z-index:3;background:var(--panel);border-radius:16px 16px 0 0}
+body.dz-shell #liveScript>.ls-head,body.dz-shell #hmScript>.ls-head{position:sticky;top:46px;z-index:2;background:var(--panel)}
+/* short windows: the monitors give way first, so the panels keep a usable height */
+body.dz-shell .mon3-tile[data-which=program] .mpic{max-height:clamp(120px,calc(100vh - 620px),34vh)}
+body.dz-shell .mon3-tile:not([data-which=program]) .mpic{max-height:clamp(70px,calc((100vh - 620px) / 2),17vh)}
+/* the viewer live chat (when it is on) has its own glass box next to the monitors, never behind the panels */
+.show3:has(> #vchatShow:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(280px,360px);grid-template-rows:auto minmax(0,1fr)}
+.show3:has(> #vchatShow:not([hidden]))>.mon3{grid-column:1;grid-row:1}
+.show3>#vchatShow:not([hidden]){grid-column:2;grid-row:1;align-self:stretch;max-height:none;min-height:0;border-radius:16px;overflow:hidden}
+.show3:has(> #vchatShow:not([hidden]))>.show3-body{grid-column:1 / -1;grid-row:2}
+/* the side rundown's heading stays too */
+body.dz-shell .show3-body .sidep>.card>.card-h{position:sticky;top:0;z-index:3;background:var(--panel);border-radius:16px 16px 0 0}

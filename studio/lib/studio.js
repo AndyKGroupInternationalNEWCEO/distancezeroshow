@@ -27,6 +27,7 @@ function BUILD_NOW() {
 }
 import { watchTunnel } from './tunnel.js';
 import { cleanScript, isLocked, lockAt, startInstant, splitBySegments, renderHtml, LOCK_MINUTES } from './script.js';
+import { createMidi } from './midi.js';
 
 const ROLES = ['director', 'host', 'overlay', 'guest', 'stage'];
 // Georgie's complete permission list. Calls and help requests are hers to make; nothing here reaches OBS.
@@ -296,6 +297,25 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   const playlist = createPlaylist({ showsDir: SHOWS_DIR, dzRoot, obs, state, stage, logEvent, changed: () => changed() });
   const currentShow = () => shows.find(s => s.id === state.showId) || null;
   playlist.build(currentShow());
+
+  /* ---------- MIDI (lib/midi.js): the Mac's keyboard plays the grand on the stage; learned controls fire actions ----------
+     A note goes straight to the stage page (no answer awaited: a key must sound at once); a learned control runs the
+     same action as its button in the Director. */
+  const stageNote = n => { const c = stageTarget(); if (c) c.send({ t: 'stage.cmd', cmd: 'note', ...n }); };
+  async function midiAction(a) {
+    const [k, arg] = a.split(':');
+    const mics = currentShow()?.mics || [];
+    if (k === 'play') return playlist.action({ action: playlist.view()?.status === 'playing' ? 'pause' : 'play', mics });
+    if (k === 'talk') return playlist.action({ action: 'talk', on: !playlist.view()?.talk, mics });
+    if (['stop', 'next', 'prev'].includes(k)) return playlist.action({ action: k, mics });
+    if (k === 'cam') return stageAction({ cmd: 'cam', cam: arg });
+    if (k === 'mode') return stageAction({ cmd: 'mode', mode: arg });
+  }
+  const midi = config.midi?.enabled === false ? null : createMidi({
+    dataDir: store.dir, log: (level, text) => logEvent(level, text), onKeys: stageNote,
+    onAction: a => midiAction(a).catch(e => logEvent('warn', `MIDI ${a}: ${e.message}`)),
+    onEvent: e => { for (const c of clients) if (c.role === 'director') c.send({ t: 'midi', e, v: midi.view() }); },
+  });
   // what the director may tell the stage directly (show segments, cameras, lighting, lift)
   const STAGE_CMDS = new Set(['start', 'stop', 'restart', 'skip', 'live', 'between', 'between-stop', 'return-live', 'closing', 'closing-stop', 'closing-restart', 'cam', 'mode', 'lift', 'seek', 'transition']);
   async function stageAction(msg) {
@@ -588,6 +608,14 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
       case 'stage.ack': { if (role !== 'stage') throw new Error('Not allowed'); const w = stageWait.get(str(msg.ref, 20)); if (w) { stageWait.delete(str(msg.ref, 20)); w({ error: str(msg.error, 240), say: str(msg.say, 240), r: msg.r || null }); } return; }
       case 'stage': return stageAction(msg);
       case 'playlist': return playlist.action({ ...msg, mics: currentShow()?.mics || [] });
+      case 'midi': {
+        if (role !== 'director') throw new Error('Not allowed');
+        if (!midi) throw new Error('MIDI is turned off in config.json');
+        if (msg.action === 'learn') midi.learn(str(msg.what, 40));
+        else if (msg.action === 'unbind') midi.unbind(str(msg.key, 200));
+        else if (msg.action === 'kind') midi.setKind(str(msg.name, 120), str(msg.kind, 8));
+        return midi.view();
+      }
       case 'runbook.get': return runbooks.view(str(msg.show, 30) || state.showId);
       case 'runbook.note': runbooks.setNote(str(msg.show, 30) || state.showId, msg.key, msg.text); return { savedAt: Date.now() };
       case 'runbook.remove': {
@@ -1459,7 +1487,7 @@ export function createStudio({ config, store, secrets, obs, media = null, sample
   return {
     connect, view, vdo, clients,
     flush() { saveState.flush(); saveChat.flush(); },
-    stop() { clearInterval(monitorTimer); clearInterval(bedTimer); vchat?.stop(); tunnel.stop(); },
+    stop() { clearInterval(monitorTimer); clearInterval(bedTimer); vchat?.stop(); tunnel.stop(); midi?.close(); },
     report(id) { return rehearsal.readReport(id); },
     renderReport: r => rehearsal.renderHtml(r),
     // script import / export for the HTTP routes (Director only)

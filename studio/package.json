@@ -23,5 +23,8 @@
   },
   "dependencies": {
     "ws": "^8.22.0"
+  },
+  "optionalDependencies": {
+    "@julusian/midi": "^3.8.1"
   }
 }
