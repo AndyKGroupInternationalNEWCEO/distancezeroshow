@@ -24,6 +24,7 @@ import { inClub, xyz as xyzM, DJ_LIFT } from './melbourne/layout.js';
 import { at as atV, platformTop } from './vienna/layout.js';
 import { midi } from './midi.js';
 import { showClock } from './showclock.js';
+import { exitSigns } from './exitsigns.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -1323,10 +1324,28 @@ export function spaces(v, ctx) {
   const showLive = () => !!ctx.onAir || pianoPlaying() || !!(dj && !dj.done && dj.sim);
   function setHouse(on, { force = false } = {}) {
     if (on && !houseOn && showLive() && !force && performance.now() - houseAsk > 4000) { houseAsk = performance.now(); relabel(); setTimeout(relabel, 4100); return false; }
-    houseAsk = 0; houseOn = !!on; ctx.setCleaning?.(houseOn); m.cleaning?.(houseOn); relabel(); return true;
+    houseAsk = 0; houseOn = !!on; ctx.setCleaning?.(houseOn); m.cleaning?.(houseOn); relabel(); lightsCard(); return true;
   }
+  // the green EXIT signs: lit with the house lights, dark in SHOW MODE (eased in hold())
+  const exits = exitSigns({ M: ctx.studio.M, root: ctx.studio.root, doorFrame: ctx.studio.lounge?.doorFrame });
+  let exitK = 0;
+  // what is ON and OFF, at a glance (top left, under the shot's label)
+  const lc = document.createElement('div'); lc.className = 'sp-lights'; lc.setAttribute('role', 'status'); document.body.appendChild(lc);
+  const ls = document.createElement('style');
+  ls.textContent = `.sp-lights{position:fixed;left:16px;top:92px;z-index:5;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;max-width:min(560px,calc(100vw - 32px));padding:6px 10px;border-radius:10px;background:rgba(12,13,16,.55);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font:600 .6rem/1.3 Archivo,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e9ecf1;pointer-events:none;transition:opacity .4s}
+  .sp-lights b{font-weight:800;color:#fff} .sp-lights i{font-style:normal;opacity:.85} .sp-lights i.on::before{content:'● ';color:#4ade80} .sp-lights i.off::before{content:'○ ';color:rgba(255,255,255,.45)}
+  body.sp-idle .sp-lights,body.sp-pov-on .sp-lights{opacity:0}`;
+  document.head.appendChild(ls);
+  function lightsCard() {
+    const it = (name, on) => `<i class="${on ? 'on' : 'off'}">${name} ${on ? 'ON' : 'OFF'}</i>`;
+    lc.innerHTML = `<b>${houseOn ? 'Cleaning mode' : 'Show mode'}</b>` + (houseOn
+      ? it('House lights', true) + it('Exit signs', true) + it('Stage effects', false) + it('Show timer', true)
+      : it('Stage light', true) + it('House lights', false) + it('Exit signs', false) + '<i>Effects: director</i>');
+  }
+  lightsCard();
   { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; b.dataset.house = '';
-    const label = () => (houseOn ? 'Show mode' : houseAsk && performance.now() - houseAsk < 4000 ? 'On air · press again' : 'House lights');
+    // the one mode switch: it names the mode it switches to
+    const label = () => (houseOn ? 'To show mode' : houseAsk && performance.now() - houseAsk < 4000 ? 'On air · press again' : 'To cleaning mode');
     setTile(b, label()); dynamic.push([b, label]); b.addEventListener('click', () => { closeMenus(); setHouse(!houseOn); }); ctrl.appendChild(b); }
   // the SHOW TIMER: the studio clock on the wall (showclock.js) and its menu
   const clock = showClock({ M: ctx.studio.M, parent: ctx.studio.root });
@@ -1471,6 +1490,7 @@ export function spaces(v, ctx) {
   const top = new THREE.Vector3(0, 1.9, -0.06), down = new THREE.Vector3(0, 0, 0.02), ahead = new THREE.Vector3();
   function hold() {
     cineFrame(); clock?.update();
+    exitK += ((houseOn ? 1 : 0) - exitK) * 0.06; exits.setLevel(exitK);
     if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
     }
