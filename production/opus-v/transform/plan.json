@@ -1,0 +1,506 @@
+{
+ "CH": [
+  {
+   "inst": "Violin I",
+   "x": -14.883620695226918,
+   "z": 1.607464215036209,
+   "r": 3.0,
+   "th": 60.360562731589035,
+   "y": 0
+  },
+  {
+   "inst": "Violin I",
+   "x": -15.641970544643275,
+   "z": 0.9933810666683711,
+   "r": 3.0,
+   "th": 41.64093865360137,
+   "y": 0
+  },
+  {
+   "inst": "Violin I",
+   "x": -16.163121752036027,
+   "z": 0.1683998388502792,
+   "r": 3.0,
+   "th": 22.9213145756137,
+   "y": 0
+  },
+  {
+   "inst": "Violin II",
+   "x": -16.39193694774709,
+   "z": -0.7801971321710686,
+   "r": 3.0,
+   "th": 4.20169049762603,
+   "y": 0
+  },
+  {
+   "inst": "Viola",
+   "x": -16.299129511012154,
+   "z": -1.7713935949814679,
+   "r": 3.0,
+   "th": -14.899905443782187,
+   "y": 0
+  },
+  {
+   "inst": "Cello",
+   "x": -15.829776072915307,
+   "z": -2.759598884828095,
+   "r": 3.0,
+   "th": -35.91136070229314,
+   "y": 0
+  },
+  {
+   "inst": "Cello",
+   "x": -14.96969591709305,
+   "z": -3.55657089239892,
+   "r": 3.0,
+   "th": -58.45070341448629,
+   "y": 0
+  },
+  {
+   "inst": "Violin I",
+   "x": -15.336530860998614,
+   "z": 2.726908668642145,
+   "r": 4.2,
+   "th": 62.54325909399218,
+   "y": 0
+  },
+  {
+   "inst": "Violin I",
+   "x": -16.225245019241257,
+   "z": 2.107730776829368,
+   "r": 4.2,
+   "th": 47.7259554563953,
+   "y": 0
+  },
+  {
+   "inst": "Violin II",
+   "x": -16.9260589033904,
+   "z": 1.2818651603066549,
+   "r": 4.2,
+   "th": 32.908651818798425,
+   "y": 0
+  },
+  {
+   "inst": "Violin II",
+   "x": -17.392363061868085,
+   "z": 0.30423816162205664,
+   "r": 4.2,
+   "th": 18.09134818120156,
+   "y": 0
+  },
+  {
+   "inst": "Violin II",
+   "x": -17.593144722828992,
+   "z": -0.7601305909221084,
+   "r": 4.2,
+   "th": 3.2740445436046923,
+   "y": 0
+  },
+  {
+   "inst": "Viola",
+   "x": -17.511001583910947,
+   "z": -1.860038357912992,
+   "r": 4.2,
+   "th": -11.816096139292565,
+   "y": 0
+  },
+  {
+   "inst": "Viola",
+   "x": -17.136249691169887,
+   "z": -2.918446831484502,
+   "r": 4.2,
+   "th": -27.179073867490214,
+   "y": 0
+  },
+  {
+   "inst": "Cello",
+   "x": -16.43983288409082,
+   "z": -3.8981746042638816,
+   "r": 4.2,
+   "th": -43.63339977688944,
+   "y": 0
+  },
+  {
+   "inst": "Cello",
+   "x": -15.424709520574934,
+   "z": -4.679748817146793,
+   "r": 4.2,
+   "th": -61.17907386749022,
+   "y": 0
+  },
+  {
+   "inst": "Flute",
+   "x": -17.203328954138406,
+   "z": 2.83336521435311,
+   "r": 5.4,
+   "th": 45.225351707243135,
+   "y": 0.3
+  },
+  {
+   "inst": "Oboe",
+   "x": -17.9256511465016,
+   "z": 1.9459262889910804,
+   "r": 5.4,
+   "th": 33.06170332942079,
+   "y": 0.3
+  },
+  {
+   "inst": "Clarinet",
+   "x": -18.444769554385687,
+   "z": 0.9262139401279457,
+   "r": 5.4,
+   "th": 20.898054951598443,
+   "y": 0.3
+  },
+  {
+   "inst": "Bassoon",
+   "x": -18.7447393421112,
+   "z": -0.22944087515055422,
+   "r": 5.4,
+   "th": 8.20389009680311,
+   "y": 0.3
+  },
+  {
+   "inst": "Trumpet",
+   "x": -18.78342543884053,
+   "z": -1.4227653538839458,
+   "r": 5.4,
+   "th": -4.490274757992219,
+   "y": 0.3
+  },
+  {
+   "inst": "Trumpet",
+   "x": -18.573487703420913,
+   "z": -2.5475868255295424,
+   "r": 5.4,
+   "th": -16.653923135814566,
+   "y": 0.3
+  },
+  {
+   "inst": "Double bass",
+   "x": -18.08224730910971,
+   "z": -3.690085525840188,
+   "r": 5.4,
+   "th": -29.878604467582885,
+   "y": 0.3
+  },
+  {
+   "inst": "Double bass",
+   "x": -17.27366101184479,
+   "z": -4.762279942443623,
+   "r": 5.4,
+   "th": -44.16431875329717,
+   "y": 0.3
+  },
+  {
+   "inst": "French horn",
+   "x": -19.03819263008233,
+   "z": 3.4778101641410935,
+   "r": 7.2,
+   "th": 38.456338406573074,
+   "y": 0.6
+  },
+  {
+   "inst": "French horn",
+   "x": -19.66385742218452,
+   "z": 2.550223963997749,
+   "r": 7.2,
+   "th": 29.543661593426936,
+   "y": 0.6
+  },
+  {
+   "inst": "Timpani",
+   "x": -20.582461161870736,
+   "z": -0.49775338904229793,
+   "r": 7.2,
+   "th": 3.999999999999999,
+   "y": 0.6
+  },
+  {
+   "inst": "Percussion",
+   "x": -20.247606917325108,
+   "z": -3.2249223594996215,
+   "r": 7.2,
+   "th": -18.0,
+   "y": 0.6
+  }
+ ],
+ "QU": [
+  {
+   "inst": "Violin I",
+   "x": -15.580070994109759,
+   "z": 0.31280106934857366,
+   "r": 1.7,
+   "th": 50.55509957036676,
+   "y": 0.2
+  },
+  {
+   "inst": "Violin II",
+   "x": -16.102014848244757,
+   "z": -0.4311868268022194,
+   "r": 1.7,
+   "th": 19.54797183387514,
+   "y": 0.2
+  },
+  {
+   "inst": "Viola",
+   "x": -16.162024586751414,
+   "z": -1.3573153691541826,
+   "r": 1.7,
+   "th": -12.13322389688803,
+   "y": 0.2
+  },
+  {
+   "inst": "Cello",
+   "x": -15.655381963007107,
+   "z": -2.2470334877451537,
+   "r": 1.7,
+   "th": -47.184759599008984,
+   "y": 0.2
+  }
+ ],
+ "TQ": [
+  [
+   [
+    -14.513452524420536,
+    3.334458357176477
+   ],
+   [
+    -17.7,
+    2.0
+   ]
+  ],
+  [
+   [
+    -12.926732290853655,
+    -5.999256551991889
+   ],
+   [
+    -17.7,
+    -4.0
+   ]
+  ],
+  [
+   [
+    -17.7,
+    2.0
+   ],
+   [
+    -17.7,
+    -4.0
+   ]
+  ]
+ ],
+ "TC": [],
+ "RISERS": [
+  [
+   1,
+   4.85,
+   6.0,
+   58
+  ],
+  [
+   2,
+   6.0,
+   8.6,
+   46
+  ]
+ ],
+ "FC": [
+  -13.4,
+  -1.0
+ ],
+ "FQ": [
+  -14.5,
+  -1.0
+ ],
+ "qL0": [
+  -14.513452524420536,
+  3.334458357176477
+ ],
+ "qR0": [
+  -12.926732290853655,
+  -5.999256551991889
+ ],
+ "checks": [
+  {
+   "name": "Chamber orchestra: clear of the wall leaves' path",
+   "ok": true,
+   "info": "nearest 14.50 m from the studio centre (needs \u2265 14.45)"
+  },
+  {
+   "name": "Chamber orchestra: every place inside the room",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "Chamber orchestra: no two places overlap (\u2265 0.10 m between footprints)",
+   "ok": true,
+   "info": "tightest 0.12 m (French horn / French horn)"
+  },
+  {
+   "name": "String quartet: clear of the wall leaves' path",
+   "ok": true,
+   "info": "nearest 15.20 m from the studio centre (needs \u2265 14.45)"
+  },
+  {
+   "name": "String quartet: every place inside the room",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "String quartet: no two places overlap (\u2265 0.10 m between footprints)",
+   "ok": true,
+   "info": "tightest 0.10 m (Viola / Cello)"
+  },
+  {
+   "name": "Chamber orchestra: 28 players, the requested sections",
+   "ok": true,
+   "info": {
+    "Violin I": 5,
+    "Violin II": 4,
+    "Viola": 3,
+    "Cello": 4,
+    "Flute": 1,
+    "Oboe": 1,
+    "Clarinet": 1,
+    "Bassoon": 1,
+    "Trumpet": 2,
+    "Double bass": 2,
+    "French horn": 2,
+    "Timpani": 1,
+    "Percussion": 1
+   }
+  },
+  {
+   "name": "Chamber orchestra: floor per player",
+   "ok": true,
+   "info": "105 m\u00b2 of room for 28 players: 3.8 m\u00b2 each (orchestra pits plan 1.5\u20132.0 m\u00b2 a player)"
+  },
+  {
+   "name": "Flute stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Oboe stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Clarinet stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Bassoon stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Trumpet stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Trumpet stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Double bass stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "Double bass stands on riser 1",
+   "ok": true,
+   "info": "r 5.40"
+  },
+  {
+   "name": "French horn stands on riser 2",
+   "ok": true,
+   "info": "r 7.20"
+  },
+  {
+   "name": "French horn stands on riser 2",
+   "ok": true,
+   "info": "r 7.20"
+  },
+  {
+   "name": "Timpani stands on riser 2",
+   "ok": true,
+   "info": "r 7.20"
+  },
+  {
+   "name": "Percussion stands on riser 2",
+   "ok": true,
+   "info": "r 7.20"
+  },
+  {
+   "name": "Quartet walls: inside the annex, clear of the wall leaves",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "Quartet: places clear of the quartet room's walls",
+   "ok": true,
+   "info": "nearest 1.12 m"
+  },
+  {
+   "name": "Quartet room size",
+   "ok": true,
+   "info": "back wall 6.0 m, opening 8.0 m, depth 4.7 m behind the wall's line"
+  },
+  {
+   "name": "Flown walls stored above everything that stays: the orchestra canopy (6.2 m) is two panels with the wall lines between them; bridge top 5.1 m",
+   "ok": true,
+   "info": "stored 5.4\u20139.8 m, annex ceiling 10.0 m"
+  },
+  {
+   "name": "Nothing moves across the stage floor during a change (walls and canopy fly; risers are lifts)",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "OV4 robot (quartet): its shots within reach (2.25 m)",
+   "ok": true,
+   "info": "farthest 1.96 m"
+  },
+  {
+   "name": "OV4 robot (chamber): its shots within reach (2.25 m)",
+   "ok": true,
+   "info": "farthest 1.99 m"
+  },
+  {
+   "name": "OV4 robot (chamber): its bridge (4.8 m) clear under the flown walls (5.4 m) and the canopy (6.2 m)",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "OV4 robot (quartet): clear of the quartet canopy (4.2 m)",
+   "ok": true,
+   "info": ""
+  },
+  {
+   "name": "Wall leaves stored: hidden behind the studio wall above the opening",
+   "ok": true,
+   "info": "leaves 0.0\u20134.0 m \u2192 4.2\u20138.2 m; studio wall to 8.4 m; annex ceiling 10 m"
+  },
+  {
+   "name": "Wall leaves clear of the canopies and the quartet walls",
+   "ok": true,
+   "info": "leaves at r \u2264 14.3; canopies start at x \u221214.6; the quartet walls start at r 14.7"
+  },
+  {
+   "name": "Show timer untouched",
+   "ok": true,
+   "info": "at 4.94 rad, 4.5 m high: outside the opening (4.24 \u2026 4.85 rad) and above it"
+  },
+  {
+   "name": "Annex footprint unchanged",
+   "ok": true,
+   "info": "x -22.0 \u2026 the wall, z -6.6 \u2026 4.6 (11.2 \u00d7 9.4 m from the wall's line), ceiling 10.0 m"
+  }
+ ]
+}
