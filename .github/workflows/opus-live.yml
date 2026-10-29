@@ -1,0 +1,35 @@
+# Checks OPUS V on the LIVE Virtual Space in a real browser, on GitHub's free runners (the repository is public: no
+# cost, nothing on the owner's computer, no paid pod): headless Chrome with software WebGL runs
+# production/tests-pod/opus-live.mjs against https://virtualspace.distancezeroshow.com/?e2e and keeps its pictures.
+# It runs when production/render-jobs/opus-live.txt changes on the Virtual Space branch, or by hand.
+name: OPUS V LIVE check (free runner)
+
+on:
+  push:
+    branches: [feature/vienna-piano-stage]
+    paths: [production/render-jobs/opus-live.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check OPUS V on the LIVE site
+        env:
+          CHROME: /usr/bin/google-chrome
+          CHROME_ARGS: --no-sandbox --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader
+          OUT: opus-live
+        run: node production/tests-pod/opus-live.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opus-live
+          path: opus-live/
+          retention-days: 14

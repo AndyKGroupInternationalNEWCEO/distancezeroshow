@@ -504,7 +504,8 @@ else {
         onair: $('#onair'), auto: $('#auto'), status: $('#status'), shot: $('#shot'), cam: $('#cam'), count: $('#count'), hint: $('#hint'), live: $('#live'),
       },
     });
-    if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__studio = app; // local testing only
+    // local testing, and the free browser checks on GitHub's runners (?e2e: .github/workflows/opus-live.yml)
+    if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /[?&]e2e\b/.test(location.search)) window.__studio = app;
     setTimeout(() => loader.classList.add('done'), 250);
   } catch (e) {
     console.error(e);
