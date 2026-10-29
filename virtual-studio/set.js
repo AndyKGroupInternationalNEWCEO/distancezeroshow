@@ -37,15 +37,16 @@ function materials(q) {
     champagne: physical({ color: 0xc9a671, metalness: 1, roughness: 0.24, roughnessMap: brush, anisotropy: 0.5 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0xe8ebef, metalness: 1, roughness: 0.07 }),
     satin: new THREE.MeshStandardMaterial({ color: 0x6e737b, metalness: 1, roughness: 0.6, roughnessMap: rough }), // big flat chrome: mirror finish blows out from above
-    blackGlass: physical({ color: 0x0b0c0e, metalness: 0.3, roughness: 0.62, clearcoat: 0.15, clearcoatRoughness: 0.5 }),
+    blackGlass: physical({ color: 0x0d0e11, metalness: 0.3, roughness: 0.42, clearcoat: 0.45, clearcoatRoughness: 0.28 }),   // (a satin top that holds the room's light: it read flat)
     shellGold: physical({ color: 0x8a7350, metalness: 1, roughness: 0.55, roughnessMap: brush, anisotropy: 0.4 }), // satin: a mirror finish turned rim light into neon outlines
-    leather: physical({ color: 0x0a0a0c, metalness: 0, roughness: 0.62, normalMap: leatherNormal(4), normalScale: new THREE.Vector2(0.5, 0.5), sheen: 0.25, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
+    // (an espresso black, not pure black: the stitching, the grain and the chairs' shape read from any side)
+    leather: physical({ color: 0x1a1714, metalness: 0, roughness: 0.55, normalMap: leatherNormal(4), normalScale: new THREE.Vector2(0.7, 0.7), sheen: 0.45, sheenColor: new THREE.Color(0x2a2c31), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x0c0c0d, metalness: 0, roughness: 0.85 }),
     camBody: new THREE.MeshStandardMaterial({ color: 0x2c2f35, metalness: 0.55, roughness: 0.5, roughnessMap: rough }),
     camLight: new THREE.MeshStandardMaterial({ color: 0x8c9099, metalness: 0.6, roughness: 0.46, roughnessMap: rough }),
     lensGlass: physical({ color: 0x0a0d14, metalness: 0.2, roughness: 0.02, clearcoat: 1, iridescence: 0.6, iridescenceIOR: 1.6 }),
     prompterGlass: physical({ color: 0x0d1015, metalness: 0.4, roughness: 0.02, transparent: true, opacity: 0.55 }),
-    wallBack: new THREE.MeshStandardMaterial({ color: 0x0a0b0d, metalness: 0.2, roughness: 0.9 }),
+    wallBack: new THREE.MeshStandardMaterial({ color: 0x131419, metalness: 0.2, roughness: 0.85 }),   // (the room's depth behind any shot, not a black hole)
     fin: new THREE.MeshStandardMaterial({ color: 0x15171b, metalness: 0.9, roughness: 0.46, roughnessMap: rough }),
     logoWarm: q.glass
       ? physical({ color: 0xffffff, metalness: 0, roughness: 0.06, transmission: 1, thickness: 0.35, ior: 1.5, attenuationColor: new THREE.Color(0xf2b77a), attenuationDistance: 0.7, clearcoat: 1, specularIntensity: 1 })
@@ -55,10 +56,10 @@ function materials(q) {
       : lightGlass(0xbcd4f2),
   };
   // large flat dark surfaces: at low camera angles they would mirror the overhead softbox and read as pale slabs
-  M.blackGlass.envMapIntensity = 0.25;
+  M.blackGlass.envMapIntensity = 0.45;
   M.blackGlass.roughnessMap = rough;
   M.deskGlass.envMapIntensity = 0.18;
-  M.shellGold.envMapIntensity = 0.35; // chair shells: at grazing angles they mirrored the bright side panels like neon
+  M.shellGold.envMapIntensity = 0.6; // chair shells: at grazing angles they mirrored the bright side panels like neon
   M.floor.envMapIntensity = 0.35;
   M.riser.envMapIntensity = 0.35;
   return M;
@@ -738,7 +739,7 @@ function microphone(M, color, glows) {
   const g = new THREE.Group();
   // satin chrome for the arm (a mirror finish read as a white line), a woven mesh head
   M.micArm ||= new THREE.MeshStandardMaterial({ color: 0xc9cdd3, metalness: 1, roughness: 0.22 });
-  M.grille ||= new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 1, roughness: 0.42, bumpMap: micGrille(), bumpScale: 1.4 });
+  M.grille ||= new THREE.MeshStandardMaterial({ color: 0x8e929a, metalness: 1, roughness: 0.38, bumpMap: micGrille(), bumpScale: 0.8 });   // (lighter, a finer mesh: it read as a grainy dark blob)
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.02, 32), M.graphite); base.position.y = 0.01; g.add(base);
   // rubber foot under the base, a fine bevel on its top edge, and a collar where the arm goes in
   const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.004, 32), M.rubber); foot.position.y = 0.001; g.add(foot);

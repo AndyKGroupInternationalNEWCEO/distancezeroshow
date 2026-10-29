@@ -25,7 +25,8 @@ export const LOOKS = {
   music: { key: 0.55, warm: 0.9, cool: 0.95, rim: 1.25, amber: 1.2, ice: 1.2, accent: 1.15, fins: 1.25, beams: 0.85, music: 1 },
 };
 export const OFF = { key: 0.36, rim: 0.35, accent: 0.42, fins: 0.45, beams: 0, wall: 0.4, house: 1, onAir: 0 };
-export const ON = { wall: 1, house: 0.2, onAir: 1 };
+// on air the house light stays at a low fill (0.2 left the set's far side and every reverse angle black)
+export const ON = { wall: 1, house: 0.45, onAir: 1 };
 // the piano shot, on or off air: the studio goes down to a glow and one warm spot from the truss takes the grand
 export const SOLO = { key: 0.08, rim: 0.12, accent: 0.18, fins: 0.15, beams: 0, wall: 0.2, house: 0.25 };
 const PROGRAMME = [['cities', 15], ['presenters', 11], ['wave', 10]];
