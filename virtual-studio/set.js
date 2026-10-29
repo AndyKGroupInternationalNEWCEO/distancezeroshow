@@ -1654,7 +1654,7 @@ function buildLights(root, quality, wallLight, pianoLamp) {
    the one at `index` (the live page spreads them over frames). The mirror floor and the shadow maps are left alone
    while they render: the floor would render its reflection again for every viewfinder, the shadows are current. */
 function createViewfinders(list) {
-  const W = 320, H = 208, eye = new THREE.Vector3(), ahead = new THREE.Vector3();
+  const W = 480, H = 312, eye = new THREE.Vector3(), ahead = new THREE.Vector3();   // (sharper on a close-up of a camera)
   const items = list.map(v => {
     const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType });
     rt.texture.colorSpace = THREE.LinearSRGBColorSpace;

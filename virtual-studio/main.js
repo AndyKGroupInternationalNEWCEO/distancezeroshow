@@ -425,7 +425,8 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   const clock = { elapsed: 0, last: performance.now() };
   // backstage monitors: live feeds of the studio cameras, rendered small and only while someone is in the lounge
   const feeds = studio.lounge.screens.map(({ view, mat }) => {
-    const v = VIEWS[view], rt = new THREE.WebGLRenderTarget(384, 216, { type: THREE.HalfFloatType });
+    // (sharp enough for a 4K close-up of the monitor on desktops; small on phones and tablets)
+    const v = VIEWS[view], rt = new THREE.WebGLRenderTarget(quality.mobile ? 384 : 960, quality.mobile ? 216 : 540, { type: THREE.HalfFloatType, samples: quality.mobile ? 0 : 4 });
     rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
     const cam = new THREE.PerspectiveCamera(v.fov * 0.9, 16 / 9, 0.05, 60);
     cam.position.set(...v.pos); cam.lookAt(...v.target);
@@ -434,7 +435,8 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   });
   let feedAt = 0, loungeOn = null;
   // the desk's confidence monitors: the programme (the shot on air), small, 8 times a second, only in the studio
-  const deskRT = new THREE.WebGLRenderTarget(320, 180, { type: THREE.HalfFloatType });
+  // (the confidence monitors fill a desk close-up: 720p with MSAA on desktops, small on phones and tablets)
+  const deskRT = new THREE.WebGLRenderTarget(quality.mobile ? 320 : 1280, quality.mobile ? 180 : 720, { type: THREE.HalfFloatType, samples: quality.mobile ? 0 : 4 });
   deskRT.texture.colorSpace = THREE.LinearSRGBColorSpace;
   const deskCam = new THREE.PerspectiveCamera(40, 16 / 9, 0.05, 60);
   for (const mat of studio.deskScreens || []) { mat.map = deskRT.texture; mat.color.setScalar(1); mat.needsUpdate = true; }
