@@ -1,6 +1,7 @@
-// OPUS V · PROPOSALS (awaiting the owner's approval; not in the Virtual Space build): the instruments that have no
-// licensed professional 3D model (bassoon, timpani, concert bass drum, hand cymbals, triangle), built to real
-// instruments' dimensions. Metres; each stands on y = 0 with its front (the audience's side) towards −z.
+// OPUS V · the instruments built for the room (approved by the owner 29 Oct 2026, "daj ich tam"): those that have no
+// licensed professional 3D model (bassoon, timpani, concert bass drum, hand cymbals, triangle) and the percussionist's
+// trap table, built to real instruments' dimensions. Metres; each stands on y = 0 with its front (the audience's side)
+// towards −z and its player, where it has one, on the +z side. orchestra.js places them.
 //   Bassoon: Heckel-system, 1.34 m tall; maple with a deep red-brown finish, nickel-silver keywork, ivory-white bell ring.
 //   Timpani: a professional set of four, 32″ / 29″ / 26″ / 23″ (81 / 74 / 66 / 58 cm), polished copper bowls, Dresden-
 //     style pedal, tension rods with T-handles, chrome counterhoops, calfskin-coloured heads, tripod base on casters.
@@ -86,12 +87,13 @@ export function proposals() {
     g.userData = { name: `Timpano ${inch}″`, size: `head ${Math.round(inch * 2.54)} cm · playing height ${Math.round(top * 100)} cm` };
     return shade(g);
   }
-  // the set of four in the classic German arc (the largest on the player's right), for a timpanist standing or on a stool
+  // the set of four in the classic German arc round the player (the largest on his right: +x, as he faces −z), its pedals
+  // turned to him; for a timpanist standing or on a stool about 0.7 m behind the set's middle (+z)
   function timpani() {
     const g = new THREE.Group();
-    [[32, 0.62, 0.05], [29, 0.2, 0.44], [26, -0.22, 0.46], [23, -0.6, 0.12]].forEach(([inch, x, z]) => { const d = timpano(inch); d.position.set(x * 1.12, 0, z); g.add(d); });
+    [[32, 0.62, 0.05], [29, 0.2, -0.34], [26, -0.22, -0.36], [23, -0.6, 0.02]].forEach(([inch, x, z]) => { const d = timpano(inch); d.position.set(x * 1.12, 0, z); d.rotation.y = Math.PI + Math.atan2(x * 1.12, 1.1 - z) * 0.6; g.add(d); });
     // a pair of felt mallets on the 29″
-    for (const s of [-1, 1]) { const m = new THREE.Group(); m.add(tube([[0, 0, 0], [0.36, 0, 0]], 0.0045, M.maple, 2)); m.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.019, 16, 12), M.felt), 0.37, 0, 0)); m.position.set(0.05 + s * 0.04, 0.733, 0.25); m.rotation.y = 0.4 + s * 0.12; g.add(m); }
+    for (const s of [-1, 1]) { const m = new THREE.Group(); m.add(tube([[0, 0, 0], [0.36, 0, 0]], 0.0045, M.maple, 2)); m.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.019, 16, 12), M.felt), 0.37, 0, 0)); m.position.set(0.22 + s * 0.04, 0.733, -0.2); m.rotation.y = 0.4 + s * 0.12; g.add(m); }
     g.userData = { name: 'Timpani · set of four', size: '32″ · 29″ · 26″ · 23″ (81 · 74 · 66 · 58 cm)' };
     return shade(g);
   }

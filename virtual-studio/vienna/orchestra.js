@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { OPUS_WALL, cineRobot, securityCam } from '../set.js';
+import { proposals } from './opus-instruments.js';
 
 // R: the fins' circle about the studio's centre (0, 1); the wall's skin stands 0.6 m behind it
 const R = 12.6, SKIN = R + 0.6, Z = 1, FIN_STEP = 0.075;
@@ -59,7 +60,8 @@ export const CONFIGS = {
       ...row(3.75, 0.3, 3.85, -3.85, [V1, V1, V1, V2, VA, VA, VC, VC]),
       ...row(4.85, 0.3, 4.4, -4.4, [V1, V1, V2, V2, V2, VA, VC, VC, CB, CB], ['chair', 'chair', 'chair', 'chair', 'chair', 'chair', 'chair', 'chair', 'stool', 'stool']),
       ...row(6.15, 0.15, 3.6, -3.6, ['French horn', 'French horn', 'Flute', 'Oboe', 'Clarinet', 'Bassoon', 'Trumpet', 'Trumpet']).map(p => ({ ...p, y: 0.3 })),
-      { x: 1.7, z: 7.65, y: 0.6, inst: 'Timpani', seat: 'stool' }, { x: -1.9, z: 7.65, y: 0.6, inst: 'Percussion', seat: 'stool' },
+      // (at the back of the second riser, their instruments in front of them; their music on the trap table, no stand)
+      { x: 1.7, z: 8.05, y: 0.6, inst: 'Timpani', seat: 'stool', stand: false }, { x: -1.9, z: 8.05, y: 0.6, inst: 'Percussion', seat: 'stool', stand: false },
     ],
     face: -6,
     top: { w: 9.2, h: 5.6, z: 5.6, k: 2.6 },
@@ -73,6 +75,12 @@ export const CONFIGS = {
     moves: [[1.2, 2.2, [2.3, 2.5, 6.3], [2.6, 0.7, 3.6]], [1.4, 0, [0, 4.2, 6.5], [0, 0.6, 3.6]], [1.1, -2.4, [-2.5, 2.3, 6.3], [-3.0, 0.8, 4.0]],
       [1.5, 0.8, [0.9, 1.9, 6.7], [0.2, 1.1, 5.9]], [1.2, 1.6, [1.6, 2.8, 6.9], [1.7, 1.0, 7.3]]],
   },
+};
+// the instruments built for the room, by place: [what, x, z (m, in the place's frame, +z to the audience), turn]
+export const BUILT = {
+  Timpani: [['timpani', 0, 0.8]],
+  Percussion: [['trapTable', 0, 0.72], ['bassDrum', -1.25, 0.5, 0.2], ['triangle', -0.8, 1.2], ['cymbals', 0.9, 0.7, -0.3]],
+  Bassoon: [['bassoon', 0.5, 0.12]],
 };
 export const OPUS_PLACES = CONFIGS.quartet.places.map(p => [p.x, p.z]);
 export const QUARTET = CONFIGS.quartet.places.map(p => p.inst);
@@ -130,7 +138,7 @@ export function buildOrchestra({ M, scene }) {
   // oak diffusers on the side walls (acoustics)
   for (const sx of [-1, 1]) for (let k = 0; k < 10; k++) add(new THREE.BoxGeometry(0.06, 0.6 + (k % 3) * 0.3, 0.08), oak, sx * (W / 2 - 0.03), 2.5, SIDE_Z + 0.3 + k * 0.56, room);
   // the two risers across the back, each with its amber front edge: winds and brass (0.3 m), timpani and percussion (0.6 m)
-  for (const [z0, z1, h] of [[5.3, 6.55, 0.3], [6.55, BACK - 0.3, 0.6]]) {
+  for (const [z0, z1, h] of [[5.3, 6.4, 0.3], [6.4, BACK - 0.3, 0.6]]) {
     add(new RoundedBoxGeometry(W - 0.8, h, z1 - z0, 2, 0.02), oak, 0, h / 2, (z0 + z1) / 2, room);
     const e = add(new THREE.BoxGeometry(W - 0.8, 0.012, 0.012), amber, 0, h + 0.006, z0 + 0.01, room); e.castShadow = false;
   }
@@ -142,6 +150,7 @@ export function buildOrchestra({ M, scene }) {
   const poolTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,226,180,1)'); gr.addColorStop(0.5, 'rgba(255,226,180,0.45)'); gr.addColorStop(1, 'rgba(255,226,180,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
   const pool = new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: 0x000000 });
   const sets = {};
+  const P = proposals(), INST = { timpani: P.timpani, bassDrum: P.bassDrum, cymbals: P.cymbals, triangle: P.triangle, trapTable: P.trapTable, bassoon: P.bassoon }, Y = new THREE.Vector3(0, 1, 0);
   for (const [name, C] of Object.entries(CONFIGS)) {
     const set = new THREE.Group(); set.name = 'opus-v-' + name; set.visible = false; room.add(set);
     const tmp = new THREE.Group(), put = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
@@ -164,15 +173,26 @@ export function buildOrchestra({ M, scene }) {
         for (const [lx, lz] of [[-0.19, -0.18], [0.19, -0.18], [-0.19, 0.18], [0.19, 0.18]]) put(new THREE.CylinderGeometry(0.012, 0.012, 0.46, 10), chrome, lx, 0.23, lz, c);
       }
       // a professional music stand turned to the player, with its light
+      if (p.stand !== false) {
       const s = new THREE.Group(); s.position.set(0, 0, p.seat === 'stool' ? 0.78 : 0.62); c.add(s);
       put(new THREE.CylinderGeometry(0.012, 0.014, 1.05, 12), chrome, 0, 0.53, 0, s);
       for (let k = 0; k < 3; k++) { const leg = put(new THREE.CylinderGeometry(0.008, 0.008, 0.36, 8), chrome, Math.cos(k * 2.09) * 0.14, 0.06, Math.sin(k * 2.09) * 0.14, s); leg.rotation.set(Math.sin(k * 2.09) * 1.2, 0, -Math.cos(k * 2.09) * 1.2); }
       put(new RoundedBoxGeometry(0.52, 0.36, 0.015, 2, 0.006), graphite, 0, 1.12, 0, s).rotation.x = 0.35;
       put(new THREE.BoxGeometry(0.5, 0.02, 0.04), graphite, 0, 0.95, -0.06, s);   // its ledge
       put(new THREE.BoxGeometry(0.16, 0.015, 0.03), standLight, 0, 1.3, -0.08, s);
+      }
       put(new THREE.PlaneGeometry(1.25, 1.25).rotateX(-Math.PI / 2), pool, 0, 0.01, 0.15, c);   // the pinspot's pool
       // the instrument's slot (empty until the approved models are in)
       const slot = new THREE.Object3D(); slot.position.set(p.x, y, p.z); slot.rotation.y = c.rotation.y; slot.userData = { inst: p.inst }; set.add(slot); slots.push(slot);
+    }
+    // the instruments built for the room (opus-instruments.js), each at its place in the place's own frame (+z: to the
+    // audience; the instrument's front, −z of its own, turned that way): the timpani in front of the timpanist; the
+    // percussionist's concert bass drum, trap table, triangle and cymbal cradle round him; the bassoon on its stand
+    // beside the bassoonist's chair. (The licensed models of the other instruments go into the slots when downloaded)
+    for (const [i, p] of C.places.entries()) for (const [what, x, z, turn = 0] of BUILT[p.inst] || []) {
+      const o = INST[what](), c = slots[i];
+      o.position.set(x, 0, z).applyAxisAngle(Y, c.rotation.y).add(c.position); o.rotation.y = c.rotation.y + Math.PI + turn;
+      tmp.add(o);
     }
     // merged: one mesh per material (28 places would otherwise be some 450 draw calls)
     tmp.updateMatrixWorld(true);
