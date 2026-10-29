@@ -24,15 +24,41 @@
 
   const TIME = /^([01]\d|2[0-3]):[0-5]\d$/, LINK = /^https:\/\/[^\s]+$/;
 
-  function build(data) {
-    const out = [], specials = {}, eps = data.episodes || {};
+  /* THE monthly rule (final, 29 Oct 2026): the third Friday of the month defines the production week.
+     Rehearsal = the Wednesday before it, shows = that Friday, Saturday and Sunday. The third Friday is always the 15th–21st,
+     so the whole week (13th–23rd) stays inside its month. Returns ISO dates. */
+  function productionWeek(y, m) {                       // m: 1–12
+    const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    const fri = 1 + (5 - first + 7) % 7 + 14, at = n => iso(new Date(Date.UTC(y, m - 1, fri + n)));
+    return { rehearsal: at(-2), friday: at(0), saturday: at(1), sunday: at(2) };
+  }
+  function productionWeeks(data) {
+    const out = [], [y0, m0] = data.monthlyFrom.split('-').map(Number), end = data.until;
+    for (let y = y0, m = m0; ; m === 12 ? (y++, m = 1) : m++) {
+      const w = productionWeek(y, m);
+      if (w.rehearsal > end) break;
+      if (w.rehearsal >= data.monthlyFrom) out.push(w);
+    }
+    return out;
+  }
+
+  /* one entry per broadcast date. opts.rehearsals adds the internal rehearsal days (studio tools, not the public page) */
+  function build(data, opts) {
+    const out = [], specials = {}, eps = data.episodes || {}, withRehearsals = !!(opts && opts.rehearsals);
     (data.specials || []).forEach(s => { specials[s.date] = s; });
     const byDay = {}; Object.entries(data.formats).forEach(([k, f]) => { byDay[f.weekday] = k; });
-    const dates = new Set(Object.keys(specials));
-    for (let d = day(data.regularFrom), end = day(data.until); d <= end; d.setUTCDate(d.getUTCDate() + 1)) if (byDay[d.getUTCDay()] != null) dates.add(iso(d));
+    const dates = new Set(Object.keys(specials)), rehearsals = new Set();
+    productionWeeks(data).forEach(w => {
+      [w.friday, w.saturday, w.sunday].forEach(x => { if (byDay[day(x).getUTCDay()] != null) dates.add(x); });
+      if (withRehearsals && data.rehearsal) { rehearsals.add(w.rehearsal); dates.add(w.rehearsal); }
+    });
     [...dates].sort().forEach(date => {
+      if (rehearsals.has(date) && !specials[date]) {
+        out.push({ date, format: 'rehearsal', name: data.rehearsal.name, rehearsal: true, where: '', title: '', details: [], note: '', cancelled: false, calendar: false, announced: false });
+        return;
+      }
       const sp = specials[date], format = sp ? sp.format : byDay[day(date).getUTCDay()], f = data.formats[format], ep = Object.assign({}, sp, eps[date]);
-      const e = { date, format, name: sp && sp.name || f.name, where: f.where, title: ep.title || '', details: [].concat(ep.details || []).filter(x => typeof x === 'string' && x.trim()), note: typeof ep.note === 'string' ? ep.note : '', special: !!sp, cancelled: ep.cancelled === true };
+      const e = { date, format, name: sp && sp.name || f.name, where: f.where, title: ep.title || '', details: [].concat(ep.details || []).filter(x => typeof x === 'string' && x.trim()), note: typeof ep.note === 'string' ? ep.note : '', special: !!(sp && sp.name), cancelled: ep.cancelled === true };
       /* only well-formed, confirmed values ever reach the page */
       if (ep.time && TIME.test(ep.time)) {
         e.start = zoned(data.timezone, date, ep.time);
@@ -75,6 +101,6 @@
     });
   }
 
-  const api = { build, ics, schema, zoned, local };
+  const api = { build, productionWeek, productionWeeks, ics, schema, zoned, local };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.DZProgramme = api;
 })(typeof self !== 'undefined' ? self : this);
