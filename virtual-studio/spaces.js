@@ -540,7 +540,7 @@ export function spaces(v, ctx) {
 
   /* ----- the on-air graphics of the Piano and DJ shows: ON AIR, the logo, the lower third, camera, clocks, ticker ----- */
   const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km', 'Opening Show Wednesday 27 January 2027',
-    'Every Friday · DJ Show · Live from Melbourne Underground', 'Every Saturday · Piano Sessions · Live from Vienna', 'Every Sunday · The Live Show', 'distancezeroshow.com'];
+    'Once a month · third week', 'Friday · DJ Show · Live from Melbourne Underground', 'Saturday · Piano Sessions · Live from Vienna', 'Sunday · The Live Show', 'distancezeroshow.com'];
   const gfx = document.createElement('div'); gfx.className = 'air sp-air'; gfx.hidden = true; gfx.setAttribute('aria-hidden', 'true');
   gfx.innerHTML = `<div class="air-gfx"><div class="air-top"><div class="air-onair"><i></i><b>ON AIR</b><small>Simulation</small></div><div><img class="air-bug" src="${asset('assets/logo-do.webp')}" alt="" width="327" height="160"></div></div>
     <div class="air-bottom"><div class="air-l3"><img class="l3art" alt="" hidden><div class="l3txt"><b></b><span></span></div></div><div class="air-meta"><span class="air-cam"></span><span class="air-clock">VIE <b class="v"></b> · MEL <b class="m"></b></span></div></div>

@@ -49,7 +49,7 @@ const LOOK_NAMES = { broadcast: 'Studio', vienna: 'Vienna', melbourne: 'Melbourn
 const BUG = '<img class="air-bug" src="assets/logo-do.webp" alt="D//0" width="327" height="160">';
 
 const TICKER = ['SIMULATION — NOT A REAL BROADCAST', 'DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km',
-  'Opening Show Wednesday 27 January 2027', 'From 29 January: every Friday DJ Show · Saturday Piano Sessions · Sunday The Live Show', 'distancezeroshow.com'];
+  'Opening Show Wednesday 27 January 2027', 'Once a month, in the third week: Friday DJ Show · Saturday Piano Sessions · Sunday The Live Show', 'distancezeroshow.com'];
 
 const LOWER = { andy: ["DJ ANDY'K", 'Andrej Kneisl · Vienna'], georgie: ['GEORGIE WALKER', 'Melbourne'], piano: ['THE GRAND PIANO', 'Vienna side'],
   music: ['MUSIC STATION', 'Melbourne side'], guest: ['SPECIAL GUEST', 'Live at the DISTANCE // ZERO desk'], wall: ['DISTANCE // ZERO', 'Vienna // Melbourne · 15,731 km'] };
