@@ -10,7 +10,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { ROOM, xyz } from './layout.js';
 
 export const DRUM = { x: 5.0, z: -8.75, r: 1.2, walk: 0.7, steps: 29, rise: 0.18, a0: Math.PI, a1: 0.865 + 4 * Math.PI };
-export const CLUB_DOOR = { along: -5.3, w: 1.3, h: 2.3 };   // in the club's back wall (across −3.6)
+export const CLUB_DOOR = { along: -5.3, w: 1.24, h: 2.3 };   // (its jambs clear of the club's corner column, which ends at along −6.0)   // in the club's back wall (across −3.6)
 const EYE = 1.65, F = ROOM.floor, BACK = ROOM.across - ROOM.d / 2;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const W = (al, ac, y) => V(...xyz(al, ac, y));
