@@ -25,6 +25,8 @@ import { at as atV, platformTop } from './vienna/layout.js';
 import { midi } from './midi.js';
 import { showClock } from './showclock.js';
 import { exitSigns } from './exitsigns.js';
+import { buildBackstage } from './backstage.js';
+import { LOUNGE } from './set.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -1466,6 +1468,8 @@ export function spaces(v, ctx) {
     // the one mode switch: it names the mode it switches to
     const label = () => (houseOn ? 'To show mode' : houseAsk && performance.now() - houseAsk < 4000 ? 'On air · press again' : 'To cleaning mode');
     setTile(b, label()); dynamic.push([b, label]); b.addEventListener('click', () => { closeMenus(); setHouse(!houseOn); }); ctrl.appendChild(b); }
+  // the backstage lounge's three lit show posters (synced from the website's programme) and framed photographs
+  if (ctx.studio.lounge?.group) buildBackstage({ M: ctx.studio.M, parent: ctx.studio.lounge.group, lounge: LOUNGE });
   // the SHOW TIMER: the studio clock on the wall (showclock.js) and its menu
   const clock = showClock({ M: ctx.studio.M, parent: ctx.studio.root });
   studioMenu('Show timer', [['Count up', () => clock.countUp()], ...[1, 5, 10, 15, 30, 60].map(n => [`Countdown ${n} min`, () => clock.countdown(n * 60000)]),
