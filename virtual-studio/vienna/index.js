@@ -45,13 +45,19 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   let orchestraWork = 0;
   // its cameras: OV1 (audience left), OV2 (audience right), OV3 (centre), framed for the configuration on show; OV4 the
   // 4K robot's lens (real-time moves); its security camera in the CCTV round. The director keeps a camera in the room
-  const OPUS_CAMS = { OV1: 'OV1 · audience left', OV2: 'OV2 · audience right', OV3: 'OV3 · centre', OV4: 'OV4 · 4K robot camera', CCTV: 'Security' };
+  const OPUS_CAMS = { OV1: 'OV1 · audience left', OV2: 'OV2 · audience right', OV3: 'OV3 · centre', OV4: 'OV4 · 4K robot camera', CCTV: 'Security', XF: 'the transformation' };
   const oid = k => (k === 'CCTV' ? 'secOpus' : 'o' + k);
-  const frameOpus = () => { for (const k of ['OV1', 'OV2', 'OV3', 'OV4', 'CCTV']) { const c = orchestra.camera(k === 'OV4' ? 'OV3' : k), v = VIEWS[oid(k)]; v.pos = c.pos.toArray(); v.target = c.target.toArray(); v.fov = c.fov; } };
-  for (const [k, long] of Object.entries(OPUS_CAMS)) VIEWS[oid(k)] = { label: k === 'CCTV' ? 'Security' : k, long: k === 'CCTV' ? 'Security · OPUS V' : '4K · OPUS V · ' + long, pos: [0, 0, 0], target: [0, 0, 0], fov: 40, drift: 0, tally: 0, cam: k === 'CCTV' ? undefined : 'CAM ' + k, free: true, opus: k, ...(k === 'CCTV' ? { cctv: 'SEC 6 · OPUS V' } : {}) };
+  const frameOpus = () => { for (const k of ['OV1', 'OV2', 'OV3', 'OV4', 'CCTV']) { const c = orchestra.camera(k === 'OV4' ? 'OV3' : k), v = VIEWS[oid(k)]; v.pos = c.pos.toArray(); v.target = c.target.toArray(); v.fov = c.fov; }
+    Object.assign(VIEWS.oXF, { pos: orchestra.xfShot.pos.toArray(), target: orchestra.xfShot.target.toArray(), fov: 50 }); };
+  for (const [k, long] of Object.entries(OPUS_CAMS)) VIEWS[oid(k)] = { label: k === 'CCTV' ? 'Security' : k === 'XF' ? 'Transformation' : k, long: k === 'CCTV' ? 'Security · OPUS V' : '4K · OPUS V · ' + long, pos: [0, 0, 0], target: [0, 0, 0], fov: 40, drift: 0, tally: 0, cam: k === 'CCTV' ? undefined : 'CAM ' + k, free: true, opus: k, ...(k === 'CCTV' ? { cctv: 'SEC 6 · OPUS V' } : {}) };
   frameOpus();
   ZONES.push({ has: p => orchestra.has(p), keep: p => orchestra.keep(p) });
   orchestra.onConfig(() => { frameOpus(); const k = VIEWS[director.current]?.opus; if (k && k !== 'OV4' && k !== 'CCTV' && !director.flying) director.go(director.current); });   // the new framing
+  // STAGE CONFIGURATION: cinematic (the transformation shot follows the 22 s change, then OV3) or immediate
+  function opusConfig(name, { instant = false } = {}) {
+    orchestra.setConfig(name, { instant });
+    if (orchestra.cinematic) { director.setAuto(false); director.go(oid('XF')); }
+  }
   function pickOpus(k) {
     if (!OPUS_CAMS[k]) return;
     const closed = orchestra.open < 0.5;
@@ -391,9 +397,13 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const h = frozen ? lift.height : lift.step(step);
     // OV4: the robot flies its programme while it is on; its lens is the shot
     const ov = VIEWS[director.current]?.opus;
-    if (orchestra.robot) orchestra.robot.active = ov === 'OV4';
+    if (orchestra.robot) orchestra.robot.active = ov === 'OV4' && !orchestra.changing;   // (parked while the room changes)
     orchestra.update(dt, orchestraWork);
     if (ov === 'OV4' && orchestra.robot && !director.flying) { camera.position.copy(orchestra.robot.shot.pos); controls.target.copy(orchestra.robot.shot.target); }
+    if (ov === 'XF' && !director.flying) {
+      if (orchestra.cinematic) { camera.position.copy(orchestra.xfShot.pos); controls.target.copy(orchestra.xfShot.target); }
+      else director.go(oid('OV3'));   // the change is over: onto the centre camera
+    }
     // the robot flies its programme on P6, in the shot's slow motion; parked otherwise
     if (robot) {
       robot.active = director.current === id('P6');
@@ -435,7 +445,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, orchestra, pickOpus, opusCameras: Object.keys(OPUS_CAMS), setOrchestraWork: k => { orchestraWork = k; }, lift, command, setLiftHold, get liftHold() { return liftHold; }, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, orchestra, pickOpus, opusConfig, opusCameras: Object.keys(OPUS_CAMS), setOrchestraWork: k => { orchestraWork = k; }, lift, command, setLiftHold, get liftHold() { return liftHold; }, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 

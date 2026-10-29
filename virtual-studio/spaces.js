@@ -1333,7 +1333,9 @@ export function spaces(v, ctx) {
       ['Camera', [['OV1 · audience left', () => v.pickOpus('OV1')], ['OV2 · audience right', () => v.pickOpus('OV2')], ['OV3 · centre', () => v.pickOpus('OV3')], ['OV4 · 4K robot camera', () => v.pickOpus('OV4')], ['CCTV · security', () => v.pickOpus('CCTV')],
         ['Cinematic · into the room', () => cinematic('opus')], ['Piano P3 · side', () => v.pickCamera('P3')], ['Piano P4 · wide', () => v.pickCamera('P4')]]],
       // STAGE CONFIGURATION: the layout, the light and the cameras' framing change; the room's light dips and comes back
-      ['Configuration', [[() => (v.orchestra?.config === 'quartet' ? '✓ ' : '') + 'String quartet · 4', () => v.orchestra?.setConfig('quartet')], [() => (v.orchestra?.config === 'chamber' ? '✓ ' : '') + 'Chamber orchestra · 28', () => v.orchestra?.setConfig('chamber')]]],
+      // (cinematic: the 22 s change with its own shot; immediate: at once, for rehearsal and technical work)
+      ['Configuration', [[() => (v.orchestra?.config === 'quartet' ? '✓ ' : '') + 'String quartet · 4', () => v.opusConfig?.('quartet')], [() => (v.orchestra?.config === 'chamber' ? '✓ ' : '') + 'Chamber orchestra · 28', () => v.opusConfig?.('chamber')],
+        ['String quartet · immediate', () => v.opusConfig?.('quartet', { instant: true })], ['Chamber orchestra · immediate', () => v.opusConfig?.('chamber', { instant: true })]]],
       ['Instruments', () => openInstruments()], ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
     piano: [
@@ -1512,13 +1514,13 @@ export function spaces(v, ctx) {
     ['Start', () => clock.start()], ['Pause', () => clock.pause()], ['Reset', () => clock.reset()]]);
   // for the Broadcast Studio later (same site), on the 'dz-virtual-space' channel: { house: true | false, force? },
   // { houseLevel: 0 … 120 }, { opus: 'open' | 'close' | 'toggle' | 'cinematic' }, { opusConfig: 'quartet' | 'chamber' },
-  // { opusCamera: 'OV1' | 'OV2' | 'OV3' | 'OV4' | 'CCTV' },
+  // { opusCamera: 'OV1' | 'OV2' | 'OV3' | 'OV4' | 'CCTV' }, { opusConfig, instant: true } for an immediate change,
   // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
   try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
     if ('house' in d) setHouse(!!d.house, { force: !!d.force });
     if ('houseLevel' in d) setHouseLevel(d.houseLevel);   // 0 … 120 (%)
     if (d.opus) ({ open: () => v.orchestra?.setOpen(true), close: () => v.orchestra?.setOpen(false), toggle: () => v.orchestra?.toggle(), cinematic: () => cinematic('opus') })[d.opus]?.();   // OPUS V room
-    if (d.opusConfig) v.orchestra?.setConfig(d.opusConfig);
+    if (d.opusConfig) v.opusConfig?.(d.opusConfig, { instant: !!d.instant });   // (instant: true for rehearsal)
     if (d.opusCamera) v.pickOpus?.(d.opusCamera);
     if (d.timer) ({ up: () => clock.countUp(), down: () => clock.countdown(d.ms), start: () => clock.start(), pause: () => clock.pause(), reset: () => clock.reset() })[d.timer]?.(); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
@@ -1643,7 +1645,7 @@ export function spaces(v, ctx) {
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
     for (const k of ['studio', 'piano', 'dj', 'opus']) btn(k).setAttribute('aria-pressed', String(k === active));
-    btn('opus').querySelector('small').textContent = !v.orchestra ? '' : v.orchestra.target ? (v.orchestra.open < 1 ? 'Opening…' : v.orchestra.label) : 'Hidden · tap to open';
+    btn('opus').querySelector('small').textContent = !v.orchestra ? '' : v.orchestra.target ? (v.orchestra.open < 1 ? 'Opening…' : v.orchestra.changing ? 'Transforming…' : v.orchestra.label) : 'Hidden · tap to open';
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = piano?.hold === 'psInter' ? 'Intermission · tap to play' : piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
