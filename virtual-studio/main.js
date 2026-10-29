@@ -115,7 +115,10 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   let mirror = null;
   if (quality.reflections) {
     const ms = quality.mirrorSize || 1024;
-    mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: ms, textureHeight: ms, color: 0x6a6d73 });
+    mirror = new Reflector(new THREE.CircleGeometry(26, 64), { clipBias: 0.003, textureWidth: ms, textureHeight: ms, color: 0x6a6d73, multisample: 4 });
+    // the reflection mip-mapped: seen from afar its small bright lights (the stage's rig, tallies, LED lines) are
+    // averaged, not picked pixel by pixel (that broke up into coloured specks on the Piano Stage's floor)
+    { const t = mirror.getRenderTarget().texture; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; }
     mirror.rotation.x = -Math.PI / 2;
     mirror.position.y = -0.002;
     scene.add(mirror);

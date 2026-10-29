@@ -27,8 +27,10 @@ const lift = (shape, height, opts = {}) => new THREE.ExtrudeGeometry(shape, { de
 
 export function grandPiano(M) {
   const g = new THREE.Group();
-  const lacquer = new THREE.MeshPhysicalMaterial({ color: 0x050506, metalness: 0, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 0.9 });
-  const satin = new THREE.MeshPhysicalMaterial({ color: 0x08080a, metalness: 0, roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.2 });
+  // (a shade above pure black and more of the room in its gloss: the case reads as polished lacquer with its curves
+  // drawn by the highlights, not as black holes in the picture)
+  const lacquer = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, metalness: 0, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 1.35 });
+  const satin = new THREE.MeshPhysicalMaterial({ color: 0x111114, metalness: 0, roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.2, envMapIntensity: 1.2 });
   const plateGold = new THREE.MeshStandardMaterial({ color: 0xb08d4f, metalness: 1, roughness: 0.32, envMapIntensity: 0.8 });
   const brass = new THREE.MeshStandardMaterial({ color: 0xc9a25e, metalness: 1, roughness: 0.22 });
   const spruce = new THREE.MeshStandardMaterial({ color: 0x9a7448, metalness: 0, roughness: 0.6 });
