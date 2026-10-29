@@ -226,8 +226,17 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   let look = 'broadcast', onAir = false, sim = false, countdownTimer = 0, programmeAt = 0, programmeIndex = 0;
   let after = false;   // AFTERSHOW (spaces.js): the show is over, the work light is on, the wall says so
   // a* = what the studio "hears" (soundtrack and piano), 0 when silent
-  const L = { ...LOOKS.broadcast, ...OFF, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0, djOn: 0, djA: 0, djB: 0, djVA: 0.85, djVB: 0.85, djX: 0.5 };
+  let cleaning = false;   // HOUSE LIGHTS / CLEANING MODE (spaces.js: one button; setCleaning below)
+  const L = { ...LOOKS.broadcast, ...OFF, work: 0, warm: 1, cool: 1, amber: 1, ice: 1, music: 0, solo: 0, aOn: 0, aBass: 0, aMid: 0, aHigh: 0, aLevel: 0, djOn: 0, djA: 0, djB: 0, djVA: 0.85, djVB: 0.85, djX: 0.5 };
+  // CLEANING MODE: the house lights (the ceiling's white battens) full, the stage's own light down to a neutral key,
+  // every coloured light (rims, accents, the LED fins, beams) off, nothing on air. The show's state is untouched
+  // underneath: switched off, the light eases back to it
   const target = () => {
+    const g = showTarget(); g.work = 0;
+    return cleaning ? { ...g, key: 0.45, warm: 1, cool: 1, rim: 0, amber: 0, ice: 0, accent: 0, fins: 0, beams: 0, wall: 0.25, house: 1, onAir: 0, music: 0, solo: 0, work: 1 } : g;
+  };
+  function setCleaning(on) { cleaning = !!on; ui.status.textContent = cleaning ? 'House lights · cleaning mode' : after ? 'After the show · off air' : onAir ? ui.status.textContent : 'Off air · studio preview'; }
+  const showTarget = () => {
     const base = { ...LOOKS[look] };
     // after the show: the stage light down to a glow, the house work light up full, nothing on air
     if (after) return { ...base, key: 0.12, rim: 0.08, accent: 0.22, fins: 0.15, beams: 0, wall: 0.35, house: 2.6, onAir: 0, music: 0, solo: 0 };
@@ -536,7 +545,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     raf = requestAnimationFrame(frame);
   }
 
-  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; }, setAfterShow, get afterShow() { return after; }, panels, sound }) : null;
+  const ext = extend ? extend({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, get air() { return air; }, get onAir() { return onAir; }, setAfterShow, setCleaning, get cleaning() { return cleaning; }, get afterShow() { return after; }, panels, sound }) : null;
 
   // warm up: draw the wall once and compile shaders before revealing
   studio.wall.set('idle');
@@ -578,5 +587,5 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   director.go('studio');
   director.setAuto(!reducedMotion);
 
-  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, air, ext, studioProbes };
+  return { renderer, scene, camera, controls, director, studio, sound, panels, setOnAir, setLook, setCleaning, air, ext, studioProbes };
 }

@@ -580,7 +580,7 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const pianoAt = new THREE.Vector3(-6.5, 0, -0.2), at = new THREE.Vector3();
   const pianoLamp = fixtures.children.filter(f => f.isGroup && f.children.length > 1)
     .reduce((best, f) => { const d = f.getWorldPosition(at).setY(0).distanceTo(pianoAt); return d < best.d ? { f, d } : best; }, { f: null, d: Infinity }).f;
-  const lights = buildLights(root, quality, wallLight, pianoLamp);
+  const lights = buildLights(root, quality, wallLight, pianoLamp, M);
 
   /* ----- per-frame: lighting levels, LED colours, wall, tallies ----- */
   function update(t, dt, L, tally) {
@@ -1570,7 +1570,7 @@ function backstageSign() {
 
 /* ---------- lights ---------- */
 
-function buildLights(root, quality, wallLight, pianoLamp) {
+function buildLights(root, quality, wallLight, pianoLamp, M) {
   const spot = (color, pos, target, { angle = 0.42, penumbra = 0.65, shadow = false } = {}) => {
     const l = new THREE.SpotLight(color, 0, 0, angle, penumbra, 2);
     l.position.copy(pos); l.target.position.copy(target);
@@ -1618,6 +1618,21 @@ function buildLights(root, quality, wallLight, pianoLamp) {
   const soft = new THREE.RectAreaLight(0xf2efe9, 0, 10, 2.4);
   soft.position.set(0, 2.6, 9.5); soft.lookAt(0, 1.0, -2.5);
   root.add(fill, house, hemi, soft);
+  // HOUSE LIGHTS (cleaning mode, after the show): twelve white LED battens under the ceiling, three rows of four over the
+  // whole studio: brushed aluminium bodies on short wire hangers, opal diffusers. Their light is the house light above
+  // (one soft area light, neutral white while they are on, and the room's fill with it); off, they hang dark
+  const battens = new THREE.Group(); battens.name = 'house-battens';
+  const diffuser = new THREE.MeshBasicMaterial({ color: 0x0c0c0c, toneMapped: false });
+  const bodyGeo = new THREE.BoxGeometry(1.8, 0.07, 0.14), diffGeo = new THREE.PlaneGeometry(1.74, 0.1).rotateX(Math.PI / 2), wireGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.4, 6);
+  for (const z of [-4.5, 0, 4.5]) for (const x of [-6, -2, 2, 6]) {
+    const b = new THREE.Group(); b.position.set(x, 7.9, z);
+    b.add(new THREE.Mesh(bodyGeo, M.alu));
+    const d = new THREE.Mesh(diffGeo, diffuser); d.position.y = -0.036; b.add(d);
+    for (const wx of [-0.7, 0.7]) { const w = new THREE.Mesh(wireGeo, M.graphite); w.position.set(wx, 0.235, 0); b.add(w); }
+    battens.add(b);
+  }
+  root.add(battens);
+  const WORK = new THREE.Color(0xf4f2ee);
   return {
     piano: { top: pianoSpot, solo: soloSpot },   // the grand's own lights (the Vienna piano stage uses them as its key and spot)
     // the grand raised by the piano lift (vienna/): its warm top light and the solo spot follow it up
@@ -1642,9 +1657,12 @@ function buildLights(root, quality, wallLight, pianoLamp) {
       pianoLamp.quaternion.slerpQuaternions(restQ, aimQ, THREE.MathUtils.smoothstep(L.solo, 0, 1));
       logoSpot.intensity = 120 * L.accent;
       fill.intensity = 1.6 * L.key;
-      house.intensity = 0.9 * L.house;
-      hemi.intensity = (0.42 + 0.3 * L.house) * (1 - 0.75 * L.solo);
-      soft.intensity = (0.55 + 0.25 * L.house) * (1 - 0.85 * L.solo);
+      const work = L.work || 0;   // the house lights (cleaning mode): neutral white, the room evenly lit
+      house.color.copy(C.cool).lerp(WORK, work);
+      house.intensity = 0.9 * L.house + 3.6 * work;
+      hemi.intensity = (0.42 + 0.3 * L.house + 0.7 * work) * (1 - 0.75 * L.solo);
+      soft.intensity = (0.55 + 0.25 * L.house + 0.9 * work) * (1 - 0.85 * L.solo);
+      diffuser.color.setScalar(0.05 + 2.2 * work);
     },
   };
 }

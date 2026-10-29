@@ -118,6 +118,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
 
   /* ----- light state: eased towards the preset, with the effects the operator set on top ----- */
   let mode = 'OPENING';
+  let cleanSaved = null;   // the effects as they were before CLEANING MODE
   const fx = { lasers: null, laserLevel: 1, haze: null, strobe: 0, preset: null, disco: null, discoSpeed: 1 };   // null: follow the preset
   let modeBeat = 0, dropUntil = -1;   // the beat the mode was taken on (BUILD-UP's ramp); DROP's strobe until this beat
   const L = { disco: { level: 0, speed: 1 }, fogFloor: { level: 0 }, led: { level: 0 }, haze: { level: 0 }, strobe: { level: 0 }, screens: { level: 1 }, pads: { level: 1 }, meters: { level: 1 }, preset: 'LOGO', track: null, smokeRequest: 0 };
@@ -380,6 +381,12 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     fog(seconds = 3) { L.smokeRequest = Math.max(0.5, Math.min(8, +seconds)); L.fogFloor.level = Math.min(1, L.fogFloor.level + 0.35 + seconds * 0.12); say('Fog burst: ' + L.smokeRequest + ' s'); },
     setLed(p) { if (!LED_PRESETS.includes(p)) return say('No such LED preset'); fx.preset = p; say('LED walls: ' + p); },
     lasers(on, level) { fx.lasers = on === null ? null : !!on; if (level !== undefined) fx.laserLevel = Math.max(0, Math.min(1, +level)); say(`Lasers ${fx.lasers === null ? 'with the preset' : fx.lasers ? 'on' : 'off'} · ${Math.round(fx.laserLevel * 100)} %`); },
+    // CLEANING MODE (spaces.js): the club's coloured effects off (lasers, haze, strobe, disco ball, the LED walls' visuals),
+    // remembered; off again, every one back as it was
+    cleaning(on) {
+      if (on && !cleanSaved) { cleanSaved = { lasers: fx.lasers, haze: fx.haze, strobe: fx.strobe, disco: fx.disco, preset: fx.preset }; Object.assign(fx, { lasers: false, haze: 0, strobe: 0, disco: false, preset: 'OFF' }); say('Cleaning mode: the effects off'); }
+      else if (!on && cleanSaved) { Object.assign(fx, cleanSaved); cleanSaved = null; say('Show mode: the effects back'); }
+    },
     haze(density) { fx.haze = density === null ? null : Math.max(0, Math.min(1, +density)); say(`Haze ${fx.haze === null ? 'with the preset' : Math.round(fx.haze * 100) + ' %'}`); },
     smoke(seconds = 2.5) { api.fog(seconds); },
     strobe(level) { fx.strobe = Math.max(0, Math.min(STROBE_MAX, +level)); say(fx.strobe ? `Strobe ${Math.round((fx.strobe / STROBE_MAX) * 100)} % (max 3 flashes a second)` : 'Strobe off'); },

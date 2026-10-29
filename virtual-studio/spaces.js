@@ -1314,6 +1314,21 @@ export function spaces(v, ctx) {
   }
   const WALL_CAMS = [['Desk', 'desk'], ["Andy'K", 'andy'], ['Georgie', 'georgie'], ['Guest', 'guest'], ['Studio wide', 'studio'], ['Crane', 'crane'], ['Floor', 'floor'], ['Piano', 'piano'], ['Music', 'music']];
   studioMenu('On the wall', [['Programme', () => v.setSource('main')], ...WALL_CAMS.map(([l, k]) => [l, () => v.setSource('view:' + k)]), ['Piano Stage live', () => v.setSource('vienna')], ['DJ Room live', () => v.setSource('melbourne')], ['Off', () => v.setSource('off')]]);
+  // HOUSE LIGHTS / CLEANING MODE: one button. On: the ceiling's white battens, every coloured effect off (the studio's
+  // and the club's: lasers, haze, strobe, the disco ball, the LED walls' visuals); off (SHOW MODE): the light and the
+  // effects back as they were. Cameras, sound and everything else run on. While a show is on air it asks once more
+  // (a second press within 4 s), so it is never switched on by mistake; after the show it goes at once
+  let houseOn = false, houseAsk = 0;
+  const showLive = () => !!ctx.onAir || pianoPlaying() || !!(dj && !dj.done && dj.sim);
+  function setHouse(on, { force = false } = {}) {
+    if (on && !houseOn && showLive() && !force && performance.now() - houseAsk > 4000) { houseAsk = performance.now(); relabel(); setTimeout(relabel, 4100); return false; }
+    houseAsk = 0; houseOn = !!on; ctx.setCleaning?.(houseOn); m.cleaning?.(houseOn); relabel(); return true;
+  }
+  { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; b.dataset.house = '';
+    const label = () => (houseOn ? 'Show mode' : houseAsk && performance.now() - houseAsk < 4000 ? 'On air · press again' : 'House lights');
+    setTile(b, label()); dynamic.push([b, label]); b.addEventListener('click', () => { closeMenus(); setHouse(!houseOn); }); ctrl.appendChild(b); }
+  // for the Broadcast Studio later (same site): { house: true | false, force? } on the 'dz-virtual-space' channel
+  try { new BroadcastChannel('dz-virtual-space').onmessage = e => { if (e.data && 'house' in e.data) setHouse(!!e.data.house, { force: !!e.data.force }); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
 
