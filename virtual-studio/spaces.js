@@ -14,10 +14,14 @@
 import * as THREE from 'three';
 import { REPERTOIRE } from './vienna/repertoire.js';
 import { ARRANGEMENTS } from './vienna/arrangements.js';
+import { ARRANGEMENTS_REVIEW } from './vienna/arrangements-review.js';
+// the arrangements visitors may hear: none while they wait for their musical review
+const OPEN_ARRANGEMENTS = ARRANGEMENTS_REVIEW.blocked ? [] : ARRANGEMENTS;
 import { liveMusic } from './melbourne/live-music.js';
 import { VIEWS, ZONES } from './views.js';
 import { applyProbe } from './melbourne/probes.js';
-import { inClub } from './melbourne/layout.js';
+import { inClub, xyz as xyzM, DJ_LIFT } from './melbourne/layout.js';
+import { at as atV, platformTop } from './vienna/layout.js';
 import { midi } from './midi.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
@@ -799,12 +803,12 @@ export function spaces(v, ctx) {
   let libGenre = 'All';
   function libraryNode(kind) {
     // at the Piano: the Piano Sessions' songs, then DJ Andy'K's piano arrangements of his songs (drafts: the grand plays them)
-    const piano_ = kind === 'piano', all = piano_ ? [...PIANO_SONGS, ...ARRANGEMENTS] : DJ_TRACKS;
+    const piano_ = kind === 'piano', all = piano_ ? [...PIANO_SONGS, ...OPEN_ARRANGEMENTS] : DJ_TRACKS;
     const genres = piano_ ? [] : ['All', ...GENRES.filter(g => all.some(s => genresOf(s).includes(g)))];
     const list = piano_ || libGenre === 'All' ? all : all.filter(s => genresOf(s).includes(libGenre));
     const now = piano_ ? (v.show.state === 'SONG' ? v.show.song?.id : null) : dj?.el === track ? dj.steps[dj.i - 1]?.track?.id : null;
     const el = document.createElement('div'); el.className = 'sp-lib';
-    el.innerHTML = `<header><b>${piano_ ? `${PIANO_SONGS.length} piano songs · ${ARRANGEMENTS.length} piano arrangements (drafts) · tap one to play it` : list.length + ' tracks · tap one to play it'}</b>${genres.map(g => `<button class="tab" type="button" data-g="${g}" aria-pressed="${g === libGenre}">${g}</button>`).join('')}</header>
+    el.innerHTML = `<header><b>${piano_ ? (OPEN_ARRANGEMENTS.length ? `${PIANO_SONGS.length} piano songs · ${OPEN_ARRANGEMENTS.length} piano arrangements (drafts) · tap one to play it` : `${PIANO_SONGS.length} piano songs · tap one to play it`) : list.length + ' tracks · tap one to play it'}</b>${genres.map(g => `<button class="tab" type="button" data-g="${g}" aria-pressed="${g === libGenre}">${g}</button>`).join('')}</header>
       <ol>${list.map(s => `<li><button type="button" data-id="${s.id}" aria-current="${s.id === now}"><img src="${cover(s)}" alt="" loading="lazy"><span>${s.title}<small>${s.album}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''}${s.key ? ' · ' + s.key : ''}${piano_ ? (s.arrangement ? ' · arrangement, draft' : '') : ' · ' + genresOf(s).join(', ')}</small></span></button></li>`).join('')}</ol>`;
     el.addEventListener('click', e => {
       const tab = e.target.closest('[data-g]'), row = e.target.closest('[data-id]');
@@ -821,6 +825,7 @@ export function spaces(v, ctx) {
   const openLibrary = kind => ctx.panels?.open('station', kind === 'piano' ? 'songs' : 'library');
   // a piano song now: the show goes to LIVE (the openings stop) and the song is next in its order
   function playSongNow(s) {
+    if (s?.arrangement && ARRANGEMENTS_REVIEW.blocked) return;   // held for its musical review (arrangements-review.js)
     hideChoice(); afterShow.stop(); cctv.stop(); ended = null; active = 'piano'; document.body.dataset.space = 'piano';
     stopDj(); if (m.env === 'djroom') m.setEnv('studio', { transition: false });
     const sp = v.show.audio?.song; if (sp && !sp.src && s.audio) sp.src = s.audio;
@@ -905,6 +910,69 @@ export function spaces(v, ctx) {
     m.releaseCameras?.(); director.setAuto(false); director.go('djTop', { instant: true }); topAt = g;
   }
   let topAt = null;
+
+  /* ----- CINEMATIC MOVES: from the DJ at the console (the booth down in the club) up through the open shaft, or from
+     the pianist round the grand, out into the main studio; one sweeping arc round the studio, ending framed on its big
+     LED wall, which shows that space live (the wall's own feed); after a hold, the same way back. One camera that moves
+     (VIEWS.cine), driven every frame (hold()); any other cut ends it. The DJ's and the pianist's places are shown as
+     they are (no figure there yet) ----- */
+  let cine = null;   // { kind, phase, t, pos, look, len, dur, wallWas, waiting }
+  const vec = a => new THREE.Vector3(...a);
+  const WALL_END = { pos: [0, 2.7, 3.2], look: [0, 3.25, -7] }, CENTRE = [0, 1.4, -1];
+  // the studio's arc: high (above the jib and the cameras, under the truss), wide of the Piano Stage's raised grand
+  const ARC = [[7, 4.2, 3], [4, 4.4, 8], [-2, 4.4, 8.5], [-6, 4.2, 6], [-3, 3.4, 4.2]];
+  function cinePoints(kind) {
+    const pts = [], looks = [];
+    const push = (p, l) => { pts.push(vec(p.toArray ? p.toArray() : p)); looks.push(vec(l.toArray ? l.toArray() : l)); };
+    if (kind === 'dj') {
+      const g = m.booth.gear.group; g.updateMatrixWorld(true);
+      push(g.localToWorld(vec([0, 0.9, -1.3])), g.localToWorld(vec([0, 0, 0.25])));           // behind the DJ's place
+      push(g.localToWorld(vec([0, 2.2, -0.9])), g.localToWorld(vec([0, 0, 0.3])));             // rising over the console
+      push(xyzM(DJ_LIFT.along, DJ_LIFT.across, -1.2), xyzM(DJ_LIFT.along, DJ_LIFT.across + 2, 1.5));   // up the shaft
+      push(xyzM(DJ_LIFT.along, DJ_LIFT.across, 2.4), CENTRE);                                  // out into the studio
+      for (const p of ARC) push(p, CENTRE);
+    } else {
+      const h = platformTop(v.lift.height), P = (a, b, y) => { const [x, z] = atV(a, b); return [x, y + h, z]; };
+      push(P(2.7, 1.0, 1.55), P(1.4, 0, 1.0));       // the pianist's place, over the keyboard
+      push(P(1.42, 0.95, 1.0), P(1.0, -0.3, 0.76));  // the keys, close
+      push(P(0.6, 2.3, 1.9), P(-0.4, 0, 0.9));       // round the grand: the open lid
+      push(P(-2.4, 1.4, 2.2), P(-0.6, 0, 0.9));      // its tail
+      push(P(-2.6, -1.8, 2.6), P(0, 0, 0.9));        // its far side
+      for (const p of [...ARC].reverse()) push(p, CENTRE);
+    }
+    push(WALL_END.pos, WALL_END.look);
+    return { pos: new THREE.CatmullRomCurve3(pts, false, 'centripetal'), look: new THREE.CatmullRomCurve3(looks, false, 'centripetal') };
+  }
+  function cinematic(kind) {
+    exitPov(); hideChoice(); closeMenus();
+    if (kind === 'dj' && (m.lift.state !== 'DOWN' || m.travelling)) { if (!m.travelling) m.transition('down'); cine = { kind, waiting: true }; return; }
+    startCine(kind);
+  }
+  function startCine(kind) {
+    const c = cinePoints(kind), len = c.pos.getLength();
+    cine = { kind, phase: 'start', t: 0, ...c, dur: len / 1.5 + 4, wallWas: v.source };
+    if (kind === 'dj') m.coverCommand('open', { quiet: true });   // the shaft's glass cover clears for the camera
+    VIEWS.cine = { label: 'Cinematic', long: kind === 'dj' ? '4K · Cinematic · DJ Room to the studio wall' : '4K · Cinematic · the grand to the studio wall', pos: c.pos.getPointAt(0).toArray(), target: c.look.getPointAt(0).toArray(), fov: 40, drift: 0, tally: 0, cam: 'CAM CINE', free: true };
+    director.setAuto(false); m.setAuto?.(false); director.go('cine', { instant: true });
+  }
+  function endCine() { if (!cine) return; if (cine.wallWas && v.source !== cine.wallWas) v.setSource(cine.wallWas); if (cine.kind === 'dj') m.coverCommand('close', { quiet: true }); cine = null; }
+  let cineAt = performance.now();
+  function cineFrame() {
+    const now = performance.now(), dt = Math.min(0.1, (now - cineAt) / 1000); cineAt = now;
+    if (!cine) return;
+    if (cine.waiting) { if (m.lift.state === 'DOWN' && !m.travelling) startCine(cine.kind); return; }
+    if (director.current !== 'cine') { endCine(); return; }   // another cut took over
+    cine.t += dt;
+    const HOLD0 = cine.kind === 'dj' ? 4 : 2.5, WALL = 7;     // the start (the cover opens), the hold on the wall
+    let u;
+    if (cine.phase === 'start') { u = 0; if (cine.t >= HOLD0) { cine.phase = 'out'; cine.t = 0; v.setSource(cine.kind === 'dj' ? 'melbourne' : 'vienna'); } }
+    else if (cine.phase === 'out') { u = THREE.MathUtils.smootherstep(cine.t / cine.dur, 0, 1); if (cine.t >= cine.dur) { cine.phase = 'wall'; cine.t = 0; } }
+    else if (cine.phase === 'wall') { u = 1; if (cine.t >= WALL) { cine.phase = 'back'; cine.t = 0; } }
+    else { u = 1 - THREE.MathUtils.smootherstep(cine.t / (cine.dur * 0.8), 0, 1); if (cine.t >= cine.dur * 0.8) { const p = ctx.camera.position.toArray(), l = ctx.controls.target.toArray(); endCine(); VIEWS.cine.pos = p; VIEWS.cine.target = l; return; } }
+    const p = cine.pos.getPointAt(u), l = cine.look.getPointAt(u);
+    ctx.camera.position.copy(p); ctx.controls.target.copy(l); ctx.camera.lookAt(l);
+    VIEWS.cine.pos = p.toArray(); VIEWS.cine.target = l.toArray();
+  }
   function enterPov(kind) {
     try { enterPov_(kind); } catch (e) { console.error('first person:', e); }
   }
@@ -1131,7 +1199,7 @@ export function spaces(v, ctx) {
   const CONTROLS = {
     piano: [
       [() => (piano || pianoPlaying() ? 'Finish show' : 'Simulate show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
-      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano')]]],
+      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano'), ['Cinematic · grand to the studio wall', () => cinematic('piano')]]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Studio look', () => v.setLook(false)], ['Concert look', () => v.setLook(true)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
       ['Video', [['Intermission', () => pianoIntermission()], ['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
@@ -1143,7 +1211,7 @@ export function spaces(v, ctx) {
     ],
     dj: [
       [() => (dj && !dj.done ? 'Finish show' : 'Simulate show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
-      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()]]],
+      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()], ['Cinematic · DJ to the studio wall', () => cinematic('dj')]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['Intermission', () => intermission()], ['Stay tuned', () => card('djBetween', { manual: true })], ['DJ transition', () => card('djTransition', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
@@ -1233,6 +1301,20 @@ export function spaces(v, ctx) {
   more.addEventListener('click', closeMenus);
   // the studio's own row (Simulate on air, Camera, Light, Auto camera, Music, Schedule) as tiles too, with Programme and Info
   for (const b of ctrl.querySelectorAll(':scope > .b')) { if (!b.querySelector('svg.ti')) b.insertAdjacentHTML('afterbegin', tileIcon(b.textContent.trim())); }
+  // the studio's director: any camera onto the big LED wall at once (no planned sequence needed: a performer's
+  // reaction, a laugh at the desk), the Piano Stage or the DJ Room live, back to the programme; and the cinematic moves
+  function studioMenu(label, items) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'b mbtn'; setTile(b, label);
+    const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
+    for (const [l, fn] of items) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { fn(); closeMenus(); }); pop.appendChild(x); }
+    dock.insertBefore(pop, ctrl); pops.push(pop);
+    b.setAttribute('aria-expanded', 'false'); b.insertAdjacentHTML('beforeend', '<i class="chev" aria-hidden="true"></i>');
+    b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });
+    ctrl.appendChild(b);
+  }
+  const WALL_CAMS = [['Desk', 'desk'], ["Andy'K", 'andy'], ['Georgie', 'georgie'], ['Guest', 'guest'], ['Studio wide', 'studio'], ['Crane', 'crane'], ['Floor', 'floor'], ['Piano', 'piano'], ['Music', 'music']];
+  studioMenu('On the wall', [['Programme', () => v.setSource('main')], ...WALL_CAMS.map(([l, k]) => [l, () => v.setSource('view:' + k)]), ['Piano Stage live', () => v.setSource('vienna')], ['DJ Room live', () => v.setSource('melbourne')], ['Off', () => v.setSource('off')]]);
+  studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
 
   /* ----- the buttons ----- */
@@ -1365,6 +1447,7 @@ export function spaces(v, ctx) {
   // second, and between those the director's drift and the orbit controls moved the picture (it shook)
   const top = new THREE.Vector3(0, 1.9, -0.06), down = new THREE.Vector3(0, 0, 0.02), ahead = new THREE.Vector3();
   function hold() {
+    cineFrame();
     if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
     }

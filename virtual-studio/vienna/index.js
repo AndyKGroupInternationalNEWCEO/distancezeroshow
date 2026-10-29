@@ -17,6 +17,7 @@ import { SCORES } from './score-parts.js';
 import { SHEETS } from './sheets.js';
 import { REPERTOIRE } from './repertoire.js';
 import { ARRANGEMENTS, ARRANGEMENT_PARTS, ARRANGEMENT_SHEETS } from './arrangements.js';
+import { ARRANGEMENTS_REVIEW } from './arrangements-review.js';
 
 const WARM = '#ffd9b0', WHITE = '#fff4e8', TUNGSTEN = '#ffb46b';
 // lighting modes: each group's [level, colour, (moving heads) pattern | (under) pulse], the haze in the beams, and the
@@ -100,7 +101,9 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   // (should the robot fail, P6 stays the fixed camera it was)
   let robot = null;
   try { robot = cineRobot(studio.M, { moves: pianoMoves, at: P(1.2, -2.8, 0), rotY: PIANO.rotY - Math.PI / 2, rail: 3.2, parkX: -1.4, park: P(0, 0, 0.9), base: () => platformTop(lift.height) });
-    robot.group.userData.equipment = '4K camera robot · Piano Stage'; scene.add(robot.group); } catch (e) { console.error('piano robot:', e); robot = null; }
+    robot.group.userData.equipment = '4K camera robot · Piano Stage'; scene.add(robot.group);
+    // its tower stood in P1, P3 and P5's pictures beside the keyboard: the arm is not drawn, P6 flies its programme of moves
+    robot.group.visible = false; } catch (e) { console.error('piano robot:', e); robot = null; }
   let robotK = 1;
   // the studio's own piano shot (key 9) follows the grand up as well; with the lift down it is exactly as before
   const studioPiano = { pos: [...VIEWS.piano.pos], target: [...VIEWS.piano.target] };
@@ -249,6 +252,8 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
       feed.cam.position.copy(feedShot.pos); feed.cam.lookAt(feedShot.target);
       // the shot is framed for 16:9: the wall is wider, so keep the height and show more at the sides
       feed.cam.fov = CAMS[program].fov * (CAMS[program].lens || 1);
+    } else if (source.startsWith('view:') && VIEWS[source.slice(5)]) {   // a studio camera cut onto the wall by the director
+      const w = VIEWS[source.slice(5)]; feed.cam.position.set(...w.pos); feed.cam.lookAt(...w.target); feed.cam.fov = w.fov;
     } else {                                              // 'selected': the operator's own camera
       feed.cam.position.copy(camera.position); feed.cam.quaternion.copy(camera.quaternion); feed.cam.fov = camera.fov;
     }
@@ -315,7 +320,8 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
   const partInfo = id => usable(id) ? { kind: 'piano-part', source: PARTS[id].source + (PARTS[id].approved ? '' : ' (preview, not yet approved)') } : null;
   let keysFor = null, sheetShown = '';   // the id whose part the key player holds
   let picked = REPERTOIRE.find(s => s.piano) || REPERTOIRE[0];
-  const pickSong = id => { picked = SONGS.find(s => s.id === id) || picked; ui.song(picked, partInfo(picked.id)); };
+  // (an arrangement held for its musical review is never picked: arrangements-review.js)
+  const pickSong = id => { picked = SONGS.find(s => s.id === id && !(s.arrangement && ARRANGEMENTS_REVIEW.blocked)) || picked; ui.song(picked, partInfo(picked.id)); };
   const performSong = () => { abortSequence('Cinematic sequence cancelled'); fetchPart(picked.id); show.playSong(picked); };
   const setLook = v => { look.set(v); say(v ? 'Concert look on' : 'Studio look'); };
   const seekSong = f => show.seek(f * show.duration);
@@ -415,7 +421,9 @@ function panel({ setLiftHold, command, setMode, pickCamera, setSource, setKey, s
   const songOptions = () => {
     const groups = [['Piano repertoire', REPERTOIRE.filter(s => s.piano)]];
     for (const s of REPERTOIRE) { let g = groups.find(x => x[0] === s.album); if (!g) groups.push(g = [s.album, []]); g[1].push(s); }
-    return groups.map(([name, list]) => `<optgroup label="${esc(name)}">${list.map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('')}</optgroup>`).join('');
+    // the arrangements, listed for the director but greyed out while they wait for their review
+    const held = ARRANGEMENTS_REVIEW.blocked ? `<optgroup label="${esc(`Piano arrangements · ${ARRANGEMENTS_REVIEW.label} (${ARRANGEMENTS.length}, not public)`)}">${ARRANGEMENTS.map(s => `<option value="${esc(s.id)}" disabled>${esc(s.title)} · ${esc(ARRANGEMENTS_REVIEW.label)}</option>`).join('')}</optgroup>` : '';
+    return groups.map(([name, list]) => `<optgroup label="${esc(name)}">${list.map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('')}</optgroup>`).join('') + held;
   };
   const css = `
   .vz{position:fixed;left:var(--gut,16px);top:calc(env(safe-area-inset-top,0px) + 74px);z-index:6;width:min(300px,calc(100vw - 32px));

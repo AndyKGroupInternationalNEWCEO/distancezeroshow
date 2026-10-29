@@ -45,6 +45,16 @@ await send('Page.navigate', { url: BASE + 'melbourne-dev.html' });
 const up = await W(`!!window.__studio?.ext?.spaces`, 300000);
 console.log('studio started:', up, '· problems so far:', JSON.stringify(problems));
 if (!up) { chrome.kill(); server.close(); process.exit(1); }
+// the director's menus: a camera onto the wall, then the cinematic moves (they must run without an exception)
+const menu = (tile, item) => run(`(() => { const t = [...document.querySelectorAll('#dock .row.ctrl > .b')].find(b => b.textContent.includes('${tile}')); t?.click();
+  const i = [...document.querySelectorAll('#dock .pop .b')].find(b => b.textContent === '${item}'); i?.click(); return !!t && !!i; })()`);
+if (process.env.CINE) {
+  console.log('wall cut', await menu('On the wall', 'Georgie')); await sleep(3000);
+  console.log('cinematic piano', await menu('Cinematic', 'The grand to the studio wall')); await sleep(15000); await shot('c1-piano');
+  console.log('view now', await run('__studio.director.current'), 'problems', JSON.stringify(problems));
+  console.log('cinematic dj', await menu('Cinematic', 'DJ Room to the studio wall')); await sleep(20000); await shot('c2-dj');
+  console.log('view now', await run('__studio.director.current'));
+}
 if (process.env.START_ONLY) { await sleep(8000); console.log('problems', JSON.stringify(problems)); chrome.kill(); server.close(); process.exit(problems.length ? 1 : 0); }
 await sleep(4000); await shot('0-start');
 const m = `${S}.melbourne`;
