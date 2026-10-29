@@ -17,8 +17,9 @@ export const POSTER_SLOTS = [
 const PHOTOS = [['andrej.webp', "DJ Andy'K"], ['georgie.webp', 'Georgie Walker'], ['keyvisual.jpg', 'DISTANCE // ZERO']];
 const asset = f => new URL('../assets/' + f, import.meta.url).href;
 
-/* ----- the programme: the site's calendar, parsed (VEVENT: SUMMARY, DESCRIPTION, DTSTART;TZID=Europe/Vienna, RRULE
-   WEEKLY / MONTHLY with BYDAY such as FR or 3SU, ATTACH an official poster) ----- */
+/* ----- the programme: the site's calendar, parsed (VEVENT: SUMMARY, DESCRIPTION, DTSTART;TZID=Europe/Vienna or an
+   all-day DTSTART;VALUE=DATE (no confirmed time), RRULE WEEKLY / MONTHLY with BYDAY such as FR or 3SU and optional
+   BYMONTHDAY / UNTIL (the monthly third-Friday weekend), ATTACH an official poster) ----- */
 function zoned(y, mo, d, h, mi, tz = 'Europe/Vienna') {
   const guess = Date.UTC(y, mo, d, h, mi);
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' }).formatToParts(guess).map(x => [x.type, +x.value]));
@@ -30,7 +31,8 @@ function parseIcs(text) {
   for (const l of lines) {
     if (l === 'BEGIN:VEVENT') ev = {}; else if (l === 'END:VEVENT') { if (ev?.start) out.push(ev); ev = null; }
     else if (ev) { const i = l.indexOf(':'); if (i < 0) continue; const k = l.slice(0, i), v = l.slice(i + 1).replace(/\\,/g, ',').replace(/\\n/g, ' ');
-      if (k.startsWith('DTSTART')) { const m = v.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); if (m) ev.start = [+m[1], +m[2] - 1, +m[3], +m[4], +m[5]]; }
+      if (k.startsWith('DTSTART')) { const m = v.match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/);
+        if (m) { ev.allDay = m[4] === undefined; ev.start = [+m[1], +m[2] - 1, +m[3], ev.allDay ? 0 : +m[4], ev.allDay ? 0 : +m[5]]; } }
       else if (k === 'SUMMARY') ev.title = v; else if (k === 'DESCRIPTION') ev.text = v; else if (k === 'RRULE') ev.rule = Object.fromEntries(v.split(';').map(p => p.split('=')));
       else if (k.startsWith('ATTACH') && /\.(jpe?g|png|webp)(\?|$)/i.test(v)) ev.poster = v;
       else if (k === 'STATUS') ev.status = v; }
@@ -40,15 +42,20 @@ function parseIcs(text) {
 // the event's next start (ms) not yet past
 function nextStart(e, now = Date.now()) {
   const [y, mo, d, h, mi] = e.start, first = zoned(y, mo, d, h, mi);
-  if (!e.rule) return first > now - 2 * 3600e3 ? first : null;
+  const keep = e.allDay ? 864e5 : 2 * 3600e3;   // an all-day date stays "current" for its whole day
+  if (!e.rule) return first > now - keep ? first : null;
   const by = e.rule.BYDAY || '', nth = parseInt(by, 10) || 0, wd = DAYS[by.replace(/[-\d]/g, '')] ?? new Date(first).getUTCDay();
+  const md = e.rule.BYMONTHDAY ? new Set(e.rule.BYMONTHDAY.split(',').map(Number)) : null;
+  const until = /^\d{8}/.test(e.rule.UNTIL || '') ? Date.UTC(+e.rule.UNTIL.slice(0, 4), +e.rule.UNTIL.slice(4, 6) - 1, +e.rule.UNTIL.slice(6, 8)) : Infinity;
   const from = new Date(Math.max(now, first));
   for (let k = 0; k < 400; k++) {
     const t = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + k));
+    if (t.getTime() > until) return null;
     if (t.getUTCDay() !== wd) continue;
-    if (e.rule.FREQ === 'MONTHLY' && nth && Math.ceil(t.getUTCDate() / 7) !== nth) continue;
+    if (md && !md.has(t.getUTCDate())) continue;
+    if (e.rule.FREQ === 'MONTHLY' && nth && !md && Math.ceil(t.getUTCDate() / 7) !== nth) continue;
     const s = zoned(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), h, mi);
-    if (s >= first && s > now - 2 * 3600e3) return s;
+    if (s >= first && s > now - keep) return s;
   }
   return null;
 }
@@ -62,6 +69,7 @@ async function programme() {
 /* ----- a poster, drawn on a canvas (a backlit lightbox in a frame): a picture, the slot, the show, its date ----- */
 const img = src => new Promise(ok => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 const fmt = (t, tz) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(t);
+const fmtDay = t => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Vienna', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(t);
 async function drawPoster(c, slot, show) {
   const x = c.getContext('2d'), W = c.width, H = c.height;
   x.fillStyle = '#07080a'; x.fillRect(0, 0, W, H);
@@ -76,7 +84,8 @@ async function drawPoster(c, slot, show) {
   const words = title.toUpperCase().split(' '); let line = '', y = H * 0.62 + 130;
   for (const w of words) { if (x.measureText(line + w).width > W - 112 && line) { x.fillText(line.trim(), 56, y); y += 70; line = ''; } line += w + ' '; } x.fillText(line.trim(), 56, y);
   x.font = '600 28px Archivo, Arial, sans-serif'; x.fillStyle = 'rgba(243,245,248,0.85)'; y += 56;
-  if (show?.at) { x.fillText('Vienna  ' + fmt(show.at, 'Europe/Vienna'), 56, y); x.fillText('Melbourne  ' + fmt(show.at, 'Australia/Melbourne'), 56, y + 40); y += 80; }
+  if (show?.at && show.allDay) { x.fillText(fmtDay(show.at), 56, y); x.fillText('Time to be announced', 56, y + 40); y += 80; }   // no invented time
+  else if (show?.at) { x.fillText('Vienna  ' + fmt(show.at, 'Europe/Vienna'), 56, y); x.fillText('Melbourne  ' + fmt(show.at, 'Australia/Melbourne'), 56, y + 40); y += 80; }
   else if (slot.host) { x.fillText(slot.host, 56, y); y += 40; }
   x.font = '600 24px Archivo, Arial, sans-serif'; x.fillStyle = 'rgba(243,245,248,0.6)'; x.fillText(show ? 'Live at distancezeroshow.com' : 'Programme at distancezeroshow.com', 56, H - 60);
 }

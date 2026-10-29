@@ -1,7 +1,7 @@
 // The Virtual Space's panels: the music station (soundtrack, piano, DJ Andy'K) and the real broadcast schedule.
 // Static content only; outgoing links open the official sites in a new tab.
 import { NOTES, GENRES, progressions, voicing } from './chords.js';
-import { SHOW, upcoming, onAirNow } from './schedule.js';
+import { SHOW, upcoming, onAirNow, isTimed } from './schedule.js';
 
 const h = (tag, attrs = {}, ...kids) => {
   const el = document.createElement(tag);
@@ -297,18 +297,20 @@ export function createPanels({ sound, el, onMusicStart }) {
     const fmt = (t, tz, o) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, ...o }).format(new Date(t));
     const day = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }, hm = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
     const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const when = t => h('div', { class: 'when' },
+    // a confirmed time in both cities (and the visitor's); otherwise the Vienna date and "time to be announced"
+    const when = t => !isTimed(t) ? h('div', { class: 'when' },
+      h('div', {}, h('span', { class: 'city v', text: 'Vienna' }), h('span', { text: `${fmt(t, 'Europe/Vienna', day)} · time to be announced` }))) : h('div', { class: 'when' },
       h('div', {}, h('span', { class: 'city v', text: 'Vienna' }), h('span', { text: `${fmt(t, 'Europe/Vienna', day)} · ${fmt(t, 'Europe/Vienna', hm)}` })),
       h('div', {}, h('span', { class: 'city m', text: 'Melbourne' }), h('span', { text: `${fmt(t, 'Australia/Melbourne', day)} · ${fmt(t, 'Australia/Melbourne', hm)}` })),
       here !== 'Europe/Vienna' && here !== 'Australia/Melbourne' ? h('div', {}, h('span', { class: 'city', text: 'Your time' }), h('span', { text: `${fmt(t, here, day)} · ${fmt(t, here, hm)}` })) : null);
     const d = Math.max(0, next[0] - now);
-    const count = live ? null : h('p', { class: 'cdown mono', role: 'timer', text: `${Math.floor(d / 864e5)} d  ${String(Math.floor(d / 36e5) % 24).padStart(2, '0')} h  ${String(Math.floor(d / 6e4) % 60).padStart(2, '0')} m  ${String(Math.floor(d / 1e3) % 60).padStart(2, '0')} s` });
+    const count = live || !isTimed(next[0]) ? null : h('p', { class: 'cdown mono', role: 'timer', text: `${Math.floor(d / 864e5)} d  ${String(Math.floor(d / 36e5) % 24).padStart(2, '0')} h  ${String(Math.floor(d / 6e4) % 60).padStart(2, '0')} m  ${String(Math.floor(d / 1e3) % 60).padStart(2, '0')} s` });
     return h('div', { class: 'pane' },
       live
         ? h('div', { class: 'real on' }, h('p', { class: 'badge', text: 'On air now · the real show' }), h('p', { text: 'DISTANCE // ZERO is broadcasting right now. Watch it on the official live page.' }), ext(SHOW.livePage, 'Watch the real show', 'pbtn main wide'))
         : h('div', { class: 'real' }, h('p', { class: 'badge', text: next[0] === new Date(SHOW.launch).getTime() ? 'First real show' : 'Next real show' }), when(next[0]), count),
       h('p', { class: 'grp', text: 'After that' }), ...next.slice(1, 3).map(when),
-      h('p', { class: 'pnote' }, 'Then every third Sunday of the month, 10:00 Vienna, 120 minutes.'),
+      h('p', { class: 'pnote' }, 'Opening week 27–31 January 2027, then once a month on the weekend of the third Friday (Friday, Saturday, Sunday). Times are announced on the website.'),
       h('div', { class: 'ctl left' }, ext(SHOW.livePage, 'Official live page', 'pbtn'), h('a', { href: SHOW.calendar, class: 'pbtn', text: '+ Add to calendar' })),
       h('div', { class: 'simnote' }, h('b', { text: 'Not the same thing: ' }), '“Simulate on air” in this studio plays a full-screen simulation on this page. It is a simulation, not the show, and nothing is broadcast.'));
   }
