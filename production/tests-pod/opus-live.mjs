@@ -61,6 +61,24 @@ await frames(4); await shot('2-opening');
 check('the wall opens fully', await W(`${O}.open >= 1`, 900000), await state());
 await W(`!window.__studio.director.flying`, 300000); await frames(6); await shot('3-open-cinematic-end');
 
+const SCOPE = process.env.SCOPE || 'all';
+if (SCOPE === 'instruments') {
+  check('Configuration → Chamber orchestra', await menu('Configuration', 'Chamber orchestra'));
+  check('Chamber orchestra shown', await W(`${O}.config === 'chamber' && ${O}.group.getObjectByName('opus-v-chamber').visible`, 300000), await state());
+  for (const cam of ['OV1', 'OV3', 'OV4']) { await menu('Camera', cam); await W(`window.__studio.director.current === 'o${cam}' && !window.__studio.director.flying`, 300000); await frames(cam === 'OV4' ? 12 : 6); await shot('7-chamber-' + cam); }
+  // close-ups of the built instruments, from the room's own frame
+  const near = async (tag, from, at, fov) => { await run(`(async () => { const { VIEWS } = await import('/virtual-studio/views.js'); const o = ${O}, f = o.toWorld(new (await import('three')).Vector3(...${JSON.stringify(from)})), t = o.toWorld(new (await import('three')).Vector3(...${JSON.stringify(at)})); VIEWS.chkNear = { label: 'n', long: 'n', pos: f.toArray(), target: t.toArray(), fov: ${fov}, drift: 0, tally: 0, free: true }; window.__studio.director.go('chkNear', { instant: true }); })()`); await frames(8); await shot('8-' + tag); };
+  await near('timpani', [1.4, 2.2, 4.9], [1.7, 0.9, 7.2], 45);
+  await near('percussion', [-1.3, 2.3, 4.9], [-1.6, 1.0, 7.4], 50);
+  await near('bassoon', [-0.6, 1.6, 4.4], [-1.9, 0.9, 5.9], 40);
+  await near('back-riser-wide', [0, 2.6, 3.4], [0, 1.0, 7.6], 70);
+  check('Close the room', await tile('Close the room'));
+  check('the wall closes fully', await W(`${O}.open <= 0`, 3600000), await state());
+  await look('chkWall', [-3.5, 2.6, 4.5], [-12.4, 2.0, -1.1], 55); await frames(6); await shot('9-wall-closed-again');
+  check('no errors on the page', problems.length === 0, problems);
+  fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ url: URL0, at: new Date().toISOString(), seconds: Math.round((Date.now() - t0) / 1000), results, problems }, null, 1));
+  console.log(`${results.filter(r => r.ok).length} / ${results.length} passed`); chrome.kill(); process.exit(results.every(r => r.ok) ? 0 : 1);
+}
 /* both configurations, every camera, through the ⋯ row */
 for (const [cfg, label, n] of [['quartet', 'String quartet', 4], ['chamber', 'Chamber orchestra', 28], ['quartet', 'String quartet', 4]]) {
   check(`Configuration → ${label}`, await menu('Configuration', label));
@@ -73,7 +91,8 @@ for (const [cfg, label, n] of [['quartet', 'String quartet', 4], ['chamber', 'Ch
     const there = await W(`window.__studio.director.current === '${id}' && !window.__studio.director.flying`, 300000);
     const inRoom = await run(`${O}.has(window.__studio.camera.position)`);
     await frames(cam === 'OV4' ? 12 : 6); await shot(`4-${cfg}-${cam}`);
-    check(`${label} · ${cam}: on, camera in the room`, clicked && there && inRoom, await state());
+    const where = await run(`(() => { const p = window.__studio.ext.orchestra.group.worldToLocal(window.__studio.camera.position.clone()); return p.toArray().map(v => +v.toFixed(2)); })()`);
+    check(`${label} · ${cam}: on, camera in the room`, clicked && there && inRoom, { ...(await state()), camRoomXYZ: where });
   }
 }
 
