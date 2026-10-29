@@ -111,6 +111,7 @@ VIEWS[CARD_VIEW] ??= { label: 'LED wall', long: 'The LED wall · on air', pos: [
 const pick = (list, n) => [...list].sort(() => Math.random() - 0.5).slice(0, n);
 
 const ICON = {
+  opus: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6c3 0 4 3 2 5v6"/><path d="M18 22c0-4 3-5 6-5s6 1 6 5c0 2-2 3-2 5s2 3 2 6c0 5-3 8-6 8s-6-3-6-8c0-3 2-4 2-6s-2-3-2-5z"/><path d="M22 24v14m4-14v14"/><path d="M20 36h8"/></svg>',
   studio: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 33c8-5 28-5 36 0"/><path d="M9 33v6m30-6v6"/><rect x="15" y="9" width="13" height="9" rx="1.5"/><path d="M28 12l6-3v9l-6-3"/><path d="M21.5 18v8m-5 0h10"/></svg>',
   piano: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 30h34v-3c0-6-4-9-10-9-3 0-4-6-11-6-7 0-13 6-13 12z"/><path d="M7 30v4h34v-4"/><path d="M12 34v6m24-6v6"/><path d="M13 30v-3m4 3v-3m4 3v-3m4 3v-3m4 3v-3m4 3v-3"/></svg>',
   dj: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="17" cy="27" r="9"/><circle cx="17" cy="27" r="2"/><path d="M30 18h11v18H30z"/><path d="M33 23h5m-5 4h5m-5 4h5"/><path d="M9 16a15 12 0 0 1 30 0"/><rect x="6" y="15" width="5" height="8" rx="2"/><rect x="37" y="15" width="5" height="8" rx="2"/></svg>',
@@ -160,6 +161,7 @@ export function spaces(v, ctx) {
   .spaces .sp[aria-pressed=true]{--c:var(--chrome-hi,#f3f5f8);border-color:var(--c);box-shadow:0 0 22px -6px var(--c);background:rgba(255,255,255,.07)}
   .spaces .sp.piano[aria-pressed=true]{--c:var(--amber,#f2a650)} .spaces .sp.piano[aria-pressed=true] svg{stroke:var(--amber,#f2a650)}
   .spaces .sp.dj[aria-pressed=true]{--c:var(--ice,#a9c8ee)} .spaces .sp.dj[aria-pressed=true] svg{stroke:var(--ice,#a9c8ee)}
+  .spaces .sp.opus[aria-pressed=true]{--c:#e8c48a} .spaces .sp.opus[aria-pressed=true] svg{stroke:#e8c48a}
   .spaces .more{align-self:center;width:44px;height:44px;padding:0;border-radius:50%;font-size:1.1rem;letter-spacing:0}
   .dock:not(.more-open) .row.ctrl{display:none}
   body[data-space=piano] #viewMenuBtn,body[data-space=piano] #lookMenuBtn,body[data-space=piano] #auto,
@@ -305,8 +307,8 @@ export function spaces(v, ctx) {
   body.sp-min .dock .row,body.sp-min .dock .pop,body.sp-min .dock .fine,body.sp-min .edge,body.sp-min .spaces > :not(.min){display:none!important}
   body.sp-min .spaces .min{transform:rotate(180deg);opacity:.55}
   body.sp-min .spaces .min:hover{opacity:1}
-  body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row){display:none}
-  body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj]{display:none}
+  body[data-space=piano] .dock .row.ctrl:not(.sp-row),body[data-space=dj] .dock .row.ctrl:not(.sp-row),body[data-space=opus] .dock .row.ctrl:not(.sp-row){display:none}
+  body:not([data-space=piano]) .sp-row[data-for=piano],body:not([data-space=dj]) .sp-row[data-for=dj],body:not([data-space=opus]) .sp-row[data-for=opus]{display:none}
   .spaces .small{align-self:center;width:auto;height:44px;padding:0 14px;border-radius:22px;font-size:.6rem;letter-spacing:.16em;flex-direction:row}
   /* the first visit's guide: the buttons to know glow in turn, a small glass note beside them */
   @keyframes sp-glow{0%,100%{box-shadow:0 0 0 0 rgba(169,200,238,.0),inset 0 1px 0 rgba(255,255,255,.5)}50%{box-shadow:0 0 0 6px rgba(169,200,238,.35),0 0 26px rgba(169,200,238,.7),inset 0 1px 0 rgba(255,255,255,.5)}}
@@ -324,7 +326,7 @@ export function spaces(v, ctx) {
 
   const bar = document.createElement('div'); bar.className = 'spaces'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Spaces');
   const button = (key, label) => `<button class="sp ${key}" type="button" data-space="${key}" aria-pressed="false">${ICON[key]}<img class="art" alt="" hidden><span>${label}</span><small></small></button>`;
-  bar.innerHTML = button('studio', 'Studio') + button('piano', 'Piano') + button('dj', 'DJ Room')
+  bar.innerHTML = button('studio', 'Studio') + button('piano', 'Piano') + button('dj', 'DJ Room') + button('opus', 'OPUS V Room')
     + '<button class="sp more" type="button" aria-expanded="false" aria-label="More controls" title="More for this space">⋯</button>'
     + '<button class="sp more min" type="button" aria-label="Hide the controls" title="Hide the controls (to watch)">▾</button>';
   dock.insertBefore(bar, ctrl);
@@ -1311,6 +1313,12 @@ export function spaces(v, ctx) {
   /* ----- ⋯ at the Piano Stage and in the DJ Room: the space's own controls ----- */
   // each: a button, or a menu of buttons opening above the bar (one at a time, like the studio's Camera and Light)
   const CONTROLS = {
+    opus: [
+      [() => (v.orchestra?.target ? 'Close the room' : 'Open the room'), () => v.orchestra?.toggle()],
+      ['Camera', [['Cinematic · to the quartet', () => cinematic('opus')], ['Piano P3 · side', () => v.pickCamera('P3')], ['Piano P4 · wide', () => v.pickCamera('P4')]]],
+      ['Configuration', [['String quartet (now)', () => {}], ['Chamber orchestra · in preparation', () => {}]]],
+      ['Programme', () => openProgramme()], ['Info', () => openInfo()],
+    ],
     piano: [
       [() => (piano || pianoPlaying() ? 'Finish show' : 'Simulate show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
       ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano'), ['Cinematic · grand to the studio wall', () => cinematic('piano')], ['OPUS V · cinematic opening', () => cinematic('opus')]]]],
@@ -1519,6 +1527,12 @@ export function spaces(v, ctx) {
       if (!piano && !pianoPlaying()) { director.setAuto(false); v.pickCamera('P1'); }
       pianoChoice(v.show.state === 'ENDED');
     },
+    // OPUS V ROOM: the camera takes you there past the grand; the hidden wall opens as it comes (closed again: ⋯)
+    opus() {
+      stopPiano(); stopDj();
+      if (m.env === 'djroom') m.setEnv('studio', { transition: false });
+      cinematic('opus');
+    },
     dj() {
       if (active === 'dj' && dj && !dj.done) return pauseDj({ hold: 'djBack' });
       stopPiano();
@@ -1548,6 +1562,7 @@ export function spaces(v, ctx) {
     studio: { onair: 'Simulate on air', music: '♪ Music station', live: 'Show schedule' },
     piano: { onair: 'Simulate Piano show', music: '♪ Piano', live: 'Piano Sessions dates' },
     dj: { onair: 'Simulate DJ show', music: '♪ DJ booth', live: 'DJ Show dates' },
+    opus: { onair: 'Simulate on air', music: '♪ Music station', live: 'Show schedule' },
   };
   const ui = { onair: document.querySelector('#onair span'), music: document.getElementById('musicBtn'), live: document.getElementById('liveBtn') };
   let labelled = null;
@@ -1607,7 +1622,8 @@ export function spaces(v, ctx) {
     if (wantLogo !== logoUp) { logoUp = wantLogo; ctx.studio.liftLogo(wantLogo); }
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
-    for (const k of ['studio', 'piano', 'dj']) btn(k).setAttribute('aria-pressed', String(k === active));
+    for (const k of ['studio', 'piano', 'dj', 'opus']) btn(k).setAttribute('aria-pressed', String(k === active));
+    btn('opus').querySelector('small').textContent = !v.orchestra ? '' : v.orchestra.target ? (v.orchestra.open < 1 ? 'Opening…' : 'String quartet') : 'Hidden · tap to open';
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = piano?.hold === 'psInter' ? 'Intermission · tap to play' : piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
