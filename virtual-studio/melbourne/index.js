@@ -16,6 +16,7 @@ import { buildBooth } from './booth.js';
 import { buildDjLift } from './djlift.js';
 import { buildClubFx } from './clubfx.js';
 import { buildCover } from './cover.js';
+import { buildService } from './service.js';
 import { createDjShow, DJ_OPENING, DJ_OPENING_SHORT } from './djshow.js';
 import { applyProbe, loadProbe } from './probes.js';
 import { createLift } from '../vienna/lift.js';
@@ -118,6 +119,8 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
 
   /* ----- light state: eased towards the preset, with the effects the operator set on top ----- */
   let mode = 'OPENING';
+  // the staff way down from the backstage lounge (service.js): spiral stairs, a corridor, sliding glass doors
+  const service = buildService({ M: studio.M, scene });
   let cleanSaved = null;   // the effects as they were before CLEANING MODE
   // the club's own house lights for CLEANING MODE: white LED battens under its ceiling (two soft area lights carry their
   // light, the room evenly lit) and a work light in the lift's shaft; dark in SHOW MODE. setWork(level 0 … 1.2)
@@ -342,6 +345,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     desk.apply();
     const seen = frustum.intersectsBox(room.bounds) || feedWanted();
     room.root.visible = seen;
+    service.update(camera.position, dt);
     // the 4K high-speed shot: the effects' own movement slowed (lasers, heads, fog, jogs), eased in and out like the studio's
     fxK += ((VIEWS[director.current]?.slow ?? 1) - fxK) * (1 - Math.exp(-dt * 2.5)); const fdt = dt * fxK; fxT += fdt;
     if (seen) { room.face(camera); room.update(fxT, fdt, L, beat); booth.update(fxT, fdt, L, beat); club.update(fxT, fdt, L); }
@@ -391,6 +395,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     fog(seconds = 3) { L.smokeRequest = Math.max(0.5, Math.min(8, +seconds)); L.fogFloor.level = Math.min(1, L.fogFloor.level + 0.35 + seconds * 0.12); say('Fog burst: ' + L.smokeRequest + ' s'); },
     setLed(p) { if (!LED_PRESETS.includes(p)) return say('No such LED preset'); fx.preset = p; say('LED walls: ' + p); },
     lasers(on, level) { fx.lasers = on === null ? null : !!on; if (level !== undefined) fx.laserLevel = Math.max(0, Math.min(1, +level)); say(`Lasers ${fx.lasers === null ? 'with the preset' : fx.lasers ? 'on' : 'off'} · ${Math.round(fx.laserLevel * 100)} %`); },
+    service,
     setWork(k) { k = Math.max(0, Math.min(1.2, +k || 0)); for (const l of workLights) l.intensity = 4.2 * k; shaftWork.intensity = 40 * k; workDiff.color.setScalar(0.05 + 2.0 * k); },
     // CLEANING MODE (spaces.js): the club's coloured effects off (lasers, haze, strobe, disco ball, the LED walls' visuals),
     // remembered; off again, every one back as it was

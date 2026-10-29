@@ -244,14 +244,19 @@ export function buildRoom({ studio, scene, quality }) {
     ov.position.z = 0.003; ov.renderOrder = 1; w.add(ov);
     walls.push(mat); return w;
   };
-  wall('back', ROOM.w - 1.4, H - 0.7, 0, ROOM.floor + 0.35 + (H - 0.7) / 2, -ROOM.d / 2 + 0.06, 0);
+  // (1.2 m shorter at its Vienna end: the staff doors from the service stairs come through the back wall there, service.js)
+  wall('back', ROOM.w - 2.6, H - 0.7, 0.6, ROOM.floor + 0.35 + (H - 0.7) / 2, -ROOM.d / 2 + 0.06, 0);
   wall('left', ROOM.d - 1.4, H - 1.0, -ROOM.w / 2 + 0.06, ROOM.floor + 0.5 + (H - 1.0) / 2, 0, Math.PI / 2);
   wall('right', ROOM.d - 1.4, H - 1.0, ROOM.w / 2 - 0.06, ROOM.floor + 0.5 + (H - 1.0) / 2, 0, -Math.PI / 2);
   wall('front', ROOM.w - 1.4, 1.4, 0, ROOM.ceiling - 1.0, ROOM.d / 2 - 0.06, Math.PI);
   // the walls round the screens: dark acoustic panels
   const panel = new THREE.MeshStandardMaterial({ color: 0x08090b, roughness: 0.85 });
   for (const [len, x, z, ry] of [[ROOM.w, 0, -ROOM.d / 2, 0], [ROOM.d, -ROOM.w / 2, 0, Math.PI / 2], [ROOM.d, ROOM.w / 2, 0, -Math.PI / 2], [ROOM.w, 0, ROOM.d / 2, Math.PI]]) {
-    const p = mesh(new THREE.PlaneGeometry(len, H), panel, room); p.position.set(x, ROOM.floor + H / 2, z); p.rotation.y = ry;
+    // the back wall keeps an opening for the staff doors (service.js: 1.3 m wide at along −5.3, 2.5 m high with the header)
+    let geo = new THREE.PlaneGeometry(len, H);
+    if (z === -ROOM.d / 2) { const sh = new THREE.Shape([[-len / 2, -H / 2], [len / 2, -H / 2], [len / 2, H / 2], [-len / 2, H / 2]].map(([a, b]) => new THREE.Vector2(a, b)));
+      sh.holes.push(new THREE.Path([[-6.02, -H / 2], [-4.58, -H / 2], [-4.58, -H / 2 + 2.55], [-6.02, -H / 2 + 2.55]].map(([a, b]) => new THREE.Vector2(a, b)))); geo = new THREE.ShapeGeometry(sh); }
+    const p = mesh(geo, panel, room); p.position.set(x, ROOM.floor + H / 2, z); p.rotation.y = ry;
   }
 
   /* ----- LED strips: along the floor at the walls' feet, round the ceiling, round the DJ riser (booth.js lights its own) ----- */

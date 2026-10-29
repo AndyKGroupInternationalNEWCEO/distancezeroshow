@@ -964,6 +964,56 @@ export function spaces(v, ctx) {
   }
   let topAt = null;
 
+  /* ----- THE STAFF WAY, walked: from the backstage lounge through its staff door, down the spiral stairs, along the
+     service corridor and through the sliding glass doors into the DJ Room (melbourne/service.js), and back. The walk
+     keeps to the way (no falling through a floor, no walking through a wall): ↑ / W forward, ↓ / S back (or the
+     buttons), drag to look round, Esc or × to leave. Not part of the visitors' navigation: ⋯ Camera in the DJ Room ----- */
+  let svc = null;   // { s, yaw, pitch, dir, before, drag }
+  const route = m.service?.route || [], cum = [0];
+  for (let i = 1; i < route.length; i++) cum.push(cum[i - 1] + route[i].distanceTo(route[i - 1]));
+  const svcUi = document.createElement('div'); svcUi.className = 'sp-svc'; svcUi.hidden = true;
+  svcUi.innerHTML = '<p>Staff way · ↑ / W forward · ↓ / S back · drag to look round · Esc leaves</p><div><button type="button" data-d="1" aria-label="Forward">▲</button><button type="button" data-d="-1" aria-label="Back">▼</button><button type="button" data-x aria-label="Leave">×</button></div>';
+  document.body.appendChild(svcUi);
+  const svcStyle = document.createElement('style');
+  svcStyle.textContent = `.sp-svc{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:8;display:flex;flex-direction:column;align-items:center;gap:8px;font:600 .66rem Archivo,Arial,sans-serif;letter-spacing:.08em;color:#e9ecf1;text-shadow:0 1px 3px #000}
+  .sp-svc[hidden]{display:none} .sp-svc div{display:flex;gap:8px} .sp-svc button{width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(14,15,18,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:1rem;cursor:pointer}`;
+  document.head.appendChild(svcStyle);
+  const at = (s, out = new THREE.Vector3()) => { let i = 1; while (i < cum.length - 1 && cum[i] < s) i++; const k = (s - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]); return out.copy(route[i - 1]).lerp(route[i], Math.max(0, Math.min(1, k))); };
+  const ahead2 = new THREE.Vector3(), here2 = new THREE.Vector3();
+  function staffWay() {
+    if (!route.length) return;
+    exitPov(); hideChoice(); closeMenus();
+    svc = { s: 0, yaw: 0, pitch: 0, dir: 0, before: director.current, drag: null };
+    VIEWS.svc = { label: 'Staff way', long: 'Staff way · backstage to the DJ Room', pos: route[0].toArray(), target: route[1].toArray(), fov: 62, drift: 0, tally: 0, cam: 'CAM —', free: true };
+    director.setAuto(false); director.go('svc', { instant: true }); ctx.controls.enabled = false; svcUi.hidden = false;
+  }
+  function leaveStaffWay() {
+    if (!svc) return; const end = svc.s > cum[cum.length - 1] - 1.5; svc = null; svcUi.hidden = true; ctx.controls.enabled = true;
+    director.go(end ? 'mDJ1' : 'backstage', { instant: true });
+  }
+  let svcAt = performance.now();
+  function svcFrame() {
+    const now = performance.now(), dt = Math.min(0.1, (now - svcAt) / 1000); svcAt = now;
+    if (!svc) return;
+    if (director.current !== 'svc') { svc = null; svcUi.hidden = true; ctx.controls.enabled = true; return; }
+    const total = cum[cum.length - 1], onStairs = svc.s > cum[2] && svc.s < cum[route.length - 4];
+    svc.s = Math.max(0, Math.min(total, svc.s + svc.dir * (onStairs ? 0.75 : 1.2) * dt));
+    at(svc.s, here2); at(Math.min(total, svc.s + 0.6), ahead2);
+    if (ahead2.distanceToSquared(here2) < 1e-6) at(Math.max(0, svc.s - 0.6), ahead2).sub(here2).negate().add(here2);
+    const d = ahead2.sub(here2); d.y = 0; const yaw = Math.atan2(d.x, d.z) + svc.yaw, pitch = (onStairs && svc.dir < 0 ? 0.1 : -0.12) + svc.pitch;
+    ctx.camera.position.copy(here2);
+    ctx.controls.target.set(here2.x + Math.sin(yaw) * Math.cos(pitch), here2.y + Math.sin(pitch), here2.z + Math.cos(yaw) * Math.cos(pitch));
+    ctx.camera.lookAt(ctx.controls.target);
+    VIEWS.svc.pos = here2.toArray(); VIEWS.svc.target = ctx.controls.target.toArray();
+  }
+  svcUi.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || !svc) return; e.preventDefault(); if (b.dataset.x !== undefined) return leaveStaffWay(); svc.dir = +b.dataset.d; });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) svcUi.addEventListener(ev, () => { if (svc) svc.dir = 0; });
+  addEventListener('keydown', e => { if (!svc) return; const d = { ArrowUp: 1, KeyW: 1, ArrowDown: -1, KeyS: -1 }[e.code]; if (d) { e.preventDefault(); e.stopImmediatePropagation(); svc.dir = d; } else if (e.key === 'Escape') { e.preventDefault(); leaveStaffWay(); } }, true);
+  addEventListener('keyup', e => { if (svc && ['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) svc.dir = 0; }, true);
+  canvas.addEventListener('pointerdown', e => { if (!svc) return; e.stopImmediatePropagation(); svc.drag = { x: e.clientX, y: e.clientY }; }, true);
+  canvas.addEventListener('pointermove', e => { if (!svc?.drag) return; e.stopImmediatePropagation(); svc.yaw = Math.max(-1.6, Math.min(1.6, svc.yaw - (e.clientX - svc.drag.x) * 0.004)); svc.pitch = Math.max(-0.7, Math.min(0.6, svc.pitch - (e.clientY - svc.drag.y) * 0.004)); svc.drag = { x: e.clientX, y: e.clientY }; }, true);
+  canvas.addEventListener('pointerup', () => { if (svc) svc.drag = null; }, true);
+
   /* ----- CINEMATIC MOVES: from the DJ at the console (the booth down in the club) up through the open shaft, or from
      the pianist round the grand, out into the main studio; one sweeping arc round the studio, ending framed on its big
      LED wall, which shows that space live (the wall's own feed); after a hold, the same way back. One camera that moves
@@ -1264,7 +1314,7 @@ export function spaces(v, ctx) {
     ],
     dj: [
       [() => (dj && !dj.done ? 'Finish show' : 'Simulate show'), () => (dj && !dj.done ? finish('dj') : simulate('dj'))],
-      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()], ['Cinematic · DJ to the studio wall', () => cinematic('dj')]]],
+      ['Camera', [...['DJ1', 'DJ2', 'DJ3', 'DJ4', 'DJ5', 'DJ6'].map(k => [k, () => m.pickCamera(k)]), ['4K high-speed', () => m.pickCamera('HS')], ['4K DJ · first person', () => enterPov('dj')], ['4K overhead · the booth', () => overhead()], ['Cinematic · DJ to the studio wall', () => cinematic('dj')], ['Staff way · backstage stairs', () => staffWay()]]],
       ['Light', [['Opening', 'OPENING'], ['Performance', 'PERFORMANCE'], ['Breakdown', 'BREAKDOWN'], ['Build-up', 'BUILD-UP'], ['Drop', 'DROP'], ['Closing', 'CLOSING']].map(([l, k]) => [l, () => m.setMode(k)])],
       ['Effects', [['Lasers on', () => m.lasers(true)], ['Lasers off', () => m.lasers(false)], ['Fog burst', () => m.fog(3)], ['Disco ball', () => m.disco(discoOn = !discoOn)], ['Strobe', () => m.strobe(m.report().strobe ? 0 : 1)]]],
       ['Video', [['Intermission', () => intermission()], ['Stay tuned', () => card('djBetween', { manual: true })], ['DJ transition', () => card('djTransition', { manual: true })], ['Friday closing', () => card('djEnd', { manual: true })]]],
@@ -1560,11 +1610,12 @@ export function spaces(v, ctx) {
   // second, and between those the director's drift and the orbit controls moved the picture (it shook)
   const top = new THREE.Vector3(0, 1.9, -0.06), down = new THREE.Vector3(0, 0, 0.02), ahead = new THREE.Vector3();
   function hold() {
-    cineFrame(); clock?.update();
+    cineFrame(); svcFrame(); clock?.update();
     exitK += ((houseOn ? 1 : 0) - exitK) * 0.06; exits.setLevel(exitK);
     // the house lights downstairs and behind the wall follow the studio's dimmer: the DJ Room and its lift shaft, the
     // backstage lounge (the Piano Stage stands in the studio: the studio's own battens light it)
     workK += ((houseOn ? ctx.houseLevel ?? 0.3 : 0) - workK) * 0.06; m.setWork?.(workK); loungeWork.intensity = 4 * workK;
+    m.service?.setLevels(exitK, workK);   // the staff stairs: their step LEDs always, the work lights and EXIT with the house lights
     if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
     }

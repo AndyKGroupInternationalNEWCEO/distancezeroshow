@@ -50,7 +50,7 @@ const FILES = [
   ...fs.readdirSync(path.join(ROOT, 'assets/piano-parts')).filter(f => f.endsWith('.json')).map(f => `assets/piano-parts/${f}`),
   // the Underground DJ Room (/dj-room: the studio with the Piano Stage and the DJ Room under it): its code and the
   // reflection probes rendered in Cycles (production/gpu)
-  ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music'].map(f => `virtual-studio/melbourne/${f}.js`),
+  ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music', 'service'].map(f => `virtual-studio/melbourne/${f}.js`),
   ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano', 'backstage', 'reception', 'street'].map(f => `assets/probes/${f}.f16`),
   // the places' light baked in Cycles (production/gpu/bake.py), when there
   ...['places-baked.glb', 'lm-lobby.png', 'lm-street.png'].map(f => `assets/baked/${f}`).filter(f => fs.existsSync(path.join(ROOT, f))),

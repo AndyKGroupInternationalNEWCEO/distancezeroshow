@@ -1307,7 +1307,8 @@ function buildLogoKV(M, glows) {
    sides, so no studio shot sees into it. Four monitors carry live feeds (rendered by main.js while someone is in here),
    three armchairs (Andrej, the guest, Georgie), a coffee table with coffee and sekt, an arc lamp, warm cove light. */
 export const LOUNGE = { x0: -3.5, x1: 3.5, z0: -11.2, z1: -7.35, h: 3 };
-export const LOUNGE_DOOR = { z: -8.3, w: 0.95, h: 2.2 };   // in the Vienna-side wall (x0), reached around the LED wall's end
+export const LOUNGE_DOOR = { z: -8.3, w: 0.95, h: 2.2 };
+export const SERVICE_DOOR = { z: -8.25, w: 0.95, h: 2.2 };   // in the Melbourne-side wall (x1): the staff way down to the DJ Room   // in the Vienna-side wall (x0), reached around the LED wall's end
 
 function buildLounge(M, quality) {
   const g = new THREE.Group(), { x0, x1, z0, z1, h } = LOUNGE, W = x1 - x0, D = z1 - z0, cz = (z0 + z1) / 2;
@@ -1333,8 +1334,13 @@ function buildLounge(M, quality) {
   // walls, seen from both sides (the walk from the studio passes outside them); the Vienna-side wall has the doorway
   L.wall.side = THREE.DoubleSide;
   const DOOR = LOUNGE_DOOR, dz0 = DOOR.z - DOOR.w / 2, dz1 = DOOR.z + DOOR.w / 2;
-  for (const [w, x, z, ry] of [[W, 0, z0, 0], [W, 0, z1, Math.PI], [D, x1, cz, -Math.PI / 2], [dz0 - z0, x0, (z0 + dz0) / 2, Math.PI / 2], [z1 - dz1, x0, (dz1 + z1) / 2, Math.PI / 2]])
+  // (the Melbourne-side wall, x1, has the staff door to the service stairs down to the DJ Room: melbourne/service.js)
+  const S0 = SERVICE_DOOR.z - SERVICE_DOOR.w / 2, S1 = SERVICE_DOOR.z + SERVICE_DOOR.w / 2;
+  for (const [w, x, z, ry] of [[W, 0, z0, 0], [W, 0, z1, Math.PI], [S0 - z0, x1, (z0 + S0) / 2, -Math.PI / 2], [z1 - S1, x1, (S1 + z1) / 2, -Math.PI / 2], [dz0 - z0, x0, (z0 + dz0) / 2, Math.PI / 2], [z1 - dz1, x0, (dz1 + z1) / 2, Math.PI / 2]])
     add(new THREE.PlaneGeometry(w, h), L.wall, x, h / 2, z).rotation.y = ry;
+  add(new THREE.PlaneGeometry(SERVICE_DOOR.w, h - SERVICE_DOOR.h), L.wall, x1, (h + SERVICE_DOOR.h) / 2, SERVICE_DOOR.z).rotation.y = -Math.PI / 2;
+  for (const dz of [-1, 1]) add(new THREE.BoxGeometry(0.12, SERVICE_DOOR.h, 0.05), M.brushed, x1, SERVICE_DOOR.h / 2, SERVICE_DOOR.z + dz * (SERVICE_DOOR.w / 2 + 0.025));
+  add(new THREE.BoxGeometry(0.12, 0.05, SERVICE_DOOR.w + 0.1), M.brushed, x1, SERVICE_DOOR.h + 0.025, SERVICE_DOOR.z);
   add(new THREE.PlaneGeometry(DOOR.w, h - DOOR.h), L.wall, x0, (h + DOOR.h) / 2, DOOR.z).rotation.y = Math.PI / 2;   // over the door
   // the door: champagne frame, a dark leaf hinged at the front that swings into the room as someone comes
   const frame = new THREE.Group(); frame.position.set(x0, 0, DOOR.z); frame.rotation.y = -Math.PI / 2; g.add(frame);   // local +z = outside
