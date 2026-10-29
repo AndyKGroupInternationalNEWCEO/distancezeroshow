@@ -32,11 +32,14 @@ export function buildStage({ studio, scene }) {
   // its scissors run along the grand's length
   const lift = add(new THREE.Group()); lift.position.set(STAGE.x, 0, STAGE.z); lift.rotation.y = PIANO.rotY - Math.PI / 2;
   // the steel picks up the amber glow from under the platform (emissive, set each frame: there is no real light there)
+  // powder-coated structural steel (a satin, slightly uneven finish: not a plastic box), bright zinc-plated pins
   const steel = M.graphite.clone(), bright = M.alu;
+  steel.color.setHex(0x2a2d32); steel.metalness = 0.55; steel.roughness = 0.5;
+  const zinc = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 1, roughness: 0.3 });
   const FLOOR = -LIFT.depth, BASE_TOP = FLOOR + 0.1, TOP_FRAME = 0.03, xL = -LIFT.arm / 2;
   mesh(new THREE.BoxGeometry(LIFT.arm + 0.5, 0.1, 2.1), steel, lift).position.y = FLOOR + 0.05;
   for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(LIFT.arm + 0.4, 0.05, 0.12), bright, lift).position.set(0, BASE_TOP + 0.025, s * LIFT.packs);   // roller rails
-  const armGeo = new THREE.BoxGeometry(1, 0.09, 0.05);                        // scaled to the arm length along x
+  const armGeo = new RoundedBoxGeometry(1, 0.09, 0.05, 2, 0.008);            // a steel box section, scaled to the arm's length along x
   const pinGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 14).rotateX(Math.PI / 2);   // along z
   const arms = [], pins = [], hubs = [];
   for (let st = 0; st < LIFT.stages; st++) for (const s of [-1, 1]) for (const k of [0, 1]) arms.push({ m: mesh(armGeo, steel, lift), st, z: s * LIFT.packs + (k ? 0.065 : -0.065), k });
@@ -55,6 +58,20 @@ export function buildStage({ studio, scene }) {
     return { body, rod, z };
   });
   const ramTube = mesh(pinGeo, bright, lift); ramTube.scale.z = 2 * LIFT.packs;
+  // the details a real scissor lift shows close up (each placed by pose()): hex nuts on every pin's ends, steel bushes
+  // at the arms' crossings, the rams' gland nuts and rod-end clevises, a hydraulic hose to each ram, and the rollers
+  // on which the arms' free ends run along the base rails and under the top frame
+  const nutGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.022, 6).rotateX(Math.PI / 2);
+  const nuts = [];
+  for (const p of pins) for (const sz of [-1, 1]) nuts.push({ m: mesh(nutGeo, zinc, lift), p, z: sz * (LIFT.packs + 0.165) });
+  const bushGeo = new THREE.CylinderGeometry(0.052, 0.052, 0.16, 20).rotateX(Math.PI / 2);
+  const bushes = hubs.map(hb => ({ m: mesh(bushGeo, steel, lift), hb }));
+  const glandGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.05, 20), clevisGeo = new THREE.BoxGeometry(0.07, 0.09, 0.09);
+  for (const r of rams) { r.gland = mesh(glandGeo, zinc, lift); r.clevis = mesh(clevisGeo, steel, lift);
+    const hose = new THREE.CatmullRomCurve3([new THREE.Vector3(RAM.base.x + 0.1, RAM.base.y + 0.05, r.z + 0.07), new THREE.Vector3(RAM.base.x - 0.05, RAM.base.y + 0.02, r.z + 0.16), new THREE.Vector3(xL - 0.15, FLOOR + 0.12, r.z + 0.2)]);
+    mesh(new THREE.TubeGeometry(hose, 20, 0.012, 8), M.rubber, lift); }
+  const rollerGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.04, 24).rotateX(Math.PI / 2);
+  const rollers = [-1, 1].flatMap(sz => [0, 1].map(top => ({ m: mesh(rollerGeo, zinc, lift), top, z: sz * LIFT.packs })));
   const topFrame = mesh(new THREE.BoxGeometry(LIFT.arm + 0.5, TOP_FRAME, 2.1), steel, lift);
 
   const platform = add(new THREE.Group()); platform.position.set(STAGE.x, 0, STAGE.z);
@@ -98,6 +115,9 @@ export function buildStage({ studio, scene }) {
     }
     for (const p of pins) p.m.position.set(p.end ? xR : xL, BASE_TOP + p.lvl * s, 0);
     for (const hb of hubs) hb.m.position.set((xL + xR) / 2, BASE_TOP + hb.st * s + s / 2, hb.z);
+    for (const n of nuts) n.m.position.set(n.p.m.position.x, n.p.m.position.y, n.z);
+    for (const b of bushes) b.m.position.copy(b.hb.m.position);
+    for (const r of rollers) r.m.position.set(xR, r.top ? top - LIFT.thick - TOP_FRAME - 0.045 : BASE_TOP + 0.045, r.z);
     const attach = tmpA.set(xL + RAM.at * span, BASE_TOP + s * (1 - RAM.at), 0);
     ramTube.position.copy(attach);
     const dir = tmpB.copy(attach).sub(RAM.base), len = dir.length(); dir.normalize();
@@ -105,6 +125,8 @@ export function buildStage({ studio, scene }) {
     for (const r of rams) {
       r.body.position.set(RAM.base.x - dir.x * RAM.back, RAM.base.y - dir.y * RAM.back, r.z); r.body.quaternion.copy(q);
       r.rod.position.set(attach.x - dir.x * RAM.rod, attach.y - dir.y * RAM.rod, r.z); r.rod.quaternion.copy(q);
+      r.gland.position.set(RAM.base.x + dir.x * RAM.body, RAM.base.y + dir.y * RAM.body, r.z); r.gland.quaternion.copy(q);
+      r.clevis.position.set(attach.x, attach.y, r.z); r.clevis.quaternion.copy(q);
     }
     topFrame.position.y = top - LIFT.thick - TOP_FRAME / 2;
     platform.position.y = top;
