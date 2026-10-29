@@ -1,0 +1,57 @@
+# Renders the Virtual Space openings on GitHub's free runners (this repository is public: no cost, nothing runs on
+# the owner's computer). Headless Chrome with software WebGL draws each frame exactly (production/empty-opening/
+# render.mjs), ffmpeg encodes; the opening is split into parts that render side by side, then joined.
+# It runs when production/render-jobs/request.txt changes on the Virtual Space branch (not on every push), or by hand.
+name: Render openings (free runners)
+
+on:
+  push:
+    branches: [feature/vienna-piano-stage]
+    paths: [production/render-jobs/request.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        range: ['0 15', '15 30', '30 45', '45 60', '60 75', '75 90']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-liberation >/dev/null
+      - name: Render the part
+        env:
+          CHROME: /usr/bin/google-chrome
+          CHROME_ARGS: --no-sandbox --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader
+        run: |
+          set -- ${{ matrix.range }}
+          node production/empty-opening/render.mjs --from $1 --to $2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: part-${{ strategy.job-index }}
+          path: production/empty-opening/out/*.mp4
+          retention-days: 7
+  join:
+    needs: part
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - uses: actions/download-artifact@v4
+        with: { path: parts, pattern: part-*, merge-multiple: true }
+      - name: Join the parts in order
+        run: |
+          ls parts | sort -t- -k3 -n | sed 's#^#file parts/#' > list.txt; cat list.txt
+          ffmpeg -v error -f concat -safe 0 -i list.txt -c copy studio-opening-1080p30.mp4
+          ffprobe -v error -show_entries format=duration -of csv=p=0 studio-opening-1080p30.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-opening-1080p30
+          path: studio-opening-1080p30.mp4
+          retention-days: 30

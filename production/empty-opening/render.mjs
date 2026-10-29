@@ -31,8 +31,9 @@ await new Promise(r => server.once('listening', r));
 const port = server.address().port;
 
 const cdpPort = 9400 + Math.floor(Math.random() * 400);
-const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless=new', `--remote-debugging-port=${cdpPort}`,
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'dz-render-'))}`, '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--no-first-run',
+// Chrome: the Mac's (Metal), or CHROME / CHROME_ARGS (Linux, e.g. the free GitHub Actions runner: software WebGL)
+const chrome = spawn(process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', ['--headless=new', `--remote-debugging-port=${cdpPort}`,
+  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'dz-render-'))}`, ...(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : ['--use-angle=metal', '--enable-gpu']), '--ignore-gpu-blocklist', '--no-first-run',
   '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ws;
