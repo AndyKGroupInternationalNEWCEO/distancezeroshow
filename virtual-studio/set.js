@@ -1311,9 +1311,11 @@ function buildLogoKV(M, glows) {
    three armchairs (Andrej, the guest, Georgie), a coffee table with coffee and sekt, an arc lamp, warm cove light. */
 export const LOUNGE = { x0: -3.5, x1: 3.5, z0: -11.2, z1: -7.35, h: 3 };
 export const LOUNGE_DOOR = { z: -8.3, w: 0.95, h: 2.2 };
-// the OPUS V orchestra room's opening in the Vienna-side wall (vienna/orchestra.js): 5 m of the wall centred on the line
-// from the studio's centre through the grand (angle 4.544 rad as the fins count it: x = R sin a, z = 1 + R cos a), 4 m high
-export const OPUS_WALL = { a: 4.544, a0: 4.544 - 0.1984, a1: 4.544 + 0.1984, h: 4.0 };
+// the OPUS V orchestra room's opening in the Vienna-side wall (vienna/orchestra.js): 8 m of the wall's skin (13.2 m out)
+// centred on the line from the studio's centre through the grand (angle 4.544 rad as the fins count it: x = R sin a,
+// z = 1 + R cos a), 4 m high. (The show timer hangs over it at 4.5 m, at 4.94 rad: clear of both)
+const OPUS_HALF = Math.asin(4 / 13.2);
+export const OPUS_WALL = { a: 4.544, a0: 4.544 - OPUS_HALF, a1: 4.544 + OPUS_HALF, h: 4.0 };
 export const SERVICE_DOOR = { z: -8.25, w: 0.95, h: 2.2 };   // in the Melbourne-side wall (x1): the staff way down to the DJ Room   // in the Vienna-side wall (x0), reached around the LED wall's end
 
 function buildLounge(M, quality) {

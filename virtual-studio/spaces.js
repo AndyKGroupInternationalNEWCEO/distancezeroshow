@@ -24,6 +24,7 @@ import { inClub, xyz as xyzM, DJ_LIFT } from './melbourne/layout.js';
 import { at as atV, platformTop } from './vienna/layout.js';
 import { midi } from './midi.js';
 import { showClock } from './showclock.js';
+import { INSTRUMENTS, MODEL_CREDITS } from './vienna/instruments.js';
 import { exitSigns } from './exitsigns.js';
 import { buildBackstage } from './backstage.js';
 import { LOUNGE } from './set.js';
@@ -37,7 +38,7 @@ const AFTER = {
 };
 const AFTER_TOUR = ['aWide', 'aCams', 'aTruss', 'securityLounge', 'backstage'];
 // CCTV: the security monitor, switching by itself between the cameras of the studio, backstage, reception and entrance
-const CCTV = ['security', 'secClub', 'securityLounge', 'secReception', 'secBuilding'];
+const CCTV = ['security', 'secClub', 'secOpus', 'securityLounge', 'secReception', 'secBuilding'];
 // the building and its reception (building.js, the arrival's set): a place of its own, reached by a cut; loaded the
 // first time it is asked for. The front faces +z at FZ = 34
 const FZ = 34;
@@ -284,6 +285,7 @@ export function spaces(v, ctx) {
     background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.03)),rgba(8,9,12,.35);border:1px solid rgba(255,255,255,.34);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 18px 50px rgba(0,0,0,.45);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
   .sp-info[hidden]{display:none}
+  .sp-instr{max-height:min(78vh,640px);overflow:auto} .sp-instr details{border-top:1px solid rgba(255,255,255,.14);padding:7px 0} .sp-instr summary{cursor:pointer;font-weight:600} .sp-instr summary small{font-weight:400;opacity:.65;margin-left:6px;letter-spacing:.06em} .sp-instr details p{margin:6px 0 0;font-size:.8rem;line-height:1.45} .sp-instr .pl{opacity:.75} .sp-instr .cr{margin-top:14px} .sp-instr .note,.sp-instr .credit{font-size:.74rem;opacity:.8}
   .sp-info b{display:block;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:8px}
   .sp-info p{margin:0 0 10px} .sp-info a{color:#f6f8fb} .sp-info .links{font-size:.7rem;letter-spacing:.06em} .sp-info .links a{text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3)}
   .sp-info .dev{font-size:.62rem;letter-spacing:.08em;opacity:.7;margin:0}
@@ -350,6 +352,18 @@ export function spaces(v, ctx) {
   info.querySelector('.x').addEventListener('click', () => { info.hidden = true; });
   addEventListener('keydown', e => { if (e.key === 'Escape' && !info.hidden) info.hidden = true; });
   const openInfo = () => { info.hidden = !info.hidden; };
+  // OPUS V · INSTRUMENTS: a card for each instrument of the two configurations, and the 3D models' credits (only on request)
+  const instr = document.createElement('div'); instr.className = 'sp-info sp-instr'; instr.hidden = true; instr.setAttribute('role', 'dialog'); instr.setAttribute('aria-label', 'OPUS V instruments');
+  const escH = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  instr.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>OPUS V · Instruments</b>
+    <p class="note">String quartet: 2 violins, viola, cello. Chamber orchestra: 28 players. The instruments' 3D models are being added: places without one are empty.</p>
+    ${INSTRUMENTS.map(i => `<details><summary>${escH(i.name)} <small>${escH(i.section)}</small></summary>${i.places ? `<p class="pl">${escH(i.places)}</p>` : ''}<p>${escH(i.about)}</p><p><i>Role:</i> ${escH(i.role)}</p></details>`).join('')}
+    <b class="cr">3D model credits</b>
+    ${MODEL_CREDITS.length ? MODEL_CREDITS.map(c => `<p class="credit">${escH(c.instrument)}: “<a href="${escH(c.source)}" target="_blank" rel="noopener">${escH(c.title)}</a>” by <a href="${escH(c.authorUrl)}" target="_blank" rel="noopener">${escH(c.author)}</a> · <a href="${escH(c.licenceUrl)}" target="_blank" rel="noopener">${escH(c.licence)}</a></p>`).join('') : '<p class="credit">No third-party instrument models are in the room yet. Each one is credited here when it is added.</p>'}`;
+  document.body.appendChild(instr);
+  instr.querySelector('.x').addEventListener('click', () => { instr.hidden = true; });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !instr.hidden) instr.hidden = true; });
+  const openInstruments = () => { info.hidden = true; instr.hidden = !instr.hidden; };
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
@@ -1067,6 +1081,7 @@ export function spaces(v, ctx) {
     const c = cinePoints(kind), len = c.pos.getLength();
     cine = { kind, phase: 'start', t: 0, ...c, dur: len / 1.5 + 4, wallWas: v.source };
     if (kind === 'dj') m.coverCommand('open', { quiet: true });   // the shaft's glass cover clears for the camera
+    instr.hidden = true;   // (the cards never stay over a performance)
     if (kind === 'opus') { v.orchestra.setOpen(true); cine.wallWas = null; }   // the room opens as the camera sets off
     VIEWS.cine = { label: 'Cinematic', long: kind === 'dj' ? '4K · Cinematic · DJ Room to the studio wall' : kind === 'opus' ? '4K · Cinematic · OPUS V orchestra room' : '4K · Cinematic · the grand to the studio wall', pos: c.pos.getPointAt(0).toArray(), target: c.look.getPointAt(0).toArray(), fov: 40, drift: 0, tally: 0, cam: 'CAM CINE', free: true };
     director.setAuto(false); m.setAuto?.(false); director.go('cine', { instant: true });
@@ -1315,9 +1330,11 @@ export function spaces(v, ctx) {
   const CONTROLS = {
     opus: [
       [() => (v.orchestra?.target ? 'Close the room' : 'Open the room'), () => v.orchestra?.toggle()],
-      ['Camera', [['Cinematic · to the quartet', () => cinematic('opus')], ['Piano P3 · side', () => v.pickCamera('P3')], ['Piano P4 · wide', () => v.pickCamera('P4')]]],
-      ['Configuration', [['String quartet (now)', () => {}], ['Chamber orchestra · in preparation', () => {}]]],
-      ['Programme', () => openProgramme()], ['Info', () => openInfo()],
+      ['Camera', [['OV1 · audience left', () => v.pickOpus('OV1')], ['OV2 · audience right', () => v.pickOpus('OV2')], ['OV3 · centre', () => v.pickOpus('OV3')], ['OV4 · 4K robot camera', () => v.pickOpus('OV4')], ['CCTV · security', () => v.pickOpus('CCTV')],
+        ['Cinematic · into the room', () => cinematic('opus')], ['Piano P3 · side', () => v.pickCamera('P3')], ['Piano P4 · wide', () => v.pickCamera('P4')]]],
+      // STAGE CONFIGURATION: the layout, the light and the cameras' framing change; the room's light dips and comes back
+      ['Configuration', [[() => (v.orchestra?.config === 'quartet' ? '✓ ' : '') + 'String quartet · 4', () => v.orchestra?.setConfig('quartet')], [() => (v.orchestra?.config === 'chamber' ? '✓ ' : '') + 'Chamber orchestra · 28', () => v.orchestra?.setConfig('chamber')]]],
+      ['Instruments', () => openInstruments()], ['Programme', () => openProgramme()], ['Info', () => openInfo()],
     ],
     piano: [
       [() => (piano || pianoPlaying() ? 'Finish show' : 'Simulate show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
@@ -1413,10 +1430,10 @@ export function spaces(v, ctx) {
       if (typeof label === 'function') dynamic.push([b, label]);
       if (Array.isArray(what)) {
         const pop = document.createElement('div'); pop.className = 'pop'; pop.hidden = true; pop.setAttribute('role', 'group'); pop.setAttribute('aria-label', label);
-        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x.textContent = l; x.addEventListener('click', () => { if (label === 'Camera') { wallHold = false; if (!/first person/.test(l)) exitPov(); } fn(); closeMenus(); }); pop.appendChild(x); }
+        for (const [l, fn] of what) { const x = document.createElement('button'); x.type = 'button'; x.className = 'b'; x._lf = typeof l === 'function' ? l : null; x.textContent = x._lf ? x._lf() : l; x.addEventListener('click', () => { if (label === 'Camera') { wallHold = false; if (!/first person/.test(x.textContent)) exitPov(); } fn(); closeMenus(); }); pop.appendChild(x); }
         dock.insertBefore(pop, ctrl); pops.push(pop);
         b.setAttribute('aria-expanded', 'false'); b.insertAdjacentHTML('beforeend', '<i class="chev" aria-hidden="true"></i>');
-        b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });
+        b.addEventListener('click', () => { const open = pop.hidden; closeMenus(); for (const x of pop.children) if (x._lf) x.textContent = x._lf(); pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); });
       } else b.addEventListener('click', () => { closeMenus(); what(); });
       row.appendChild(b);
     }
@@ -1494,12 +1511,15 @@ export function spaces(v, ctx) {
   studioMenu('Show timer', [['Count up', () => clock.countUp()], ...[1, 5, 10, 15, 30, 60].map(n => [`Countdown ${n} min`, () => clock.countdown(n * 60000)]),
     ['Start', () => clock.start()], ['Pause', () => clock.pause()], ['Reset', () => clock.reset()]]);
   // for the Broadcast Studio later (same site), on the 'dz-virtual-space' channel: { house: true | false, force? },
-  // { houseLevel: 0 … 120 }, { opus: 'open' | 'close' | 'toggle' | 'cinematic' },
+  // { houseLevel: 0 … 120 }, { opus: 'open' | 'close' | 'toggle' | 'cinematic' }, { opusConfig: 'quartet' | 'chamber' },
+  // { opusCamera: 'OV1' | 'OV2' | 'OV3' | 'OV4' | 'CCTV' },
   // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
   try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
     if ('house' in d) setHouse(!!d.house, { force: !!d.force });
     if ('houseLevel' in d) setHouseLevel(d.houseLevel);   // 0 … 120 (%)
     if (d.opus) ({ open: () => v.orchestra?.setOpen(true), close: () => v.orchestra?.setOpen(false), toggle: () => v.orchestra?.toggle(), cinematic: () => cinematic('opus') })[d.opus]?.();   // OPUS V room
+    if (d.opusConfig) v.orchestra?.setConfig(d.opusConfig);
+    if (d.opusCamera) v.pickOpus?.(d.opusCamera);
     if (d.timer) ({ up: () => clock.countUp(), down: () => clock.countdown(d.ms), start: () => clock.start(), pause: () => clock.pause(), reset: () => clock.reset() })[d.timer]?.(); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
@@ -1623,7 +1643,7 @@ export function spaces(v, ctx) {
     // at the grand in first person the stage's beams are off (the camera stands in the spot's light)
     if (v.stage?.rig) v.stage.rig.quiet = pov?.kind === 'piano';
     for (const k of ['studio', 'piano', 'dj', 'opus']) btn(k).setAttribute('aria-pressed', String(k === active));
-    btn('opus').querySelector('small').textContent = !v.orchestra ? '' : v.orchestra.target ? (v.orchestra.open < 1 ? 'Opening…' : 'String quartet') : 'Hidden · tap to open';
+    btn('opus').querySelector('small').textContent = !v.orchestra ? '' : v.orchestra.target ? (v.orchestra.open < 1 ? 'Opening…' : v.orchestra.label) : 'Hidden · tap to open';
     for (const b of edge.querySelectorAll('[data-view-edge]')) b.setAttribute('aria-pressed', String(b.dataset.viewEdge === 'after' ? afterShow.on : b.dataset.viewEdge === 'security' ? cctv.on : director.current === b.dataset.viewEdge));
     const p = v.show;
     const pianoLabel = piano?.hold === 'psInter' ? 'Intermission · tap to play' : piano?.soon ? (piano.held ? 'Paused · tap to play' : 'Starting soon') : p.state === 'SONG' ? '♪ ' + (p.song?.title || '') : p.state === 'BETWEEN' ? 'Between songs' : p.state === 'CLOSING' ? 'Closing' : p.state === 'ENDED' ? 'Play again' : 'Piano Sessions';
