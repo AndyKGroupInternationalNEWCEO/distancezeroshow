@@ -23,6 +23,7 @@ import { applyProbe } from './melbourne/probes.js';
 import { inClub, xyz as xyzM, DJ_LIFT } from './melbourne/layout.js';
 import { at as atV, platformTop } from './vienna/layout.js';
 import { midi } from './midi.js';
+import { showClock } from './showclock.js';
 
 const SHOTS = ['studio', 'desk', 'wall', 'crane', 'floor'];
 // AFTERSHOW: the views no show camera takes, walked slowly in turn
@@ -1327,8 +1328,15 @@ export function spaces(v, ctx) {
   { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; b.dataset.house = '';
     const label = () => (houseOn ? 'Show mode' : houseAsk && performance.now() - houseAsk < 4000 ? 'On air · press again' : 'House lights');
     setTile(b, label()); dynamic.push([b, label]); b.addEventListener('click', () => { closeMenus(); setHouse(!houseOn); }); ctrl.appendChild(b); }
-  // for the Broadcast Studio later (same site): { house: true | false, force? } on the 'dz-virtual-space' channel
-  try { new BroadcastChannel('dz-virtual-space').onmessage = e => { if (e.data && 'house' in e.data) setHouse(!!e.data.house, { force: !!e.data.force }); }; } catch {}
+  // the SHOW TIMER: the studio clock on the wall (showclock.js) and its menu
+  const clock = showClock({ M: ctx.studio.M, parent: ctx.studio.root });
+  studioMenu('Show timer', [['Count up', () => clock.countUp()], ...[1, 5, 10, 15, 30, 60].map(n => [`Countdown ${n} min`, () => clock.countdown(n * 60000)]),
+    ['Start', () => clock.start()], ['Pause', () => clock.pause()], ['Reset', () => clock.reset()]]);
+  // for the Broadcast Studio later (same site), on the 'dz-virtual-space' channel: { house: true | false, force? },
+  // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
+  try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
+    if ('house' in d) setHouse(!!d.house, { force: !!d.force });
+    if (d.timer) ({ up: () => clock.countUp(), down: () => clock.countdown(d.ms), start: () => clock.start(), pause: () => clock.pause(), reset: () => clock.reset() })[d.timer]?.(); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
 
@@ -1462,7 +1470,7 @@ export function spaces(v, ctx) {
   // second, and between those the director's drift and the orbit controls moved the picture (it shook)
   const top = new THREE.Vector3(0, 1.9, -0.06), down = new THREE.Vector3(0, 0, 0.02), ahead = new THREE.Vector3();
   function hold() {
-    cineFrame();
+    cineFrame(); clock?.update();
     if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);
     }
