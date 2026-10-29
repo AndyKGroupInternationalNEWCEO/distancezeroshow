@@ -1,7 +1,7 @@
 {
   "_help": [
     "DISTANCE // ZERO programme 2027. The only file to edit when an episode is announced.",
-    "Every Friday, Saturday and Sunday from 'regularFrom' to 'until' is generated automatically from 'formats' (weekday: 5 = Friday, 6 = Saturday, 0 = Sunday).",
+    "Monthly production week (Andy, 29 Oct 2026, final): from 'monthlyFrom' to 'until', the THIRD FRIDAY of every month defines the week: the Wednesday before it is the REHEARSAL (internal, not shown in the public calendar), the third Friday is the FRIDAY show, the following Saturday and Sunday are the SATURDAY and SUNDAY shows ('formats', weekday: 5 = Friday, 6 = Saturday, 0 = Sunday). There are no weekly shows. Dates outside the production week appear only as 'specials'.",
     "To announce an episode, add (or edit) its date under 'episodes'. Leave out what is not confirmed: nothing is shown for it.",
     "  title         episode title, e.g. \"DJ Andy'K: Deep Connections (Official Version)\"",
     "  details       text about the episode: one string, or a list of paragraphs",
@@ -16,7 +16,8 @@
   ],
   "timezone": "Europe/Vienna",
   "secondTimezone": "Australia/Melbourne",
-  "regularFrom": "2027-01-29",
+  "monthlyFrom": "2027-02-01",
+  "rule": "third-friday",
   "until": "2027-12-31",
   "formats": {
     "dj": {
@@ -35,12 +36,29 @@
       "where": "Vienna ↔ Melbourne"
     }
   },
+  "rehearsal": {
+    "name": "REHEARSAL",
+    "weekday": 3,
+    "public": false
+  },
   "specials": [
     {
       "date": "2027-01-27",
       "format": "main",
       "name": "OPENING SHOW — REHEARSAL",
       "title": "Opening Show — Rehearsal"
+    },
+    {
+      "date": "2027-01-29",
+      "format": "dj"
+    },
+    {
+      "date": "2027-01-30",
+      "format": "piano"
+    },
+    {
+      "date": "2027-01-31",
+      "format": "main"
     }
   ],
   "episodes": {
