@@ -1,0 +1,15 @@
+{
+  "_": "OPUS V instruments: the licensed Sketchfab models the owner downloads (glTF zip) into this folder. tools/import.mjs finds each zip by the model id in its license.txt, checks the licence, reduces the model for the web and writes assets/opus-v/instruments/<id>.glb and index.json (credits). length: the real instrument's longest dimension in metres (the room scales the model to it); front: degrees to turn the model so its face looks at the audience (set after a first look); faces: the triangle budget.",
+  "models": [
+    { "id": "violin", "uid": "a784af0713a643b19ffcf65194bc0fbf", "title": "Violin", "author": "Virtual Museums of Małopolska", "licence": "CC0", "length": 0.59, "faces": 60000, "front": 0, "places": ["First violin", "Second violin"] },
+    { "id": "viola", "uid": "42054efc9b404576ae5bdbc6dce8fa7f", "title": "Viola", "author": "Space_Can", "licence": "CC BY 4.0", "length": 0.66, "faces": 40000, "front": 0, "places": ["Viola"] },
+    { "id": "cello", "uid": "a1e5e2a37d6a42299dcd5cec06cd1ddc", "title": "Cello", "author": "slidon", "licence": "CC BY 4.0", "length": 1.24, "faces": 60000, "front": 0, "places": ["Cello"] },
+    { "id": "double-bass", "uid": "66ab8bded2d54dcd97ceb60aebc13f04", "title": "Old Double Bass Low Poly Decimated", "author": "Musicmastermatt", "licence": "CC BY 4.0", "length": 1.8, "faces": 30000, "front": 0, "places": ["Double bass"] },
+    { "id": "flute", "uid": "498f33b9727840d79038430fabb2837c", "title": "Flute", "author": "Antonio Waletzki", "licence": "CC BY 4.0", "length": 0.67, "faces": 40000, "front": 0, "places": ["Flute"] },
+    { "id": "oboe", "uid": "bfa1bb7fd7ef4f7c9d3c843f481a38c8", "title": "Oboe - Howarth Conservatoire S20C", "author": "WarderiiK", "licence": "CC BY 4.0", "length": 0.65, "faces": 40000, "front": 0, "places": ["Oboe"] },
+    { "id": "clarinet", "uid": "d61bb4e061334edeab13bbcb0e192cf4", "title": "Clarinete", "author": "e-sfera", "licence": "CC BY 4.0", "length": 0.66, "faces": 20000, "front": 0, "places": ["Clarinet"], "approved": false },
+    { "id": "french-horn", "uid": "90cd992fa19a491f902595ad1b4eade9", "title": "French Horn", "author": "Bethanycrandallart", "licence": "CC BY 4.0", "length": 0.58, "faces": 60000, "front": 0, "places": ["French horn"] },
+    { "id": "trumpet", "uid": "3f2d4f5b962340b2933012e1bc634d88", "title": "Trumpet", "author": "Charlie Tinley", "licence": "CC BY 4.0", "length": 0.48, "faces": 25000, "front": 0, "places": ["Trumpet"] },
+    { "id": "snare", "uid": "f9e71dc10d0844deb3a1bbb7b30d4eeb", "title": "Generic Snare Drum with Tama Stagemaster Stand", "author": "carloleal30", "licence": "CC BY 4.0", "length": 0.8, "faces": 50000, "front": 0, "places": ["Percussion"] }
+  ]
+}

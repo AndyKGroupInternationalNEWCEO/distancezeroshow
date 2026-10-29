@@ -359,11 +359,14 @@ export function spaces(v, ctx) {
     <p class="note">String quartet: 2 violins, viola, cello. Chamber orchestra: 28 players. The instruments' 3D models are being added: places without one are empty.</p>
     ${INSTRUMENTS.map(i => `<details><summary>${escH(i.name)} <small>${escH(i.section)}</small></summary>${i.places ? `<p class="pl">${escH(i.places)}</p>` : ''}<p>${escH(i.about)}</p><p><i>Role:</i> ${escH(i.role)}</p></details>`).join('')}
     <b class="cr">3D model credits</b>
-    ${MODEL_CREDITS.length ? MODEL_CREDITS.map(c => `<p class="credit">${escH(c.instrument)}: “<a href="${escH(c.source)}" target="_blank" rel="noopener">${escH(c.title)}</a>” by <a href="${escH(c.authorUrl)}" target="_blank" rel="noopener">${escH(c.author)}</a> · <a href="${escH(c.licenceUrl)}" target="_blank" rel="noopener">${escH(c.licence)}</a></p>`).join('') : '<p class="credit">No third-party instrument models are in the room yet. Each one is credited here when it is added.</p>'}`;
+    <div class="credits"><p class="credit">No third-party instrument models are in the room yet. Each one is credited here when it is added.</p></div>
+    <p class="credit">Built for the room to the real instruments' dimensions: timpani, concert bass drum, hand cymbals, triangle, bassoon.</p>`;
   document.body.appendChild(instr);
   instr.querySelector('.x').addEventListener('click', () => { instr.hidden = true; });
   addEventListener('keydown', e => { if (e.key === 'Escape' && !instr.hidden) instr.hidden = true; });
   const openInstruments = () => { info.hidden = true; instr.hidden = !instr.hidden; };
+  // the licensed models' credits, as orchestra.js loads them (title, author, licence, source: from each model's own licence file)
+  const showCredits = list => { if (!list.length) return; instr.querySelector('.credits').innerHTML = [...MODEL_CREDITS, ...list.map(c => ({ instrument: c.places.join(', ').replace('Percussion', 'Snare drum'), ...c }))].map(c => `<p class="credit">${escH(c.instrument)}: “<a href="${escH(c.source)}" target="_blank" rel="noopener">${escH(c.title)}</a>” by ${c.authorUrl ? `<a href="${escH(c.authorUrl)}" target="_blank" rel="noopener">${escH(c.author)}</a>` : escH(c.author)} · ${c.licenceUrl ? `<a href="${escH(c.licenceUrl)}" target="_blank" rel="noopener">${escH(c.licence)}</a>` : escH(c.licence)}</p>`).join(''); };
 
   // the edge: views that are always there, whatever plays
   const edge = document.createElement('nav'); edge.className = 'edge'; edge.setAttribute('aria-label', 'Always on');
@@ -1516,6 +1519,7 @@ export function spaces(v, ctx) {
   // { houseLevel: 0 … 120 }, { opus: 'open' | 'close' | 'toggle' | 'cinematic' }, { opusConfig: 'quartet' | 'chamber' },
   // { opusCamera: 'OV1' | 'OV2' | 'OV3' | 'OV4' | 'CCTV' }, { opusConfig, instant: true } for an immediate change,
   // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
+  v.orchestra?.onInstruments?.(showCredits);   // (OPUS V: the instrument cards' credits, once the models have loaded)
   try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
     if ('house' in d) setHouse(!!d.house, { force: !!d.force });
     if ('houseLevel' in d) setHouseLevel(d.houseLevel);   // 0 … 120 (%)

@@ -263,6 +263,57 @@ export function buildOrchestra({ M, scene }) {
     sets[name] = { group: set, slots };
   }
 
+  /* ----- the licensed instrument models (production/opus-v/tools/import.mjs writes assets/opus-v/instruments: the
+     reduced models and index.json with their credits): loaded if there, each set at every place of its instrument.
+     How an instrument rests with no player: violins, violas, woodwinds, trumpets and horns on the chair's seat; cellos
+     and double basses upright on an instrument stand beside the chair; the snare on its own stand at the percussion ----- */
+  const credits = [], have = new Set(), instListeners = [];
+  const REST = { violin: 'seat', viola: 'seat', flute: 'seat', oboe: 'seat', clarinet: 'seat', trumpet: 'seat', 'french-horn': 'seat', cello: 'upright', 'double-bass': 'upright', snare: 'stand' };
+  const BASE = new URL('../../assets/opus-v/instruments/', import.meta.url);
+  // the model to a known frame: centred, its longest dimension up (+y) and scaled to the real instrument's, turned by
+  // `front` (degrees) so that its face looks along −z
+  const canon = (scene, e) => {
+    const holder = new THREE.Group(), mid = new THREE.Group(), out = new THREE.Group(); mid.add(scene); holder.add(mid); out.add(holder);
+    scene.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(scene), sz = b.getSize(new THREE.Vector3());
+    scene.position.sub(b.getCenter(new THREE.Vector3()));
+    if (sz.x >= sz.y && sz.x >= sz.z) mid.rotation.z = Math.PI / 2; else if (sz.z >= sz.y) mid.rotation.x = Math.PI / 2;
+    holder.rotation.y = THREE.MathUtils.degToRad(e.front || 0);
+    out.scale.setScalar(e.length / Math.max(sz.x, sz.y, sz.z));
+    scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+    return out;
+  };
+  // a black instrument stand for a cello or a double bass: a padded cradle for the lower bout and a yoke for the neck
+  const instStand = h => { const st = new THREE.Group(), post = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, h * 0.62, 10), dark); post.position.set(0, h * 0.31, 0.16); st.add(post);
+    const cradle = new THREE.Mesh(new THREE.TorusGeometry(h * 0.12, 0.015, 8, 24, Math.PI), fabric); cradle.rotation.set(Math.PI / 2, 0, 0); cradle.position.set(0, 0.06, 0.04); st.add(cradle);
+    const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 8, 16, Math.PI), fabric); yoke.rotation.z = Math.PI; yoke.position.set(0, h * 0.62, 0.12); st.add(yoke); return st; };
+  const placeModel = (proto, e, slot, parent) => {
+    const w = new THREE.Group(), o = proto.clone(); w.add(o); const mode = REST[e.id] || 'seat', y0 = slot.position.y;
+    const off = new THREE.Vector3();
+    if (mode === 'seat') {             // lying on its back across the seat, a little diagonal
+      o.rotation.x = Math.PI / 2; w.rotation.y = slot.rotation.y + Math.PI / 2 + 0.5;
+    } else if (mode === 'upright') {   // standing on its endpin in a stand beside the chair, its face to the audience
+      o.rotation.y = Math.PI; o.rotation.x = -0.12; w.rotation.y = slot.rotation.y; off.set(0.62, 0, 0.1);
+      const st = instStand(e.length); w.add(st);
+    } else {                           // on its own stand, beside the trap table
+      w.rotation.y = slot.rotation.y; off.set(-0.5, 0, 1.15);
+    }
+    w.position.copy(slot.position).add(off.applyAxisAngle(Y, slot.rotation.y)); parent.add(w);
+    w.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(o);
+    o.position.y += (mode === 'seat' ? y0 + 0.515 : y0 + 0.005) - b.min.y;   // onto the seat, or the floor (the riser)
+  };
+  (async () => {
+    let idx; try { const r = await fetch(new URL('index.json', BASE), { cache: 'no-cache' }); if (!r.ok) return; idx = await r.json(); } catch { return; }
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), loader = new GLTFLoader();
+    for (const e of idx.models || []) {
+      try {
+        const proto = canon((await loader.loadAsync(new URL(e.file, BASE).href)).scene, e);
+        for (const s of Object.values(sets)) for (const slot of s.slots) if (e.places.includes(slot.userData.inst) && (e.id !== 'violin' || /violin/i.test(slot.userData.inst))) { placeModel(proto, e, slot, s.group); slot.userData.model = 'licensed: ' + e.id; have.add(slot.userData.inst === 'Percussion' ? 'Snare drum' : AWAITING[slot.userData.inst]); }
+        credits.push(e);
+      } catch (err) { console.error('OPUS V instrument', e.id, err); }
+    }
+    for (const f of instListeners) f(credits);
+  })();
+
   /* ----- light: a warm area light under each canopy panel (the front one over the quartet, both for the orchestra),
      an amber wash on the back wall's fins, the downlights, the pinspots' pools, the stand lights, the trusses' lenses;
      CLEANING MODE: white work light ----- */
@@ -311,7 +362,9 @@ export function buildOrchestra({ M, scene }) {
     places: name => CONFIGS[name || config].places.map(p => p.inst),
     slots: name => sets[name || config].slots,
     // the instruments still missing: their licensed models wait for their files
-    missing: name => [...new Set(CONFIGS[name || config].places.filter(p => AWAITING[p.inst]).map(p => AWAITING[p.inst]))],
+    missing: name => [...new Set(CONFIGS[name || config].places.filter(p => AWAITING[p.inst]).map(p => AWAITING[p.inst]))].filter(n => !have.has(n)),
+    // the licensed models in the room, with their credits (index.json), and a hook for when they have loaded
+    get credits() { return credits; }, onInstruments(f) { instListeners.push(f); if (credits.length) f(credits); },
     camera: camOf, xfShot,
     // where spaces.js's cinematic move into the room ends, in the wall's own frame
     get view() { const v = CONFIGS[config].view; return { from: toLeaf(v.from), at: toLeaf(v.at) }; },

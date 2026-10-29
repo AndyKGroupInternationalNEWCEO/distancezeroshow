@@ -53,6 +53,8 @@ const FILES = [
   ...['index', 'layout', 'room', 'booth', 'gear', 'arms', 'djlift', 'cover', 'clubfx', 'probes', 'dj-audio-map', 'live-music', 'service'].map(f => `virtual-studio/melbourne/${f}.js`),
   ...['dj-booth', 'dj-booth-up', 'dj-club', 'studio', 'studio-piano', 'backstage', 'reception', 'street'].map(f => `assets/probes/${f}.f16`),
   // the places' light baked in Cycles (production/gpu/bake.py), when there
+  // OPUS V: the licensed instrument models, once imported (production/opus-v/tools/import.mjs)
+  ...(fs.existsSync(path.join(ROOT, 'assets/opus-v/instruments')) ? fs.readdirSync(path.join(ROOT, 'assets/opus-v/instruments')).filter(f => /\.(glb|json)$/.test(f)).map(f => `assets/opus-v/instruments/${f}`) : []),
   ...['places-baked.glb', 'lm-lobby.png', 'lm-street.png'].map(f => `assets/baked/${f}`).filter(f => fs.existsSync(path.join(ROOT, f))),
   // the DJ Room's opening: the official show song (git-ignored: copied from the master, see virtual-studio/melbourne/djshow.js)
   'assets/audio/dj-room/dz-dj-room-opening.wav', 'assets/audio/dj-room/dz-dj-room-opening-short.wav',
