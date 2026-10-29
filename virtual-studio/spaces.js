@@ -687,6 +687,7 @@ export function spaces(v, ctx) {
     stopPiano(); if (v.show.state !== 'IDLE') v.showCommand('stop');
     wallHold = false; director.setAuto(false); v.pickCamera('P2');
     ctx.panels?.open('station', 'piano');
+    midiUi.listen();   // a MIDI keyboard plays the grand from here (Chrome asks once; the MIDI card opens if none is found)
     show();
   }
 

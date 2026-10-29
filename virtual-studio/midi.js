@@ -3,7 +3,9 @@
 // (never a piano profile). A model is listed only with what is verified about it; anything else is set up by MIDI
 // Learn: press LEARN beside an action, then move the control. Learned controls are kept in this browser only, per
 // space and device. Nothing is sent anywhere: the page only listens.
-//   midi({ space, piano: { noteOn, noteOff }, dj: (action, value) => {} }) → { open(), close() }
+//   midi({ space, piano: { noteOn, noteOff }, dj: (action, value) => {} }) → { open(), close(), listen(), state }
+// At the Piano every input is heard unless one is chosen: a MiniLab 3 shows several ports (Minilab3 MIDI, DIN THRU,
+// MCU/HUI, ALV) and its keys play on one of them only. listen() asks for MIDI from the visitor's click (PLAY PIANO)
 //   space(): 'studio' | 'piano' | 'dj' (the space the visitor is in: MIDI works only at the Piano and in the DJ Room)
 export const PROFILES = {
   piano: [
@@ -32,7 +34,9 @@ const ACTIONS = {
 
 export function midi({ space, piano, dj, djAudio }) {
   const supported = typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
-  let access = null, learning = null, held = new Set(), sustain = false;
+  let access = null, learning = null, held = new Set(), sustain = false, refused = false;
+  // what came in, for the card's diagnostics (clock and active sensing are not counted)
+  const heard = { n: 0, last: null, port: '', note: null };
   const sustained = new Set();
   const store = (sp, dev) => `dz-midi:${sp}:${dev || 'any'}`;
   const read = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
@@ -52,13 +56,43 @@ export function midi({ space, piano, dj, djAudio }) {
   .sp-midi .learn li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.1);font-size:.72rem}
   .sp-midi .learn small{opacity:.65;margin-left:6px} .sp-midi .learn .b{min-height:30px;padding:0 10px;font-size:.58rem}
   .sp-midi .learn .b[aria-pressed=true]{border-color:var(--acc)}
-  .sp-midi .st{font-size:.7rem;opacity:.85}`;
+  .sp-midi .st{font-size:.7rem;opacity:.85}
+  .sp-midi .diag{margin:0 0 10px;padding:6px 8px;border:1px solid rgba(255,255,255,.18);border-radius:10px;font-size:.66rem;line-height:1.5}
+  .sp-midi .diag b{display:block;font-size:.6rem;letter-spacing:.08em;opacity:.7}`;
   document.head.appendChild(style);
 
   const inputs = () => (access ? [...access.inputs.values()] : []);
-  const deviceOf = sp => { const c = conf(sp), all = inputs(); return all.find(i => i.id === c.device) || all.find(i => PROFILES[sp]?.some(p => p.match?.test(i.name))) || all[0] || null; };
-  const profileOf = (sp, dev) => { const list = PROFILES[sp] || [], c = conf(sp); return list.find(p => p.id === c.profile) || (dev && list.find(p => p.match?.test(dev.name))) || list[list.length - 1]; };
+  // the Piano hears every input unless one is chosen ('all', null here); the DJ Room one device (its learned controls)
+  const everyInput = sp => sp === 'piano' && (conf(sp).device || 'all') === 'all';
+  const deviceOf = sp => { if (everyInput(sp)) return null; const c = conf(sp), all = inputs(); return all.find(i => i.id === c.device) || all.find(i => PROFILES[sp]?.some(p => p.match?.test(i.name))) || all[0] || null; };
+  const heardFrom = (sp, port) => (everyInput(sp) ? true : port.id === deviceOf(sp)?.id);
+  const profileOf = (sp, dev) => { const list = PROFILES[sp] || [], c = conf(sp), named = dev ? [dev] : inputs();
+    return list.find(p => p.id === c.profile) || list.find(p => named.some(i => p.match?.test(i.name))) || list[list.length - 1]; };
   const describe = m => (m ? `${m.t === 'cc' ? 'CC' : 'Note'} ${m.n} · ch ${m.c + 1}` : '—');
+
+  // the diagnostics: whether MIDI is allowed, the inputs, and the last message that came in (updated as it arrives)
+  const diag = document.createElement('div'); diag.className = 'diag'; diag.setAttribute('aria-live', 'polite');
+  const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const noteName = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
+  function updDiag() {
+    if (space() !== 'piano') return;
+    const lines = [['Web MIDI', supported ? 'supported' : 'not in this browser'], ['Access', access ? 'allowed' : refused ? 'blocked' : 'not asked yet']];
+    if (access) {
+      const ins = inputs();
+      lines.push(['Inputs', ins.length ? ins.map(i => `${i.name}${i.state === 'connected' ? '' : ' (' + i.state + ')'}${heardFrom('piano', i) ? '' : ' (not heard)'}`).join(' · ') : 'none']);
+      lines.push(['Messages', heard.n ? `${heard.n} · last: ${heard.last} · from ${heard.port}` : 'none yet: press a key']);
+      if (heard.note) lines.push(['Grand', heard.note]);
+    }
+    diag.innerHTML = '<b>DIAGNOSTICS</b>';
+    for (const [k, t] of lines) { const d = document.createElement('div'); d.textContent = `${k}: ${t}`; diag.append(d); }
+  }
+  function describeMsg(data) {
+    const [st, d1 = 0, d2 = 0] = data, type = st & 0xf0, ch = (st & 0x0f) + 1;
+    const hex = [...data].map(b => b.toString(16).padStart(2, '0')).join(' ');
+    const what = type === 0x90 && d2 > 0 ? `Note On ${noteName(d1)} (${d1}) vel ${d2}` : type === 0x80 || type === 0x90 ? `Note Off ${noteName(d1)} (${d1})`
+      : type === 0xb0 ? `CC ${d1} = ${d2}${d1 === 64 ? ' (sustain)' : ''}` : type === 0xe0 ? 'Pitch bend' : type === 0xd0 || type === 0xa0 ? 'Aftertouch' : 'Other';
+    return `${what} · ch ${ch} · [${hex}]`;
+  }
 
   function render() {
     const sp = space(); card.innerHTML = '';
@@ -67,12 +101,14 @@ export function midi({ space, piano, dj, djAudio }) {
     const p = text => { const e = document.createElement('p'); e.textContent = text; card.append(e); return e; };
     if (sp !== 'piano' && sp !== 'dj') { p('MIDI devices play the grand at the Piano and the console in the DJ Room.'); return; }
     if (sp === 'dj' && djAudio) outputsUi();
+    if (sp === 'piano') card.append(diag);
     if (!supported) { p('This browser does not support MIDI devices (Web MIDI). Safari, on the Mac and the iPhone, has none; Chromium-based browsers and Firefox do.'); return; }
+    if (!access && refused) { p('MIDI is blocked for this page. In Chrome: the icon left of the address → Site settings → MIDI device control → Allow, then reload.'); card.append(btn('Try again', () => connect(true))); return; }
     if (!access) { p('Connect your controller, then allow this page to use MIDI devices. It only listens; nothing is sent.'); const b = btn('Use MIDI devices', () => connect(true)); card.append(b); return; }
     const all = inputs();
     if (!all.length) { p('No MIDI device found. Connect one: it appears here.'); return; }
     const dev = deviceOf(sp), prof = profileOf(sp, dev);
-    card.append(select('Device', all.map(i => [i.id, i.name]), dev?.id, v => { setConf(sp, { device: v }); render(); }));
+    card.append(select('Device', [...(sp === 'piano' ? [['all', 'All MIDI inputs']] : []), ...all.map(i => [i.id, i.name])], dev?.id || 'all', v => { setConf(sp, { device: v }); render(); }));
     card.append(select(sp === 'dj' ? 'DJ controller or mixer' : 'Keyboard model', PROFILES[sp].map(q => [q.id, q.name]), prof.id, v => { setConf(sp, { profile: v }); render(); }));
     p(prof.info).className = 'st';
     const learned = maps(sp, dev?.name), ul = document.createElement('ul'); ul.className = 'learn';
@@ -84,6 +120,7 @@ export function midi({ space, piano, dj, djAudio }) {
     }
     card.append(ul);
     card.append(btn('Clear learned controls', () => { write(store(sp, dev?.name), {}); render(); }));
+    updDiag();
   }
   // the DJ Room's PHONES (the CUE mix) and BOOTH (the master's send) to other audio outputs of this computer
   let outTok = 0;
@@ -108,20 +145,23 @@ export function midi({ space, piano, dj, djAudio }) {
 
   function onMessage(e) {
     const sp = space(); if (sp !== 'piano' && sp !== 'dj') return;
-    const dev = deviceOf(sp); if (!dev || e.target.id !== dev.id) return;
+    const port = e.currentTarget || e.target; if (!e.data?.length || e.data[0] >= 0xf8) return;   // (clock, active sensing)
+    if (!heardFrom(sp, port)) return;
+    const dev = deviceOf(sp); if (!dev && sp !== 'piano') return;
     const [st, d1, d2 = 0] = e.data, type = st & 0xf0, ch = st & 0x0f;
+    if (sp === 'piano') { heard.n++; heard.last = describeMsg(e.data); heard.port = port.name; }
     const on = type === 0x90 && d2 > 0, off = type === 0x80 || (type === 0x90 && d2 === 0), cc = type === 0xb0;
     if (learning && (on || cc)) {
-      const m = maps(sp, dev.name); for (const k of Object.keys(m)) if (m[k] === learning) delete m[k];
-      m[msgKey(cc ? 'cc' : 'note', ch, d1)] = learning; write(store(sp, dev.name), m); learning = null; render(); return;
+      const m = maps(sp, dev?.name); for (const k of Object.keys(m)) if (m[k] === learning) delete m[k];
+      m[msgKey(cc ? 'cc' : 'note', ch, d1)] = learning; write(store(sp, dev?.name), m); learning = null; render(); return;
     }
-    const act = maps(sp, dev.name)[msgKey(cc ? 'cc' : 'note', ch, d1)];
+    const act = maps(sp, dev?.name)[msgKey(cc ? 'cc' : 'note', ch, d1)];
     if (sp === 'piano') {
-      if (act === 'sustain' || (cc && d1 === 64 && !act)) return pedal(d2 >= 64);
-      if (act) return;
-      if (on) { held.add(d1); sustained.delete(d1); piano.noteOn(d1, d2 / 127); }
-      else if (off) { held.delete(d1); if (sustain) sustained.add(d1); else piano.noteOff(d1); }
-      return;
+      if (act === 'sustain' || (cc && d1 === 64 && !act)) { pedal(d2 >= 64); heard.note = `sustain ${d2 >= 64 ? 'down' : 'up'}`; return updDiag(); }
+      if (act) return updDiag();
+      if (on) { held.add(d1); sustained.delete(d1); piano.noteOn(d1, d2 / 127); heard.note = `plays ${noteName(d1)} at velocity ${d2}`; }
+      else if (off) { held.delete(d1); if (sustain) sustained.add(d1); else piano.noteOff(d1); heard.note = `releases ${noteName(d1)}${sustain ? ' (held by the pedal)' : ''}`; }
+      return updDiag();
     }
     if (!act) return;
     if (/^(play|cue|hot|loop)/.test(act)) { if (on || (cc && d2 > 0)) dj(act, 1); return; }
@@ -133,20 +173,33 @@ export function midi({ space, piano, dj, djAudio }) {
     if (!down) { for (const n of sustained) if (!held.has(n)) piano.noteOff(n); sustained.clear(); }
   }
   function wire() { for (const i of inputs()) i.onmidimessage = onMessage; }
-  async function connect(ask) {
-    if (!supported || access) return;
-    try {
-      access = await navigator.requestMIDIAccess({ sysex: false });
+  // a device unplugged with keys down or the pedal held: its notes stop
+  function releaseAll() { for (const n of new Set([...held, ...sustained])) piano.noteOff(n); held.clear(); sustained.clear(); sustain = false; }
+  let asking = null;
+  function connect(ask) {
+    if (!supported || access) return Promise.resolve(access);
+    return asking ||= navigator.requestMIDIAccess({ sysex: false }).then(a => {
+      access = a; refused = false;
       wire();
       // a device plugged in: listened to at once, and the choice of model offered where it can play
-      access.onstatechange = e => { wire(); if (e.port.type === 'input' && e.port.state === 'connected' && ['piano', 'dj'].includes(space())) open(); else if (!card.hidden) render(); };
-    } catch { access = null; if (ask) { render(); card.querySelector('p').textContent = 'MIDI was not allowed for this page. It can be allowed in the browser\'s site settings.'; } return; }
-    render();
+      access.onstatechange = e => {
+        wire();
+        if (e.port.type === 'input' && e.port.state === 'disconnected') releaseAll();
+        if (e.port.type === 'input' && e.port.state === 'connected' && ['piano', 'dj'].includes(space())) open(); else if (!card.hidden) render();
+      };
+      render(); return access;
+    }, () => { access = null; refused = true; if (ask) open(); return null; }).finally(() => { asking = null; });
+  }
+  // from the visitor's click (PLAY PIANO): MIDI is asked for (Chrome shows its prompt once), and the card opens only
+  // when something is in the way: blocked, or no device connected
+  function listen() {
+    if (!supported) return Promise.resolve(null);
+    return connect(true).then(a => { if (a && !inputs().length && space() === 'piano') open(); return a; });
   }
   // already allowed earlier: listen from the start (without asking again)
   navigator.permissions?.query?.({ name: 'midi' }).then(s => { if (s.state === 'granted') connect(false); }).catch(() => {});
   function open() { learning = null; render(); card.hidden = false; }
   function close() { learning = null; card.hidden = true; }
   addEventListener('keydown', e => { if (e.key === 'Escape' && !card.hidden) close(); });
-  return { open, close, get supported() { return supported; } };
+  return { open, close, listen, get supported() { return supported; }, get state() { return { access: !!access, refused, inputs: inputs().map(i => i.name), heard: { ...heard } }; } };
 }
