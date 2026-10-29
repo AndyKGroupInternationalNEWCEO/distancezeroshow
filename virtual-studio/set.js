@@ -374,10 +374,11 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
 
   /* ----- architecture: dark room, vertical fins with LED strips, ceiling truss ----- */
   const ROOM_R = 12.6, ROOM_Z = 1, ROOM_H = 8.4, A0 = Math.PI - 1.95, A1 = Math.PI + 1.95;
-  const backWall = mesh(new THREE.CylinderGeometry(ROOM_R + 0.6, ROOM_R + 0.6, ROOM_H, 96, 1, true, A0 - 0.1, A1 - A0 + 0.2), M.wallBack);
-  backWall.material = M.wallBack.clone(); backWall.material.side = THREE.BackSide;
-  backWall.material.map = panelJoints(46, 3); // architectural panel joints, mostly glimpsed between the fins
-  backWall.position.set(0, ROOM_H / 2, ROOM_Z);
+  // (the OPUS V orchestra room behind the grand, vienna/orchestra.js: the wall keeps an opening there, OPUS_WALL.h high,
+  // closed by that module's panels, which carry the same fins and light lines; above it the wall goes on as everywhere)
+  const backMat = M.wallBack.clone(); backMat.side = THREE.BackSide; backMat.map = panelJoints(46, 3);   // architectural panel joints, mostly glimpsed between the fins
+  const O = OPUS_WALL, wallPart = (t0, t1, y0, y1) => { const w = mesh(new THREE.CylinderGeometry(ROOM_R + 0.6, ROOM_R + 0.6, y1 - y0, 96, 1, true, t0, t1 - t0), backMat); w.position.set(0, (y0 + y1) / 2, ROOM_Z); return w; };
+  const backWall = wallPart(A0 - 0.1, O.a0, 0, ROOM_H); wallPart(O.a1, A1 + 0.1, 0, ROOM_H); wallPart(O.a0, O.a1, O.h, ROOM_H);
   const ceiling = mesh(new THREE.CircleGeometry(ROOM_R + 1, 64).rotateX(Math.PI / 2), M.wallBack);
   ceiling.position.set(0, ROOM_H, ROOM_Z);
 
@@ -386,13 +387,14 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
     // keep the fins out from behind the LED wall where they would never be seen
     const behindWall = Math.abs(a - Math.PI) < WALL_SPAN - 0.02;
     if (behindWall && Math.abs(ROOM_R * Math.sin(a)) < 3.9) continue;   // the backstage lounge sits there (they would poke into it)
-    fins.push({ a, h: behindWall ? 1.2 : ROOM_H - 0.2 });
+    const opus = a > OPUS_WALL.a0 - 0.01 && a < OPUS_WALL.a1 + 0.01;   // over the orchestra room's opening: only above it
+    fins.push({ a, h: behindWall ? 1.2 : opus ? ROOM_H - 0.2 - OPUS_WALL.h : ROOM_H - 0.2, y0: opus ? OPUS_WALL.h : 0 });
     if (!behindWall) strips.push(a + 0.0375);
   }
   const finMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.16, 1, 0.7), M.fin, fins.length);
   const o = new THREE.Object3D();
   fins.forEach((f, i) => {
-    o.position.set(ROOM_R * Math.sin(f.a), f.h / 2, ROOM_Z + ROOM_R * Math.cos(f.a));
+    o.position.set(ROOM_R * Math.sin(f.a), (f.y0 || 0) + f.h / 2, ROOM_Z + ROOM_R * Math.cos(f.a));
     o.rotation.set(0, f.a, 0); o.scale.set(1, f.h, 1); o.updateMatrix();
     finMesh.setMatrixAt(i, o.matrix);
   });
@@ -401,8 +403,9 @@ export function buildStudio({ scene, quality, logo: logoStyle = 'image', guest =
   const stripMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const stripMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.025, ROOM_H - 1.4, 0.025), stripMat, strips.length);
   strips.forEach((a, i) => {
-    o.position.set((ROOM_R + 0.3) * Math.sin(a), ROOM_H / 2 - 0.3, ROOM_Z + (ROOM_R + 0.3) * Math.cos(a));
-    o.rotation.set(0, a, 0); o.scale.set(1, 1, 1); o.updateMatrix();
+    const opus = a > OPUS_WALL.a0 && a < OPUS_WALL.a1, sh = opus ? (ROOM_H - 1.4 - (OPUS_WALL.h - 0.7)) / (ROOM_H - 1.4) : 1;   // over the opening: from its top up
+    o.position.set((ROOM_R + 0.3) * Math.sin(a), opus ? OPUS_WALL.h + (ROOM_H - 0.7 - OPUS_WALL.h) / 2 : ROOM_H / 2 - 0.3, ROOM_Z + (ROOM_R + 0.3) * Math.cos(a));
+    o.rotation.set(0, a, 0); o.scale.set(1, sh, 1); o.updateMatrix();
     stripMesh.setMatrixAt(i, o.matrix);
     stripMesh.setColorAt(i, C.amber);
   });
@@ -1308,6 +1311,9 @@ function buildLogoKV(M, glows) {
    three armchairs (Andrej, the guest, Georgie), a coffee table with coffee and sekt, an arc lamp, warm cove light. */
 export const LOUNGE = { x0: -3.5, x1: 3.5, z0: -11.2, z1: -7.35, h: 3 };
 export const LOUNGE_DOOR = { z: -8.3, w: 0.95, h: 2.2 };
+// the OPUS V orchestra room's opening in the Vienna-side wall (vienna/orchestra.js): 5 m of the wall centred on the line
+// from the studio's centre through the grand (angle 4.544 rad as the fins count it: x = R sin a, z = 1 + R cos a), 4 m high
+export const OPUS_WALL = { a: 4.544, a0: 4.544 - 0.1984, a1: 4.544 + 0.1984, h: 4.0 };
 export const SERVICE_DOOR = { z: -8.25, w: 0.95, h: 2.2 };   // in the Melbourne-side wall (x1): the staff way down to the DJ Room   // in the Vienna-side wall (x0), reached around the LED wall's end
 
 function buildLounge(M, quality) {

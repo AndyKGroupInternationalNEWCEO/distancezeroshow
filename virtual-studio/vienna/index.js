@@ -8,6 +8,7 @@ import { createLift } from './lift.js';
 import { buildStage } from './stage.js';
 import { LIFT, CAMS, STUDIO_PIANO_VIEW, PIANO, platformTop, at } from './layout.js';
 import { cineRobot } from '../set.js';
+import { buildOrchestra } from './orchestra.js';
 import { OPENING } from './opening.js';
 import { createShow } from './show.js';
 import { concertLook } from './concert-look.js';
@@ -38,6 +39,10 @@ export const SOURCES = [
 
 export function vienna({ renderer, scene, camera, controls, director, studio, quality, reducedMotion, sound }) {
   const stage = buildStage({ studio, scene });
+  // the OPUS V orchestra room behind the grand (orchestra.js): hidden in the wall until opened; its work light follows
+  // the house lights (spaces.js sets orchestraWork)
+  const orchestra = buildOrchestra({ M: studio.M, scene: studio.root });   // (in the studio's root: drawn with the studio)
+  let orchestraWork = 0;
   const lift = createLift(LIFT);
 
   /* ----- light state: eased towards the mode (plus any per-group override from the sequence) ----- */
@@ -369,6 +374,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
     const step = onAudio && seg === liftSeg && show.time >= liftT && show.time - liftT < 0.5 ? show.time - liftT : dt;
     liftSeg = seg; liftT = show.time;
     const h = frozen ? lift.height : lift.step(step);
+    orchestra.update(dt, orchestraWork);
     // the robot flies its programme on P6, in the shot's slow motion; parked otherwise
     if (robot) {
       robot.active = director.current === id('P6');
@@ -410,7 +416,7 @@ export function vienna({ renderer, scene, camera, controls, director, studio, qu
 
   // what the LED wall shows right now: the studio's own programme, the live feed, or black
   const wallShows = () => !wallMat ? 'none' : wallMat.emissiveMap === studio.wall.texture ? 'studio' : wallMat.emissiveMap === feed.rt.texture ? 'feed' : wallMat.emissiveMap === feed.black ? 'black' : 'other';
-  return { update, stage, lift, command, setLiftHold, get liftHold() { return liftHold; }, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
+  return { update, stage, orchestra, setOrchestraWork: k => { orchestraWork = k; }, lift, command, setLiftHold, get liftHold() { return liftHold; }, setMode, pickCamera, setSource, addSource, setKey, setLook, look, show, keyPlayer, pickSong, performSong, get picked() { return picked; }, showCommand, get frozen() { return frozen; }, opening: { cues, rise: RISE, get clock() { return seq?.clock; } }, wallShows, history, lights: L, feedTarget: feed.rt, wallMaterial: wallMat,
     get mode() { return mode; }, get source() { return source; }, get program() { return program; }, get running() { return !!seq; } };
 }
 

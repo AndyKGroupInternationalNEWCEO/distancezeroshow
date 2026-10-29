@@ -1029,6 +1029,14 @@ export function spaces(v, ctx) {
   function cinePoints(kind) {
     const pts = [], looks = [];
     const push = (p, l) => { pts.push(vec(p.toArray ? p.toArray() : p)); looks.push(vec(l.toArray ? l.toArray() : l)); };
+    if (kind === 'opus') {
+      // OPUS V: from the studio's front past the grand (wide of its platform, lift up or down) to the opened wall, ending
+      // on the four places (the room's own frame: v.orchestra.toWorld)
+      const o = v.orchestra, room = o.toWorld(o.view.at);
+      push([-1.5, 2.6, 5.5], [-6.2, 1.4, 0]); push([-5.0, 2.3, 4.2], [-9, 1.6, -0.5]); push([-9.2, 2.1, 2.6], room);
+      push(o.toWorld(new THREE.Vector3(0, 1.8, -3.4)), room); push(o.toWorld(o.view.from), room);
+      return { pos: new THREE.CatmullRomCurve3(pts, false, 'centripetal'), look: new THREE.CatmullRomCurve3(looks, false, 'centripetal') };
+    }
     if (kind === 'dj') {
       const g = m.booth.gear.group; g.updateMatrixWorld(true);
       push(g.localToWorld(vec([0, 0.9, -1.3])), g.localToWorld(vec([0, 0, 0.25])));           // behind the DJ's place
@@ -1057,7 +1065,8 @@ export function spaces(v, ctx) {
     const c = cinePoints(kind), len = c.pos.getLength();
     cine = { kind, phase: 'start', t: 0, ...c, dur: len / 1.5 + 4, wallWas: v.source };
     if (kind === 'dj') m.coverCommand('open', { quiet: true });   // the shaft's glass cover clears for the camera
-    VIEWS.cine = { label: 'Cinematic', long: kind === 'dj' ? '4K · Cinematic · DJ Room to the studio wall' : '4K · Cinematic · the grand to the studio wall', pos: c.pos.getPointAt(0).toArray(), target: c.look.getPointAt(0).toArray(), fov: 40, drift: 0, tally: 0, cam: 'CAM CINE', free: true };
+    if (kind === 'opus') { v.orchestra.setOpen(true); cine.wallWas = null; }   // the room opens as the camera sets off
+    VIEWS.cine = { label: 'Cinematic', long: kind === 'dj' ? '4K · Cinematic · DJ Room to the studio wall' : kind === 'opus' ? '4K · Cinematic · OPUS V orchestra room' : '4K · Cinematic · the grand to the studio wall', pos: c.pos.getPointAt(0).toArray(), target: c.look.getPointAt(0).toArray(), fov: 40, drift: 0, tally: 0, cam: 'CAM CINE', free: true };
     director.setAuto(false); m.setAuto?.(false); director.go('cine', { instant: true });
   }
   function endCine() { if (!cine) return; if (cine.wallWas && v.source !== cine.wallWas) v.setSource(cine.wallWas); if (cine.kind === 'dj') m.coverCommand('close', { quiet: true }); cine = null; }
@@ -1068,11 +1077,11 @@ export function spaces(v, ctx) {
     if (cine.waiting) { if (m.lift.state === 'DOWN' && !m.travelling) startCine(cine.kind); return; }
     if (director.current !== 'cine') { endCine(); return; }   // another cut took over
     cine.t += dt;
-    const HOLD0 = cine.kind === 'dj' ? 4 : 2.5, WALL = 7;     // the start (the cover opens), the hold on the wall
+    const HOLD0 = cine.kind === 'dj' ? 4 : cine.kind === 'opus' ? 1 : 2.5, WALL = 7;     // the start (the cover opens), the hold on the wall
     let u;
-    if (cine.phase === 'start') { u = 0; if (cine.t >= HOLD0) { cine.phase = 'out'; cine.t = 0; v.setSource(cine.kind === 'dj' ? 'melbourne' : 'vienna'); } }
+    if (cine.phase === 'start') { u = 0; if (cine.t >= HOLD0) { cine.phase = 'out'; cine.t = 0; if (cine.kind !== 'opus') v.setSource(cine.kind === 'dj' ? 'melbourne' : 'vienna'); } }
     else if (cine.phase === 'out') { u = THREE.MathUtils.smootherstep(cine.t / cine.dur, 0, 1); if (cine.t >= cine.dur) { cine.phase = 'wall'; cine.t = 0; } }
-    else if (cine.phase === 'wall') { u = 1; if (cine.t >= WALL) { cine.phase = 'back'; cine.t = 0; } }
+    else if (cine.phase === 'wall') { u = 1; if (cine.kind === 'opus') { const p = cine.pos.getPointAt(1), l = cine.look.getPointAt(1); cine = null; VIEWS.cine.pos = p.toArray(); VIEWS.cine.target = l.toArray(); return; } if (cine.t >= WALL) { cine.phase = 'back'; cine.t = 0; } }   // OPUS V: it stays on the quartet's places
     else { u = 1 - THREE.MathUtils.smootherstep(cine.t / (cine.dur * 0.8), 0, 1); if (cine.t >= cine.dur * 0.8) { const p = ctx.camera.position.toArray(), l = ctx.controls.target.toArray(); endCine(); VIEWS.cine.pos = p; VIEWS.cine.target = l; return; } }
     const p = cine.pos.getPointAt(u), l = cine.look.getPointAt(u);
     ctx.camera.position.copy(p); ctx.controls.target.copy(l); ctx.camera.lookAt(l);
@@ -1304,9 +1313,11 @@ export function spaces(v, ctx) {
   const CONTROLS = {
     piano: [
       [() => (piano || pianoPlaying() ? 'Finish show' : 'Simulate show'), () => (piano || pianoPlaying() ? finish('piano') : simulate('piano'))],
-      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano'), ['Cinematic · grand to the studio wall', () => cinematic('piano')]]]],
+      ['Camera', [['P1 Main front', () => v.pickCamera('P1')], ['P2 Keyboard', () => v.pickCamera('P2')], ['P3 Side', () => v.pickCamera('P3')], ['P4 Lift reveal', () => v.pickCamera('P4')], ['P5 Tracking', () => v.pickCamera('P5')], ['4K high-speed', () => v.pickCamera('P6')], ['4K pianist · first person', () => enterPov('piano'), ['Cinematic · grand to the studio wall', () => cinematic('piano')], ['OPUS V · cinematic opening', () => cinematic('opus')]]]],
       ['Light', [['Warm piano', () => v.setMode('WARM PIANO')], ['Cinematic', () => v.setMode('CINEMATIC')], ['Performance', () => v.setMode('PERFORMANCE')], ['Studio look', () => v.setLook(false)], ['Concert look', () => v.setLook(true)]]],
       ['Effects', [['Lift up', () => v.command('up')], ['Lift down', () => v.command('down')], ['Cinematic rise', () => v.command('cinematic')]]],
+      // OPUS V: the hidden orchestra room behind the grand, opened or closed with one click (the camera stays where it is)
+      [() => (v.orchestra?.target ? 'OPUS V · close' : 'OPUS V · open'), () => v.orchestra?.toggle()],
       ['Video', [['Intermission', () => pianoIntermission()], ['Stay tuned', () => card('psBetween', { manual: true })], ['Thank you', () => card('psEnd', { manual: true })]]],
       ['Jingles', [['Between songs', () => v.showCommand('between')], ['Closing', () => v.showCommand('closing')]]],
       ['Songs', () => openLibrary('piano')],
@@ -1475,11 +1486,12 @@ export function spaces(v, ctx) {
   studioMenu('Show timer', [['Count up', () => clock.countUp()], ...[1, 5, 10, 15, 30, 60].map(n => [`Countdown ${n} min`, () => clock.countdown(n * 60000)]),
     ['Start', () => clock.start()], ['Pause', () => clock.pause()], ['Reset', () => clock.reset()]]);
   // for the Broadcast Studio later (same site), on the 'dz-virtual-space' channel: { house: true | false, force? },
-  // { houseLevel: 0 … 120 },
+  // { houseLevel: 0 … 120 }, { opus: 'open' | 'close' | 'toggle' | 'cinematic' },
   // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
   try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
     if ('house' in d) setHouse(!!d.house, { force: !!d.force });
     if ('houseLevel' in d) setHouseLevel(d.houseLevel);   // 0 … 120 (%)
+    if (d.opus) ({ open: () => v.orchestra?.setOpen(true), close: () => v.orchestra?.setOpen(false), toggle: () => v.orchestra?.toggle(), cinematic: () => cinematic('opus') })[d.opus]?.();   // OPUS V room
     if (d.timer) ({ up: () => clock.countUp(), down: () => clock.countdown(d.ms), start: () => clock.start(), pause: () => clock.pause(), reset: () => clock.reset() })[d.timer]?.(); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }
@@ -1618,7 +1630,7 @@ export function spaces(v, ctx) {
     exitK += ((houseOn ? 1 : 0) - exitK) * 0.06; exits.setLevel(exitK);
     // the house lights downstairs and behind the wall follow the studio's dimmer: the DJ Room and its lift shaft, the
     // backstage lounge (the Piano Stage stands in the studio: the studio's own battens light it)
-    workK += ((houseOn ? ctx.houseLevel ?? 0.3 : 0) - workK) * 0.06; m.setWork?.(workK); loungeWork.intensity = 4 * workK;
+    workK += ((houseOn ? ctx.houseLevel ?? 0.3 : 0) - workK) * 0.06; m.setWork?.(workK); loungeWork.intensity = 4 * workK; v.setOrchestraWork?.(workK);
     m.service?.setLevels(exitK, workK);   // the staff stairs: their step LEDs always, the work lights and EXIT with the house lights
     if (topAt && director.current === 'djTop' && !director.flying) {   // the overhead camera stays over the booth
       ctx.camera.position.copy(topAt.localToWorld(top.set(0, 1.9, -0.06))); ctx.controls.target.copy(topAt.localToWorld(down.set(0, 0, 0.02))); ctx.camera.lookAt(ctx.controls.target);

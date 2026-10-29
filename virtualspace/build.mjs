@@ -31,7 +31,7 @@ const FILES = [
   ...['assets/show', 'assets/jingles'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.(mp4|m4a)$/.test(f)).map(f => `${d}/${f}`)),
   // the Vienna Piano Stage (/piano-stage): its code and the Piano Sessions' four official recordings (git-ignored:
   // copied from the masters, see docs/vienna-stage/PIANO-SHOW.md). The songs stream from djandykofficial.com
-  ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire', 'piano-parts', 'score-parts', 'sheets', 'arrangements', 'arrangements-review'].map(f => `virtual-studio/vienna/${f}.js`),
+  ...['index', 'layout', 'lift', 'stage', 'opening', 'show', 'piano-show-config', 'piano-show-map', 'concert-look', 'keys', 'repertoire', 'piano-parts', 'score-parts', 'sheets', 'arrangements', 'arrangements-review', 'orchestra'].map(f => `virtual-studio/vienna/${f}.js`),
   ...['opening', 'theme', 'between-songs', 'closing'].map(f => `assets/audio/piano-sessions/dz-piano-${f === 'opening' || f === 'closing' ? 'sessions-' + f : f}.wav`),
   // the shows' cards (the broadcast's jingle videos, spaces.js) and the building's CC0 surfaces and night sky (building.js)
   ...fs.readdirSync(path.join(ROOT, 'assets/video/shows')).filter(f => f.endsWith('.mp4')).map(f => `assets/video/shows/${f}`),
