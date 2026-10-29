@@ -1334,12 +1334,27 @@ export function spaces(v, ctx) {
   const ls = document.createElement('style');
   ls.textContent = `.sp-lights{position:fixed;left:16px;top:92px;z-index:5;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;max-width:min(560px,calc(100vw - 32px));padding:6px 10px;border-radius:10px;background:rgba(12,13,16,.55);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font:600 .6rem/1.3 Archivo,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e9ecf1;pointer-events:none;transition:opacity .4s}
   .sp-lights b{font-weight:800;color:#fff} .sp-lights i{font-style:normal;opacity:.85} .sp-lights i.on::before{content:'● ';color:#4ade80} .sp-lights i.off::before{content:'○ ';color:rgba(255,255,255,.45)}
-  body.sp-idle .sp-lights,body.sp-pov-on .sp-lights{opacity:0}`;
+  body.sp-idle .sp-lights,body.sp-pov-on .sp-lights{opacity:0}
+  .sp-dim{position:fixed;left:16px;top:128px;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:rgba(12,13,16,.6);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font:700 .6rem Archivo,Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#e9ecf1}
+  .sp-dim[hidden]{display:none} body.sp-pov-on .sp-dim{display:none}
+  .sp-dim input{-webkit-appearance:none;appearance:none;width:170px;height:6px;border-radius:3px;background:linear-gradient(90deg,#2a2c31,#f4f2ee 83%,#fff8e6);box-shadow:inset 0 1px 2px rgba(0,0,0,.7)}
+  .sp-dim input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:26px;border-radius:3px;background:linear-gradient(#5b5f67,#1c1e22 45%,#e8eaee 48%,#1c1e22 52%,#3a3d43);border:1px solid #0a0a0b;box-shadow:0 2px 4px rgba(0,0,0,.6);cursor:pointer}
+  .sp-dim input::-moz-range-thumb{width:14px;height:26px;border-radius:3px;background:linear-gradient(#5b5f67,#1c1e22 45%,#e8eaee 48%,#1c1e22 52%,#3a3d43);border:1px solid #0a0a0b;cursor:pointer}
+  .sp-dim output{min-width:3.4em;text-align:right;color:#fff}`;
   document.head.appendChild(ls);
+  // the house lights' dimmer: a small fader, 0 … 120 % (30 % to start), shown in CLEANING MODE
+  const dim = document.createElement('label'); dim.className = 'sp-dim'; dim.hidden = true;
+  dim.innerHTML = 'House lights <input type="range" min="0" max="120" step="1" value="30" aria-label="House lights level"><output>30 %</output>';
+  document.body.appendChild(dim);
+  const dimIn = dim.querySelector('input'), dimOut = dim.querySelector('output');
+  function setHouseLevel(pct) { pct = Math.max(0, Math.min(120, Math.round(+pct || 0))); dimIn.value = pct; dimOut.textContent = pct + ' %'; ctx.setHouseLevel?.(pct / 100); lightsCard(); }
+  dimIn.addEventListener('input', () => setHouseLevel(dimIn.value));
+  for (const ev of ['pointerdown', 'keydown', 'wheel']) dim.addEventListener(ev, e => e.stopPropagation());
   function lightsCard() {
     const it = (name, on) => `<i class="${on ? 'on' : 'off'}">${name} ${on ? 'ON' : 'OFF'}</i>`;
+    dim.hidden = !houseOn;
     lc.innerHTML = `<b>${houseOn ? 'Cleaning mode' : 'Show mode'}</b>` + (houseOn
-      ? it('House lights', true) + it('Exit signs', true) + it('Stage effects', false) + it('Show timer', true)
+      ? it(`House lights ${dimIn.value} %`, true).replace(' ON</i>', '</i>') + it('Exit signs', true) + it('Stage effects', false) + it('Show timer', true)
       : it('Stage light', true) + it('House lights', false) + it('Exit signs', false) + '<i>Effects: director</i>');
   }
   lightsCard();
@@ -1352,9 +1367,11 @@ export function spaces(v, ctx) {
   studioMenu('Show timer', [['Count up', () => clock.countUp()], ...[1, 5, 10, 15, 30, 60].map(n => [`Countdown ${n} min`, () => clock.countdown(n * 60000)]),
     ['Start', () => clock.start()], ['Pause', () => clock.pause()], ['Reset', () => clock.reset()]]);
   // for the Broadcast Studio later (same site), on the 'dz-virtual-space' channel: { house: true | false, force? },
+  // { houseLevel: 0 … 120 },
   // { timer: 'up' | 'start' | 'pause' | 'reset' } or { timer: 'down', ms }
   try { new BroadcastChannel('dz-virtual-space').onmessage = e => { const d = e.data || {};
     if ('house' in d) setHouse(!!d.house, { force: !!d.force });
+    if ('houseLevel' in d) setHouseLevel(d.houseLevel);   // 0 … 120 (%)
     if (d.timer) ({ up: () => clock.countUp(), down: () => clock.countdown(d.ms), start: () => clock.start(), pause: () => clock.pause(), reset: () => clock.reset() })[d.timer]?.(); }; } catch {}
   studioMenu('Cinematic', [['DJ Room to the studio wall', () => cinematic('dj')], ['The grand to the studio wall', () => cinematic('piano')]]);
   for (const [label, fn] of [['Programme', openProgramme], ['Info', openInfo]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b'; setTile(b, label); b.addEventListener('click', () => { closeMenus(); fn(); }); ctrl.appendChild(b); }

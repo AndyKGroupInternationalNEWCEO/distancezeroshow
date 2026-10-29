@@ -1624,8 +1624,10 @@ function buildLights(root, quality, wallLight, pianoLamp, M) {
   const battens = new THREE.Group(); battens.name = 'house-battens';
   const diffuser = new THREE.MeshBasicMaterial({ color: 0x0c0c0c, toneMapped: false });
   const bodyGeo = new THREE.BoxGeometry(1.8, 0.07, 0.14), diffGeo = new THREE.PlaneGeometry(1.74, 0.1).rotateX(Math.PI / 2), wireGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.4, 6);
-  for (const z of [-4.5, 0, 4.5]) for (const x of [-6, -2, 2, 6]) {
-    const b = new THREE.Group(); b.position.set(x, 7.9, z);
+  // the twelve (three rows of four) and four more where the room was darkest: its two sides and over the cameras
+  const BATTENS = [...[-4.5, 0, 4.5].flatMap(z => [-6, -2, 2, 6].map(x => [x, z, 0])), [-9.5, 3, Math.PI / 2], [9.5, 3, Math.PI / 2], [-4, 9, 0], [4, 9, 0]];
+  for (const [x, z, ry] of BATTENS) {
+    const b = new THREE.Group(); b.position.set(x, 7.9, z); b.rotation.y = ry;
     b.add(new THREE.Mesh(bodyGeo, M.alu));
     const d = new THREE.Mesh(diffGeo, diffuser); d.position.y = -0.036; b.add(d);
     for (const wx of [-0.7, 0.7]) { const w = new THREE.Mesh(wireGeo, M.graphite); w.position.set(wx, 0.235, 0); b.add(w); }
@@ -1658,11 +1660,12 @@ function buildLights(root, quality, wallLight, pianoLamp, M) {
       logoSpot.intensity = 120 * L.accent;
       fill.intensity = 1.6 * L.key;
       const work = L.work || 0;   // the house lights (cleaning mode): neutral white, the room evenly lit
-      house.color.copy(C.cool).lerp(WORK, work);
-      house.intensity = 0.9 * L.house + 3.6 * work;
-      hemi.intensity = (0.42 + 0.3 * L.house + 0.7 * work) * (1 - 0.75 * L.solo);
-      soft.intensity = (0.55 + 0.25 * L.house + 0.9 * work) * (1 - 0.85 * L.solo);
-      diffuser.color.setScalar(0.05 + 2.2 * work);
+      house.color.copy(C.cool).lerp(WORK, Math.min(1, work * 3));
+      // work: the house lights' dimmer, 0 … 1.2 (100 % the full work light, 120 % brighter still: ACES keeps it unburnt)
+      house.intensity = 0.9 * L.house + 4.2 * work;
+      hemi.intensity = (0.42 + 0.3 * L.house + 0.75 * work) * (1 - 0.75 * L.solo);
+      soft.intensity = (0.55 + 0.25 * L.house + 0.95 * work) * (1 - 0.85 * L.solo);
+      diffuser.color.setScalar(0.05 + 2.0 * work);
     },
   };
 }
