@@ -119,6 +119,16 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
   /* ----- light state: eased towards the preset, with the effects the operator set on top ----- */
   let mode = 'OPENING';
   let cleanSaved = null;   // the effects as they were before CLEANING MODE
+  // the club's own house lights for CLEANING MODE: white LED battens under its ceiling (two soft area lights carry their
+  // light, the room evenly lit) and a work light in the lift's shaft; dark in SHOW MODE. setWork(level 0 … 1.2)
+  const workRoom = new THREE.Group(); workRoom.name = 'club-house-lights'; room.root.add(workRoom);
+  const workLights = [-3, 3].map(al => { const l = new THREE.RectAreaLight(0xf4f2ee, 0, 6, 4.5); const [x, y, z] = xyz(al, ROOM.across, ROOM.ceiling - 0.25); l.position.set(x, y, z); l.lookAt(x, ROOM.floor, z); workRoom.add(l); return l; });
+  const shaftWork = new THREE.PointLight(0xf4f2ee, 0, 9, 2); shaftWork.position.set(...xyz(DJ_LIFT.along, DJ_LIFT.across + 1.6, ROOM.ceiling - 0.6)); workRoom.add(shaftWork);
+  const workDiff = new THREE.MeshBasicMaterial({ color: 0x0c0c0c, toneMapped: false });
+  for (const al of [-4.5, -1.5, 1.5, 4.5]) for (const ac of [ROOM.across - 3, ROOM.across + 3]) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.05, 0.12), studio.M.alu); b.position.set(...xyz(al, ac, ROOM.ceiling - 0.06)); b.rotation.y = BOOTH.rotY; workRoom.add(b);
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(1.54, 0.09).rotateX(Math.PI / 2), workDiff); d.position.y = -0.026; b.add(d);
+  }
   const fx = { lasers: null, laserLevel: 1, haze: null, strobe: 0, preset: null, disco: null, discoSpeed: 1 };   // null: follow the preset
   let modeBeat = 0, dropUntil = -1;   // the beat the mode was taken on (BUILD-UP's ramp); DROP's strobe until this beat
   const L = { disco: { level: 0, speed: 1 }, fogFloor: { level: 0 }, led: { level: 0 }, haze: { level: 0 }, strobe: { level: 0 }, screens: { level: 1 }, pads: { level: 1 }, meters: { level: 1 }, preset: 'LOGO', track: null, smokeRequest: 0 };
@@ -381,6 +391,7 @@ export function melbourne({ renderer, scene, camera, controls, director, studio,
     fog(seconds = 3) { L.smokeRequest = Math.max(0.5, Math.min(8, +seconds)); L.fogFloor.level = Math.min(1, L.fogFloor.level + 0.35 + seconds * 0.12); say('Fog burst: ' + L.smokeRequest + ' s'); },
     setLed(p) { if (!LED_PRESETS.includes(p)) return say('No such LED preset'); fx.preset = p; say('LED walls: ' + p); },
     lasers(on, level) { fx.lasers = on === null ? null : !!on; if (level !== undefined) fx.laserLevel = Math.max(0, Math.min(1, +level)); say(`Lasers ${fx.lasers === null ? 'with the preset' : fx.lasers ? 'on' : 'off'} · ${Math.round(fx.laserLevel * 100)} %`); },
+    setWork(k) { k = Math.max(0, Math.min(1.2, +k || 0)); for (const l of workLights) l.intensity = 4.2 * k; shaftWork.intensity = 40 * k; workDiff.color.setScalar(0.05 + 2.0 * k); },
     // CLEANING MODE (spaces.js): the club's coloured effects off (lasers, haze, strobe, disco ball, the LED walls' visuals),
     // remembered; off again, every one back as it was
     cleaning(on) {
