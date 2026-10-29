@@ -62,6 +62,30 @@ check('the wall opens fully', await W(`${O}.open >= 1`, 900000), await state());
 await W(`!window.__studio.director.flying`, 300000); await frames(6); await shot('3-open-cinematic-end');
 
 const SCOPE = process.env.SCOPE || 'all';
+if (SCOPE === 'transform') {
+  // the transforming room: the quartet, the cinematic change with its shot, the orchestra, the immediate change back
+  const cam = async (item, tag, n = 6) => { await menu('Camera', item); await W(`!window.__studio.director.flying`, 300000); await frames(n); await shot(tag); };
+  const id = `window.__studio.director.current`;
+  check('quartet at the start', (await state()).config === 'quartet', await state());
+  await cam('OV3', 't1-quartet-OV3'); await cam('OV1', 't1-quartet-OV1'); await cam('OV2', 't1-quartet-OV2'); await cam('OV4', 't1-quartet-OV4', 12);
+  check('Configuration → Chamber orchestra (cinematic)', await menu('Configuration', 'Chamber orchestra · 28'));
+  check('the transformation shot is on', await W(`${id} === 'oXF'`, 120000), await state());
+  for (const [p, tag] of [[0.12, 'a-canopy'], [0.3, 'b-walls'], [0.55, 'c-risers'], [0.85, 'd-trusses']]) { await W(`${O}.progress >= ${p}`, 1800000); await frames(2); await shot('t2-change-' + tag); }
+  check('the change completes in the orchestra', await W(`${O}.progress === 1 && !${O}.changing`, 1800000), await run(`({ p: ${O}.progress, config: ${O}.config, chamber: ${O}.group.getObjectByName('opus-v-chamber').visible })`));
+  check('then onto OV3', await W(`${id} === 'oOV3'`, 300000), await state());
+  await W(`!window.__studio.director.flying`, 300000); await frames(6); await shot('t3-orchestra-OV3');
+  await cam('OV1', 't3-orchestra-OV1'); await cam('OV2', 't3-orchestra-OV2'); await cam('OV4', 't3-orchestra-OV4', 12); await cam('CCTV', 't3-orchestra-CCTV');
+  check('Configuration → String quartet (immediate)', await menu('Configuration', 'String quartet · immediate'));
+  check('quartet at once', await W(`${O}.progress === 0 && ${O}.group.getObjectByName('opus-v-quartet').visible`, 60000), await state());
+  await cam('OV3', 't4-quartet-immediate-OV3');
+  check('missing instruments listed', true, await run(`({ quartet: ${O}.missing('quartet'), chamber: ${O}.missing('chamber') })`));
+  check('Close the room', await tile('Close the room'));
+  check('the wall closes fully', await W(`${O}.open <= 0`, 3600000), await state());
+  await look('chkWall', [-3.5, 2.6, 4.5], [-12.4, 2.0, -1.1], 55); await frames(6); await shot('t5-wall-closed-again');
+  check('no errors on the page', problems.length === 0, problems);
+  fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ url: URL0, at: new Date().toISOString(), seconds: Math.round((Date.now() - t0) / 1000), results, problems }, null, 1));
+  console.log(`${results.filter(r => r.ok).length} / ${results.length} passed`); chrome.kill(); process.exit(results.every(r => r.ok) ? 0 : 1);
+}
 if (SCOPE === 'instruments') {
   check('Configuration → Chamber orchestra', await menu('Configuration', 'Chamber orchestra'));
   check('Chamber orchestra shown', await W(`${O}.config === 'chamber' && ${O}.group.getObjectByName('opus-v-chamber').visible`, 300000), await state());
