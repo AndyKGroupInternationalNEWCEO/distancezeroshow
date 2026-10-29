@@ -146,7 +146,10 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     };
     composer.addPass(ao);
   }
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.62, 0.55, 0.86);
+  // bloom only for what really glows (the LEDs, the lamps, the beacons): above 0.98, softer and tighter than before.
+  // (At 0.86 / 0.62 / 0.55 nearly every lit surface glowed: a veil over the whole picture that made every camera soft)
+  const BLOOM = 0.38;
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), BLOOM, 0.4, 0.98);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   // security cameras: the picture as their recording, in the renderer itself: grey, a little hard, sensor noise, a dark
@@ -188,12 +191,21 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
   const lens = { fov: v0.fov };
   let air = null;   // the full-screen on-air simulation (created below)
   let lastFree = false;
+  // the shot's label says the picture's real size: the drawing buffer as it is now (the frame-rate watch may have
+  // lowered it), its class in place of the "4K" the shot's name carries, and the pixels. Nothing lower is called 4K or 8K
+  let shotName = null;
+  const resTag = () => { const s = renderer.getDrawingBufferSize(new THREE.Vector2()), h = Math.round(s.y);
+    return { cls: h >= 4300 ? '8K' : h >= 2150 ? '4K' : h >= 1430 ? '1440p' : h >= 1070 ? '1080p' : h + 'p', px: `${Math.round(s.x)} × ${h}` }; };
+  function showShot() {
+    if (!shotName || !VIEWS[shotName]) { ui.shot.textContent = 'Free camera'; return; }
+    const r = resTag(); ui.shot.textContent = VIEWS[shotName].long.replace(/\b4K\b/g, r.cls) + ' · ' + r.px;
+  }
   const director = createDirector({
     camera, lens, controls, reducedMotion,
     onView: name => {
       for (const b of ui.views) b.setAttribute('aria-pressed', String(b.dataset.view === name));
       document.getElementById('viewLabel').textContent = name ? VIEWS[name].label : 'Free';
-      ui.shot.textContent = name ? VIEWS[name].long : 'Free camera';
+      shotName = name; showShot();
       const cctv = name && VIEWS[name].cctv;
       document.body.classList.toggle('cctv', !!cctv); cctvPass.enabled = !!cctv;
       // a security camera, or a shot marked `free` (the Vienna piano stage's cameras, which look up at the raised
@@ -388,6 +400,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     }
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
+    showShot();
     bloom.resolution.set(w * quality.bloomScale, h * quality.bloomScale);
     // portrait phones: frame a slightly taller picture and show its lower part, so the set sits higher on screen
     // and the ceiling takes less room
@@ -414,9 +427,11 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     roomy = 0;
     if (document.hidden || fps >= 40 || downgraded > 6 || quality.broadcast) return;
     downgraded++;
-    // the picture's size first (from 4K in bigger steps when the machine is far too slow), then the effects
-    if (dpr > 1) { dprCap = dpr = Math.max(1, dpr * (fps < 25 ? 0.7 : 0.85)); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
-    else if (ao?.enabled) ao.enabled = false;
+    // the ambient occlusion goes first (at 4K the dearest effect, and the subtlest), then the picture's size (in bigger
+    // steps when the machine is far too slow), then the other effects: the resolution, which every camera shows, is
+    // kept as long as possible
+    if (ao?.enabled) ao.enabled = false;
+    else if (dpr > 1) { dprCap = dpr = Math.max(1, dpr * (fps < 25 ? 0.7 : 0.85)); renderer.setPixelRatio(dpr); composer.setPixelRatio(dpr); resize(); }
     else if (mirror) { scene.remove(mirror); mirror = null; studio.floorOpaque?.(); }
     else bloom.enabled = false;
   }
@@ -488,7 +503,7 @@ export async function start({ canvas, ui, quality, progress = () => {}, extend =
     studio.robot.active = robotShot || director.current === 'robot';
     studio.update(setTime, sdt, L, director.tally());
     scene.environmentIntensity = 0.8 * (1 - 0.45 * L.solo);   // the lacquer reflects a darker room too
-    bloom.strength = 0.62 * (1 - 0.55 * L.solo);              // and the warm keys stay keys, not a neon bar
+    bloom.strength = BLOOM * (1 - 0.55 * L.solo);             // and the warm keys stay keys, not a neon bar
 
     // a single slow frame (a hitch) is not passed on to the camera in full: it carries on smoothly instead of jumping
     // ahead. A machine that is slow all the time keeps its own pace (its average), so moves never turn slow motion
