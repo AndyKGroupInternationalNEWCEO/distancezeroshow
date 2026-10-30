@@ -62,6 +62,15 @@ check('the wall opens fully', await W(`${O}.open >= 1`, 900000), await state());
 await W(`!window.__studio.director.flying`, 300000); await frames(6); await shot('3-open-cinematic-end');
 
 const SCOPE = process.env.SCOPE || 'all';
+if (SCOPE === 'ov3') {   // one picture: the orchestra from OV3, wide
+  check('Configuration → Chamber orchestra (immediate)', await menu('Configuration', 'Chamber orchestra · immediate'));
+  check('orchestra shown', await W(`${O}.progress === 1 && ${O}.group.getObjectByName('opus-v-chamber').visible`, 60000), await state());
+  await menu('Camera', 'OV3'); await W(`!window.__studio.director.flying`, 300000); await frames(8); await shot('ov3-orchestra-wide');
+  await menu('Camera', 'OV1'); await W(`!window.__studio.director.flying`, 300000); await frames(6); await shot('ov1-orchestra');
+  check('no errors on the page', problems.length === 0, problems);
+  fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ url: URL0, results, problems }, null, 1));
+  console.log(`${results.filter(r => r.ok).length} / ${results.length} passed`); chrome.kill(); process.exit(results.every(r => r.ok) ? 0 : 1);
+}
 if (SCOPE === 'transform') {
   // the transforming room: the quartet, the cinematic change with its shot, the orchestra, the immediate change back
   const cam = async (item, tag, n = 6) => { await menu('Camera', item); await W(`!window.__studio.director.flying`, 300000); await frames(n); await shot(tag); };
